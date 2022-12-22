@@ -62,9 +62,9 @@ def test_data(data):
 @mark.parametrize('convergence', CONVERGENCE_SECRETS)
 @mark.parametrize('data', OBJECT_DATA)
 @ensureDeferred
-async def test_chk_capability(alice, params, convergence, data):
+async def test_chk_capability(reactor, request, alice, params, convergence, data):
     # rewrite alice's config to match params and convergence
-    await reconfigure(alice, params, convergence)
+    await reconfigure(reactor, request, alice, params, convergence)
 
     # upload data as a CHK
     actual = upload_immutable(alice, data)
@@ -90,6 +90,7 @@ async def asyncfoldr(
 def insert(item: tuple[α, β], d: dict[α, β]) -> dict[α, β]:
     d[item[0]] = item[1]
     return d
+
 
 @ensureDeferred
 async def test_generate(reactor, request, alice):
