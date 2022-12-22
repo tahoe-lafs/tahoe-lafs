@@ -1,15 +1,9 @@
 """
-Ported to Python 3.
+General functionality useful for the implementation of integration tests.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
+from typing import TypeVar, Iterator, Awaitable, Callable
+from tempfile import NamedTemporaryFile
 import sys
 import time
 import json
@@ -32,6 +26,7 @@ import requests
 from paramiko.rsakey import RSAKey
 from boltons.funcutils import wraps
 
+from allmydata.util import base32
 from allmydata.util.configutil import (
     get_config,
     set_config,
@@ -598,3 +593,89 @@ def run_in_thread(f):
     def test(*args, **kwargs):
         return deferToThread(lambda: f(*args, **kwargs))
     return test
+
+
+def upload(alice: TahoeProcess, fmt: str, data: bytes) -> str:
+    """
+    Upload the given data to the given node.
+
+    :param alice: The node to upload to.
+
+    :param fmt: The name of the format for the upload.  CHK, SDMF, or MDMF.
+
+    :param data: The data to upload.
+
+    :return: The capability for the uploaded data.
+    """
+    with NamedTemporaryFile() as f:
+        f.write(data)
+        f.flush()
+        return cli(alice, "put", f"--format={fmt}", f.name).decode("utf-8").strip()
+
+
+α = TypeVar("α")
+β = TypeVar("β")
+
+async def asyncfoldr(
+        i: Iterator[Awaitable[α]],
+        f: Callable[[α, β], β],
+        initial: β,
+) -> β:
+    """
+    Right fold over an async iterator.
+
+    :param i: The async iterator.
+    :param f: The function to fold.
+    :param initial: The starting value.
+
+    :return: The result of the fold.
+    """
+    result = initial
+    async for a in i:
+        result = f(a, result)
+    return result
+
+
+def insert(item: tuple[α, β], d: dict[α, β]) -> dict[α, β]:
+    """
+    In-place add an item to a dictionary.
+
+    If the key is already present, replace the value.
+
+    :param item: A tuple of the key and value.
+    :param d: The dictionary to modify.
+
+    :return: The dictionary.
+    """
+    d[item[0]] = item[1]
+    return d
+
+
+async def reconfigure(reactor, request, node: TahoeProcess, params: tuple[int, int], convergence: bytes) -> None:
+    """
+    Reconfigure a Tahoe-LAFS node with different ZFEC parameters and
+    convergence secret.
+
+    :param reactor: A reactor to use to restart the process.
+    :param request: The pytest request object to use to arrange process
+        cleanup.
+    :param node: The Tahoe-LAFS node to reconfigure.
+    :param params: The ``needed`` and ``total`` ZFEC encoding parameters.
+    :param convergence: The convergence secret.
+
+    :return: ``None`` after the node configuration has been rewritten, the
+        node has been restarted, and the node is ready to provide service.
+    """
+    needed, total = params
+    config = node.get_config()
+    config.set_config("client", "shares.happy", str(1))
+    config.set_config("client", "shares.needed", str(needed))
+    config.set_config("client", "shares.total", str(total))
+    config.write_private_config("convergence", base32.b2a(convergence))
+
+    # restart the node
+    print(f"Restarting {node.node_dir} for ZFEC reconfiguration")
+    await node.restart_async(reactor, request)
+    print("Restarted.  Waiting for ready state.")
+    await_client_ready(node)
+    print("Ready.")
