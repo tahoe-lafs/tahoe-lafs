@@ -19,11 +19,11 @@ from allmydata.util import base32
 
 CONVERGENCE_SECRETS = [
     b"aaaaaaaaaaaaaaaa",
-    # b"bbbbbbbbbbbbbbbb",
-    # b"abcdefghijklmnop",
-    # b"hello world stuf",
-    # b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-    # sha256(b"Hello world").digest()[:16],
+    b"bbbbbbbbbbbbbbbb",
+    b"abcdefghijklmnop",
+    b"hello world stuf",
+    b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
+    sha256(b"Hello world").digest()[:16],
 ]
 
 ONE_KB = sha256(b"Hello world").digest() * 32
@@ -31,21 +31,21 @@ assert len(ONE_KB) == 1024
 
 OBJECT_DATA = [
     b"a" * 1024,
-    # b"b" * 2048,
-    # b"c" * 4096,
-    # (ONE_KB * 8)[:-1],
-    # (ONE_KB * 8) + b"z",
-    # (ONE_KB * 128)[:-1],
-    # (ONE_KB * 128) + b"z",
+    b"b" * 2048,
+    b"c" * 4096,
+    (ONE_KB * 8)[:-1],
+    (ONE_KB * 8) + b"z",
+    (ONE_KB * 128)[:-1],
+    (ONE_KB * 128) + b"z",
 ]
 
 ZFEC_PARAMS = [
     (1, 1),
     (1, 3),
-    # (2, 3),
-    # (3, 10),
-    # (71, 255),
-    # (101, 256),
+    (2, 3),
+    (3, 10),
+    (71, 255),
+    (101, 256),
 ]
 
 @mark.parametrize('convergence', CONVERGENCE_SECRETS)
