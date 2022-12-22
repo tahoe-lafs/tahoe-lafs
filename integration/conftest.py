@@ -358,7 +358,7 @@ def alice_sftp_client_key_path(temp_dir):
     # typically), but for convenience sake for testing we'll put it inside node.
     return join(temp_dir, "alice", "private", "ssh_client_rsa_key")
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 @log_call(action_type=u"integration:alice", include_args=[], include_result=False)
 def alice(
         reactor,
