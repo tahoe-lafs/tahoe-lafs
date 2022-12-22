@@ -142,7 +142,18 @@ class _MagicTextProtocol(ProcessProtocol):
         sys.stdout.write(data)
 
 
-def _cleanup_tahoe_process(tahoe_transport, exited):
+def _cleanup_tahoe_process_async(tahoe_transport, allow_missing):
+    if tahoe_transport.pid is None:
+        if allow_missing:
+            print("Process already cleaned up and that's okay.")
+            return
+        else:
+            raise ValueError("Process is not running")
+    print("signaling {} with TERM".format(tahoe_transport.pid))
+    tahoe_transport.signalProcess('TERM')
+
+
+def _cleanup_tahoe_process(tahoe_transport, exited, allow_missing=False):
     """
     Terminate the given process with a kill signal (SIGKILL on POSIX,
     TerminateProcess on Windows).
@@ -154,13 +165,11 @@ def _cleanup_tahoe_process(tahoe_transport, exited):
     """
     from twisted.internet import reactor
     try:
-        print("signaling {} with TERM".format(tahoe_transport.pid))
-        tahoe_transport.signalProcess('TERM')
+        _cleanup_tahoe_process_async(tahoe_transport, allow_missing=allow_missing)
+    except ProcessExitedAlready:
         print("signaled, blocking on exit")
         block_with_timeout(exited, reactor)
         print("exited, goodbye")
-    except ProcessExitedAlready:
-        pass
 
 
 def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
@@ -207,7 +216,24 @@ class TahoeProcess(object):
 
     def kill(self):
         """Kill the process, block until it's done."""
+        print(f"TahoeProcess.kill({self.transport.pid} / {self.node_dir})")
         _cleanup_tahoe_process(self.transport, self.transport.exited)
+
+    def kill_async(self):
+        """
+        Kill the process, return a Deferred that fires when it's done.
+        """
+        print(f"TahoeProcess.kill_async({self.transport.pid} / {self.node_dir})")
+        _cleanup_tahoe_process_async(self.transport, allow_missing=False)
+        return self.transport.exited
+
+    def restart_async(self, reactor, request):
+        d = self.kill_async()
+        d.addCallback(lambda ignored: _run_node(reactor, self.node_dir, request, None))
+        def got_new_process(proc):
+            self._process_transport = proc.transport
+        d.addCallback(got_new_process)
+        return d
 
     def __str__(self):
         return "<TahoeProcess in '{}'>".format(self._node_dir)
@@ -238,7 +264,7 @@ def _run_node(reactor, node_dir, request, magic_text, finalize=True):
     transport.exited = protocol.exited
 
     if finalize:
-        request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
+        request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited, allow_missing=True))
 
     # XXX abusing the Deferred; should use .when_magic_seen() pattern
 

@@ -49,7 +49,6 @@ from .util import (
     await_client_ready,
     TahoeProcess,
     cli,
-    _run_node,
     generate_ssh_key,
     block_with_timeout,
 )
@@ -359,7 +358,7 @@ def alice_sftp_client_key_path(temp_dir):
     # typically), but for convenience sake for testing we'll put it inside node.
     return join(temp_dir, "alice", "private", "ssh_client_rsa_key")
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')
 @log_call(action_type=u"integration:alice", include_args=[], include_result=False)
 def alice(
         reactor,
@@ -410,10 +409,9 @@ alice-key ssh-rsa {ssh_public_key} {rwcap}
 """.format(rwcap=rwcap, ssh_public_key=ssh_public_key))
 
     # 4. Restart the node with new SFTP config.
-    process.kill()
-    pytest_twisted.blockon(_run_node(reactor, process.node_dir, request, None))
-
+    pytest_twisted.blockon(process.restart_async(reactor, request))
     await_client_ready(process)
+    print(f"Alice pid: {process.transport.pid}")
     return process
 
 
