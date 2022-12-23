@@ -87,7 +87,7 @@ async def test_chk_capability(reactor, request, alice, params_idx, convergence_i
     data = OBJECT_DATA[data_idx]
 
     # rewrite alice's config to match params and convergence
-    await reconfigure(reactor, request, alice, params, convergence)
+    await reconfigure(reactor, request, alice, (1,) + params, convergence)
 
     # upload data as a CHK
     actual = upload(alice, "chk", data)

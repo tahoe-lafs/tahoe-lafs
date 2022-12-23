@@ -651,31 +651,50 @@ def insert(item: tuple[α, β], d: dict[α, β]) -> dict[α, β]:
     return d
 
 
-async def reconfigure(reactor, request, node: TahoeProcess, params: tuple[int, int], convergence: bytes) -> None:
+async def reconfigure(reactor, request, node: TahoeProcess, params: tuple[int, int, int], convergence: bytes) -> None:
     """
     Reconfigure a Tahoe-LAFS node with different ZFEC parameters and
     convergence secret.
+
+    If the current configuration is different from the specified
+    configuration, the node will be restarted so it takes effect.
 
     :param reactor: A reactor to use to restart the process.
     :param request: The pytest request object to use to arrange process
         cleanup.
     :param node: The Tahoe-LAFS node to reconfigure.
-    :param params: The ``needed`` and ``total`` ZFEC encoding parameters.
+    :param params: The ``happy``, ``needed``, and ``total`` ZFEC encoding
+      parameters.
     :param convergence: The convergence secret.
 
     :return: ``None`` after the node configuration has been rewritten, the
         node has been restarted, and the node is ready to provide service.
     """
-    needed, total = params
+    happy, needed, total = params
     config = node.get_config()
-    config.set_config("client", "shares.happy", str(1))
-    config.set_config("client", "shares.needed", str(needed))
-    config.set_config("client", "shares.total", str(total))
-    config.write_private_config("convergence", base32.b2a(convergence))
 
-    # restart the node
-    print(f"Restarting {node.node_dir} for ZFEC reconfiguration")
-    await node.restart_async(reactor, request)
-    print("Restarted.  Waiting for ready state.")
-    await_client_ready(node)
-    print("Ready.")
+    changed = False
+    cur_happy = int(config.get_config("client", "shares.happy"))
+    cur_needed = int(config.get_config("client", "shares.needed"))
+    cur_total = int(config.get_config("client", "shares.total"))
+
+    if (happy, needed, total) != (cur_happy, cur_needed, cur_total):
+        changed = True
+        config.set_config("client", "shares.happy", str(happy))
+        config.set_config("client", "shares.needed", str(needed))
+        config.set_config("client", "shares.total", str(total))
+
+    cur_convergence = config.get_private_config("convergence").encode("ascii")
+    if base32.a2b(cur_convergence) != convergence:
+        changed = True
+        config.write_private_config("convergence", base32.b2a(convergence))
+
+    if changed:
+        # restart the node
+        print(f"Restarting {node.node_dir} for ZFEC reconfiguration")
+        await node.restart_async(reactor, request)
+        print("Restarted.  Waiting for ready state.")
+        await_client_ready(node)
+        print("Ready.")
+    else:
+        print("Config unchanged, not restarting.")
