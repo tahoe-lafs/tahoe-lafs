@@ -135,7 +135,7 @@ async def test_capability(reactor, request, alice, params_idx, convergence_idx, 
 
 
 @ensureDeferred
-async def test_generate(reactor, request, alice):
+async def skiptest_generate(reactor, request, alice):
     """
     This is a helper for generating the test vectors.
 
