@@ -162,6 +162,7 @@ def _cleanup_tahoe_process(tahoe_transport, exited, allow_missing=False):
     try:
         _cleanup_tahoe_process_async(tahoe_transport, allow_missing=allow_missing)
     except ProcessExitedAlready:
+        # XXX is this wait logic right?
         print("signaled, blocking on exit")
         block_with_timeout(exited, reactor)
         print("exited, goodbye")
