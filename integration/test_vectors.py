@@ -190,7 +190,7 @@ async def generate(
 
     :param space: An iterator of coordinates in the test vector space for
        which to generate values.  The elements of each tuple give indexes into
-       ZFEC_PARAMS, CONVERGENCE_SECRETS, OBJECT_DESCRIPTIONS, and FORMTS.
+       ZFEC_PARAMS, CONVERGENCE_SECRETS, OBJECT_DESCRIPTIONS, and FORMATS.
 
     :return: The yield values are two-tuples describing a test vector.  The
         first element is a string describing a case and the second element is
