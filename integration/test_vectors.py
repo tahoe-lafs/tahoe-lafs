@@ -130,7 +130,7 @@ async def test_capability(reactor, request, alice, params_idx, convergence_idx, 
     actual = upload(alice, case.fmt, case.data)
 
     # compare the resulting cap to the expected result
-    expected = vectors.capabilities[case.key]
+    expected = vectors.capabilities["vector"][case.key]
     assert actual == expected
 
 
@@ -156,7 +156,7 @@ async def skiptest_generate(reactor, request, alice):
         insert,
         {},
     )
-    with vectors.CHK_PATH.open("w") as f:
+    with vectors.DATA_PATH.open("w") as f:
         f.write(safe_dump({
             "version": "2022-12-26",
             "params": {
