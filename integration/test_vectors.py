@@ -194,7 +194,7 @@ async def generate(
 
     :return: The yield values are two-tuples describing a test vector.  The
         first element is a string describing a case and the second element is
-        the CHK capability for that case.
+        the capability for that case.
     """
     # Share placement doesn't affect the resulting capability.  For maximum
     # reliability, be happy if we can put shares anywhere
