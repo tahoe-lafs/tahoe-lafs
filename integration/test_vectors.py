@@ -197,7 +197,7 @@ async def generate(
         the capability for that case.
     """
     # Share placement doesn't affect the resulting capability.  For maximum
-    # reliability, be happy if we can put shares anywhere
+    # reliability of this generator, be happy if we can put shares anywhere
     happy = 1
     node_key = (None, None)
     for params_idx, secret_idx, data_idx, fmt_idx in space:
