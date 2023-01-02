@@ -26,10 +26,6 @@ def hexdigest(bs: bytes) -> str:
     return sha256(bs).hexdigest()
 
 
-# Sometimes upload fail spuriously...
-RETRIES = 3
-
-
 # Just a couple convergence secrets.  The only thing we do with this value is
 # feed it into a tagged hash.  It certainly makes a difference to the output
 # but the hash should destroy any structure in the input so it doesn't seem
