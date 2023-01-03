@@ -1,23 +1,13 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
-    # Use native unicode() as str() to prevent leaking futurebytes in ways that
-    # break string formattin.
-    from past.builtins import unicode as str
-from past.builtins import long
 
 from twisted.web import http, static
 from twisted.internet import defer
 from twisted.web.resource import (
-    Resource,  # note: Resource is an old-style class
+    Resource,
     ErrorPage,
 )
 
@@ -395,7 +385,7 @@ class FileDownloader(Resource, object):
         # list of (first,last) inclusive range tuples.
 
         filesize = self.filenode.get_size()
-        assert isinstance(filesize, (int,long)), filesize
+        assert isinstance(filesize, int), filesize
 
         try:
             # byte-ranges-specifier
@@ -408,19 +398,19 @@ class FileDownloader(Resource, object):
 
                 if first == '':
                     # suffix-byte-range-spec
-                    first = filesize - long(last)
+                    first = filesize - int(last)
                     last = filesize - 1
                 else:
                     # byte-range-spec
 
                     # first-byte-pos
-                    first = long(first)
+                    first = int(first)
 
                     # last-byte-pos
                     if last == '':
                         last = filesize - 1
                     else:
-                        last = long(last)
+                        last = int(last)
 
                 if last < first:
                     raise ValueError
@@ -456,7 +446,7 @@ class FileDownloader(Resource, object):
                           b'attachment; filename="%s"' % self.filename)
 
         filesize = self.filenode.get_size()
-        assert isinstance(filesize, (int,long)), filesize
+        assert isinstance(filesize, int), filesize
         first, size = 0, None
         contentsize = filesize
         req.setHeader("accept-ranges", "bytes")
