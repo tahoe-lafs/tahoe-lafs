@@ -102,7 +102,10 @@ class FakeNodeMaker(NodeMaker):
                                    self.encoding_params, None,
                                    self.all_contents).init_from_cap(cap)
     def create_mutable_file(self, contents=b"", keysize=None,
-                            version=SDMF_VERSION):
+                            version=SDMF_VERSION,
+                            keypair=None,
+                            ):
+        assert keypair is None, "FakeNodeMaker does not support externally supplied keypairs"
         n = FakeMutableFileNode(None, None, self.encoding_params, None,
                                 self.all_contents)
         return n.create(contents, version=version)

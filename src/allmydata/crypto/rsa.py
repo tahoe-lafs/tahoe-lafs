@@ -9,17 +9,11 @@ features of any objects that `cryptography` documents.
 
 That is, the public and private keys are opaque objects; DO NOT depend
 on any of their methods.
-
-Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
+
+from typing import TypeVar
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
@@ -30,6 +24,8 @@ from cryptography.hazmat.primitives.serialization import load_der_private_key, l
 
 from allmydata.crypto.error import BadSignature
 
+PublicKey = TypeVar("PublicKey", bound=rsa.RSAPublicKey)
+PrivateKey = TypeVar("PrivateKey", bound=rsa.RSAPrivateKey)
 
 # This is the value that was used by `pycryptopp`, and we must continue to use it for
 # both backwards compatibility and interoperability.

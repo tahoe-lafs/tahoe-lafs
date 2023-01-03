@@ -30,6 +30,7 @@ from allmydata.mutable.publish import MutableData
 from ..test_download import PausingConsumer, PausingAndStoppingConsumer, \
      StoppingConsumer, ImmediatelyStoppingConsumer
 from .. import common_util as testutil
+from ...crypto.rsa import create_signing_keypair
 from .util import (
     FakeStorage,
     make_nodemaker_with_peers,
@@ -65,6 +66,16 @@ class Filenode(AsyncBrokenTestCase, testutil.ShouldFailMixin):
         d.addCallback(_created)
         return d
 
+    async def test_create_with_keypair(self):
+        """
+        An SDMF can be created using a given keypair.
+        """
+        (priv, pub) = create_signing_keypair(2048)
+        node = await self.nodemaker.create_mutable_file(keypair=(pub, priv))
+        self.assertThat(
+            (node.get_privkey(), node.get_pubkey()),
+            Equals((priv, pub)),
+        )
 
     def test_create_mdmf(self):
         d = self.nodemaker.create_mutable_file(version=MDMF_VERSION)
