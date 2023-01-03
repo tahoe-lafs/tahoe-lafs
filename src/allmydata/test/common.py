@@ -1,14 +1,8 @@
 """
-Ported to Python 3.
+Functionality related to a lot of the test suite.
 """
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2, native_str
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import chr as byteschr
 
 __all__ = [
@@ -117,19 +111,8 @@ from .eliotutil import (
 )
 from .common_util import ShouldFailMixin  # noqa: F401
 
-if sys.platform == "win32" and PY2:
-    # Python 2.7 doesn't have good options for launching a process with
-    # non-ASCII in its command line.  So use this alternative that does a
-    # better job.  However, only use it on Windows because it doesn't work
-    # anywhere else.
-    from ._win_subprocess import (
-        Popen,
-    )
-else:
-    from subprocess import (
-        Popen,
-    )
 from subprocess import (
+    Popen,
     PIPE,
 )
 
@@ -298,7 +281,7 @@ class UseNode(object):
     plugin_config = attr.ib()
     storage_plugin = attr.ib()
     basedir = attr.ib(validator=attr.validators.instance_of(FilePath))
-    introducer_furl = attr.ib(validator=attr.validators.instance_of(native_str),
+    introducer_furl = attr.ib(validator=attr.validators.instance_of(str),
                               converter=six.ensure_str)
     node_config = attr.ib(default=attr.Factory(dict))
 

@@ -1,16 +1,8 @@
 """
 Ported to Python 3.
 """
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    # Doesn't import str to prevent API leakage on Python 2
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
-from past.builtins import unicode
 from six import ensure_str
 
 import sys, time, copy
@@ -203,8 +195,8 @@ class ServerMap(object):
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = verinfo
             print("[%s]: sh#%d seq%d-%s %d-of-%d len%d" %
-                         (unicode(server.get_name(), "utf-8"), shnum,
-                          seqnum, unicode(base32.b2a(root_hash)[:4], "utf-8"), k, N,
+                         (str(server.get_name(), "utf-8"), shnum,
+                          seqnum, str(base32.b2a(root_hash)[:4], "utf-8"), k, N,
                           datalength), file=out)
         if self._problems:
             print("%d PROBLEMS" % len(self._problems), file=out)
@@ -276,7 +268,7 @@ class ServerMap(object):
         """Take a versionid, return a string that describes it."""
         (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
          offsets_tuple) = verinfo
-        return "seq%d-%s" % (seqnum, unicode(base32.b2a(root_hash)[:4], "utf-8"))
+        return "seq%d-%s" % (seqnum, str(base32.b2a(root_hash)[:4], "utf-8"))
 
     def summarize_versions(self):
         """Return a string describing which versions we know about."""
@@ -824,7 +816,7 @@ class ServermapUpdater(object):
 
 
     def notify_server_corruption(self, server, shnum, reason):
-        if isinstance(reason, unicode):
+        if isinstance(reason, str):
             reason = reason.encode("utf-8")
         ss = server.get_storage_server()
         ss.advise_corrupt_share(
@@ -879,7 +871,7 @@ class ServermapUpdater(object):
         # ok, it's a valid verinfo. Add it to the list of validated
         # versions.
         self.log(" found valid version %d-%s from %s-sh%d: %d-%d/%d/%d"
-                 % (seqnum, unicode(base32.b2a(root_hash)[:4], "utf-8"),
+                 % (seqnum, str(base32.b2a(root_hash)[:4], "utf-8"),
                     ensure_str(server.get_name()), shnum,
                     k, n, segsize, datalen),
                     parent=lp)
