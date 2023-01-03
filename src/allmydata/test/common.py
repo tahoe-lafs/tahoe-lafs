@@ -105,6 +105,7 @@ from allmydata.scripts.common import (
 
 from ..crypto import (
     ed25519,
+    rsa,
 )
 from .eliotutil import (
     EliotLoggedRunTest,
@@ -622,15 +623,28 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
 
     MUTABLE_SIZELIMIT = 10000
 
-    def __init__(self, storage_broker, secret_holder,
-                 default_encoding_parameters, history, all_contents):
+    _public_key: rsa.PublicKey | None
+    _private_key: rsa.PrivateKey | None
+
+    def __init__(self,
+                 storage_broker,
+                 secret_holder,
+                 default_encoding_parameters,
+                 history,
+                 all_contents,
+                 keypair: tuple[rsa.PublicKey, rsa.PrivateKey] | None
+                ):
         self.all_contents = all_contents
         self.file_types = {} # storage index => MDMF_VERSION or SDMF_VERSION
-        self.init_from_cap(make_mutable_file_cap())
+        self.init_from_cap(make_mutable_file_cap(keypair))
         self._k = default_encoding_parameters['k']
         self._segsize = default_encoding_parameters['max_segment_size']
-    def create(self, contents, key_generator=None, keysize=None,
-               version=SDMF_VERSION):
+        if keypair is None:
+            self._public_key = self._private_key = None
+        else:
+            self._public_key, self._private_key = keypair
+
+    def create(self, contents, version=SDMF_VERSION):
         if version == MDMF_VERSION and \
             isinstance(self.my_uri, (uri.ReadonlySSKFileURI,
                                  uri.WriteableSSKFileURI)):
@@ -826,9 +840,28 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
         return defer.succeed(consumer)
 
 
-def make_mutable_file_cap():
-    return uri.WriteableSSKFileURI(writekey=os.urandom(16),
-                                   fingerprint=os.urandom(32))
+def make_mutable_file_cap(
+        keypair: tuple[rsa.PublicKey, rsa.PrivateKey] | None = None,
+) -> uri.WriteableSSKFileURI:
+    """
+    Create a local representation of a mutable object.
+
+    :param keypair: If None, a random keypair will be generated for the new
+        object.  Otherwise, this is the keypair for that object.
+    """
+    if keypair is None:
+        writekey = os.urandom(16)
+        fingerprint = os.urandom(32)
+    else:
+        pubkey, privkey = keypair
+        pubkey_s = rsa.der_string_from_verifying_key(pubkey)
+        privkey_s = rsa.der_string_from_signing_key(privkey)
+        writekey = hashutil.ssk_writekey_hash(privkey_s)
+        fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
+
+    return uri.WriteableSSKFileURI(
+        writekey=writekey, fingerprint=fingerprint,
+    )
 
 def make_mdmf_mutable_file_cap():
     return uri.WriteableMDMFFileURI(writekey=os.urandom(16),
@@ -858,7 +891,7 @@ def create_mutable_filenode(contents, mdmf=False, all_contents=None):
     encoding_params['max_segment_size'] = 128*1024
 
     filenode = FakeMutableFileNode(None, None, encoding_params, None,
-                                   all_contents)
+                                   all_contents, None)
     filenode.init_from_cap(cap)
     if mdmf:
         filenode.create(MutableData(contents), version=MDMF_VERSION)

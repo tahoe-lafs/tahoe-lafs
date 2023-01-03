@@ -3,8 +3,10 @@ Ported to Python 3.
 """
 from __future__ import annotations
 
+from base64 import urlsafe_b64decode
 
 from twisted.web import http, static
+from twisted.web.iweb import IRequest
 from twisted.internet import defer
 from twisted.web.resource import (
     Resource,
@@ -45,6 +47,19 @@ from allmydata.web.check_results import (
 )
 from allmydata.web.info import MoreInfo
 from allmydata.util import jsonbytes as json
+from allmydata.crypto.rsa import PrivateKey, PublicKey, create_signing_keypair_from_string
+
+
+def get_keypair(request: IRequest) -> tuple[PublicKey, PrivateKey] | None:
+    """
+    Load a keypair from a urlsafe-base64-encoded RSA private key in the
+    **private-key** argument of the given request, if there is one.
+    """
+    privkey_der = get_arg(request, "private-key", None)
+    if privkey_der is None:
+        return None
+    privkey, pubkey = create_signing_keypair_from_string(urlsafe_b64decode(privkey_der))
+    return pubkey, privkey
 
 
 class ReplaceMeMixin(object):
@@ -54,7 +69,8 @@ class ReplaceMeMixin(object):
         mutable_type = get_mutable_type(file_format)
         if mutable_type is not None:
             data = MutableFileHandle(req.content)
-            d = client.create_mutable_file(data, version=mutable_type)
+            keypair = get_keypair(req)
+            d = client.create_mutable_file(data, version=mutable_type, unique_keypair=keypair)
             def _uploaded(newnode):
                 d2 = self.parentnode.set_node(self.name, newnode,
                                               overwrite=replace)
@@ -96,7 +112,8 @@ class ReplaceMeMixin(object):
         if file_format in ("SDMF", "MDMF"):
             mutable_type = get_mutable_type(file_format)
             uploadable = MutableFileHandle(contents.file)
-            d = client.create_mutable_file(uploadable, version=mutable_type)
+            keypair = get_keypair(req)
+            d = client.create_mutable_file(uploadable, version=mutable_type, unique_keypair=keypair)
             def _uploaded(newnode):
                 d2 = self.parentnode.set_node(self.name, newnode,
                                               overwrite=replace)
