@@ -42,12 +42,12 @@ RSA_PADDING = padding.PSS(
 
 
 
-def create_signing_keypair(key_size):
+def create_signing_keypair(key_size: int) -> tuple[PrivateKey, PublicKey]:
     """
     Create a new RSA signing (private) keypair from scratch. Can be used with
     `sign_data` function.
 
-    :param int key_size: length of key in bits
+    :param key_size: length of key in bits
 
     :returns: 2-tuple of (private_key, public_key)
     """
@@ -59,12 +59,12 @@ def create_signing_keypair(key_size):
     return priv_key, priv_key.public_key()
 
 
-def create_signing_keypair_from_string(private_key_der):
+def create_signing_keypair_from_string(private_key_der: bytes) -> tuple[PrivateKey, PublicKey]:
     """
     Create an RSA signing (private) key from previously serialized
     private key bytes.
 
-    :param bytes private_key_der: blob as returned from `der_string_from_signing_keypair`
+    :param private_key_der: blob as returned from `der_string_from_signing_keypair`
 
     :returns: 2-tuple of (private_key, public_key)
     """
@@ -84,7 +84,7 @@ def create_signing_keypair_from_string(private_key_der):
     return priv_key, priv_key.public_key()
 
 
-def der_string_from_signing_key(private_key):
+def der_string_from_signing_key(private_key: PrivateKey) -> bytes:
     """
     Serializes a given RSA private key to a DER string
 
@@ -101,7 +101,7 @@ def der_string_from_signing_key(private_key):
     )
 
 
-def der_string_from_verifying_key(public_key):
+def der_string_from_verifying_key(public_key: PublicKey) -> bytes:
     """
     Serializes a given RSA public key to a DER string.
 
@@ -117,7 +117,7 @@ def der_string_from_verifying_key(public_key):
     )
 
 
-def create_verifying_key_from_string(public_key_der):
+def create_verifying_key_from_string(public_key_der: bytes) -> PublicKey:
     """
     Create an RSA verifying key from a previously serialized public key
 
@@ -133,12 +133,12 @@ def create_verifying_key_from_string(public_key_der):
     return pub_key
 
 
-def sign_data(private_key, data):
+def sign_data(private_key: PrivateKey, data: bytes) -> bytes:
     """
     :param private_key: the private part of a keypair returned from
         `create_signing_keypair_from_string` or `create_signing_keypair`
 
-    :param bytes data: the bytes to sign
+    :param data: the bytes to sign
 
     :returns: bytes which are a signature of the bytes given as `data`.
     """
@@ -149,7 +149,7 @@ def sign_data(private_key, data):
         hashes.SHA256(),
     )
 
-def verify_signature(public_key, alleged_signature, data):
+def verify_signature(public_key: PublicKey, alleged_signature: bytes, data: bytes) -> None:
     """
     :param public_key: a verifying key, returned from `create_verifying_key_from_string` or `create_verifying_key_from_private_key`
 
@@ -169,7 +169,7 @@ def verify_signature(public_key, alleged_signature, data):
         raise BadSignature()
 
 
-def _validate_public_key(public_key):
+def _validate_public_key(public_key: PublicKey) -> None:
     """
     Internal helper. Checks that `public_key` is a valid cryptography
     object
@@ -180,7 +180,7 @@ def _validate_public_key(public_key):
         )
 
 
-def _validate_private_key(private_key):
+def _validate_private_key(private_key: PrivateKey) -> None:
     """
     Internal helper. Checks that `public_key` is a valid cryptography
     object
