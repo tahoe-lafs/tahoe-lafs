@@ -10,6 +10,9 @@ MODE_WRITE = "MODE_WRITE" # replace all shares, probably.. not for initial
 MODE_READ = "MODE_READ"
 MODE_REPAIR = "MODE_REPAIR" # query all peers, get the privkey
 
+from allmydata.crypto import aes, rsa
+from allmydata.util import hashutil
+
 class NotWriteableError(Exception):
     pass
 
@@ -61,3 +64,33 @@ class CorruptShareError(BadShareError):
 
 class UnknownVersionError(BadShareError):
     """The share we received was of a version we don't recognize."""
+
+
+def encrypt_privkey(writekey: bytes, privkey: rsa.PrivateKey) -> bytes:
+    """
+    For SSK, encrypt a private ("signature") key using the writekey.
+    """
+    encryptor = aes.create_encryptor(writekey)
+    crypttext = aes.encrypt_data(encryptor, privkey)
+    return crypttext
+
+def decrypt_privkey(writekey: bytes, enc_privkey: bytes) -> rsa.PrivateKey:
+    """
+    The inverse of ``encrypt_privkey``.
+    """
+    decryptor = aes.create_decryptor(writekey)
+    privkey = aes.decrypt_data(decryptor, enc_privkey)
+    return privkey
+
+def derive_mutable_keys(keypair: tuple[rsa.PublicKey, rsa.PrivateKey]) -> tuple[bytes, bytes, bytes]:
+    """
+    Derive the SSK writekey, encrypted writekey, and fingerprint from the
+    public/private ("verification" / "signature") keypair.
+    """
+    pubkey, privkey = keypair
+    pubkey_s = rsa.der_string_from_verifying_key(pubkey)
+    privkey_s = rsa.der_string_from_signing_key(privkey)
+    writekey = hashutil.ssk_writekey_hash(privkey_s)
+    encprivkey = encrypt_privkey(writekey, privkey_s)
+    fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
+    return writekey, encprivkey, fingerprint

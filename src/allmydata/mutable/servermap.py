@@ -21,7 +21,7 @@ from allmydata.storage.server import si_b2a
 from allmydata.interfaces import IServermapUpdaterStatus
 
 from allmydata.mutable.common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, \
-     MODE_READ, MODE_REPAIR, CorruptShareError
+     MODE_READ, MODE_REPAIR, CorruptShareError, decrypt_privkey
 from allmydata.mutable.layout import SIGNED_PREFIX_LENGTH, MDMFSlotReadProxy
 
 @implementer(IServermapUpdaterStatus)
@@ -943,9 +943,10 @@ class ServermapUpdater(object):
         writekey stored in my node. If it is valid, then I set the
         privkey and encprivkey properties of the node.
         """
-        alleged_privkey_s = self._node._decrypt_privkey(enc_privkey)
+        node_writekey = self._node.get_writekey()
+        alleged_privkey_s = decrypt_privkey(node_writekey, enc_privkey)
         alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
-        if alleged_writekey != self._node.get_writekey():
+        if alleged_writekey != node_writekey:
             self.log("invalid privkey from %r shnum %d" %
                      (server.get_name(), shnum),
                      parent=lp, level=log.WEIRD, umid="aJVccw")
