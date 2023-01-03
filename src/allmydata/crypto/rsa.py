@@ -176,7 +176,7 @@ def _validate_public_key(public_key: PublicKey) -> None:
     """
     if not isinstance(public_key, rsa.RSAPublicKey):
         raise ValueError(
-            "public_key must be an RSAPublicKey"
+            f"public_key must be an RSAPublicKey not {type(public_key)}"
         )
 
 
@@ -187,5 +187,5 @@ def _validate_private_key(private_key: PrivateKey) -> None:
     """
     if not isinstance(private_key, rsa.RSAPrivateKey):
         raise ValueError(
-            "private_key must be an RSAPrivateKey"
+            f"private_key must be an RSAPrivateKey not {type(private_key)}"
         )
