@@ -10,48 +10,8 @@ vector:
     segmentSize: 131072
     total: 1
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:y74wcrcls3al6zxz7kx7f673z4:syoy43s3ywv6knmfecsubpl5mkgqxttjivi42tnthlwkirdvpvdq
-  format: sdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:aqy46c5phihqbh7gvacwyjjhmm:txdtibqlgmsrozp5ufsixeplln3hrcgjlrgkyu7vvbo54lvjq3sq
-  format: mdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:e5tpbcmalcq6nn2zhd3qvg4chy:emzsvv2xnkhhrj2oatds5hf2cney25awi56ybeq4ofiyehzyakua:1:1:4096
   format: chk
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:ievenb2az5hen2dd2lgr2rx4km:zix2o4lu25r6om3s2locfmmzyagii3eykrdxkjtbcjtf7djmpplq
-  format: sdmf
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:roegsxmll43vrml5gu3pvv7j3y:o2hii67gi3kgqil6b5cy7bisahbw7s5y2qyfbi4oni2wiebig6jq
-  format: mdmf
   sample:
     length: 4096
     seed: Yw==
@@ -70,48 +30,8 @@ vector:
     segmentSize: 131072
     total: 1
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:dp3kn36nz3gpto7lgd4sgadu4i:7xsljpakiof654td2lxz7mtmnev7fp4vqhdz6yp6zm4r37gd5myq
-  format: sdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:aflykwudyx2gqfk6csy5u4lvni:m3kmwyizqwavmgnnx2lit4nqdobg7ze3okh4exuhxp5z5ljskdoq
-  format: mdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:worle55uksa2uqqeebm4yxnihu:vta76jbmejt2pxx4prqa75xawpdtx42cmzzhappeetzjksym37wq:1:1:131073
   format: chk
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:pd7xbhzt7v3ejras7g5acq5nry:lvvjteik6le7hm26lyd42i56pkkqbzu3fm7vi3kbtc2tzk2qv7eq
-  format: sdmf
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:k4nqwrnxjiu3iw7r4gds2ddsii:bx665xasl5dsqippnj5ntgdofq6rtj6g377fygqcdcxvqjauhvhq
-  format: mdmf
   sample:
     length: 131073
     seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
@@ -130,48 +50,8 @@ vector:
     segmentSize: 131072
     total: 1
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:z6vgv24ns3ku35sv3z2upmjujm:l7qtsggtrzz33qxina3h47jx7e6wbtre67hilopouaraoxrdlm6a
-  format: sdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:3zbhbl6c5s5tecu7mec6xpczbm:o3r52ullezeismr3bzbstwe5arbyx26vmfiblxz7sb7yjvjfc2xq
-  format: mdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:ofgig3loex6pev2eymmvohv7wq:yasbfedqnueaajdcavuba7kxbdqzn7e6zx3y6cbvucgx433vlzcq:1:1:2097153
   format: chk
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:lop5wrefixcec6gdbtokmvxmoq:7n4usur4eupz6ikgklgtwcpnooazlmzfmwnly4qidnf2tmahmp6q
-  format: sdmf
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:dx4uss2swjscntutzmadrnb4ce:yxfietcglts2qu3p7y5ufhmoqndkkqqtb5fic4efawkxrnspoqna
-  format: mdmf
   sample:
     length: 2097153
     seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
@@ -190,48 +70,8 @@ vector:
     segmentSize: 131072
     total: 1
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:ae222l7khyyye76gr4jkqhrtsu:s6rgutrzybfijp7og4f7ol3pumtpqhgcfu3m5gbpwlde6i6r52ha
-  format: sdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:akoeczwc4fiogo5f4umlpzepxm:53putm3likdcbzu4g2cvwvqale7pp2silt5w3lnx5m2nml7qtrka
-  format: mdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:5eeprb6lfxclwt7fieskd2euly:ffjgjbrxfl6d2ug2a63iaesxtrqa5pk3yaagfcldqvo7x4ok7ykq:1:1:8388609
   format: chk
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:oefrpx2c7j2lslwsb4jvjcsqju:2m2nqlkgn5xoiip45mwc47zpcno74mayx2smd6lscjb7esme5aja
-  format: sdmf
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:eqll4gbfnhbiuideqzgz2zgtum:e3t4vmtlcr4olgnk4wmocsbafhojaj4xakzolm6ds2srncgi67pq
-  format: mdmf
   sample:
     length: 8388609
     seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
@@ -250,48 +90,8 @@ vector:
     segmentSize: 131072
     total: 1
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:bw66cmomyxpxzydovsfai4in4i:pxx76km232rfwl7zllsuxfjrpidq565r6p2ylf2h3e6frp65pq4q
-  format: sdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:tucs3y6kksigeaekahmz7jllum:5te4f5wh36j7m2x7rgrt2czofolh3z4zms3j6g6v7iw7aja4uywq
-  format: mdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:wlszole5m2emf6wbhp3lnlyfxq:irdttvny74gxdrcotzfjslfq7p24kyiigyrm5shhw7zyj3hsiuba:1:1:4096
   format: chk
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:ntbuk6cv3mntzs645nb2yur5ea:ymrkers6rtknhsgg7oencxtaqfrxdtl4f4e345pguxlngpxmezka
-  format: sdmf
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:tw4agh6qsiyp7eb6fc2q6wutfy:qu5ljqu3l3zetuddp3agsmq72nhpsw4kf3vzdfmbzwmyenefhfwa
-  format: mdmf
   sample:
     length: 4096
     seed: Yw==
@@ -310,48 +110,8 @@ vector:
     segmentSize: 131072
     total: 1
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:hgrowa5hbtubpvwl7kwuvqxzwq:oys24ziecxnvnnccdnawktcfwscpn6ukt3bn6pyispgqqoxzyunq
-  format: sdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:llsyycaa6sv3mozamcbrj25dqm:oaixtd5x4hkhpsdokd77qosigiiitpjygzn3j7fy5c4a4qffjifq
-  format: mdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:heczpdxphw5frp3ri5sh2hpqei:6wflx6lphy5mhtpfb2abznoa3yk27ynbqbzcecs362miu72vkowq:1:1:131073
   format: chk
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:gkxj4zig7p6vdmq7qek2e6tcny:2ujwy5icd63hqdeibaaqag2xdsasbtut3unxgvhejmifvwwm7tja
-  format: sdmf
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:iu3cu24qvryvfycl5hqbgs4p6e:a6vvnybvlkjlttah222hgykj6ekxdcfubqkifm6jz63aqigxnyuq
-  format: mdmf
   sample:
     length: 131073
     seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
@@ -370,48 +130,8 @@ vector:
     segmentSize: 131072
     total: 1
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:u4w73dcf4szq7g435f45rkkc64:jmy5yl24cxuvxoe6rviuigub5rupumwqaalyhum4auvgmdugukyq
-  format: sdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:jg2rhh247nqaqjep4vw5uz7na4:mqfow763upbanik2i7xvgah4mxsofusfarjcxcsqj6mpd3iap7ua
-  format: mdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:shbt5viqjzuewblgt6qeijry6a:je3omw53tmmluz6fvqupx4uh4jaejc3fcvfjt56rfzokzhgdczvq:1:1:2097153
   format: chk
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:mbtm4xgwifkvsvgiku75lshela:uqxgrmldjvdt5wdjnxr2sxgg7okjc2p3xyhjuo66adesetnj4ipa
-  format: sdmf
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:hytvw2gqv566qy24hdsevhikm4:m76axh6i3guh2wuwp242pea6a6jretjxu6otjwp2xcwxhzd6tw4a
-  format: mdmf
   sample:
     length: 2097153
     seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
@@ -430,48 +150,8 @@ vector:
     segmentSize: 131072
     total: 1
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:z2nquzg3q2vu372xgwinybgrq4:cfdb4k2vovqljuynb24hbkdoqdtrjuf3paj3ei4kdv7jpjcmzq5a
-  format: sdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:qolwd4bimeicby7cr4genjrjdu:c7pijeu66hqyzjvqbepagujq3gex6hzbq37fwgjj77voe2yhjjxq
-  format: mdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:nktoeeuydph4acj2fux4axyaj4:g3fvjwanenwsgdcn3oxnau5gtbdmzbnbevlrzrb5qe4yukuwhejq:1:1:8388609
   format: chk
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:xlosprcfmf7fghy6cp6d7j5gae:7di57dzhhx2chb22wddh5kspoqchcyaavkx3lyblld2q3ectkvka
-  format: sdmf
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 1
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:pkul6c74muke6w3doyljnhspxq:3cc6azlsrdbvbg5jvtx75ft33hmcz2eprkfwfu3g3yms55mk4btq
-  format: mdmf
   sample:
     length: 8388609
     seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
@@ -490,48 +170,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:eh55dfvzf46gcyd2u65bnmek6a:dx7nph6gpag4ijgzrro3rfezsjb7xair3whk7nvpiijfbiw6tgpq
-  format: sdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:jmlnqnpysa3ypddys45phkfjfe:2fkhnlpb6b7mqvc6cu3w7wsd6vme2swiymblvx7j5i3vhifph65a
-  format: mdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:3yjtuv5h2g45g2cncg6hka3euu:bqqhp6u73ldawial7rtrfomx2qkmboyvqve6ywo2jpvfbu7zptga:1:3:4096
   format: chk
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:jli44aazmdb25uxpvyr65h5ea4:swm6gbbdwggi43etxxt5pnpwwzkcpb4tswe57xyl27tnf2pbkfaa
-  format: sdmf
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:rqdgaoblt54p2jn43jye5ax7ri:md6p25qcasl2umo6udexfsp6hy67gi263a7vf3drnr2wx7e4fina
-  format: mdmf
   sample:
     length: 4096
     seed: Yw==
@@ -550,48 +190,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:jvqmilw4sq73al6ahoj35yxoc4:7q2n6widrd24j26h3jfodnxkia2ggc4hq2dkpcavkf7w3jos4pwq
-  format: sdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:pca3f6mqonmw5om3vkkhsx6j2m:khnmpqz4w6bdrgmm7vbfe4a6p35zug5kinlmtd7btnhnp7ihlqua
-  format: mdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:rhkln7unkktot72mit5dmuqbdy:ilo6u6hugipdimyrzrvlam47xsmp3ur2lwnrtbecmvocb2664zxq:1:3:131073
   format: chk
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:ugzqpyk57sfmw3xt3arpyh6qu4:octvdn5fzqhyzhedtleqky3uoti7jfzmlbfchqrhgt5zc5fs4qma
-  format: sdmf
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:wuo2iiq4gdnvhe32ycvumfj7ce:lkbc7tsugufgw2xfiirjhqfujupx3347kus3j3ezcrvdkzknousa
-  format: mdmf
   sample:
     length: 131073
     seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
@@ -610,48 +210,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:cb6fgurdmns5w7jflfy23w73em:cbhxjn5oq7y6dpmlytlp7hubfdrrozf3krx2v5pnxwp4t4vrx2ma
-  format: sdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:witiz6jbim5vox7yjisvwnyrhy:nfq4ku2xhgv4735ef3zxhi672cdvoeft7otpnm5nb5sv7yzkjrwa
-  format: mdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:r7wva6tisq6m5zszgr7seu77cm:oqlgdw3hi72qtahpsi3h3yryxpqdshagvt6xnobsppkwp7ic4cia:1:3:2097153
   format: chk
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:le27bab7put7a7rljkwgelvygi:dqy75zxapt4jjkkbswjhplaqyvtrfwdp5mrn72epcw7xcew55zrq
-  format: sdmf
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:sb6ub2v5fqezulwyinr32lbf6q:fp6d2q463oluwsyaidq2dmpk2p6artvlyu7urtq76w2iqql6bpda
-  format: mdmf
   sample:
     length: 2097153
     seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
@@ -670,48 +230,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:jp6u5obzgtzt7236v6to6c4ei4:ae7jynsdpceqfvbaa6skwvlippw6ss7ikrbm6h474tij6fwigh7q
-  format: sdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:43wo2yychy5ougonjnbzzsvssy:t4uuvenzh2fimgufbgbcqdxc37tlhsl7lli6fj5qoykujxbn2rtq
-  format: mdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:54sq6lrqwqlpxicg747gdls6ri:2aaxyrdytn7r74my36ek434hlbhe6glrgr2ic5vvpc5bbdxmvo6a:1:3:8388609
   format: chk
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:5wrb7mqc2hzri7ekj4zxl4qad4:usym75mxkmnqkgqbtrui4e3q2362sa64w35u4bcumrkaibuljpiq
-  format: sdmf
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:ldwwgiceepruadjywtjayvabse:zf7jofp4y6woanufvuvu2s4xaz6gdm64pfxqaufzmazjafycdvma
-  format: mdmf
   sample:
     length: 8388609
     seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
@@ -730,48 +250,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:vr7yiykd4yny5ygad6qsm7wklu:66ftrgc46osmagfzaxwzqpcvaemx674zh6jllvqhe4sqtbvv7hkq
-  format: sdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:aev7j2y474xff6wkczqmae474m:j7yujo66irpomwzonnf4e4uvvbdwsfnq2luhy2mope3u2z6mm7ha
-  format: mdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:vkdc7iae4pgkdomhbbb554kv6a:g5xkatxv2entfssfh5eqgexb5j3qs6jvohofjqo5p5erlxlx2dga:1:3:4096
   format: chk
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:lzy6tvnsepowhab5gn7go3xcl4:ecgdtffw5rfujxbi5653zojr3lxj3lkf2cgwf5s4qz4ukag7cshq
-  format: sdmf
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:lp2mhym5ltuihpfqmwyouskqxq:yxmxqzsn3px4qppjsn62psi3nwedbcxtg2gxlryiifcxtlf66ceq
-  format: mdmf
   sample:
     length: 4096
     seed: Yw==
@@ -790,48 +270,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:waofhwlohtuqpcwuwl7fxozc5u:r5qrte3v2npvzirkiujhjfyi3poobwtyzhwtqbjiw5j6lgaxfsdq
-  format: sdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:lg5dfsjapjmq64z4klon5aembe:an3vjcuovsxhgwownhlle6di5utdgdwe34ji7xdcrugors5nlmfa
-  format: mdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:3idf2xqm5wnw2q3nbva5vmpaiq:7nmkh5q55omjloezibvyzvveq4gqeaivei5ypfm5vfuugwiz6hpa:1:3:131073
   format: chk
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:u2wzqdemrrm2h5lntniddeajmq:b6cf7fvw2m23ulucwe63poe5ebhqiwppmcqoabkzsoc5m2m3sthq
-  format: sdmf
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:v4bediwxuymp2immfnuhfx4buy:vix7mxu6wgi46bamw2y4etbtm3exc522i3xasrvy72tcin2v3uka
-  format: mdmf
   sample:
     length: 131073
     seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
@@ -850,48 +290,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:fsjb2ym6pgn3fupo66jrmmwxia:3ix37zaem6w2zsotsk5hjj4ygst7r27zecfpvehnugwyw4lq3ija
-  format: sdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:otowqw6mrbgz4tiyslxpfi3k2u:xhqeu536q4q3qi6hhqyjd52zthrdchhtmpxmu2pt7n4ff74kl37a
-  format: mdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:vws2xrl2nch2hsptqb36yqqu3e:fhujsv5rkhyiqstrktjvfy5235c7gcwekyd3gux3bv2glsgstjga:1:3:2097153
   format: chk
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:fhkkaxbg7y7piwv7fh5ylpdxhm:rewuizpn6v4xqy6df3bddfhp373iw76lh4qx6stzrwzskpedegza
-  format: sdmf
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:p3d434skzrqcrxiotnp3u2ij34:tc6mps24psn2zg27ryfuquovzgfgrkxqg3ckibisw4ijftnuuakq
-  format: mdmf
   sample:
     length: 2097153
     seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
@@ -910,48 +310,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:o7gx4tbbuqac6khwlosk4l5ddy:sy2po455xvmrz2o5mvvjzmjrzlpue4fzqudprcgxfpa3hxnkx5sa
-  format: sdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:xck4irhtemsujzgkdtdthdpare:rfrfsjzznueky3h33uptvgxdtiwbqaelfnwtt3jcve4ju63zxfna
-  format: mdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:fb6g3fkfbtlwzheujzvc2dn7dq:644je55ri6q5halshuxfesjz2afhqtebetuzqqbfecp6yhqwbb5q:1:3:8388609
   format: chk
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:d7uzl2zychjkmm7siybhbjys3m:cmoram5uvqusxc3x5oi5wy7lfsvffjnfyktkywnc6camhiitjmfa
-  format: sdmf
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 1
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:lo2p6saqx5kvmfgrsnf6fhiwei:zhjuapt2wwkacd5oa2li3aahrs36q3dckmljdbrsnsnmd7fygkxq
-  format: mdmf
   sample:
     length: 8388609
     seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
@@ -970,48 +330,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:znxwd4qkfko7ss74cgtribl76m:yubnd3unz4ipv2mm3khl4jbpwzzoxa3mnenq6n6tqpfydujfde4q
-  format: sdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:4m7y4dobd6ret6ikj36afo3bki:bm4oup3oijsfshzisvt52xcif7ks7x7sq3u7k5aarc44kzqlhabq
-  format: mdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:7wz5dhkyob3gmkydzgbptk5qku:cl6ovq5a3km7rpfhyb3putg656sp57lhnp7aexbocsbbahdxnfia:2:3:4096
   format: chk
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:36b6rvsrqya5oqehistbht2y3q:ynyxc67qeewensnisyp5voubt5qkf27fkmdspzpnkzgmmuejrnya
-  format: sdmf
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:gyxpdtxuyzamxrehlyjrw2pf4e:wrdnxnzcivydr4szmfxseaqgawacudx74n6wmddgfrglkoi7467q
-  format: mdmf
   sample:
     length: 4096
     seed: Yw==
@@ -1030,48 +350,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:dicmwi2p2mzxp2nf7j7nxj2tma:iialvaqlims3gf4whxfmjysijvesovxy4q4ecjrm636j2cnadhwa
-  format: sdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:usko2l5rufksoav3faz6w3vmue:tkpane2dyaul4mosc6lc35os72t3s54ga4u7dedlxhu7fhi3ovda
-  format: mdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:e6uhixvbm3g5amrzdzd3mnmsqm:4n5aafrb64sqpfnhcdpdfrk5gh2qznprjky6q6jybuuqy2q6z6mq:2:3:131073
   format: chk
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:tc346l5ky77pyqzunsobixc2am:4jk7vy4kie35wg4tdthqjczbc7pv62qbc5dbh2kf653q2k6optbq
-  format: sdmf
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:xomeoo2rxocwsrm6lgui4krebe:jz7oodng7ym2fb7g5hbxqacetkb5aizdoqi5lxyavgrg7goyq45q
-  format: mdmf
   sample:
     length: 131073
     seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
@@ -1090,48 +370,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:ixed54x47cxuzgsfwm7g4lhzhe:nrqzkdl6gb3jrnalhprhtqy2o4vj5u2cvpyf7nnagxximc36yeiq
-  format: sdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:i4curydlvv2ki6a6iz4ttgtdhq:3augdg7vy7z3ubjer6nroe7foxwwmgl2hpg4o6zqake6zvpe43ga
-  format: mdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:34bzejdzpqinmuzdmqenkidf74:pcecbl4ulygiadgdagonbgqmpb4lomjz4v4vqyssr56reyib4q2q:2:3:2097153
   format: chk
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:e2bzrxjvgyhmc45bmtj4rlerce:wobzlw4rpwuufqmjo6tep5mhrbebs3wdqcy7zkkefbs2fxacok5q
-  format: sdmf
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:fxnfxuggzofpoorlm2zn7dg6ty:tk2zuztd7j4gqmn56c6ffddqgzwenbudl7muvrjwve7gghgvceia
-  format: mdmf
   sample:
     length: 2097153
     seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
@@ -1150,48 +390,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:5pyvbw7axzkw72rtlvwelgfcfy:d5acbwniecttboqvyn3ihe7h5ehpigy6u5tz73vf3aj25yeikxsa
-  format: sdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:bcrt7yjrgcofkamredsw5x4bbm:hqiucmqok5qvns6yh2o5sibe7bg3ijodtp2ur3wkxhmt4bmwin7q
-  format: mdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:ufshkmuewwql2xsyiecbjhh7x4:qoywwygjqrmifowob3mvwkhfskk6geomyw5e3qlgqzui3kymu6nq:2:3:8388609
   format: chk
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:5gjangydj5e7ziu6jmzuo2wvam:wb5wy5civ5e6tecfohqjvbj5r7iggv765lm3jpeq4iecbxye2apa
-  format: sdmf
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:pdbqgmt5wmcccwznv4ksqhukra:e2yek3bursdelejqx2maiqk7maevukhqzzjbw2wtzqyhbs2o4s6a
-  format: mdmf
   sample:
     length: 8388609
     seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
@@ -1210,48 +410,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:zamaagvy42hzahq6e5ze275hya:c2yru2mkkzmmaovfzez7g63tczbz4vsfncfiamdjwtay2f4rbf6a
-  format: sdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:rdemgunqoy4rxxmpyhwqmolmwi:dwt4vxhvrcgk2zupwa3nq4mlzr54mkrenjrv36t5co6yeg4oefpa
-  format: mdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:pz3mga5pvqd4bpsz7pbyna2qtq:w3ptt7xwwgywod3u2rpgx7iggvm2kpwl7d2ryr3u7mcaxgqotlaq:2:3:4096
   format: chk
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:n7hevwssawse5kret3d4yux7ge:i4y2ff2lv6rw2byrvxcl2k6hda26ol25ucv2wn7t6rw55k3ype2a
-  format: sdmf
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:gwrzotpvkkffjfw74bipj6g3ue:ue2frkaek5t6jpstjehu6ah4euikq3jatkdgfkgspzjhtucguw5a
-  format: mdmf
   sample:
     length: 4096
     seed: Yw==
@@ -1270,48 +430,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:5ajxk7jw4g22ga57hayghtvnam:exlqadg54twmlyhkgicn2iaqt65luupeebh7mheabppsdlh5ye7a
-  format: sdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:c4esc6ob3alfyqqob76oveefeu:ramdhh6ufpbn5ygeo5gilwkxyx3oi4i7k7g3pbic3nf6qpvw7m3q
-  format: mdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:7xqejfqfej3u3zp2qymqd2iqeq:po4t2tzkh4d34ku6gdhlocadfwdyweiyckyqz57zdi7ndt4ikj3q:2:3:131073
   format: chk
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:5bau524o4vbrnowrba2j3l44ca:skxdvkz5ufb4u7fegccpmmq3tx32tqse6udtb6v5cutb765i5toq
-  format: sdmf
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:hyyofiigvckijkrxqlgzq55e7a:uth6x2l6ocak4xcozm5izzsd24ahymu35luxdmufb5oqo337g6mq
-  format: mdmf
   sample:
     length: 131073
     seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
@@ -1330,48 +450,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:cibwsbzizcapwki2exx4rkr2qu:gkujzvhxmjhb2z4wzecyc225xyxe3tqqfvaf2s2oc6rzmdn5wp7a
-  format: sdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:kupuwzss5lowgfl6adcvhgazfq:2jfedarh23rfnwzxhdkae6b2mh2dfzmh7uadpw4pcr622bls4mfq
-  format: mdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:6sf35smixwvpapf2zw7sllxet4:ks5zd3hkd7ppwobhnymezckszexpychngnkipxfvmlcng5fgjbea:2:3:2097153
   format: chk
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:w5nx47bm7jdf4l4ht47235krte:deoa4hwzahmy2bcws7hz3ry3ubpemllu5marnaocewhode2ucdpa
-  format: sdmf
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:argkvyswpyjfrtmuyg3jvwyswa:6d373u2djhnw6ug3yutlghkpb22bjmphl76vviclk7rc5bsj7koa
-  format: mdmf
   sample:
     length: 2097153
     seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
@@ -1390,48 +470,8 @@ vector:
     segmentSize: 131072
     total: 3
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:whwbzc5q4qtpfmmx5udqt4ajxa:7vpif7ukkmrmnifk3mech6g6n77x3345t7oqoqh46apzwbwomqha
-  format: sdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:767fhe755a4stlnvnm6y66mi4e:cbq5fdp6zcjg2xjqanlwsgc6s3jbc4hf62drzhjcmlsfjolp4xya
-  format: mdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:bfjedwcwjehjzpwjsgwkfk7rja:jpwea2sgz4hfohqab642yj4cmrh64w6nfo7lv3mtacfzicurqkva:2:3:8388609
   format: chk
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:ri6woi5eti2ig6mbxvytuyza7y:lgdm3v2jghtjlpv32rjuzosqd4cyhr6jkohyxaw6nmkv7i4t3oua
-  format: sdmf
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 2
-    segmentSize: 131072
-    total: 3
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:zujw3a76gbitwmnaqd26kbsdoa:gajfmtn4iuexx6x36i2aftawkkr4xeraxlkspxg6uqhsw3iz3iwq
-  format: mdmf
   sample:
     length: 8388609
     seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
@@ -1450,48 +490,8 @@ vector:
     segmentSize: 131072
     total: 10
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:onr7swqc3kgyec6ocfcvyjmx6q:or2bm3iuf7crsietg6dkidtjbmfiu2eulvllgz5e5uelqt2ey5eq
-  format: sdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:3ceb4g2e4twofve5jkewepvnaa:oztau4y5nizlwn3psdukebxhhgitalp4p6b2tcvpm4ogiswwcuua
-  format: mdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:yo75evk4cte3b7rdw72zxvl5ye:ex6h7ff7nclucjtsqwgwu33qgmb67t4ezbrki4zbgurwn2ct6bbq:3:10:4096
   format: chk
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:iugq34v2swtiwjbyy2sce7cjte:k3bloctsmve774usd36mg34pmxiu52w64zhaarvhwwlubnq66h4a
-  format: sdmf
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:bnvrx3ubou6wyjqmz7ds2dqjlu:oaq44pgwyogdvtf5lb3dtotdfhrzedwex7svyjmnhibnelotvzxq
-  format: mdmf
   sample:
     length: 4096
     seed: Yw==
@@ -1510,48 +510,8 @@ vector:
     segmentSize: 131072
     total: 10
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:y4onydf5hf23ndbobhxtucmfsq:3zpmw5rcysqk7jf7yfhqfiptn6pwelgqfoh5tcajwp42isa64mtq
-  format: sdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:xalxckir42vumn4twsj5sr47qm:mlkqxei4kgqy6jwvwfwwwj6q4bvlr3qutbn7d3wcgimvjaip42ja
-  format: mdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:7vfgl5cv4nlzqx35z4uthjv36y:nnueftbzxfz6u5yjxwwofaxzzft7xss5wzfh66rrcwv2zwrm63sa:3:10:131073
   format: chk
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:bptkj6t37usy4usosftkkuhv7e:ckumolq5lngoe3nkyqj2x3bfd4omxjpe2z4ajfeqfxh6hbfzavvq
-  format: sdmf
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:zuqe744q3gyn7wmkuj2wrvscbq:n2z2hcwdlmtiwbg6tutzlkdiwjccqazvxapj6kek22rnff7yu47q
-  format: mdmf
   sample:
     length: 131073
     seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
@@ -1570,48 +530,8 @@ vector:
     segmentSize: 131072
     total: 10
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:yys5phbf5zmwlmie6kf52n46ga:lh3huulqjziteauw2l2vngnef2jenb3bwrgylcqh3pklpntpzh3q
-  format: sdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:5rl3h6trfxgyavfavxmnnzqhxy:humgb27p2kmwnw5dm4shyjeprvzemaxokjgol3jo4x7kpgkg4peq
-  format: mdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:ptsofqwylmkvzmuvrw5n34j3ma:ky2fs7xrlke64w6kfmhzsuilzxbhfrwwzkxih4rykpbxrr3bxhiq:3:10:2097153
   format: chk
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:yjjkeiwrkl4zxvotwzgjodmcxm:ankmcys42fn27r733ngkw3ez5xfhh3g5swjcwwmggpjpwm4icy2q
-  format: sdmf
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:6kbz7i5wmha5hiil4rdypemuqi:yd2wd25fpa6tlhovmzw7sw7hzdurseapr66uuft6dc57a2sxlbia
-  format: mdmf
   sample:
     length: 2097153
     seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
@@ -1630,48 +550,8 @@ vector:
     segmentSize: 131072
     total: 10
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:zufl4t2imcsu7v72ajasbpgw6q:hm6kgc6zunfcmgf64nne3tcaonrgd4fvyuuavo3nq6g33rc3ttua
-  format: sdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:ds6otzysc6jsfv7oz3yaw7ha5y:a24cpkrdpsx4rqyg2wq42i7lxpm3lsw677qe2wktss3r57cpmrwq
-  format: mdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:xymheose4rdlspgydkzr4nqkre:z3pfrvpq5fdpkoybhdxppwbzrt6ejf26xh6emzlce2sgquljginq:3:10:8388609
   format: chk
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:uuge2bhk3xgcravcofl5pjsvie:geu3qejgjdmz6gylzgua3xnpa5dbpie6ld67ai2jswwpz4d6ioea
-  format: sdmf
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:hhpclg55lfzmzzdqgnj7os7tda:26l4i2iniero76up73gcih3ksdqlfff3ztbtc3qekzzfumochsyq
-  format: mdmf
   sample:
     length: 8388609
     seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
@@ -1690,48 +570,8 @@ vector:
     segmentSize: 131072
     total: 10
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:r62womj66zogjch4dhh7e5egsu:sgg7qnu3vqcr2bjds44rc2ogvm7oy42og76icyq7bztjvtnhhiba
-  format: sdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:6zfoxkfxatfndxvk3facte3a6m:armxhzyb7dw5gi4re7hlf3dt7pr3qnreowpffieqkfuhafz6htzq
-  format: mdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:fe64krzyaeff3d4teunjbetkzy:27hrywwaffqiqcgfkmzwbot3iamotr3bey2l5kaladmdmxuaz5ka:3:10:4096
   format: chk
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:ycx4fggszh3rafrrn4cxk63mdm:tnwwkuhngbsw2edbpcf6foknukx5eclklr7bmvpkqtiavcr7sq6q
-  format: sdmf
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:zxko7c2kaa55krevcnwroqh75a:sjxf56lafuvvuhxhz66c6hf2sufqbo6as43bnanr2qf5s5d3gr6q
-  format: mdmf
   sample:
     length: 4096
     seed: Yw==
@@ -1750,48 +590,8 @@ vector:
     segmentSize: 131072
     total: 10
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:yquetovseokj3fuoyjnf65msze:5qkv72qjjpj2udgwd54wvm3zx7j6w5iqxnvmip4l237sttefjgia
-  format: sdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:mmaxw53ou3sctw2f2wbcrvtokm:gw6y5hl6pk2nnthguuso26olkxctjse7d455xldew53ggkblhniq
-  format: mdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:zdmicwopo4p4h4wbfcbnwcrvyi:6qn75anpvs5gls27f4lybisis3udvjfjhatxiny7c72bcbtuztia:3:10:131073
   format: chk
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:233n2j6rvhem4zrie57ab54dmu:ncmydfq73cyq66wegrdo4a36pmzjpvlbrielye44nb2cpc7atxwq
-  format: sdmf
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:l3lh5fxgpco7fq4to7j5b55nva:ut3x2b2hnl4nae6oabrvfomkzkb7b26rohze6xqb522safyetwuq
-  format: mdmf
   sample:
     length: 131073
     seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
@@ -1810,48 +610,8 @@ vector:
     segmentSize: 131072
     total: 10
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:cjjj6zrxophjoshbkndzr6f4pu:pul7pnc7ann3z3bkob4gpb7vkj3brwhvprw7o76467jukwmgkw7q
-  format: sdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:j7dbexypbpityjrq6gdh4sqrqy:vzczmef6su6javwr22wfxkfegwnymh2g3de4gplbtveobfjjrdfa
-  format: mdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:n7ogyjbo5jigvxgel5ll6q4vbe:3yjb3zq5hcdavv7ruefawal6euyvjx3lx7quslvasjellv63cxya:3:10:2097153
   format: chk
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:3yt7vo7ddtlnasybhdylqzgc6e:2gqcvr6xkrxmnk3xcxbukja2po5wzipn6mfty3527vxja2zkzrnq
-  format: sdmf
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:gpkovok4tnkbrfffaywmtio7fu:jt4bbegmwqnbhixwdb7xuo6ae5izwq6y7bmttrpbpx4ox6n4tqgq
-  format: mdmf
   sample:
     length: 2097153
     seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
@@ -1870,48 +630,8 @@ vector:
     segmentSize: 131072
     total: 10
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:sczqxshv5qg7dijhrfln6unia4:y5c3qv45mz3namk4yiezidym4wsajseyboxwf7qqin3cmov75wuq
-  format: sdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:lmoglq3yl6j3wz4ook34unismu:jfleiqdmoyfyvc63etssojyvjfsbptg7q3dvhi25bxlwe2lfnxxa
-  format: mdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:ccxkyfl2qtqyhihduarpxbdcci:e64be3i2t25selbpc5y2zj443gkdo65chs2o4tpqb7axud5lnxta:3:10:8388609
   format: chk
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:sdh5twhpxdz6hu6ikhnywsmv2q:iphfqmziwxm2vq7wzemqld6rxp2quaz7y2ecnkpt4d4lojdt6dna
-  format: sdmf
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 3
-    segmentSize: 131072
-    total: 10
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:j3t75ilecnew72pxtyluc3a7s4:f4vhqdtxzg2ybfs3j5gizewu5bjncgut7kszftd7hk4cm6o6q5ta
-  format: mdmf
   sample:
     length: 8388609
     seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
@@ -1930,48 +650,8 @@ vector:
     segmentSize: 131072
     total: 255
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:hcekwnkw6qfllqmr3zy6g5j62u:2xzhdbgle6pvey5hjcanm5jtwkhtseslmy5jyamdxw7wr45okyiq
-  format: sdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:lcolwznisx6sore75biky3refa:4r4rnx5sbml3gg6z7bex6ytg6apwtmko6tujcqga4pr4cufuxmoq
-  format: mdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:7wi5xn2uwerkjzqs5ndn4eimti:llrws4uig2fpi3rtla6lk7m4t6zudjhszdfjgqtihghfrvs2robq:71:255:4096
   format: chk
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:slphep77cvx6qw4d5qvliwa4b4:epchbi3vvkzgktlgizmfenwz7iu4cb2thyyrru2t4sm644fthkna
-  format: sdmf
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:2t6yhzbskevam2brq7nirnptq4:dftxzmiizqrh737bny3nj3f2l3u36w4d7yyut43dynx2jeqtmvqq
-  format: mdmf
   sample:
     length: 4096
     seed: Yw==
@@ -1990,48 +670,8 @@ vector:
     segmentSize: 131072
     total: 255
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:5od2qv3xadhzghtg76uogaqjnu:fcab6vjvpe25dorw5brgqpa64p3zsxemfer7gzkp56aprbrsrwwa
-  format: sdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:6yga2mq25l6hxha4z3bt5ob2ny:h3cxanvsutketgqw6qkmeugugfxn5gzn4jzz3dykoi727ok7757q
-  format: mdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:62dtbeowncjj62jnwbggaufvbu:6r2sapg2cm6dvmylodyxabrj63a736uouzsqyacnimgo4svnktva:71:255:131073
   format: chk
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:grht3kifmiwg2fqtokxrkcklz4:k4gz5cy7kqa7niyj5ighz6q7pkztbfimgdux4omuu2ljjdxglwia
-  format: sdmf
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:2kzk7tyx23b3too7ejuybpudxm:5l2cwxkxg4tqlzlmctbi4ogbdyrbj762mvsaz4cq7lkwbhnjtlza
-  format: mdmf
   sample:
     length: 131073
     seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
@@ -2050,48 +690,8 @@ vector:
     segmentSize: 131072
     total: 255
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:nn4ojnd7snzrb72qetwohd4cde:lqp6djtltpnppkfy4uhjx76h6zsglverablp3cng4xllzh7wghcq
-  format: sdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:ogpjvm26q6pe5akks3idggipbm:q5sw3t7h6statgllhfsthowhc6op5jdpdfe4cx2pvwhscoewjada
-  format: mdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:qa4hwhwtd3cpvut74biixlv6ye:uuj4ujg3mcf3lqpuvvwf5pszcvviyb4cm2jjicu7ugiypojjie4q:71:255:2097153
   format: chk
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:icuadu2dbhfheefmqrm2mayg3q:wf5kszmayp6vd2t6hnpb4npqofomznorzlhtzvsbg7xtpxqahona
-  format: sdmf
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:z72yysftl3jicwhnhcsm62jdje:w5fp2ag7jvyazv3sm23qlooopmxvgfzotj7wwomd2z2svy6hy76a
-  format: mdmf
   sample:
     length: 2097153
     seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
@@ -2110,48 +710,8 @@ vector:
     segmentSize: 131072
     total: 255
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:6gxdkh5q5bgygex4seqdde4sai:7idrfdnijmiagjt2reroab32tiw6izdywnnpjxu3m7be5226nygq
-  format: sdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:ecfyk2zk7ojl37qyme67pylsn4:7w4ga3fulb5dyolujq56f5jsbifwxc5lk32z5c6siq3rs2dlbnsa
-  format: mdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:3esfsjn7csgnyqmq5afbgtinay:xsrhdomrbrtzftg6u4hgipm5tkaomumbdlxi5hpvpvawe3bjikua:71:255:8388609
   format: chk
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:kfjuhoyehy4t7ebwgewj4redpm:awgxuay5brzn7aupt7r2jjwk5mhoedmgrd2qaszyhdx4fpaet35q
-  format: sdmf
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:au3qa6mx56pgi7ouxtscajmak4:qg3s3ewcl754onl5xyzotbbgfia7vojar3m25ac7nv4wgolvibya
-  format: mdmf
   sample:
     length: 8388609
     seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
@@ -2170,48 +730,8 @@ vector:
     segmentSize: 131072
     total: 255
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:hkyaycbxeyhwifvygulnlqx3r4:zwck3zce5brcuzp3zvpc6evfxifppj5nl4jbw7tb2anbzis3jqha
-  format: sdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:ssbx7xhxjr24tygmvigbkw2tgq:du7u4ayfueljiftdfo5snzlz3aqcf6xwt5nrw4zpopqlcfgteuda
-  format: mdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:r3q3q4f4zbsipxauq6knb5dfoq:lkae5mflammzxkoc7gllt6qqyg5gqdxeejmxtgcscblqh5tv5obq:71:255:4096
   format: chk
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:2sip2pgg5xmeaqujp37qwqnhlm:jppsyllwrbfalet4lkhi3r5r74355bzquajkp2wzgu4us5ko6h4q
-  format: sdmf
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:calpjzlexgja7qk5d72wyeybqm:3upvwrkbbi7p5453sbs5wuie7hwxv6moczcb55pqkmfowlwehbhq
-  format: mdmf
   sample:
     length: 4096
     seed: Yw==
@@ -2230,48 +750,8 @@ vector:
     segmentSize: 131072
     total: 255
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:m52mezcwt462pv7crh57xch5ka:eskrgchqwjldpyvgjit2cv56xd55gra3ejiyoms4wegfhw64bmea
-  format: sdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:jlknqnzgwcb426mudiclobjejy:tmj2no6czfzaqa4x6qolw7ysegnbq4p57jc665mrvrbrwxigtkoa
-  format: mdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:e2bjefibvz4tgu6jgf66gw74bq:mugtu5bx7h5gcivevmh2gmwoc2kkhmobrzshkuj2dgrtm3siysfq:71:255:131073
   format: chk
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:r7zizt5ikfo4ubjxdmtjwap2ii:gmbwvgjnjk4qilg36okgw22hlhfico73e64wknay4aharfonevzq
-  format: sdmf
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:3gbqsb33r6zm2lmh246hwycwru:6yuzbmsxuqaqqi3pg4u3q5eiihpfwrteztfub3xyoa7uzcixubxa
-  format: mdmf
   sample:
     length: 131073
     seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
@@ -2290,48 +770,8 @@ vector:
     segmentSize: 131072
     total: 255
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:3cvm2bawfchcqvrbu2f4h47zra:rhqo4ecqmidnwhp3b5v62kipf55wqt6x3nwtmwnvcjt4ytwnop4a
-  format: sdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:kkigaypv6feshol6sfug2xnsmy:dd2ll6ga2wgqhlcdl4nvx4m42rs6a3cqcnxglpy64skvlyq5yira
-  format: mdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:pcta7uk5cpioxzv5nxxqsogw3q:gnu7fx56k3j72bbevirn4kdu27yfpvttzl3qk2zypwqt7tw4rijq:71:255:2097153
   format: chk
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:hnc74in4qv6bpgmydlzsenhaf4:ysrykdwa6jn2gngdqh56x3jdhor2nsamyjd6b4aqtutzbtdjkdba
-  format: sdmf
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:hilmjv7cb2w47njz3znintqueq:hl2jtn5uaujxqwfvexvwfvkfo5iliexcnwzyjt6etyjsc6advsja
-  format: mdmf
   sample:
     length: 2097153
     seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
@@ -2350,48 +790,8 @@ vector:
     segmentSize: 131072
     total: 255
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:xxc3ireoguv7dkgubcjicnxt2q:lp3rg6vawrypxldd4x7geajtzw6ns7yhe7zno4obuottc6bym6da
-  format: sdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:ii23y7sh2zcjk5qy75ytened4m:k7of2k6pmqjthqaql6hw5t22s3v67n5jpvqb5nvq53rxbphuanqa
-  format: mdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:mlzs2hbztak5fxjkrkuuvnpdpe:3myvisewm5uklimp2xucrwep75sm2rizfi2sq5drhlqjszkpdyeq:71:255:8388609
   format: chk
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:z47oxnf52xbyyzz2jsx6injuxi:twr773m3memiqykwwhfapujfeyki3i3lnrwrxif5spatnb5lzx2q
-  format: sdmf
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 71
-    segmentSize: 131072
-    total: 255
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:43ot6bjdwvfzibci4i3xfdow4i:dy526wxcdosiqocz65xxfqyymwtrtfdvu4nxll4mthp46xojosma
-  format: mdmf
   sample:
     length: 8388609
     seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
@@ -2410,48 +810,8 @@ vector:
     segmentSize: 131072
     total: max
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:4rybfby6ul2szc3aap7mldlbke:23cpk6vnlgv6n4tadfgkooh3rqsut2xuchrkqjw3fcnleihoqd4q
-  format: sdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:dbc3cfcgtkv33y4xrcfzqget2e:3amzzlftmmugjpcb4octrtzi4tzbdcrnenv2kpbufvkcboin4haq
-  format: mdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:sshu77h6opnto3jnngot3lwzl4:4cjhp6u3i2uzdzrjitje3inlhs6gnlgwc6wgi6vtedc2grgvcpza:101:256:4096
   format: chk
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:4kafx6n7k3etff25jfb2mbq62a:ll2njj473qvuv5oif4ro26jgmyljjvbfanuke2tljhmel4rbceja
-  format: sdmf
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:2nbq6g7kipjvtjy5i2jmpjajma:zcqhmcgjll4zc6da73kmlkynxhgm7ppwbvby3fmoey75gfwys3ua
-  format: mdmf
   sample:
     length: 4096
     seed: Yw==
@@ -2470,48 +830,8 @@ vector:
     segmentSize: 131072
     total: max
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:jlmmbswo4xbiib3bc2hdlajacy:uqvabifbvq5di2r3dbvc7bqmnbv5aqldxxrmduuhjun35dotmw2a
-  format: sdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:cuogxv55hdieeepwl7i6ce6taa:u755dpuna763w5uaw5lmqixmsxov66c4fvb46tduiszko3m7iq3a
-  format: mdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:a6wuekh5mynr4c74ma3b2gswfa:b6lovwnbv3523n5kaxga3ruxa2dvxef6h4a2jnl6lasn4fwvvdba:101:256:131073
   format: chk
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:u2bbj2wg23qzervxlfkua5dj2y:p6fo6wlvh7gcdq63ufp47rdiixxtx2yaeg3llg5byxjhzofkacga
-  format: sdmf
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:fdai3c5ahhbypwczn2sigdpdlm:kw3fmle5qbml4yz77wwrzz3tbvo65r3xdw347qu2ha3gaa2lidgq
-  format: mdmf
   sample:
     length: 131073
     seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
@@ -2530,48 +850,8 @@ vector:
     segmentSize: 131072
     total: max
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:otczmevjiescnpe6rmdi6pugxy:flwoyy4kwbbex65vopjvt7au6ywjo4rgzbzt5v65rulmn2aufzfq
-  format: sdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:br3wgiraxyrrzr6yxmcqwnwl6i:bd67wszbnw43kl76jjbfp4s5q6d23eswrag2fu3ztplwvfmtbara
-  format: mdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:fh4boug3wkciqhkgpusjsjyzbe:sy5lwooxchqu5mrzwr3mgc7qtwfjgmpz2srdmwpaip4iuj3tn4vq:101:256:2097153
   format: chk
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:m4vwawgyausecci7ndiz44thde:e27y5aqvmnb532bv55gwrz3r74m2ff34ls2epbrr27weqg6x3una
-  format: sdmf
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:yrdgo3x6zc7qtu6qhgschwujqy:lpkg3rluntszbvn64lu247pxjg6urbebktxjm2yfvkw22nuzwcuq
-  format: mdmf
   sample:
     length: 2097153
     seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
@@ -2590,48 +870,8 @@ vector:
     segmentSize: 131072
     total: max
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:utp6f43bkziptssu5waoexpumq:b7ok3lg5qe33gk5s3n6yv5gvz6xh65xpflyhfkyzpwpvec6pqroq
-  format: sdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:qelscz6cozb7oei42jed7jauuy:e67rqvxcxd2gvy6wgc7tjzpeieltl4252wutucvfvzinhybcp2lq
-  format: mdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:yrznm2uuybfbda6jlj7tqs3yum:zy45lpc7ilfzgltxxqvy55wcokiay2fbbbv2wdvu6ubjluh4gf4a:101:256:8388609
   format: chk
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:SSK:gvwazbxny7br5jaebq5lm6vkwu:frn54skmpr2v5i62v2cv4o3etglknbubanzgkcz7fjly76zs5bmq
-  format: sdmf
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: YWFhYWFhYWFhYWFhYWFhYQ==
-  expected: URI:MDMF:ltix4y33d3up5xceqoeru3fh7a:3oijenm7ex3u7bccxtc37j2ur4phqwp2cxpwonmlr36pt6v4siaa
-  format: mdmf
   sample:
     length: 8388609
     seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
@@ -2650,48 +890,8 @@ vector:
     segmentSize: 131072
     total: max
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:d46ph6imfcmvrnxbkz27rvphaa:fu7b3wvcrl6lq2gwhjr2lydcayqnojdb2a7nsble7wyah4u2u7ra
-  format: sdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:dxm44lpq67irpvkxtq2kenkuna:4unsmxd4gauloblh66viurs7xcjoegkgxbgbnvvsxbvjejfkgfja
-  format: mdmf
-  sample:
-    length: 1024
-    seed: YQ==
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:mvk5f2mghudk7xnknqddhvnl4m:c74myeugtix7e7l6uwybtrdtfselha2qrcc7hhbymqr6brtg4cea:101:256:4096
   format: chk
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:kxgfid6gisa6fviwjvtvtitriq:y7p4sbiltsl2zz4iiu4l43e3tcyam7uaqdkyux62axocqrb2jjfa
-  format: sdmf
-  sample:
-    length: 4096
-    seed: Yw==
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:nwpcaxxhzcbflhetu3x4bcm7hi:4fwjthb4ywmuhe4v7d6or64hvywtpuhhkemz6n46jnkwjbotqqxq
-  format: mdmf
   sample:
     length: 4096
     seed: Yw==
@@ -2710,48 +910,8 @@ vector:
     segmentSize: 131072
     total: max
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:hxtguhkn5d7vho5efeezt6txku:rw7t2vg4msj2h5qkkhw7vn6iotfv2xrnqu6sl4en4b34xogpteya
-  format: sdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:wqgkje6573uydranrmfzhv5jye:o2fdspbx2eum66zdxaibssqzqor6fcy4gc2snvj4mthu5vah252q
-  format: mdmf
-  sample:
-    length: 131071
-    seed: LCa0a2j/xo/5m0U8HTBBNBNCLXBkg7+g+YpeiGJm564=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:ocqx55dopakqnzyui6q6euz4gm:wklziyoctwrz5zjfg5wfejz4bnaagtg57fgjlspl4ba6ij6n2obq:101:256:131073
   format: chk
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:ina6rycsefbdo6uu7vpa5hmmkq:zlfppgohbsmbmq2nkigkt5oqiodwbrokfncngghmy4brz7hhwvua
-  format: sdmf
-  sample:
-    length: 131073
-    seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:ursxqckxmvnkiby7euppiw4ve4:muw3hismhi5f6sunwgighiwiumxuhmgfba3etfyfu3ss5ztqnmeq
-  format: mdmf
   sample:
     length: 131073
     seed: /N4rLtula/QIYB+3If6bXDONEO5CnqBPrlURto+/j7k=
@@ -2770,48 +930,8 @@ vector:
     segmentSize: 131072
     total: max
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:cnjidn5qfurjhp7xruq3qmhmwe:c5zsc3iw5l4msqhwig43cihejtbs7gmsw5yxzbbpux7ivf2by7nq
-  format: sdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:srixdotz4o72bxooz3w4hzn5pq:vgj66wd3f7dktqiexut3643w2aujb6rgkgmmgr4wvsfdm2x6ma5a
-  format: mdmf
-  sample:
-    length: 2097151
-    seed: uqWglk0zIPvAxqkiFARTyFE+okq4/QV3A0gEqWckgJY=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:a2qoww5xx6so5uftwg4msdtrpy:h7hwsjco5i3jkd7icytrtsuzcjvjzlnkr2wwau2tjlj5wehjrokq:101:256:2097153
   format: chk
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:yivcybgondauziz7hbc5auarrq:px2j3rmujcek36kzbxreyqjsxeosqu6zkosdfyokapajycr4a7fa
-  format: sdmf
-  sample:
-    length: 2097153
-    seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:psnlh7cnhyyjvthsftpwsc4mg4:ykaikqm76z2hu5jjf2t4awbc6kow7667sfnbw3iapi6gyuy3rz6a
-  format: mdmf
   sample:
     length: 2097153
     seed: BTBX/ampNfLU+ox7xipBGiaSbgC0kcB8Gy7BkJB4oKI=
@@ -2830,48 +950,8 @@ vector:
     segmentSize: 131072
     total: max
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:znaz4yzpisflh6eb6vgimp2hqq:4uza6tbj44ayk3227r4rmo55hnryxlofxzra7skrlxutqp3qg3ra
-  format: sdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:3ukzh2xpaf5cbag3h757kllgke:xrtzgpxtdc4f6mljutdtycduavcf7mq3csotbmkxuwgghw5i32tq
-  format: mdmf
-  sample:
-    length: 8388607
-    seed: w6uP8Tcg6K2QR905Rms8iXTlksL6OD1KOWBxTK7wxPI=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:ioridipksj6o7ph3bcf37vslmi:pzhkwm4ry67ohj6dcs7zwnsjrvfqzam6tuitrns5vuo3uoomau6q:101:256:8388609
   format: chk
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:SSK:ztsdfp76v62nww6kplddq6eiy4:2hz7dxqp2wfngpra7yidxsfnocmx4iqmffym264cqofhekrcocuq
-  format: sdmf
-  sample:
-    length: 8388609
-    seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
-  zfec:
-    required: 101
-    segmentSize: 131072
-    total: max
-- convergence: ZOyIygCyaOW6GjVnihtTFg==
-  expected: URI:MDMF:l4b5t44iqpfcmqk5vap6dwkery:pnq25jpqlmesas4nv55hstin2pmy3ybl7yinu2tk2ruwkhx575ia
-  format: mdmf
   sample:
     length: 8388609
     seed: yPi3JHKKbWaEEG5eZOlM6BHJll0Z3UTdBzz4bPQ7wjg=
