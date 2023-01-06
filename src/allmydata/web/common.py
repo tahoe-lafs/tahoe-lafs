@@ -1,15 +1,7 @@
 """
 Ported to Python 3.
 """
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
-    from past.builtins import unicode as str  # prevent leaking newbytes/newstr into code that can't handle it
+from __future__ import annotations
 
 from six import ensure_str
 
@@ -21,6 +13,7 @@ except ImportError:
 import time
 import json
 from functools import wraps
+from base64 import urlsafe_b64decode
 
 from hyperlink import (
     DecodedURL,
@@ -94,7 +87,7 @@ from allmydata.util.encodingutil import (
     to_bytes,
 )
 from allmydata.util import abbreviate
-
+from allmydata.crypto.rsa import PrivateKey, PublicKey, create_signing_keypair_from_string
 
 class WebError(Exception):
     def __init__(self, text, code=http.BAD_REQUEST):
@@ -833,3 +826,14 @@ def abbreviate_time(data):
     if s >= 0.001:
         return u"%.1fms" % (1000*s)
     return u"%.0fus" % (1000000*s)
+
+def get_keypair(request: IRequest) -> tuple[PublicKey, PrivateKey] | None:
+    """
+    Load a keypair from a urlsafe-base64-encoded RSA private key in the
+    **private-key** argument of the given request, if there is one.
+    """
+    privkey_der = get_arg(request, "private-key", None)
+    if privkey_der is None:
+        return None
+    privkey, pubkey = create_signing_keypair_from_string(urlsafe_b64decode(privkey_der))
+    return pubkey, privkey

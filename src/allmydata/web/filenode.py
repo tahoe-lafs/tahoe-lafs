@@ -3,8 +3,6 @@ Ported to Python 3.
 """
 from __future__ import annotations
 
-from base64 import urlsafe_b64decode
-
 from twisted.web import http, static
 from twisted.web.iweb import IRequest
 from twisted.internet import defer
@@ -26,6 +24,7 @@ from allmydata.blacklist import (
 )
 
 from allmydata.web.common import (
+    get_keypair,
     boolean_of_arg,
     exception_to_child,
     get_arg,
@@ -47,20 +46,6 @@ from allmydata.web.check_results import (
 )
 from allmydata.web.info import MoreInfo
 from allmydata.util import jsonbytes as json
-from allmydata.crypto.rsa import PrivateKey, PublicKey, create_signing_keypair_from_string
-
-
-def get_keypair(request: IRequest) -> tuple[PublicKey, PrivateKey] | None:
-    """
-    Load a keypair from a urlsafe-base64-encoded RSA private key in the
-    **private-key** argument of the given request, if there is one.
-    """
-    privkey_der = get_arg(request, "private-key", None)
-    if privkey_der is None:
-        return None
-    privkey, pubkey = create_signing_keypair_from_string(urlsafe_b64decode(privkey_der))
-    return pubkey, privkey
-
 
 class ReplaceMeMixin(object):
     def replace_me_with_a_child(self, req, client, replace):
