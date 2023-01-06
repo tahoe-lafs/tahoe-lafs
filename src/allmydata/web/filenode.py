@@ -4,7 +4,6 @@ Ported to Python 3.
 from __future__ import annotations
 
 from twisted.web import http, static
-from twisted.web.iweb import IRequest
 from twisted.internet import defer
 from twisted.web.resource import (
     Resource,
