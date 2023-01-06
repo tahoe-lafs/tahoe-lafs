@@ -5,6 +5,14 @@ To run:
 
 $ pytest benchmarks/upload_download.py  -s -v -Wignore
 
+To add latency of e.g. 60ms on Linux:
+
+$ tc qdisc add dev lo root netem delay 30ms
+
+To reset:
+
+$ tc qdisc del dev lo root netem
+
 TODO Parameterization (pytest?)
 - Foolscap vs not foolscap
 - Number of nodes
