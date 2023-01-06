@@ -14,6 +14,7 @@ on any of their methods.
 from __future__ import annotations
 
 from typing_extensions import TypeAlias
+from typing import Callable
 
 from functools import partial
 
@@ -70,22 +71,29 @@ def create_signing_keypair_from_string(private_key_der: bytes) -> tuple[PrivateK
 
     :returns: 2-tuple of (private_key, public_key)
     """
-    load = partial(
-        load_der_private_key,
+    _load = partial(
+        load_der_public_key,
         private_key_der,
         password=None,
         backend=default_backend(),
     )
 
+    def load_with_validation() -> PrivateKey:
+        return _load()
+
+    def load_without_validation() -> PrivateKey:
+        return _load(unsafe_skip_rsa_key_validation=True)
+
+    # Load it once without the potentially expensive OpenSSL validation
+    # checks.  These have superlinear complexity.  We *will* run them just
+    # below - but first we'll apply our own constant-time checks.
+    load: Callable[[], PrivateKey] = load_without_validation
     try:
-        # Load it once without the potentially expensive OpenSSL validation
-        # checks.  These have superlinear complexity.  We *will* run them just
-        # below - but first we'll apply our own constant-time checks.
-        unsafe_priv_key = load(unsafe_skip_rsa_key_validation=True)
+        unsafe_priv_key = load()
     except TypeError:
         # cryptography<39 does not support this parameter, so just load the
         # key with validation...
-        unsafe_priv_key = load()
+        unsafe_priv_key = load_without_validation()
         # But avoid *reloading* it since that will run the expensive
         # validation *again*.
         load = lambda: unsafe_priv_key

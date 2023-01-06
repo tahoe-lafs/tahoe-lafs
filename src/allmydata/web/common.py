@@ -6,7 +6,7 @@ from __future__ import annotations
 from six import ensure_str
 
 try:
-    from typing import Optional, Union, Tuple, Any, TypeVar
+    from typing import Optional, Union, Tuple, Any, TypeVar, Literal, overload
 except ImportError:
     pass
 
@@ -708,7 +708,13 @@ def url_for_string(req, url_string):
 
 T = TypeVar("T")
 
-def get_arg(req: IRequest, argname: str | bytes, default: T = None, multiple: bool = False) -> Union[bytes, tuple[bytes, ...], T]:
+@overload
+def get_arg(req: IRequest, argname: str | bytes, default: T = None, *, multiple: Literal[False] = False) -> bytes: ...
+
+@overload
+def get_arg(req: IRequest, argname: str | bytes, default: T = None, *, multiple: Literal[True]) -> tuple[bytes, ...]: ...
+
+def get_arg(req: IRequest, argname: str | bytes, default: T | None = None, *, multiple: bool = False) -> None | T | bytes | tuple[bytes, ...]:
     """Extract an argument from either the query args (req.args) or the form
     body fields (req.fields). If multiple=False, this returns a single value
     (or the default, which defaults to None), and the query args take
@@ -724,9 +730,6 @@ def get_arg(req: IRequest, argname: str | bytes, default: T = None, multiple: bo
     else:
         argname_bytes = argname
 
-    if isinstance(default, str):
-        default = default.encode("utf-8")
-
     results = []
     if argname_bytes in req.args:
         results.extend(req.args[argname_bytes])
@@ -740,6 +743,9 @@ def get_arg(req: IRequest, argname: str | bytes, default: T = None, multiple: bo
         return tuple(results)
     if results:
         return results[0]
+
+    if isinstance(default, str):
+        return default.encode("utf-8")
     return default
 
 
