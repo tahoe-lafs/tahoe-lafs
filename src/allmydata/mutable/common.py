@@ -66,7 +66,7 @@ class UnknownVersionError(BadShareError):
     """The share we received was of a version we don't recognize."""
 
 
-def encrypt_privkey(writekey: bytes, privkey: rsa.PrivateKey) -> bytes:
+def encrypt_privkey(writekey: bytes, privkey: bytes) -> bytes:
     """
     For SSK, encrypt a private ("signature") key using the writekey.
     """

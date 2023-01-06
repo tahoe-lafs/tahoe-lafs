@@ -90,6 +90,7 @@ class FakeNodeMaker(NodeMaker):
         'happy': 7,
         'max_segment_size':128*1024 # 1024=KiB
     }
+    all_contents: dict[bytes, object]
     def _create_lit(self, cap):
         return FakeCHKFileNode(cap, self.all_contents)
     def _create_immutable(self, cap):

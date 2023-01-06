@@ -3,7 +3,7 @@ Tests for the ``tahoe put`` CLI tool.
 """
 from __future__ import annotations
 
-from typing import Callable, Awaitable, TypeVar
+from typing import Callable, Awaitable, TypeVar, Any
 import os.path
 from twisted.trial import unittest
 from twisted.python import usage
@@ -242,7 +242,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     async def _test_mutable_specified_key(
             self,
-            run: Callable[[Callable[..., T], FilePath, FilePath], Awaitable[T]],
+            run: Callable[[Any, FilePath, FilePath], Awaitable[tuple[int, bytes, bytes]]],
     ) -> None:
         """
         A helper for testing mutable creation.

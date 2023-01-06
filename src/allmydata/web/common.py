@@ -6,7 +6,7 @@ from __future__ import annotations
 from six import ensure_str
 
 try:
-    from typing import Optional, Union, Tuple, Any
+    from typing import Optional, Union, Tuple, Any, TypeVar
 except ImportError:
     pass
 
@@ -706,8 +706,9 @@ def url_for_string(req, url_string):
         )
     return url
 
+T = TypeVar("T")
 
-def get_arg(req, argname, default=None, multiple=False):  # type: (IRequest, Union[bytes,str], Any, bool) -> Union[bytes,Tuple[bytes],Any]
+def get_arg(req: IRequest, argname: str | bytes, default: T = None, multiple: bool = False) -> Union[bytes, tuple[bytes, ...], T]:
     """Extract an argument from either the query args (req.args) or the form
     body fields (req.fields). If multiple=False, this returns a single value
     (or the default, which defaults to None), and the query args take
@@ -719,13 +720,17 @@ def get_arg(req, argname, default=None, multiple=False):  # type: (IRequest, Uni
     :return: Either bytes or tuple of bytes.
     """
     if isinstance(argname, str):
-        argname = argname.encode("utf-8")
+        argname_bytes = argname.encode("utf-8")
+    else:
+        argname_bytes = argname
+
     if isinstance(default, str):
         default = default.encode("utf-8")
+
     results = []
-    if argname in req.args:
-        results.extend(req.args[argname])
-    argname_unicode = str(argname, "utf-8")
+    if argname_bytes in req.args:
+        results.extend(req.args[argname_bytes])
+    argname_unicode = str(argname_bytes, "utf-8")
     if req.fields and argname_unicode in req.fields:
         value = req.fields[argname_unicode].value
         if isinstance(value, str):
@@ -832,7 +837,7 @@ def get_keypair(request: IRequest) -> tuple[PublicKey, PrivateKey] | None:
     Load a keypair from a urlsafe-base64-encoded RSA private key in the
     **private-key** argument of the given request, if there is one.
     """
-    privkey_der = get_arg(request, "private-key", None)
+    privkey_der = get_arg(request, "private-key", default=None, multiple=False)
     if privkey_der is None:
         return None
     privkey, pubkey = create_signing_keypair_from_string(urlsafe_b64decode(privkey_der))

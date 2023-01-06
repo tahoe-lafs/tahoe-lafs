@@ -635,7 +635,7 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
                  keypair: tuple[rsa.PublicKey, rsa.PrivateKey] | None
                 ):
         self.all_contents = all_contents
-        self.file_types = {} # storage index => MDMF_VERSION or SDMF_VERSION
+        self.file_types: dict[bytes, int] = {} # storage index => MDMF_VERSION or SDMF_VERSION
         self.init_from_cap(make_mutable_file_cap(keypair))
         self._k = default_encoding_parameters['k']
         self._segsize = default_encoding_parameters['max_segment_size']

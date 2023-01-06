@@ -13,7 +13,7 @@ on any of their methods.
 
 from __future__ import annotations
 
-from typing import TypeVar
+from typing_extensions import TypeAlias
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
@@ -24,8 +24,8 @@ from cryptography.hazmat.primitives.serialization import load_der_private_key, l
 
 from allmydata.crypto.error import BadSignature
 
-PublicKey = TypeVar("PublicKey", bound=rsa.RSAPublicKey)
-PrivateKey = TypeVar("PrivateKey", bound=rsa.RSAPrivateKey)
+PublicKey: TypeAlias = rsa.RSAPublicKey
+PrivateKey: TypeAlias = rsa.RSAPrivateKey
 
 # This is the value that was used by `pycryptopp`, and we must continue to use it for
 # both backwards compatibility and interoperability.
