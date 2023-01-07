@@ -93,7 +93,7 @@ def create_signing_keypair_from_string(private_key_der: bytes) -> tuple[PrivateK
     except TypeError:
         # cryptography<39 does not support this parameter, so just load the
         # key with validation...
-        unsafe_priv_key = load_without_validation()
+        unsafe_priv_key = load_with_validation()
         # But avoid *reloading* it since that will run the expensive
         # validation *again*.
         load = lambda: unsafe_priv_key
