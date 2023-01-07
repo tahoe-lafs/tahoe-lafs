@@ -72,7 +72,7 @@ def create_signing_keypair_from_string(private_key_der: bytes) -> tuple[PrivateK
     :returns: 2-tuple of (private_key, public_key)
     """
     _load = partial(
-        load_der_public_key,
+        load_der_private_key,
         private_key_der,
         password=None,
         backend=default_backend(),
