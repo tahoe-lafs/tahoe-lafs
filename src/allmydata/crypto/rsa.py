@@ -123,7 +123,7 @@ def der_string_from_signing_key(private_key: PrivateKey) -> bytes:
     :returns: bytes representing `private_key`
     """
     _validate_private_key(private_key)
-    return private_key.private_bytes(
+    return private_key.private_bytes( # type: ignore[attr-defined]
         encoding=Encoding.DER,
         format=PrivateFormat.PKCS8,
         encryption_algorithm=NoEncryption(),
