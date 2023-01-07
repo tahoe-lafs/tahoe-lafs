@@ -5,10 +5,7 @@ from __future__ import annotations
 
 from six import ensure_str
 
-try:
-    from typing import Optional, Union, Tuple, Any, TypeVar, Literal, overload
-except ImportError:
-    pass
+from typing import Optional, Union, TypeVar, Literal, overload
 
 import time
 import json
