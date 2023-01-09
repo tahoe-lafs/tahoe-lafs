@@ -15,16 +15,11 @@ workflows:
   ci:
     jobs:
       # Start with jobs testing various platforms.
-      - "debian-10":
-          {}
       - "debian-11":
           {}
 
       - "ubuntu-20-04":
           {}
-      - "ubuntu-18-04":
-          requires:
-            - "ubuntu-20-04"
 
       # Equivalent to RHEL 8; CentOS 8 is dead.
       - "oraclelinux-8":
@@ -85,11 +80,7 @@ workflows:
       # Contexts are managed in the CircleCI web interface:
       #
       #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
-      - "build-image-debian-10": &DOCKERHUB_CONTEXT
-          context: "dockerhub-auth"
       - "build-image-debian-11":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-ubuntu-18-04":
           <<: *DOCKERHUB_CONTEXT
       - "build-image-ubuntu-20-04":
           <<: *DOCKERHUB_CONTEXT
