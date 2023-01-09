@@ -11,7 +11,7 @@ import binascii
 from tempfile import TemporaryFile
 from os import SEEK_END, SEEK_SET
 import mmap
-from importlib.metadata import version as get_package_version
+from importlib.metadata import version as get_package_version, PackageNotFoundError
 
 from cryptography.x509 import Certificate as CryptoCertificate
 from zope.interface import implementer
@@ -63,7 +63,15 @@ from allmydata.interfaces import BadWriteEnablerError
 # Until we figure out Nix (https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3963),
 # need to support old pycddl which can only take bytes:
 from distutils.version import LooseVersion
-PYCDDL_BYTES_ONLY = LooseVersion(get_package_version("pycddl")) < LooseVersion("0.4")
+
+try:
+    PYCDDL_BYTES_ONLY = LooseVersion(get_package_version("pycddl")) < LooseVersion(
+        "0.4"
+    )
+except PackageNotFoundError:
+    # This can happen when building PyInstaller distribution. We'll just assume
+    # you installed a modern pycddl, cause why wouldn't you?
+    PYCDDL_BYTES_ONLY = False
 
 
 class ClientSecretsException(Exception):
