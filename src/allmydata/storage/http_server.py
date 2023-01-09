@@ -11,6 +11,7 @@ import binascii
 from tempfile import TemporaryFile
 from os import SEEK_END, SEEK_SET
 import mmap
+from importlib.metadata import version as get_package_version
 
 from cryptography.x509 import Certificate as CryptoCertificate
 from zope.interface import implementer
@@ -57,6 +58,12 @@ from .immutable import BucketWriter, ConflictingWriteError
 from ..util.hashutil import timing_safe_compare
 from ..util.base32 import rfc3548_alphabet
 from allmydata.interfaces import BadWriteEnablerError
+
+
+# Until we figure out Nix (https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3963),
+# need to support old pycddl which can only take bytes:
+from distutils.version import LooseVersion
+PYCDDL_BYTES_ONLY = LooseVersion(get_package_version("pycddl")) < LooseVersion("0.4")
 
 
 class ClientSecretsException(Exception):
@@ -557,7 +564,7 @@ class HTTPServer(object):
             fd = request.content.fileno()
         except (ValueError, OSError):
             fd = -1
-        if fd > 0:
+        if fd > 0 and not PYCDDL_BYTES_ONLY:
             # It's a file, so we can use mmap() to save memory.
             message = mmap.mmap(fd, 0, access=mmap.ACCESS_READ)
         else:
