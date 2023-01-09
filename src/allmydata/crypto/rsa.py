@@ -12,14 +12,9 @@ on any of their methods.
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from functools import partial
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
@@ -72,20 +67,39 @@ def create_signing_keypair_from_string(private_key_der):
 
     :returns: 2-tuple of (private_key, public_key)
     """
-    priv_key = load_der_private_key(
+    load = partial(
+        load_der_private_key,
         private_key_der,
         password=None,
         backend=default_backend(),
     )
-    if not isinstance(priv_key, rsa.RSAPrivateKey):
+
+    try:
+        # Load it once without the potentially expensive OpenSSL validation
+        # checks.  These have superlinear complexity.  We *will* run them just
+        # below - but first we'll apply our own constant-time checks.
+        unsafe_priv_key = load(unsafe_skip_rsa_key_validation=True)
+    except TypeError:
+        # cryptography<39 does not support this parameter, so just load the
+        # key with validation...
+        unsafe_priv_key = load()
+        # But avoid *reloading* it since that will run the expensive
+        # validation *again*.
+        load = lambda: unsafe_priv_key
+
+    if not isinstance(unsafe_priv_key, rsa.RSAPrivateKey):
         raise ValueError(
             "Private Key did not decode to an RSA key"
         )
-    if priv_key.key_size != 2048:
+    if unsafe_priv_key.key_size != 2048:
         raise ValueError(
             "Private Key must be 2048 bits"
         )
-    return priv_key, priv_key.public_key()
+
+    # Now re-load it with OpenSSL's validation applied.
+    safe_priv_key = load()
+
+    return safe_priv_key, safe_priv_key.public_key()
 
 
 def der_string_from_signing_key(private_key):

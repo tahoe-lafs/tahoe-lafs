@@ -37,6 +37,7 @@ from twisted.web import http
 from twisted.web.http_headers import Headers
 from werkzeug import routing
 from werkzeug.exceptions import NotFound as WNotFound
+from testtools.matchers import Equals
 
 from .common import SyncTestCase
 from ..storage.http_common import get_content_type, CBOR_MIME_TYPE
@@ -554,6 +555,20 @@ class GenericHTTPAPITests(SyncTestCase):
     def setUp(self):
         super(GenericHTTPAPITests, self).setUp()
         self.http = self.useFixture(HttpTestFixture())
+
+    def test_missing_authentication(self) -> None:
+        """
+        If nothing is given in the ``Authorization`` header at all an
+        ``Unauthorized`` response is returned.
+        """
+        client = StubTreq(self.http.http_server.get_resource())
+        response = self.http.result_of_with_flush(
+            client.request(
+                "GET",
+                "http://127.0.0.1/storage/v1/version",
+            ),
+        )
+        self.assertThat(response.code, Equals(http.UNAUTHORIZED))
 
     def test_bad_authentication(self):
         """

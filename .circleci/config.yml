@@ -15,16 +15,11 @@ workflows:
   ci:
     jobs:
       # Start with jobs testing various platforms.
-      - "debian-10":
-          {}
       - "debian-11":
           {}
 
       - "ubuntu-20-04":
           {}
-      - "ubuntu-18-04":
-          requires:
-            - "ubuntu-20-04"
 
       # Equivalent to RHEL 8; CentOS 8 is dead.
       - "oraclelinux-8":
@@ -85,11 +80,7 @@ workflows:
       # Contexts are managed in the CircleCI web interface:
       #
       #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
-      - "build-image-debian-10": &DOCKERHUB_CONTEXT
-          context: "dockerhub-auth"
-      - "build-image-debian-11":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-ubuntu-18-04":
+      - "build-image-debian-11": &DOCKERHUB_CONTEXT
           <<: *DOCKERHUB_CONTEXT
       - "build-image-ubuntu-20-04":
           <<: *DOCKERHUB_CONTEXT
@@ -167,12 +158,7 @@ jobs:
           command: |
             dist/Tahoe-LAFS/tahoe --version
 
-  debian-10: &DEBIAN
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/debian:10-py3.7"
-        user: "nobody"
-
+  debian-11: &DEBIAN
     environment: &UTF_8_ENVIRONMENT
       # In general, the test suite is not allowed to fail while the job
       # succeeds.  But you can set this to "yes" if you want it to be
@@ -184,7 +170,7 @@ jobs:
       # filenames and argv).
       LANG: "en_US.UTF-8"
       # Select a tox environment to run for this job.
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py37"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
       # Additional arguments to pass to tox.
       TAHOE_LAFS_TOX_ARGS: ""
       # The path in which test artifacts will be placed.
@@ -252,15 +238,11 @@ jobs:
               /tmp/venv/bin/codecov
             fi
 
-  debian-11:
-    <<: *DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
         image: "tahoelafsci/debian:11-py3.9"
         user: "nobody"
-    environment:
-      <<: *UTF_8_ENVIRONMENT
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
+
 
   # Restore later using PyPy3.8
   # pypy27-buster:
@@ -311,22 +293,6 @@ jobs:
       # DRY, YAML-style.  See the debian-9 steps.
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
-
-  ubuntu-18-04: &UBUNTU_18_04
-    <<: *DEBIAN
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3.7"
-        user: "nobody"
-
-    environment:
-      <<: *UTF_8_ENVIRONMENT
-      # The default trial args include --rterrors which is incompatible with
-      # this reporter on Python 3.  So drop that and just specify the
-      # reporter.
-      TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py37"
-
 
   ubuntu-20-04:
     <<: *DEBIAN
@@ -380,7 +346,7 @@ jobs:
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
-        image: "nixos/nix:2.3.16"
+        image: "nixos/nix:2.10.3"
 
     environment:
       # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
@@ -390,26 +356,20 @@ jobs:
 
     steps:
       - "run":
-          # The nixos/nix image does not include ssh.  Install it so the
-          # `checkout` step will succeed.  We also want cachix for
-          # Nix-friendly caching.
+          # Get cachix for Nix-friendly caching.
           name: "Install Basic Dependencies"
           command: |
+            NIXPKGS="https://github.com/nixos/nixpkgs/archive/nixos-<<parameters.nixpkgs>>.tar.gz"
             nix-env \
-              --file https://github.com/nixos/nixpkgs/archive/nixos-<<parameters.nixpkgs>>.tar.gz \
+              --file $NIXPKGS \
               --install \
-              -A openssh cachix bash
+              -A cachix bash
+              # Activate it for "binary substitution".  This sets up
+              # configuration tht lets Nix download something from the cache
+              # instead of building it locally, if possible.
+              cachix use "${CACHIX_NAME}"
 
       - "checkout"
-
-      - run:
-          name: "Cachix setup"
-          # Record the store paths that exist before we did much.  There's no
-          # reason to cache these, they're either in the image or have to be
-          # retrieved before we can use cachix to restore from cache.
-          command: |
-            cachix use "${CACHIX_NAME}"
-            nix path-info --all > /tmp/store-path-pre-build
 
       - "run":
           # The Nix package doesn't know how to do this part, unfortunately.
@@ -432,55 +392,26 @@ jobs:
             # build a couple simple little dependencies that don't take
             # advantage of multiple cores and we get a little speedup by doing
             # them in parallel.
-            nix-build --cores 3 --max-jobs 2 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>"
+            source .circleci/lib.sh
+            cache_if_able nix-build \
+              --cores 3 \
+              --max-jobs 2 \
+              --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>"
 
       - "run":
           name: "Test"
           command: |
             # Let it go somewhat wild for the test suite itself
-            nix-build --cores 8 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" tests.nix
-
-      - run:
-          # Send any new store objects to cachix.
-          name: "Push to Cachix"
-          when: "always"
-          command: |
-            # Cribbed from
-            # https://circleci.com/blog/managing-secrets-when-you-have-pull-requests-from-outside-contributors/
-            if [ -n "$CIRCLE_PR_NUMBER" ]; then
-              # I'm sure you're thinking "CIRCLE_PR_NUMBER must just be the
-              # number of the PR being built".  Sorry, dear reader, you have
-              # guessed poorly.  It is also conditionally set based on whether
-              # this is a PR from a fork or not.
-              #
-              # https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
-              echo "Skipping Cachix push for forked PR."
-            else
-              # If this *isn't* a build from a fork then we have the Cachix
-              # write key in our environment and we can push any new objects
-              # to Cachix.
-              #
-              # To decide what to push, we inspect the list of store objects
-              # that existed before and after we did most of our work.  Any
-              # that are new after the work is probably a useful thing to have
-              # around so push it to the cache.  We exclude all derivation
-              # objects (.drv files) because they're cheap to reconstruct and
-              # by the time you know their cache key you've already done all
-              # the work anyway.
-              #
-              # This shell expression for finding the objects and pushing them
-              # was from the Cachix docs:
-              #
-              # https://docs.cachix.org/continuous-integration-setup/circleci.html
-              #
-              # but they seem to have removed it now.
-              bash -c "comm -13 <(sort /tmp/store-path-pre-build | grep -v '\.drv$') <(nix path-info --all | grep -v '\.drv$' | sort) | cachix push $CACHIX_NAME"
-            fi
+            source .circleci/lib.sh
+            cache_if_able nix-build \
+              --cores 8 \
+              --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
+              tests.nix
 
   typechecks:
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3.7"
+        image: "tahoelafsci/ubuntu:20.04-py3.9"
 
     steps:
       - "checkout"
@@ -492,7 +423,7 @@ jobs:
   docs:
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3.7"
+        image: "tahoelafsci/ubuntu:20.04-py3.9"
 
     steps:
       - "checkout"
@@ -543,15 +474,6 @@ jobs:
             docker push tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION}
 
 
-  build-image-debian-10:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "debian"
-      TAG: "10"
-      PYTHON_VERSION: "3.7"
-
-
   build-image-debian-11:
     <<: *BUILD_IMAGE
 
@@ -559,14 +481,6 @@ jobs:
       DISTRO: "debian"
       TAG: "11"
       PYTHON_VERSION: "3.9"
-
-  build-image-ubuntu-18-04:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "ubuntu"
-      TAG: "18.04"
-      PYTHON_VERSION: "3.7"
 
 
   build-image-ubuntu-20-04:
