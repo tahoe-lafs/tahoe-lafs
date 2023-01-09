@@ -5,7 +5,7 @@ in
 { pkgsVersion ? "nixpkgs-21.11"
 , pkgs ? import sources.${pkgsVersion} { }
 , pypiData ? sources.pypi-deps-db
-, pythonVersion ? "python37"
+, pythonVersion ? "python39"
 , mach-nix ? import sources.mach-nix {
     inherit pkgs pypiData;
     python = pythonVersion;
@@ -21,7 +21,7 @@ let
     inherit pkgs;
     lib = pkgs.lib;
   };
-  tests_require = (mach-lib.extract "python37" ./. "extras_require" ).extras_require.test;
+  tests_require = (mach-lib.extract "python39" ./. "extras_require" ).extras_require.test;
 
   # Get the Tahoe-LAFS package itself.  This does not include test
   # requirements and we don't ask for test requirements so that we can just

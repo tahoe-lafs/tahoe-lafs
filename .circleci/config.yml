@@ -15,16 +15,11 @@ workflows:
   ci:
     jobs:
       # Start with jobs testing various platforms.
-      - "debian-10":
-          {}
       - "debian-11":
           {}
 
       - "ubuntu-20-04":
           {}
-      - "ubuntu-18-04":
-          requires:
-            - "ubuntu-20-04"
 
       # Equivalent to RHEL 8; CentOS 8 is dead.
       - "oraclelinux-8":
@@ -85,11 +80,7 @@ workflows:
       # Contexts are managed in the CircleCI web interface:
       #
       #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
-      - "build-image-debian-10": &DOCKERHUB_CONTEXT
-          context: "dockerhub-auth"
-      - "build-image-debian-11":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-ubuntu-18-04":
+      - "build-image-debian-11": &DOCKERHUB_CONTEXT
           <<: *DOCKERHUB_CONTEXT
       - "build-image-ubuntu-20-04":
           <<: *DOCKERHUB_CONTEXT
@@ -167,12 +158,7 @@ jobs:
           command: |
             dist/Tahoe-LAFS/tahoe --version
 
-  debian-10: &DEBIAN
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/debian:10-py3.7"
-        user: "nobody"
-
+  debian-11: &DEBIAN
     environment: &UTF_8_ENVIRONMENT
       # In general, the test suite is not allowed to fail while the job
       # succeeds.  But you can set this to "yes" if you want it to be
@@ -184,7 +170,7 @@ jobs:
       # filenames and argv).
       LANG: "en_US.UTF-8"
       # Select a tox environment to run for this job.
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py37"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
       # Additional arguments to pass to tox.
       TAHOE_LAFS_TOX_ARGS: ""
       # The path in which test artifacts will be placed.
@@ -252,15 +238,11 @@ jobs:
               /tmp/venv/bin/codecov
             fi
 
-  debian-11:
-    <<: *DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
         image: "tahoelafsci/debian:11-py3.9"
         user: "nobody"
-    environment:
-      <<: *UTF_8_ENVIRONMENT
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
+
 
   # Restore later using PyPy3.8
   # pypy27-buster:
@@ -311,22 +293,6 @@ jobs:
       # DRY, YAML-style.  See the debian-9 steps.
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
-
-  ubuntu-18-04: &UBUNTU_18_04
-    <<: *DEBIAN
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3.7"
-        user: "nobody"
-
-    environment:
-      <<: *UTF_8_ENVIRONMENT
-      # The default trial args include --rterrors which is incompatible with
-      # this reporter on Python 3.  So drop that and just specify the
-      # reporter.
-      TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py37"
-
 
   ubuntu-20-04:
     <<: *DEBIAN
@@ -445,7 +411,7 @@ jobs:
   typechecks:
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3.7"
+        image: "tahoelafsci/ubuntu:20.04-py3.9"
 
     steps:
       - "checkout"
@@ -457,7 +423,7 @@ jobs:
   docs:
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3.7"
+        image: "tahoelafsci/ubuntu:20.04-py3.9"
 
     steps:
       - "checkout"
@@ -508,15 +474,6 @@ jobs:
             docker push tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION}
 
 
-  build-image-debian-10:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "debian"
-      TAG: "10"
-      PYTHON_VERSION: "3.7"
-
-
   build-image-debian-11:
     <<: *BUILD_IMAGE
 
@@ -524,14 +481,6 @@ jobs:
       DISTRO: "debian"
       TAG: "11"
       PYTHON_VERSION: "3.9"
-
-  build-image-ubuntu-18-04:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "ubuntu"
-      TAG: "18.04"
-      PYTHON_VERSION: "3.7"
 
 
   build-image-ubuntu-20-04:
