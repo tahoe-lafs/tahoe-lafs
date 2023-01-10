@@ -572,7 +572,7 @@ class HTTPServer(object):
             fd = request.content.fileno()
         except (ValueError, OSError):
             fd = -1
-        if fd > 0 and not PYCDDL_BYTES_ONLY:
+        if fd >= 0 and not PYCDDL_BYTES_ONLY:
             # It's a file, so we can use mmap() to save memory.
             message = mmap.mmap(fd, 0, access=mmap.ACCESS_READ)
         else:
