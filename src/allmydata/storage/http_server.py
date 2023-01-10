@@ -100,7 +100,7 @@ def _authorization_decorator(required_secrets):
         @wraps(f)
         def route(self, request, *args, **kwargs):
             if not timing_safe_compare(
-                request.requestHeaders.getRawHeaders("Authorization", [None])[0].encode(
+                request.requestHeaders.getRawHeaders("Authorization", [""])[0].encode(
                     "utf-8"
                 ),
                 swissnum_auth_header(self._swissnum),
