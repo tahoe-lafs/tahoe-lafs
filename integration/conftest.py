@@ -1,15 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import sys
 import shutil
 from time import sleep
@@ -65,6 +56,13 @@ def pytest_addoption(parser):
         "--coverage", action="store_true", dest="coverage",
         help="Collect coverage statistics",
     )
+    parser.addoption(
+        "--force-foolscap", action="store_true", default=False,
+        dest="force_foolscap",
+        help=("If set, force Foolscap only for the storage protocol. " +
+              "Otherwise HTTP will be used.")
+    )
+
 
 @pytest.fixture(autouse=True, scope='session')
 def eliot_logging():
