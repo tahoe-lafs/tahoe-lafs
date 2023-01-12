@@ -1102,16 +1102,18 @@ class _Client(node.Node, pollmixin.PollMixin):
         :param version: If given, the mutable file format for the new object
             (otherwise a format will be chosen automatically).
 
-        :param unique_keypair: **Warning** This valuely independently
-            determines the identity of the mutable object to create.  There
-            cannot be two different mutable objects that share a keypair.
-            They will merge into one object (with undefined contents).
+        :param unique_keypair: **Warning** This value independently determines
+            the identity of the mutable object to create.  There cannot be two
+            different mutable objects that share a keypair.  They will merge
+            into one object (with undefined contents).
 
-            It is not common to pass a non-None value for this parameter.  If
-            None is given then a new random keypair will be generated.
+            It is common to pass a None value (or not pass a valuye) for this
+            parameter.  In these cases, a new random keypair will be
+            generated.
 
             If non-None, the given public/private keypair will be used for the
-            new object.
+            new object.  The expected use-case is for implementing compliance
+            tests.
 
         :return: A Deferred which will fire with a representation of the new
             mutable object after it has been uploaded.

@@ -189,6 +189,7 @@ class PutOptions(FileStoreOptions):
          "***Warning*** "
          "It is possible to use this option to spoil the normal security properties of mutable objects. "
          "It is also possible to corrupt or destroy data with this option. "
+         "Most users will not need this option and can ignore it. "
          "For mutables only, "
          "this gives a file containing a PEM-encoded 2048 bit RSA private key to use as the signature key for the mutable. "
          "The private key must be handled at least as strictly as the resulting capability string. "
