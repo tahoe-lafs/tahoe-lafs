@@ -29,7 +29,7 @@ in
 , pypiData ? sources.pypi-deps-db # the pypi package database snapshot to use
                                   # for dependency resolution
 
-, pythonVersion ? "python37" # a string choosing the python derivation from
+, pythonVersion ? "python39" # a string choosing the python derivation from
                              # nixpkgs to target
 
 , extras ? [ "tor" "i2p" ] # a list of strings identifying tahoe-lafs extras,
