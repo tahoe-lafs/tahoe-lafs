@@ -141,8 +141,8 @@ async def test_generate(reactor, request, alice):
                     },
                     "zfec": {
                         "segmentSize": SEGMENT_SIZE,
-                        "required": case.seed_params.required,
-                        "total": case.seed_params.realize(vectors.MAX_SHARES_MAP[case.fmt]).total,
+                        "required": case.params.required,
+                        "total": case.params.total,
                     },
                     "expected": cap,
                 }
