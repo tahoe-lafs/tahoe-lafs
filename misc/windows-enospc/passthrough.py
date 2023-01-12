@@ -4,8 +4,6 @@ Windows.  So, this program passes through data from stdin to stdout, using
 Windows APIs instead of Unix-y APIs.
 """
 
-import sys
-
 from twisted.internet.stdio import StandardIO
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol
