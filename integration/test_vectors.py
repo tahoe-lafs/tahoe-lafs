@@ -128,28 +128,27 @@ async def test_generate(reactor, request, alice):
         FORMATS,
     ))
     results = generate(reactor, request, alice, space)
-    with vectors.DATA_PATH.open("w") as f:
-        f.write(safe_dump({
-            "version": "2023-01-03",
-            "vector": [
-                {
-                    "convergence": vectors.encode_bytes(case.convergence),
-                    "format": case.fmt,
-                    "sample": {
-                        "seed": vectors.encode_bytes(case.seed_data.seed),
-                        "length": case.seed_data.length,
-                    },
-                    "zfec": {
-                        "segmentSize": SEGMENT_SIZE,
-                        "required": case.params.required,
-                        "total": case.params.total,
-                    },
-                    "expected": cap,
-                }
-                async for (case, cap)
-                in results
-            ],
-        }))
+    vectors.DATA_PATH.setContent(safe_dump({
+        "version": "2023-01-03",
+        "vector": [
+            {
+                "convergence": vectors.encode_bytes(case.convergence),
+                "format": case.fmt,
+                "sample": {
+                    "seed": vectors.encode_bytes(case.seed_data.seed),
+                    "length": case.seed_data.length,
+                },
+                "zfec": {
+                    "segmentSize": SEGMENT_SIZE,
+                    "required": case.params.required,
+                    "total": case.params.total,
+                },
+                "expected": cap,
+            }
+            async for (case, cap)
+            in results
+        ],
+    }))
 
 
 async def generate(
