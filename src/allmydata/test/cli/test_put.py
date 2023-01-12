@@ -268,6 +268,11 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
             (writekey, fingerprint),
             (cap.writekey, cap.fingerprint),
         )
+        # Also the capability we were given actually refers to the data we
+        # uploaded.
+        (rc, out, err) = await self.do_cli("get", out.strip())
+        self.assertEqual(rc, 0, (out, err))
+        self.assertEqual(out, datapath.getContent().decode("ascii"))
 
     def test_mutable(self):
         # echo DATA1 | tahoe put --mutable - uploaded.txt
