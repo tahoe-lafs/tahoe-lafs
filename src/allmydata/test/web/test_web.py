@@ -2885,10 +2885,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         priv, pub = create_signing_keypair(2048)
         encoded_privkey = urlsafe_b64encode(der_string_from_signing_key(priv)).decode("ascii")
         filename = "predetermined-sdmf"
+        expected_content = self.NEWFILE_CONTENTS * 100
         actual_cap = uri.from_string(await self.POST(
             self.public_url +
             f"/foo?t=upload&format={format}&private-key={encoded_privkey}",
-            file=(filename, self.NEWFILE_CONTENTS * 100),
+            file=(filename, expected_content),
         ))
         # Ideally we would inspect the private ("signature") and public
         # ("verification") keys but they are not made easily accessible here
@@ -2903,7 +2904,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             (actual_cap.writekey, actual_cap.fingerprint),
         )
 
-
+        # And the capability we got can be used to download the data we
+        # uploaded.
+        downloaded_content = await self.GET(f"/uri/{actual_cap.to_string().decode('ascii')}")
+        self.assertEqual(expected_content, downloaded_content)
 
     def test_POST_upload_format(self):
         def _check_upload(ign, format, uri_prefix, fn=None):
