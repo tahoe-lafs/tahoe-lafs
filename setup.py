@@ -139,7 +139,11 @@ install_requires = [
     "werkzeug != 2.2.0",
     "treq",
     "cbor2",
-    "pycddl >= 0.2",
+    # Ideally we want 0.4+ to be able to pass in mmap(), but it's not strictly
+    # necessary yet until we fix the workaround to
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3963 in
+    # allmydata.storage.http_server.
+    "pycddl",
 
     # for pid-file support
     "psutil",
