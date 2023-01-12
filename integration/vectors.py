@@ -14,7 +14,9 @@ from yaml import safe_load
 from pathlib import Path
 from base64 import b64encode, b64decode
 
-DATA_PATH: Path = Path(__file__).parent / "test_vectors.yaml"
+from twisted.python.filepath import FilePath
+
+DATA_PATH: FilePath = FilePath(__file__).sibling("test_vectors.yaml")
 
 @frozen
 class Sample:

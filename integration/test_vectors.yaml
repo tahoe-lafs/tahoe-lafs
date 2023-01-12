@@ -808,7 +808,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:sshu77h6opnto3jnngot3lwzl4:4cjhp6u3i2uzdzrjitje3inlhs6gnlgwc6wgi6vtedc2grgvcpza:101:256:4096
   format: chk
@@ -818,7 +818,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:kl2jayrstlf5q3gax7o65ybivy:mnn5doti4wllssdg35ymojuiv4hd2ir7i6asurgms3ea67watm7a:101:256:131071
   format: chk
@@ -828,7 +828,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:a6wuekh5mynr4c74ma3b2gswfa:b6lovwnbv3523n5kaxga3ruxa2dvxef6h4a2jnl6lasn4fwvvdba:101:256:131073
   format: chk
@@ -838,7 +838,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:pmuo6vpcodol76sexq7s2ojej4:irp6rxnkgwbn3h4g5fzgjpqgsvhvycxobr3xrk3zr44r64wimgqa:101:256:2097151
   format: chk
@@ -848,7 +848,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:fh4boug3wkciqhkgpusjsjyzbe:sy5lwooxchqu5mrzwr3mgc7qtwfjgmpz2srdmwpaip4iuj3tn4vq:101:256:2097153
   format: chk
@@ -858,7 +858,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:asmjgajvwpwvylxdcf5rm2gyd4:imwtdi4eqq3wm4bvk6npho3ta2fewceqzl4f7wyyabg5i4s6h3mq:101:256:8388607
   format: chk
@@ -868,7 +868,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: YWFhYWFhYWFhYWFhYWFhYQ==
   expected: URI:CHK:yrznm2uuybfbda6jlj7tqs3yum:zy45lpc7ilfzgltxxqvy55wcokiay2fbbbv2wdvu6ubjluh4gf4a:101:256:8388609
   format: chk
@@ -878,7 +878,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:ihyeqq5peg2pdyw45ct5mmj4ay:2rzhndv6o4knlvo4po6rvbnknlcitasseea3mirqjor5c7quh5ra:101:256:1024
   format: chk
@@ -888,7 +888,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:mvk5f2mghudk7xnknqddhvnl4m:c74myeugtix7e7l6uwybtrdtfselha2qrcc7hhbymqr6brtg4cea:101:256:4096
   format: chk
@@ -898,7 +898,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:rvytwcc4sbmmkrdwh6b23ckv5u:klk5nqpbv37pr2qavcebcugfnikarjdefjlseo3ru5uv7guai22q:101:256:131071
   format: chk
@@ -908,7 +908,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:ocqx55dopakqnzyui6q6euz4gm:wklziyoctwrz5zjfg5wfejz4bnaagtg57fgjlspl4ba6ij6n2obq:101:256:131073
   format: chk
@@ -918,7 +918,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:lf6qub3bkdhfozpdis4bmorj7q:zte3u3ohbuom3iqjjx4odrjylcpw5myw4n4kwf4zcaif36vngf6q:101:256:2097151
   format: chk
@@ -928,7 +928,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:a2qoww5xx6so5uftwg4msdtrpy:h7hwsjco5i3jkd7icytrtsuzcjvjzlnkr2wwau2tjlj5wehjrokq:101:256:2097153
   format: chk
@@ -938,7 +938,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:tg5w4m6hi5ezeapuix3lrrbbtq:7kerk5plqpsd2upnole3ifxoegxdux7prazbvzeu2kyilc6idk7a:101:256:8388607
   format: chk
@@ -948,7 +948,7 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
+    total: 256
 - convergence: ZOyIygCyaOW6GjVnihtTFg==
   expected: URI:CHK:ioridipksj6o7ph3bcf37vslmi:pzhkwm4ry67ohj6dcs7zwnsjrvfqzam6tuitrns5vuo3uoomau6q:101:256:8388609
   format: chk
@@ -958,5 +958,5 @@ vector:
   zfec:
     required: 101
     segmentSize: 131072
-    total: max
-version: '2023-01-03'
+    total: 256
+version: '2023-01-12'

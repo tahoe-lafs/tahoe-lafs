@@ -129,7 +129,7 @@ async def test_generate(reactor, request, alice):
     ))
     results = generate(reactor, request, alice, space)
     vectors.DATA_PATH.setContent(safe_dump({
-        "version": "2023-01-03",
+        "version": "2023-01-12",
         "vector": [
             {
                 "convergence": vectors.encode_bytes(case.convergence),
@@ -148,7 +148,7 @@ async def test_generate(reactor, request, alice):
             async for (case, cap)
             in results
         ],
-    }))
+    }).encode("ascii"))
 
 
 async def generate(
