@@ -91,11 +91,11 @@ jobs:
 
       # On Windows, a non-blocking pipe might respond (when emulating Unix-y
       # API) with ENOSPC to indicate buffer full. Trial doesn't handle this
-      # well. So, we pipe the output through Get-Content (similar to piping
-      # through cat) to make buffer handling someone else's problem.
+      # well. So, we pipe the output through cat to make buffer handling someone
+      # else's problem.
       - name: Run tox for corresponding Python version
         if: ${{ contains(matrix.os, 'windows') }}
-        run: python -m tox | Get-Content
+        run: python -m tox | cat
 
       - name: Upload eliot.log
         uses: actions/upload-artifact@v3
