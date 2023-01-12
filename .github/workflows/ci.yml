@@ -96,7 +96,7 @@ jobs:
       - name: Run tox for corresponding Python version
         if: ${{ contains(matrix.os, 'windows') }}
         run: |
-          pip install twisted
+          pip install twisted pywin32
           python -m tox | python misc/windows-enospc/passthrough.py
 
       - name: Upload eliot.log
