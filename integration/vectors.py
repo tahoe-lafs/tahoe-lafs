@@ -125,6 +125,8 @@ def stretch(seed: bytes, size: int) -> bytes:
 
 def load_capabilities(f: TextIO) -> dict[Case, str]:
     data = safe_load(f)
+    if data is None:
+        return {}
     return {
         Case(
             seed_params=SeedParam(case["zfec"]["required"], case["zfec"]["total"]),
