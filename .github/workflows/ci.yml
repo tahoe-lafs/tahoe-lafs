@@ -86,7 +86,16 @@ jobs:
         run: python misc/build_helpers/show-tool-versions.py
 
       - name: Run tox for corresponding Python version
+        if: ${{ !contains(matrix.os, 'windows') }}
         run: python -m tox
+
+      # On Windows, a non-blocking pipe might respond (when emulating Unix-y
+      # API) with ENOSPC to indicate buffer full. Trial doesn't handle this
+      # well. So, we pipe the output through Get-Content (similar to piping
+      # through cat) to make buffer handling someone else's problem.
+      - name: Run tox for corresponding Python version
+        if: ${{ contains(matrix.os, 'windows') }}
+        run: python -m tox | Get-Content
 
       - name: Upload eliot.log
         uses: actions/upload-artifact@v3
