@@ -11,6 +11,7 @@ from twisted.python.filepath import FilePath
 
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
+from allmydata.crypto.rsa import PrivateKey
 from allmydata.uri import from_string
 from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
@@ -262,6 +263,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         cap = from_string(out.strip())
         # The capability is derived from the key we specified.
         privkey = load_pem_private_key(pempath.getContent(), password=None)
+        assert isinstance(privkey, PrivateKey)
         pubkey = privkey.public_key()
         writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
         self.assertEqual(

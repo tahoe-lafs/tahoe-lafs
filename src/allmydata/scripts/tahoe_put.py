@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from twisted.python.filepath import FilePath
 
-from allmydata.crypto.rsa import der_string_from_signing_key
+from allmydata.crypto.rsa import PrivateKey, der_string_from_signing_key
 from allmydata.scripts.common_http import do_http, format_http_success, format_http_error
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
@@ -23,6 +23,7 @@ def load_private_key(path: str) -> str:
     to include in the HTTP request.
     """
     privkey = load_pem_private_key(FilePath(path).getContent(), password=None)
+    assert isinstance(privkey, PrivateKey)
     derbytes = der_string_from_signing_key(privkey)
     return urlsafe_b64encode(derbytes).decode("ascii")
 

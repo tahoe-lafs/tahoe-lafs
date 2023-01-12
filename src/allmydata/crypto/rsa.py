@@ -79,10 +79,14 @@ def create_signing_keypair_from_string(private_key_der: bytes) -> tuple[PrivateK
     )
 
     def load_with_validation() -> PrivateKey:
-        return _load()
+        k = _load()
+        assert isinstance(k, PrivateKey)
+        return k
 
     def load_without_validation() -> PrivateKey:
-        return _load(unsafe_skip_rsa_key_validation=True)
+        k = _load(unsafe_skip_rsa_key_validation=True)
+        assert isinstance(k, PrivateKey)
+        return k
 
     # Load it once without the potentially expensive OpenSSL validation
     # checks.  These have superlinear complexity.  We *will* run them just
@@ -159,6 +163,7 @@ def create_verifying_key_from_string(public_key_der: bytes) -> PublicKey:
         public_key_der,
         backend=default_backend(),
     )
+    assert isinstance(pub_key, PublicKey)
     return pub_key
 
 
