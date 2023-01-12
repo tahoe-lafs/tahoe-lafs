@@ -91,11 +91,13 @@ jobs:
 
       # On Windows, a non-blocking pipe might respond (when emulating Unix-y
       # API) with ENOSPC to indicate buffer full. Trial doesn't handle this
-      # well. So, we pipe the output through cat to make buffer handling someone
-      # else's problem.
+      # well. So, we pipe the output through pipethrough that will hopefully be
+      # able to do the right thing by using Windows APIs.
       - name: Run tox for corresponding Python version
         if: ${{ contains(matrix.os, 'windows') }}
-        run: python -m tox | cat
+        run: |
+          pip install twisted
+          python -m tox | python misc/windows-enospc/passthrough.py
 
       - name: Upload eliot.log
         uses: actions/upload-artifact@v3
