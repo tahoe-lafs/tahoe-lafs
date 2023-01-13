@@ -92,7 +92,7 @@ jobs:
       # On Windows, a non-blocking pipe might respond (when emulating Unix-y
       # API) with ENOSPC to indicate buffer full. Trial doesn't handle this
       # well, so it breaks test runs. To attempt to solve this, we pipe the
-      # output through pipethrough that will hopefully be able to do the right
+      # output through passthrough.py that will hopefully be able to do the right
       # thing by using Windows APIs.
       - name: Run tox for corresponding Python version
         if: ${{ contains(matrix.os, 'windows') }}
