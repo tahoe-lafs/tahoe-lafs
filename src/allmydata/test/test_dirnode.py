@@ -1619,7 +1619,8 @@ class FakeMutableFile(object):  # type: ignore # incomplete implementation
         return defer.succeed(None)
 
 class FakeNodeMaker(NodeMaker):
-    def create_mutable_file(self, contents=b"", keysize=None, version=None):
+    def create_mutable_file(self, contents=b"", keysize=None, version=None, keypair=None):
+        assert keypair is None, "FakeNodeMaker does not support externally supplied keypairs"
         return defer.succeed(FakeMutableFile(contents))
 
 class FakeClient2(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
