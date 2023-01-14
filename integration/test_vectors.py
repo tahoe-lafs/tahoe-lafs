@@ -41,6 +41,7 @@ CONVERGENCE_SECRETS = [
 #
 #  1. Some cases smaller than one "segment" (128k).
 #     This covers shrinking of some parameters to match data size.
+#     This includes one case of the smallest possible CHK.
 #
 #  2. Some cases right on the edges of integer segment multiples.
 #     Because boundaries are tricky.
@@ -52,6 +53,8 @@ CONVERGENCE_SECRETS = [
 
 SEGMENT_SIZE = 128 * 1024
 OBJECT_DESCRIPTIONS = [
+    # The smallest possible.  55 bytes and smaller are LIT.
+    vectors.Sample(b"a", 56),
     vectors.Sample(b"a", 1024),
     vectors.Sample(b"c", 4096),
     vectors.Sample(digest(b"foo"), SEGMENT_SIZE - 1),
