@@ -1,0 +1,1 @@
+Fix incompatibility with newer versions of the transitive charset_normalizer dependency when using PyInstaller.

@@ -1,14 +1,7 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 from urllib.parse import quote as urlquote
 
@@ -25,6 +18,7 @@ from twisted.web.template import (
 from allmydata.immutable.upload import FileHandle
 from allmydata.mutable.publish import MutableFileHandle
 from allmydata.web.common import (
+    get_keypair,
     get_arg,
     boolean_of_arg,
     convert_children_json,
@@ -48,7 +42,8 @@ def PUTUnlinkedSSK(req, client, version):
     # SDMF: files are small, and we can only upload data
     req.content.seek(0)
     data = MutableFileHandle(req.content)
-    d = client.create_mutable_file(data, version=version)
+    keypair = get_keypair(req)
+    d = client.create_mutable_file(data, version=version, unique_keypair=keypair)
     d.addCallback(lambda n: n.get_uri())
     return d
 
