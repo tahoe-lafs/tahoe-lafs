@@ -14,7 +14,7 @@ from attrs import evolve
 from pytest import mark
 from pytest_twisted import ensureDeferred
 
-from . import vectors
+from .vectors import vectors
 from .util import CHK, SSK, reconfigure, upload, TahoeProcess
 
 def digest(bs: bytes) -> bytes:
@@ -114,7 +114,7 @@ async def test_capability(reactor, request, alice, case_and_expected):
 
 
 @ensureDeferred
-async def test_generate(reactor, request, alice):
+async def skiptest_generate(reactor, request, alice):
     """
     This is a helper for generating the test vectors.
 

@@ -20,7 +20,7 @@ from .util import CHK, SSK
 DATA_PATH: FilePath = FilePath(__file__).sibling("vectors").child("test_vectors.yaml")
 
 # The version of the persisted test vector data this code can interpret.
-CURRENT_VERSION: str = "2023-01-16.2"
+CURRENT_VERSION: str = "2023-01-16"
 
 @frozen
 class Sample:
