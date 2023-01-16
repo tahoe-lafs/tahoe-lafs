@@ -9,11 +9,13 @@ from hashlib import sha256
 from itertools import starmap, product
 from yaml import safe_dump
 
+from attrs import evolve
+
 from pytest import mark
 from pytest_twisted import ensureDeferred
 
 from . import vectors
-from .util import reconfigure, upload, TahoeProcess
+from .util import CHK, SSK, reconfigure, upload, TahoeProcess
 
 def digest(bs: bytes) -> bytes:
     """
@@ -75,9 +77,11 @@ ZFEC_PARAMS = [
 ]
 
 FORMATS = [
-    "chk",
-    # "sdmf",
-    # "mdmf",
+    CHK(),
+    # These start out unaware of a key but various keys will be supplied
+    # during generation.
+    SSK(name="sdmf", key=None),
+    SSK(name="mdmf", key=None),
 ]
 
 @mark.parametrize('convergence', CONVERGENCE_SECRETS)
@@ -89,18 +93,15 @@ def test_convergence(convergence):
     assert len(convergence) == 16, "Convergence secret must by 16 bytes"
 
 
-@mark.parametrize('seed_params', ZFEC_PARAMS)
-@mark.parametrize('convergence', CONVERGENCE_SECRETS)
-@mark.parametrize('seed_data', OBJECT_DESCRIPTIONS)
-@mark.parametrize('fmt', FORMATS)
+@mark.parametrize('case_and_expected', vectors.capabilities.items())
 @ensureDeferred
-async def test_capability(reactor, request, alice, seed_params, convergence, seed_data, fmt):
+async def test_capability(reactor, request, alice, case_and_expected):
     """
     The capability that results from uploading certain well-known data
     with certain well-known parameters results in exactly the previously
     computed value.
     """
-    case = vectors.Case(seed_params, convergence, seed_data, fmt)
+    case, expected = case_and_expected
 
     # rewrite alice's config to match params and convergence
     await reconfigure(reactor, request, alice, (1, case.params.required, case.params.total), case.convergence)
@@ -109,7 +110,6 @@ async def test_capability(reactor, request, alice, seed_params, convergence, see
     actual = upload(alice, case.fmt, case.data)
 
     # compare the resulting cap to the expected result
-    expected = vectors.capabilities[case]
     assert actual == expected
 
 
@@ -130,13 +130,27 @@ async def test_generate(reactor, request, alice):
         OBJECT_DESCRIPTIONS,
         FORMATS,
     ))
-    results = generate(reactor, request, alice, space)
-    vectors.DATA_PATH.setContent(safe_dump({
-        "version": "2023-01-12",
+    iterresults = generate(reactor, request, alice, space)
+
+    # Update the output file with results as they become available.
+    results = []
+    async for result in iterresults:
+        results.append(result)
+        write_results(vectors.DATA_PATH, results)
+
+def write_results(path: FilePath, results: list[tuple[Case, str]]) -> None:
+    """
+    Save the given results.
+    """
+    path.setContent(safe_dump({
+        "version": vectors.CURRENT_VERSION,
         "vector": [
             {
                 "convergence": vectors.encode_bytes(case.convergence),
-                "format": case.fmt,
+                "format": {
+                    "kind": case.fmt.kind,
+                    "params": case.fmt.to_json(),
+                },
                 "sample": {
                     "seed": vectors.encode_bytes(case.seed_data.seed),
                     "length": case.seed_data.length,
@@ -148,11 +162,10 @@ async def test_generate(reactor, request, alice):
                 },
                 "expected": cap,
             }
-            async for (case, cap)
+            for (case, cap)
             in results
         ],
     }).encode("ascii"))
-
 
 async def generate(
         reactor,
@@ -189,5 +202,7 @@ async def generate(
             case.convergence
         )
 
+        # Give the format a chance to make an RSA key if it needs it.
+        case = evolve(case, fmt=case.fmt.customize())
         cap = upload(alice, case.fmt, case.data)
         yield case, cap

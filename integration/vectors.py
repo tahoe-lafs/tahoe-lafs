@@ -3,7 +3,7 @@ A module that loads pre-generated test vectors.
 
 :ivar DATA_PATH: The path of the file containing test vectors.
 
-:ivar capabilities: The CHK test vectors.
+:ivar capabilities: The capability test vectors.
 """
 
 from __future__ import annotations
@@ -11,12 +11,16 @@ from __future__ import annotations
 from typing import TextIO
 from attrs import frozen
 from yaml import safe_load
-from pathlib import Path
 from base64 import b64encode, b64decode
 
 from twisted.python.filepath import FilePath
 
-DATA_PATH: FilePath = FilePath(__file__).sibling("test_vectors.yaml")
+from .util import CHK, SSK
+
+DATA_PATH: FilePath = FilePath(__file__).sibling("vectors").child("test_vectors.yaml")
+
+# The version of the persisted test vector data this code can interpret.
+CURRENT_VERSION: str = "2023-01-16.2"
 
 @frozen
 class Sample:
@@ -41,16 +45,6 @@ class Param:
 # Represent max symbolically and resolve it when we know what format we're
 # dealing with.
 MAX_SHARES = "max"
-
-# SDMF and MDMF encode share counts (N and k) into the share itself as an
-# unsigned byte.  They could have encoded (share count - 1) to fit the full
-# range supported by ZFEC into the unsigned byte - but they don't.  So 256 is
-# inaccessible to those formats and we set the upper bound at 255.
-MAX_SHARES_MAP = {
-    "chk": 256,
-    "sdmf": 255,
-    "mdmf": 255,
-}
 
 @frozen
 class SeedParam:
@@ -86,7 +80,7 @@ class Case:
     seed_params: Param
     convergence: bytes
     seed_data: Sample
-    fmt: str
+    fmt: CHK | SSK
 
     @property
     def data(self):
@@ -94,7 +88,7 @@ class Case:
 
     @property
     def params(self):
-        return self.seed_params.realize(MAX_SHARES_MAP[self.fmt])
+        return self.seed_params.realize(self.fmt.max_shares)
 
 
 def encode_bytes(b: bytes) -> str:
@@ -125,16 +119,32 @@ def stretch(seed: bytes, size: int) -> bytes:
     return (seed * multiples)[:size]
 
 
+def load_format(serialized: dict) -> CHK | SSK:
+    if serialized["kind"] == "chk":
+        return CHK.load(serialized["params"])
+    elif serialized["kind"] == "ssk":
+        return SSK.load(serialized["params"])
+    else:
+        raise ValueError(f"Unrecognized format: {serialized}")
+
+
 def load_capabilities(f: TextIO) -> dict[Case, str]:
     data = safe_load(f)
     if data is None:
         return {}
+    if data["version"] != CURRENT_VERSION:
+        print(
+            f"Current version is {CURRENT_VERSION}; "
+            "cannot load version {data['version']} data."
+        )
+        return {}
+
     return {
         Case(
             seed_params=SeedParam(case["zfec"]["required"], case["zfec"]["total"]),
             convergence=decode_bytes(case["convergence"]),
             seed_data=Sample(decode_bytes(case["sample"]["seed"]), case["sample"]["length"]),
-            fmt=case["format"],
+            fmt=load_format(case["format"]),
         ): case["expected"]
         for case
         in data["vector"]

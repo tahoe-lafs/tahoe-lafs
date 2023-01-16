@@ -2,7 +2,11 @@
 General functionality useful for the implementation of integration tests.
 """
 
+from __future__ import annotations
+
+from contextlib import contextmanager
 from typing import TypeVar, Iterator, Awaitable, Callable
+from typing_extensions import Literal
 from tempfile import NamedTemporaryFile
 import sys
 import time
@@ -21,7 +25,16 @@ from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
 from twisted.internet.threads import deferToThread
 
+from attrs import frozen, evolve
 import requests
+
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    PrivateFormat,
+    NoEncryption,
+)
 
 from paramiko.rsakey import RSAKey
 from boltons.funcutils import wraps
@@ -225,7 +238,7 @@ class TahoeProcess(object):
 
     def restart_async(self, reactor, request):
         d = self.kill_async()
-        d.addCallback(lambda ignored: _run_node(reactor, self.node_dir, request, None))
+        d.addCallback(lambda ignored: _run_node(reactor, self.node_dir, request, None, finalize=False))
         def got_new_process(proc):
             self._process_transport = proc.transport
         d.addCallback(got_new_process)
@@ -603,8 +616,76 @@ def run_in_thread(f):
         return deferToThread(lambda: f(*args, **kwargs))
     return test
 
+@frozen
+class CHK:
+    """
+    Represent the CHK encoding sufficiently to run a ``tahoe put`` command
+    using it.
+    """
+    kind = "chk"
+    max_shares = 256
 
-def upload(alice: TahoeProcess, fmt: str, data: bytes) -> str:
+    def customize(self) -> CHK:
+        # Nothing to do.
+        return self
+
+    @classmethod
+    def load(cls, params: None) -> CHK:
+        assert params is None
+        return cls()
+
+    def to_json(self) -> None:
+        return None
+
+    @contextmanager
+    def to_argv(self) -> None:
+        yield []
+
+@frozen
+class SSK:
+    """
+    Represent the SSK encodings (SDMF and MDMF) sufficiently to run a
+    ``tahoe put`` command using one of them.
+    """
+    kind = "ssk"
+
+    # SDMF and MDMF encode share counts (N and k) into the share itself as an
+    # unsigned byte.  They could have encoded (share count - 1) to fit the
+    # full range supported by ZFEC into the unsigned byte - but they don't.
+    # So 256 is inaccessible to those formats and we set the upper bound at
+    # 255.
+    max_shares = 255
+
+    name: Literal["sdmf", "mdmf"]
+    key: None | bytes
+
+    @classmethod
+    def load(cls, params: dict) -> SSK:
+        assert params.keys() == {"format", "mutable", "key"}
+        return cls(params["format"], params["key"].encode("ascii"))
+
+    def customize(self) -> SSK:
+        """
+        Return an SSK with a newly generated random RSA key.
+        """
+        return evolve(self, key=generate_rsa_key())
+
+    def to_json(self) -> dict[str, str]:
+        return {
+            "format": self.name,
+            "mutable": None,
+            "key": self.key.decode("ascii"),
+        }
+
+    @contextmanager
+    def to_argv(self) -> None:
+        with NamedTemporaryFile() as f:
+            f.write(self.key)
+            f.flush()
+            yield [f"--format={self.name}", "--mutable", f"--private-key-path={f.name}"]
+
+
+def upload(alice: TahoeProcess, fmt: CHK | SSK, data: bytes) -> str:
     """
     Upload the given data to the given node.
 
@@ -616,11 +697,13 @@ def upload(alice: TahoeProcess, fmt: str, data: bytes) -> str:
 
     :return: The capability for the uploaded data.
     """
+
     with NamedTemporaryFile() as f:
         f.write(data)
         f.flush()
-        return cli(alice, "put", f"--format={fmt}", f.name).decode("utf-8").strip()
-
+        with fmt.to_argv() as fmt_argv:
+            argv = [alice, "put"] + fmt_argv + [f.name]
+            return cli(*argv).decode("utf-8").strip()
 
 α = TypeVar("α")
 β = TypeVar("β")
@@ -707,3 +790,18 @@ async def reconfigure(reactor, request, node: TahoeProcess, params: tuple[int, i
         print("Ready.")
     else:
         print("Config unchanged, not restarting.")
+
+
+def generate_rsa_key() -> bytes:
+    """
+    Generate a 2048 bit RSA key suitable for use with SSKs.
+    """
+    return rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    ).private_bytes(
+        encoding=Encoding.PEM,
+        format=PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=NoEncryption(),
+    )
