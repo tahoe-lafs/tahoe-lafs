@@ -5,7 +5,6 @@ Verify certain results against test vectors with well-known results.
 from __future__ import annotations
 
 from typing import AsyncGenerator, Iterator
-from hashlib import sha256
 from itertools import starmap, product
 from yaml import safe_dump
 
@@ -17,76 +16,10 @@ from pytest_twisted import ensureDeferred
 from twisted.python.filepath import FilePath
 
 from . import vectors
-from .util import CHK, SSK, reconfigure, upload, TahoeProcess
+from .vectors import parameters
+from .util import reconfigure, upload, TahoeProcess
 
-def digest(bs: bytes) -> bytes:
-    """
-    Digest bytes to bytes.
-    """
-    return sha256(bs).digest()
-
-
-def hexdigest(bs: bytes) -> str:
-    """
-    Digest bytes to text.
-    """
-    return sha256(bs).hexdigest()
-
-# Just a couple convergence secrets.  The only thing we do with this value is
-# feed it into a tagged hash.  It certainly makes a difference to the output
-# but the hash should destroy any structure in the input so it doesn't seem
-# like there's a reason to test a lot of different values.
-CONVERGENCE_SECRETS = [
-    b"aaaaaaaaaaaaaaaa",
-    digest(b"Hello world")[:16],
-]
-
-# Exercise at least a handful of different sizes, trying to cover:
-#
-#  1. Some cases smaller than one "segment" (128k).
-#     This covers shrinking of some parameters to match data size.
-#     This includes one case of the smallest possible CHK.
-#
-#  2. Some cases right on the edges of integer segment multiples.
-#     Because boundaries are tricky.
-#
-#  4. Some cases that involve quite a few segments.
-#     This exercises merkle tree construction more thoroughly.
-#
-# See ``stretch`` for construction of the actual test data.
-
-SEGMENT_SIZE = 128 * 1024
-OBJECT_DESCRIPTIONS = [
-    # The smallest possible.  55 bytes and smaller are LIT.
-    vectors.Sample(b"a", 56),
-    vectors.Sample(b"a", 1024),
-    vectors.Sample(b"c", 4096),
-    vectors.Sample(digest(b"foo"), SEGMENT_SIZE - 1),
-    vectors.Sample(digest(b"bar"), SEGMENT_SIZE + 1),
-    vectors.Sample(digest(b"baz"), SEGMENT_SIZE * 16 - 1),
-    vectors.Sample(digest(b"quux"), SEGMENT_SIZE * 16 + 1),
-    vectors.Sample(digest(b"foobar"), SEGMENT_SIZE * 64 - 1),
-    vectors.Sample(digest(b"barbaz"), SEGMENT_SIZE * 64 + 1),
-]
-
-ZFEC_PARAMS = [
-    vectors.SeedParam(1, 1),
-    vectors.SeedParam(1, 3),
-    vectors.SeedParam(2, 3),
-    vectors.SeedParam(3, 10),
-    vectors.SeedParam(71, 255),
-    vectors.SeedParam(101, vectors.MAX_SHARES),
-]
-
-FORMATS = [
-    CHK(),
-    # These start out unaware of a key but various keys will be supplied
-    # during generation.
-    SSK(name="sdmf", key=None),
-    SSK(name="mdmf", key=None),
-]
-
-@mark.parametrize('convergence', CONVERGENCE_SECRETS)
+@mark.parametrize('convergence', parameters.CONVERGENCE_SECRETS)
 def test_convergence(convergence):
     """
     Convergence secrets are 16 bytes.
@@ -126,10 +59,10 @@ async def skiptest_generate(reactor, request, alice):
     ever-changing set of outputs.
     """
     space = starmap(vectors.Case, product(
-        ZFEC_PARAMS,
-        CONVERGENCE_SECRETS,
-        OBJECT_DESCRIPTIONS,
-        FORMATS,
+        parameters.ZFEC_PARAMS,
+        parameters.CONVERGENCE_SECRETS,
+        parameters.OBJECT_DESCRIPTIONS,
+        parameters.FORMATS,
     ))
     iterresults = generate(reactor, request, alice, space)
 
@@ -157,7 +90,7 @@ def write_results(path: FilePath, results: list[tuple[vectors.Case, str]]) -> No
                     "length": case.seed_data.length,
                 },
                 "zfec": {
-                    "segmentSize": SEGMENT_SIZE,
+                    "segmentSize": parameters.SEGMENT_SIZE,
                     "required": case.params.required,
                     "total": case.params.total,
                 },
