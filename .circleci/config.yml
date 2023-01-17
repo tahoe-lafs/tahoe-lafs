@@ -301,7 +301,7 @@ jobs:
       tox-args:
         description: >-
           Additional arguments to pass to the tox command.
-        type: string"
+        type: "string"
         default: ""
 
     docker:
