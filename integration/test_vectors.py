@@ -95,6 +95,7 @@ def test_convergence(convergence):
     assert len(convergence) == 16, "Convergence secret must by 16 bytes"
 
 
+@mark.slow
 @mark.parametrize('case_and_expected', vectors.capabilities.items())
 @ensureDeferred
 async def test_capability(reactor, request, alice, case_and_expected):

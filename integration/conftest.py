@@ -62,6 +62,22 @@ def pytest_addoption(parser):
         help=("If set, force Foolscap only for the storage protocol. " +
               "Otherwise HTTP will be used.")
     )
+    parser.addoption(
+        "--runslow", action="store_true", default=False,
+        dest="runslow",
+        help="If set, run tests marked as slow.",
+    )
+
+def pytest_collection_modifyitems(session, config, items):
+    if not config.option.runslow:
+        # The --runslow option was not given; keep only collected items not
+        # marked as slow.
+        items[:] = [
+            item
+            for item
+            in items
+            if item.get_closest_marker("slow") is None
+        ]
 
 
 @pytest.fixture(autouse=True, scope='session')
