@@ -17,10 +17,10 @@ from twisted.python.filepath import FilePath
 
 from ..util import CHK, SSK
 
-DATA_PATH: FilePath = FilePath(__file__).sibling("vectors").child("test_vectors.yaml")
+DATA_PATH: FilePath = FilePath(__file__).sibling("test_vectors.yaml")
 
 # The version of the persisted test vector data this code can interpret.
-CURRENT_VERSION: str = "2023-01-16"
+CURRENT_VERSION: str = "2023-01-16.2"
 
 @frozen
 class Sample:
@@ -135,7 +135,7 @@ def load_capabilities(f: TextIO) -> dict[Case, str]:
     if data["version"] != CURRENT_VERSION:
         print(
             f"Current version is {CURRENT_VERSION}; "
-            "cannot load version {data['version']} data."
+            f"cannot load version {data['version']} data."
         )
         return {}
 
