@@ -24,6 +24,7 @@ from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
 from twisted.internet.threads import deferToThread
+from twisted.internet.interfaces import IProcessTransport
 
 from attrs import frozen, evolve
 import requests
@@ -150,20 +151,40 @@ class _MagicTextProtocol(ProcessProtocol):
         sys.stdout.write(data)
 
 
-def _cleanup_tahoe_process_async(tahoe_transport, allow_missing):
-    if tahoe_transport.pid is None:
+def _cleanup_process_async(transport: IProcessTransport, allow_missing: bool) -> None:
+    """
+    If the given process transport seems to still be associated with a
+    running process, send a SIGTERM to that process.
+
+    :param transport: The transport to use.
+
+    :param allow_missing: If ``True`` then it is not an error for the
+        transport to have no associated process.  Otherwise, an exception will
+        be raised in that case.
+
+    :raise: ``ValueError`` if ``allow_missing`` is ``False`` and the transport
+        has no process.
+    """
+    if transport.pid is None:
         if allow_missing:
             print("Process already cleaned up and that's okay.")
             return
         else:
             raise ValueError("Process is not running")
-    print("signaling {} with TERM".format(tahoe_transport.pid))
-    tahoe_transport.signalProcess('TERM')
-
+    print("signaling {} with TERM".format(transport.pid))
+    try:
+        transport.signalProcess('TERM')
+    except ProcessExitedAlready:
+        # The transport object thought it still had a process but the real OS
+        # process has already exited.  That's fine.  We accomplished what we
+        # wanted to.  We don't care about ``allow_missing`` here because
+        # there's no way we could have known the real OS process already
+        # exited.
+        pass
 
 def _cleanup_tahoe_process(tahoe_transport, exited, allow_missing=False):
     """
-    Terminate the given process with a kill signal (SIGKILL on POSIX,
+    Terminate the given process with a kill signal (SIGTERM on POSIX,
     TerminateProcess on Windows).
 
     :param tahoe_transport: The `IProcessTransport` representing the process.
@@ -172,13 +193,10 @@ def _cleanup_tahoe_process(tahoe_transport, exited, allow_missing=False):
     :return: After the process has exited.
     """
     from twisted.internet import reactor
-    try:
-        _cleanup_tahoe_process_async(tahoe_transport, allow_missing=allow_missing)
-    except ProcessExitedAlready:
-        # XXX is this wait logic right?
-        print("signaled, blocking on exit")
-        block_with_timeout(exited, reactor)
-        print("exited, goodbye")
+    _cleanup_process_async(tahoe_transport, allow_missing=allow_missing)
+    print("signaled, blocking on exit")
+    block_with_timeout(exited, reactor)
+    print("exited, goodbye")
 
 
 def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
@@ -233,7 +251,7 @@ class TahoeProcess(object):
         Kill the process, return a Deferred that fires when it's done.
         """
         print(f"TahoeProcess.kill_async({self.transport.pid} / {self.node_dir})")
-        _cleanup_tahoe_process_async(self.transport, allow_missing=False)
+        _cleanup_process_async(self.transport, allow_missing=False)
         return self.transport.exited
 
     def restart_async(self, reactor, request):
