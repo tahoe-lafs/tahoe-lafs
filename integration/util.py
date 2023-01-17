@@ -254,10 +254,18 @@ class TahoeProcess(object):
         _cleanup_process_async(self.transport, allow_missing=False)
         return self.transport.exited
 
-    def restart_async(self, reactor, request):
+    def restart_async(self, reactor: IReactorProcess, request: Any) -> Deferred:
+        """
+        Stop and then re-start the associated process.
+
+        :return: A Deferred that fires after the new process is ready to
+            handle requests.
+        """
         d = self.kill_async()
         d.addCallback(lambda ignored: _run_node(reactor, self.node_dir, request, None, finalize=False))
         def got_new_process(proc):
+            # Grab the new transport since the one we had before is no longer
+            # valid after the stop/start cycle.
             self._process_transport = proc.transport
         d.addCallback(got_new_process)
         return d
@@ -290,19 +298,17 @@ def _run_node(reactor, node_dir, request, magic_text, finalize=True):
     )
     transport.exited = protocol.exited
 
+    tahoe_process = TahoeProcess(
+        transport,
+        node_dir,
+    )
+
     if finalize:
-        request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited, allow_missing=True))
+        request.addfinalizer(tahoe_process.kill)
 
-    # XXX abusing the Deferred; should use .when_magic_seen() pattern
-
-    def got_proto(proto):
-        transport._protocol = proto
-        return TahoeProcess(
-            transport,
-            node_dir,
-        )
-    protocol.magic_seen.addCallback(got_proto)
-    return protocol.magic_seen
+    d = protocol.magic_seen
+    d.addCallback(lambda ignored: tahoe_process)
+    return d
 
 
 def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, name, web_port,
