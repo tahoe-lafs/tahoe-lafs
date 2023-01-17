@@ -5,7 +5,7 @@ General functionality useful for the implementation of integration tests.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import TypeVar, Iterator, Awaitable, Callable
+from typing import TypeVar, Iterator, Awaitable, Callable, Any
 from typing_extensions import Literal
 from tempfile import NamedTemporaryFile
 import sys
@@ -14,7 +14,6 @@ import json
 from os import mkdir, environ
 from os.path import exists, join
 from io import StringIO, BytesIO
-from functools import partial
 from subprocess import check_output
 
 from twisted.python.filepath import (
@@ -24,7 +23,7 @@ from twisted.internet.defer import Deferred, succeed
 from twisted.internet.protocol import ProcessProtocol
 from twisted.internet.error import ProcessExitedAlready, ProcessDone
 from twisted.internet.threads import deferToThread
-from twisted.internet.interfaces import IProcessTransport
+from twisted.internet.interfaces import IProcessTransport, IReactorProcess
 
 from attrs import frozen, evolve
 import requests
