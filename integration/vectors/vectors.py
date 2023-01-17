@@ -15,7 +15,7 @@ from base64 import b64encode, b64decode
 
 from twisted.python.filepath import FilePath
 
-from .util import CHK, SSK
+from ..util import CHK, SSK
 
 DATA_PATH: FilePath = FilePath(__file__).sibling("vectors").child("test_vectors.yaml")
 

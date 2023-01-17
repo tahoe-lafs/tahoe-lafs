@@ -14,7 +14,9 @@ from attrs import evolve
 from pytest import mark
 from pytest_twisted import ensureDeferred
 
-from .vectors import vectors
+from twisted.python.filepath import FilePath
+
+from . import vectors
 from .util import CHK, SSK, reconfigure, upload, TahoeProcess
 
 def digest(bs: bytes) -> bytes:
@@ -138,7 +140,7 @@ async def skiptest_generate(reactor, request, alice):
         results.append(result)
         write_results(vectors.DATA_PATH, results)
 
-def write_results(path: FilePath, results: list[tuple[Case, str]]) -> None:
+def write_results(path: FilePath, results: list[tuple[vectors.Case, str]]) -> None:
     """
     Save the given results.
     """
