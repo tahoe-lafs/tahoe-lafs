@@ -316,10 +316,8 @@ jobs:
       # Disable artifact collection because py.test can't produce any.
       ARTIFACTS_OUTPUT_PATH: ""
 
-      # Pass on anything we got in our parameters.  Passing an arguments here
-      # disables the default "integration" argument defined in the tox env, so
-      # also stick "integration" in here.
-      TAHOE_LAFS_TOX_ARGS: "<< parameters.tox-args >> integration"
+      # Pass on anything we got in our parameters.
+      TAHOE_LAFS_TOX_ARGS: "<< parameters.tox-args >>"
 
     steps:
       - "checkout"
