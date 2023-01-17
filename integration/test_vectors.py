@@ -96,16 +96,14 @@ def test_convergence(convergence):
 
 
 @mark.slow
-@mark.parametrize('case_and_expected', vectors.capabilities.items())
+@mark.parametrize('case,expected', vectors.capabilities.items())
 @ensureDeferred
-async def test_capability(reactor, request, alice, case_and_expected):
+async def test_capability(reactor, request, alice, case, expected):
     """
     The capability that results from uploading certain well-known data
     with certain well-known parameters results in exactly the previously
     computed value.
     """
-    case, expected = case_and_expected
-
     # rewrite alice's config to match params and convergence
     await reconfigure(reactor, request, alice, (1, case.params.required, case.params.total), case.convergence)
 
