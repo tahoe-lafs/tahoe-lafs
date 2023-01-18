@@ -766,7 +766,7 @@ def insert(item: tuple[α, β], d: dict[α, β]) -> dict[α, β]:
     return d
 
 
-async def reconfigure(reactor, request, node: TahoeProcess, params: tuple[int, int, int], convergence: bytes) -> None:
+async def reconfigure(reactor, request, node: TahoeProcess, params: tuple[int, int, int], convergence: None | bytes) -> None:
     """
     Reconfigure a Tahoe-LAFS node with different ZFEC parameters and
     convergence secret.
@@ -780,7 +780,8 @@ async def reconfigure(reactor, request, node: TahoeProcess, params: tuple[int, i
     :param node: The Tahoe-LAFS node to reconfigure.
     :param params: The ``happy``, ``needed``, and ``total`` ZFEC encoding
       parameters.
-    :param convergence: The convergence secret.
+    :param convergence: If given, the convergence secret.  If not given, the
+        existing convergence secret will be left alone.
 
     :return: ``None`` after the node configuration has been rewritten, the
         node has been restarted, and the node is ready to provide service.
@@ -799,10 +800,11 @@ async def reconfigure(reactor, request, node: TahoeProcess, params: tuple[int, i
         config.set_config("client", "shares.needed", str(needed))
         config.set_config("client", "shares.total", str(total))
 
-    cur_convergence = config.get_private_config("convergence").encode("ascii")
-    if base32.a2b(cur_convergence) != convergence:
-        changed = True
-        config.write_private_config("convergence", base32.b2a(convergence))
+    if convergence is not None:
+        cur_convergence = config.get_private_config("convergence").encode("ascii")
+        if base32.a2b(cur_convergence) != convergence:
+            changed = True
+            config.write_private_config("convergence", base32.b2a(convergence))
 
     if changed:
         # restart the node
