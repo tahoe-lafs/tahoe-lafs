@@ -14,7 +14,6 @@ __all__ = [
 from .vectors import (
     DATA_PATH,
     CURRENT_VERSION,
-    MAX_SHARES,
 
     Case,
     Sample,
@@ -22,4 +21,8 @@ from .vectors import (
     encode_bytes,
 
     capabilities,
+)
+
+from .parameters import (
+    MAX_SHARES,
 )

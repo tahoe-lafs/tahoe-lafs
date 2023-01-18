@@ -19,7 +19,8 @@ from __future__ import annotations
 
 from hashlib import sha256
 
-from . import MAX_SHARES, Sample, SeedParam
+from .model import MAX_SHARES
+from .vectors import Sample, SeedParam
 from ..util import CHK, SSK
 
 def digest(bs: bytes) -> bytes:

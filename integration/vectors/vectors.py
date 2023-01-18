@@ -10,11 +10,12 @@ from __future__ import annotations
 
 from typing import TextIO
 from attrs import frozen
-from yaml import safe_load
+from yaml import safe_load, safe_dump
 from base64 import b64encode, b64decode
 
 from twisted.python.filepath import FilePath
 
+from .model import Param, Sample, SeedParam
 from ..util import CHK, SSK
 
 DATA_PATH: FilePath = FilePath(__file__).sibling("test_vectors.yaml")
@@ -23,61 +24,12 @@ DATA_PATH: FilePath = FilePath(__file__).sibling("test_vectors.yaml")
 CURRENT_VERSION: str = "2023-01-16.2"
 
 @frozen
-class Sample:
-    """
-    Some instructions for building a long byte string.
-
-    :ivar seed: Some bytes to repeat some times to produce the string.
-    :ivar length: The length of the desired byte string.
-    """
-    seed: bytes
-    length: int
-
-@frozen
-class Param:
-    """
-    Some ZFEC parameters.
-    """
-    required: int
-    total: int
-
-# CHK have a max of 256 shares.  SDMF / MDMF have a max of 255 shares!
-# Represent max symbolically and resolve it when we know what format we're
-# dealing with.
-MAX_SHARES = "max"
-
-@frozen
-class SeedParam:
-    """
-    Some ZFEC parameters, almost.
-
-    :ivar required: The number of required shares.
-
-    :ivar total: Either the number of total shares or the constant
-        ``MAX_SHARES`` to indicate that the total number of shares should be
-        the maximum number supported by the object format.
-    """
-    required: int
-    total: int | str
-
-    def realize(self, max_total: int) -> Param:
-        """
-        Create a ``Param`` from this object's values, possibly
-        substituting the given real value for total if necessary.
-
-        :param max_total: The value to use to replace ``MAX_SHARES`` if
-            necessary.
-        """
-        if self.total == MAX_SHARES:
-            return Param(self.required, max_total)
-        return Param(self.required, self.total)
-
-@frozen
 class Case:
     """
     Represent one case for which we want/have a test vector.
     """
     seed_params: Param
+    segment_size: int
     convergence: bytes
     seed_data: Sample
     fmt: CHK | SSK
@@ -119,7 +71,45 @@ def stretch(seed: bytes, size: int) -> bytes:
     return (seed * multiples)[:size]
 
 
+def save_capabilities(results: list[tuple[Case, str]], path: FilePath = DATA_PATH) -> None:
+    """
+    Save some test vector cases and their expected values.
+
+    This is logically the inverse of ``load_capabilities``.
+    """
+    path.setContent(safe_dump({
+        "version": CURRENT_VERSION,
+        "vector": [
+            {
+                "convergence": encode_bytes(case.convergence),
+                "format": {
+                    "kind": case.fmt.kind,
+                    "params": case.fmt.to_json(),
+                },
+                "sample": {
+                    "seed": encode_bytes(case.seed_data.seed),
+                    "length": case.seed_data.length,
+                },
+                "zfec": {
+                    "segmentSize": case.segment_size,
+                    "required": case.params.required,
+                    "total": case.params.total,
+                },
+                "expected": cap,
+            }
+            for (case, cap)
+            in results
+        ],
+    }).encode("ascii"))
+
+
 def load_format(serialized: dict) -> CHK | SSK:
+    """
+    Load an encrypted object format from a simple description of it.
+
+    :param serialized: A ``dict`` describing either CHK or SSK, possibly with
+        some parameters.
+    """
     if serialized["kind"] == "chk":
         return CHK.load(serialized["params"])
     elif serialized["kind"] == "ssk":
@@ -129,6 +119,12 @@ def load_format(serialized: dict) -> CHK | SSK:
 
 
 def load_capabilities(f: TextIO) -> dict[Case, str]:
+    """
+    Load some test vector cases and their expected results from the given
+    file.
+
+    This is logically the inverse of ``save_capabilities``.
+    """
     data = safe_load(f)
     if data is None:
         return {}
@@ -142,6 +138,7 @@ def load_capabilities(f: TextIO) -> dict[Case, str]:
     return {
         Case(
             seed_params=SeedParam(case["zfec"]["required"], case["zfec"]["total"]),
+            segment_size=case["zfec"]["segmentSize"],
             convergence=decode_bytes(case["convergence"]),
             seed_data=Sample(decode_bytes(case["sample"]["seed"]), case["sample"]["length"]),
             fmt=load_format(case["format"]),

@@ -4,16 +4,14 @@ Verify certain results against test vectors with well-known results.
 
 from __future__ import annotations
 
+from functools import partial
 from typing import AsyncGenerator, Iterator
 from itertools import starmap, product
-from yaml import safe_dump
 
 from attrs import evolve
 
 from pytest import mark
 from pytest_twisted import ensureDeferred
-
-from twisted.python.filepath import FilePath
 
 from . import vectors
 from .vectors import parameters
@@ -58,48 +56,24 @@ async def skiptest_generate(reactor, request, alice):
     to run against the results produced originally, not a possibly
     ever-changing set of outputs.
     """
-    space = starmap(vectors.Case, product(
-        parameters.ZFEC_PARAMS,
-        parameters.CONVERGENCE_SECRETS,
-        parameters.OBJECT_DESCRIPTIONS,
-        parameters.FORMATS,
-    ))
+    space = starmap(
+        # segmentSize could be a parameter someday but it's not easy to vary
+        # using the Python implementation so it isn't one for now.
+        partial(vectors.Case, segmentSize=parameters.SEGMENT_SIZE),
+        product(
+            parameters.ZFEC_PARAMS,
+            parameters.CONVERGENCE_SECRETS,
+            parameters.OBJECT_DESCRIPTIONS,
+            parameters.FORMATS,
+        ),
+    )
     iterresults = generate(reactor, request, alice, space)
 
     # Update the output file with results as they become available.
     results = []
     async for result in iterresults:
         results.append(result)
-        write_results(vectors.DATA_PATH, results)
-
-def write_results(path: FilePath, results: list[tuple[vectors.Case, str]]) -> None:
-    """
-    Save the given results.
-    """
-    path.setContent(safe_dump({
-        "version": vectors.CURRENT_VERSION,
-        "vector": [
-            {
-                "convergence": vectors.encode_bytes(case.convergence),
-                "format": {
-                    "kind": case.fmt.kind,
-                    "params": case.fmt.to_json(),
-                },
-                "sample": {
-                    "seed": vectors.encode_bytes(case.seed_data.seed),
-                    "length": case.seed_data.length,
-                },
-                "zfec": {
-                    "segmentSize": parameters.SEGMENT_SIZE,
-                    "required": case.params.required,
-                    "total": case.params.total,
-                },
-                "expected": cap,
-            }
-            for (case, cap)
-            in results
-        ],
-    }).encode("ascii"))
+        vectors.save_capabilities(results)
 
 async def generate(
         reactor,
