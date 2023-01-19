@@ -1,17 +1,12 @@
 """
-Ported to Python 3.
+Create file nodes of various types.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 import weakref
 from zope.interface import implementer
+from twisted.internet.defer import succeed
 from allmydata.util.assertutil import precondition
 from allmydata.interfaces import INodeMaker
 from allmydata.immutable.literal import LiteralFileNode
@@ -22,6 +17,7 @@ from allmydata.mutable.publish import MutableData
 from allmydata.dirnode import DirectoryNode, pack_children
 from allmydata.unknown import UnknownNode
 from allmydata.blacklist import ProhibitedNode
+from allmydata.crypto.rsa import PublicKey, PrivateKey
 from allmydata import uri
 
 
@@ -126,12 +122,15 @@ class NodeMaker(object):
             return self._create_dirnode(filenode)
         return None
 
-    def create_mutable_file(self, contents=None, version=None):
+    def create_mutable_file(self, contents=None, version=None, keypair: tuple[PublicKey, PrivateKey] | None = None):
         if version is None:
             version = self.mutable_file_default
         n = MutableFileNode(self.storage_broker, self.secret_holder,
                             self.default_encoding_parameters, self.history)
-        d = self.key_generator.generate()
+        if keypair is None:
+            d = self.key_generator.generate()
+        else:
+            d = succeed(keypair)
         d.addCallback(n.create_with_keys, contents, version=version)
         d.addCallback(lambda res: n)
         return d
