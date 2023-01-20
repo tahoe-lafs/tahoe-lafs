@@ -3,7 +3,7 @@
 Storage Node Protocol ("Great Black Swamp", "GBS")
 ==================================================
 
-The target audience for this document is Tahoe-LAFS developers.
+The target audience for this document is developers working on Tahoe-LAFS or on an alternate implementation intended to be interoperable.
 After reading this document,
 one should expect to understand how Tahoe-LAFS clients interact over the network with Tahoe-LAFS storage nodes.
 
@@ -64,6 +64,10 @@ Glossary
    lease renew secret
      a short secret string which storage servers required to be presented before allowing a particular lease to be renewed
 
+The key words
+"MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL"
+in this document are to be interpreted as described in RFC 2119.
+
 Motivation
 ----------
 
@@ -119,8 +123,8 @@ An HTTP-based protocol can make use of TLS in largely the same way to provide th
 Provision of these properties *is* dependant on implementers following Great Black Swamp's rules for x509 certificate validation
 (rather than the standard "web" rules for validation).
 
-Requirements
-------------
+Design Requirements
+-------------------
 
 Security
 ~~~~~~~~
@@ -189,6 +193,9 @@ Solutions
 An HTTP-based protocol, dubbed "Great Black Swamp" (or "GBS"), is described below.
 This protocol aims to satisfy the above requirements at a lower level of complexity than the current Foolscap-based protocol.
 
+Summary (Non-normative)
+!!!!!!!!!!!!!!!!!!!!!!!
+
 Communication with the storage node will take place using TLS.
 The TLS version and configuration will be dictated by an ongoing understanding of best practices.
 The storage node will present an x509 certificate during the TLS handshake.
@@ -240,7 +247,7 @@ When Bob's client issues HTTP requests to Alice's storage node it includes the *
    They are encoded with Base32 for a length of 32 bytes.
    SPKI information discussed here is 32 bytes (SHA256 digest).
    They would be encoded in Base32 for a length of 52 bytes.
-   `base64url`_ provides a more compact encoding of the information while remaining URL-compatible.
+   `unpadded base64url`_ provides a more compact encoding of the information while remaining URL-compatible.
    This would encode the SPKI information for a length of merely 43 bytes.
    SHA1,
    the current Foolscap hash function,
@@ -332,12 +339,15 @@ Details about the interface are encoded in the HTTP message body.
 Message Encoding
 ~~~~~~~~~~~~~~~~
 
-The preferred encoding for HTTP message bodies is `CBOR`_.
-A request may be submitted using an alternate encoding by declaring this in the ``Content-Type`` header.
-A request may indicate its preference for an alternate encoding in the response using the ``Accept`` header.
-These two headers are used in the typical way for an HTTP application.
+Clients and servers MUST use the ``Content-Type`` and ``Accept`` header fields as specified in `RFC 9110`_ for message body negotiation.
 
-The only other encoding support for which is currently recommended is JSON.
+The encoding for HTTP message bodies SHOULD be `CBOR`_.
+Clients submitting requests using this encoding MUST include a ``Content-Type: application/cbor`` request header field.
+A request MAY be submitted using an alternate encoding by declaring this in the ``Content-Type`` header field.
+A request MAY indicate its preference for an alternate encoding in the response using the ``Accept`` header field.
+A request which includes no ``Accept`` header field MUST be interpreted in the same way as a request including a ``Accept: application/cbor`` header field.
+
+Clients and servers SHOULD support ``application/json`` request and response message body encoding.
 For HTTP messages carrying binary share data,
 this is expected to be a particularly poor encoding.
 However,
@@ -350,10 +360,19 @@ Because of the simple types used throughout
 and the equivalence described in `RFC 7049`_
 these examples should be representative regardless of which of these two encodings is chosen.
 
-The one exception is sets.
-For CBOR messages, any sequence that is semantically a set (i.e. no repeated values allowed, order doesn't matter, and elements are hashable in Python) should be sent as a set.
-Tag 6.258 is used to indicate sets in CBOR; see `the CBOR registry <https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml>`_ for more details.
-Sets will be represented as JSON lists in examples because JSON doesn't support sets.
+One exception to this rule is for sets.
+For CBOR messages,
+any sequence that is semantically a set (i.e. no repeated values allowed, order doesn't matter, and elements are hashable in Python) should be sent as a set.
+Tag 6.258 is used to indicate sets in CBOR;
+see `the CBOR registry <https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml>`_ for more details.
+The JSON encoding does not support sets.
+Sets MUST be represented as arrays in JSON-encoded messages.
+
+Another exception to this rule is for bytes.
+The CBOR encoding natively supports a bytes type while the JSON encoding does not.
+Bytes MUST be represented as strings giving the `Base64`_ representation of the original bytes value.
+
+Clients and servers MAY support additional request and response message body encodings.
 
 HTTP Design
 ~~~~~~~~~~~
@@ -368,29 +387,49 @@ one branch contains all of the share data;
 another branch contains all of the lease data;
 etc.
 
-An ``Authorization`` header in requests is required for all endpoints.
-The standard HTTP authorization protocol is used.
-The authentication *type* used is ``Tahoe-LAFS``.
-The swissnum from the NURL used to locate the storage service is used as the *credentials*.
-If credentials are not presented or the swissnum is not associated with a storage service then no storage processing is performed and the request receives an ``401 UNAUTHORIZED`` response.
+Clients and servers MUST use the ``Authorization`` header field,
+as specified in `RFC 9110`_,
+for authorization of all requests to all endpoints specified here.
+The authentication *type* MUST be ``Tahoe-LAFS``.
+Clients MUST present the swissnum from the NURL used to locate the storage service as the *credentials*.
 
-There are also, for some endpoints, secrets sent via ``X-Tahoe-Authorization`` headers.
-If these are:
+If credentials are not presented or the swissnum is not associated with a storage service then the server MUST issue a ``401 UNAUTHORIZED`` response and perform no other processing of the message.
+
+Requests to certain endpoints MUST include additional secrets in the ``X-Tahoe-Authorization`` headers field.
+The endpoints which require these secrets are:
+
+* ``PUT /storage/v1/lease/:storage_index``:
+  The secrets included MUST be ``lease-renew-secret`` and ``lease-cancel-secret``.
+
+* ``POST /storage/v1/immutable/:storage_index``:
+  The secrets included MUST be ``lease-renew-secret``, ``lease-cancel-secret``, and ``upload-secret``.
+
+* ``PATCH /storage/v1/immutable/:storage_index/:share_number``:
+  The secrets included MUST be ``upload-secret``.
+
+* ``PUT /storage/v1/immutable/:storage_index/:share_number/abort``:
+  The secrets included MUST be ``upload-secret``.
+
+* ``POST /storage/v1/mutable/:storage_index/read-test-write``:
+  The secrets included MUST be ``lease-renew-secret``, ``lease-cancel-secret``, and ``write-enabler``.
+
+If these secrets are:
 
 1. Missing.
 2. The wrong length.
 3. Not the expected kind of secret.
 4. They are otherwise unparseable before they are actually semantically used.
 
-the server will respond with ``400 BAD REQUEST``.
+the server MUST respond with ``400 BAD REQUEST`` and perform no other processing of the message.
 401 is not used because this isn't an authorization problem, this is a "you sent garbage and should know better" bug.
 
-If authorization using the secret fails, then a ``401 UNAUTHORIZED`` response should be sent.
+If authorization using the secret fails,
+then the server MUST send a ``401 UNAUTHORIZED`` response and perform no other processing of the message.
 
 Encoding
 ~~~~~~~~
 
-* ``storage_index`` should be base32 encoded (RFC3548) in URLs.
+* ``storage_index`` MUST be `Base32`_ encoded in URLs.
 
 General
 ~~~~~~~
@@ -398,11 +437,14 @@ General
 ``GET /storage/v1/version``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Retrieve information about the version of the storage server.
-Information is returned as an encoded mapping.
-For example::
+This endpoint allows clients to retrieve some basic metadata about a storage server from the storage service.
+The response MUST represent a mapping from schema identifiers to the metadata.
 
-  { "http://allmydata.org/tahoe/protocols/storage/v1" :
+The only schema identifier specified is ``"http://allmydata.org/tahoe/protocols/storage/v1"``.
+The server MUST include an entry in the mapping with this key.
+The value for the key MUST be another mapping with the following keys and value types::
+
+  { "http://allmydata.org/tahoe/protocols/storage/v1":
     { "maximum-immutable-share-size": 1234,
       "maximum-mutable-share-size": 1235,
       "available-space": 123456,
@@ -413,6 +455,11 @@ For example::
       },
     "application-version": "1.13.0"
     }
+
+The server SHOULD populate as many fields as possible with accurate information about itself.
+
+XXX Document every single field
+
 
 ``PUT /storage/v1/lease/:storage_index``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -926,9 +973,17 @@ otherwise it will read a byte which won't match `b""`::
 
      204 NO CONTENT
 
+.. _Base64: https://www.rfc-editor.org/rfc/rfc4648#section-4
+
+.. _Base32: https://www.rfc-editor.org/rfc/rfc4648#section-6
+
+.. _RFC 4648: https://tools.ietf.org/html/rfc4648
+
 .. _RFC 7469: https://tools.ietf.org/html/rfc7469#section-2.4
 
 .. _RFC 7049: https://tools.ietf.org/html/rfc7049#section-4
+
+.. _RFC 9110: https://tools.ietf.org/html/rfc9110
 
 .. _CBOR: http://cbor.io/
 
@@ -974,7 +1029,7 @@ otherwise it will read a byte which won't match `b""`::
         spki_encoded = urlsafe_b64encode(spki_sha256)
         assert spki_encoded == tub_id
 
-   Note we use `base64url`_ rather than the Foolscap- and Tahoe-LAFS-preferred Base32.
+   Note we use `unpadded base64url`_ rather than the Foolscap- and Tahoe-LAFS-preferred Base32.
 
 .. [#]
    https://www.cvedetails.com/cve/CVE-2017-5638/
@@ -985,6 +1040,6 @@ otherwise it will read a byte which won't match `b""`::
 .. [#]
    https://efail.de/
 
-.. _base64url: https://tools.ietf.org/html/rfc7515#appendix-C
+.. _unpadded base64url: https://tools.ietf.org/html/rfc7515#appendix-C
 
 .. _attacking SHA1: https://en.wikipedia.org/wiki/SHA-1#Attacks
