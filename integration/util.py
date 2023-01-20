@@ -5,7 +5,7 @@ General functionality useful for the implementation of integration tests.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import TypeVar, Iterator, Awaitable, Callable, Any
+from typing import Any
 from typing_extensions import Literal
 from tempfile import NamedTemporaryFile
 import sys
@@ -727,43 +727,6 @@ def upload(alice: TahoeProcess, fmt: CHK | SSK, data: bytes) -> str:
         with fmt.to_argv() as fmt_argv:
             argv = [alice, "put"] + fmt_argv + [f.name]
             return cli(*argv).decode("utf-8").strip()
-
-α = TypeVar("α")
-β = TypeVar("β")
-
-async def asyncfoldr(
-        i: Iterator[Awaitable[α]],
-        f: Callable[[α, β], β],
-        initial: β,
-) -> β:
-    """
-    Right fold over an async iterator.
-
-    :param i: The async iterator.
-    :param f: The function to fold.
-    :param initial: The starting value.
-
-    :return: The result of the fold.
-    """
-    result = initial
-    async for a in i:
-        result = f(a, result)
-    return result
-
-
-def insert(item: tuple[α, β], d: dict[α, β]) -> dict[α, β]:
-    """
-    In-place add an item to a dictionary.
-
-    If the key is already present, replace the value.
-
-    :param item: A tuple of the key and value.
-    :param d: The dictionary to modify.
-
-    :return: The dictionary.
-    """
-    d[item[0]] = item[1]
-    return d
 
 
 async def reconfigure(reactor, request, node: TahoeProcess, params: tuple[int, int, int], convergence: None | bytes) -> None:
