@@ -1,19 +1,14 @@
 """
-Ported to Python 3.
+Tests for a bunch of web-related APIs.
 """
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_binary
 
 import os.path, re, time
 import treq
 from urllib.parse import quote as urlquote, unquote as urlunquote
+from base64 import urlsafe_b64encode
 
 from bs4 import BeautifulSoup
 
@@ -38,6 +33,7 @@ from allmydata.util import fileutil, base32, hashutil, jsonbytes as json
 from allmydata.util.consumer import download_to_data
 from allmydata.util.encodingutil import to_bytes
 from ...util.connection_status import ConnectionStatus
+from ...crypto.rsa import PublicKey, PrivateKey, create_signing_keypair, der_string_from_signing_key
 from ..common import (
     EMPTY_CLIENT_CONFIG,
     FakeCHKFileNode,
@@ -65,6 +61,7 @@ from allmydata.interfaces import (
     MustBeReadonlyError,
 )
 from allmydata.mutable import servermap, publish, retrieve
+from allmydata.mutable.common import derive_mutable_keys
 from .. import common_util as testutil
 from ..common_util import TimezoneMixin
 from ..common_web import (
@@ -93,6 +90,7 @@ class FakeNodeMaker(NodeMaker):
         'happy': 7,
         'max_segment_size':128*1024 # 1024=KiB
     }
+    all_contents: dict[bytes, object]
     def _create_lit(self, cap):
         return FakeCHKFileNode(cap, self.all_contents)
     def _create_immutable(self, cap):
@@ -100,11 +98,19 @@ class FakeNodeMaker(NodeMaker):
     def _create_mutable(self, cap):
         return FakeMutableFileNode(None, None,
                                    self.encoding_params, None,
-                                   self.all_contents).init_from_cap(cap)
-    def create_mutable_file(self, contents=b"", keysize=None,
-                            version=SDMF_VERSION):
+                                   self.all_contents, None).init_from_cap(cap)
+    def create_mutable_file(self,
+                            contents=None,
+                            version=None,
+                            keypair: tuple[PublicKey, PrivateKey] | None=None,
+                            ):
+        if contents is None:
+            contents = b""
+        if version is None:
+            version = SDMF_VERSION
+
         n = FakeMutableFileNode(None, None, self.encoding_params, None,
-                                self.all_contents)
+                                self.all_contents, keypair)
         return n.create(contents, version=version)
 
 class FakeUploader(service.Service):
@@ -2867,6 +2873,41 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         yield self.assertHTTPError(url, 400,
                                    "Unknown format: foo",
                                    method="post", data=body, headers=headers)
+
+    async def test_POST_upload_keypair(self) -> None:
+        """
+        A *POST* creating a new mutable object may include a *private-key*
+        query argument giving a urlsafe-base64-encoded RSA private key to use
+        as the "signature key".  The given signature key is used, rather than
+        a new one being generated.
+        """
+        format = "sdmf"
+        priv, pub = create_signing_keypair(2048)
+        encoded_privkey = urlsafe_b64encode(der_string_from_signing_key(priv)).decode("ascii")
+        filename = "predetermined-sdmf"
+        expected_content = self.NEWFILE_CONTENTS * 100
+        actual_cap = uri.from_string(await self.POST(
+            self.public_url +
+            f"/foo?t=upload&format={format}&private-key={encoded_privkey}",
+            file=(filename, expected_content),
+        ))
+        # Ideally we would inspect the private ("signature") and public
+        # ("verification") keys but they are not made easily accessible here
+        # (ostensibly because we have a FakeMutableFileNode instead of a real
+        # one).
+        #
+        # So, instead, re-compute the writekey and fingerprint and compare
+        # those against the capability string.
+        expected_writekey, _, expected_fingerprint = derive_mutable_keys((pub, priv))
+        self.assertEqual(
+            (expected_writekey, expected_fingerprint),
+            (actual_cap.writekey, actual_cap.fingerprint),
+        )
+
+        # And the capability we got can be used to download the data we
+        # uploaded.
+        downloaded_content = await self.GET(f"/uri/{actual_cap.to_string().decode('ascii')}")
+        self.assertEqual(expected_content, downloaded_content)
 
     def test_POST_upload_format(self):
         def _check_upload(ign, format, uri_prefix, fn=None):
