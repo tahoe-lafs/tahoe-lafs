@@ -69,10 +69,13 @@ async def skiptest_generate(reactor, request, alice):
     )
     iterresults = generate(reactor, request, alice, space)
 
-    # Update the output file with results as they become available.
     results = []
     async for result in iterresults:
+        # Accumulate the new result
         results.append(result)
+        # Then rewrite the whole output file with the new accumulator value.
+        # This means that if we fail partway through, we will still have
+        # recorded partial results -- instead of losing them all.
         vectors.save_capabilities(results)
 
 async def generate(
