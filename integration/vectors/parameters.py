@@ -69,6 +69,7 @@ OBJECT_DESCRIPTIONS: list[Sample] = [
     Sample(digest(b"bar"), SEGMENT_SIZE + 1),
     Sample(digest(b"baz"), SEGMENT_SIZE * 16 - 1),
     Sample(digest(b"quux"), SEGMENT_SIZE * 16 + 1),
+    Sample(digest(b"bazquux"), SEGMENT_SIZE * 32),
     Sample(digest(b"foobar"), SEGMENT_SIZE * 64 - 1),
     Sample(digest(b"barbaz"), SEGMENT_SIZE * 64 + 1),
 ]
