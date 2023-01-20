@@ -57,9 +57,9 @@ async def skiptest_generate(reactor, request, alice):
     ever-changing set of outputs.
     """
     space = starmap(
-        # segmentSize could be a parameter someday but it's not easy to vary
+        # segment_size could be a parameter someday but it's not easy to vary
         # using the Python implementation so it isn't one for now.
-        partial(vectors.Case, segmentSize=parameters.SEGMENT_SIZE),
+        partial(vectors.Case, segment_size=parameters.SEGMENT_SIZE),
         product(
             parameters.ZFEC_PARAMS,
             parameters.CONVERGENCE_SECRETS,

@@ -29,10 +29,10 @@ class Case:
     Represent one case for which we want/have a test vector.
     """
     seed_params: Param
-    segment_size: int
     convergence: bytes
     seed_data: Sample
     fmt: CHK | SSK
+    segment_size: int
 
     @property
     def data(self):
