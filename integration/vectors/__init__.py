@@ -19,6 +19,7 @@ from .vectors import (
     Sample,
     SeedParam,
     encode_bytes,
+    save_capabilities,
 
     capabilities,
 )
