@@ -7,6 +7,7 @@ __all__ = [
     "Sample",
     "SeedParam",
     "encode_bytes",
+    "save_capabilities",
 
     "capabilities",
 ]
