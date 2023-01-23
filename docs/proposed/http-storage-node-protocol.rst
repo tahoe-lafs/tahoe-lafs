@@ -438,27 +438,28 @@ General
 !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 This endpoint allows clients to retrieve some basic metadata about a storage server from the storage service.
-The response MUST represent a mapping from schema identifiers to the metadata.
+The response MUST validate against this CDDL schema::
 
-The only schema identifier specified is ``"http://allmydata.org/tahoe/protocols/storage/v1"``.
-The server MUST include an entry in the mapping with this key.
-The value for the key MUST be another mapping with the following keys and value types::
+  {'http://allmydata.org/tahoe/protocols/storage/v1' => {
+      'maximum-immutable-share-size' => uint
+      'maximum-mutable-share-size' => uint
+      'available-space' => uint
+      'tolerates-immutable-read-overrun' => bool
+      'delete-mutable-shares-with-zero-length-writev' => bool
+      'fills-holes-with-zero-bytes' => bool
+      'prevents-read-past-end-of-share-data' => bool
+      }
+   'application-version' => bstr
+  }
 
-  { "http://allmydata.org/tahoe/protocols/storage/v1":
-    { "maximum-immutable-share-size": 1234,
-      "maximum-mutable-share-size": 1235,
-      "available-space": 123456,
-      "tolerates-immutable-read-overrun": true,
-      "delete-mutable-shares-with-zero-length-writev": true,
-      "fills-holes-with-zero-bytes": true,
-      "prevents-read-past-end-of-share-data": true
-      },
-    "application-version": "1.13.0"
-    }
+The server SHOULD populate as many fields as possible with accurate information about its behavior.
 
-The server SHOULD populate as many fields as possible with accurate information about itself.
+For fields which relate to a specific API
+the semantics are documented below in the section for that API.
+For fields that are more general than a single API the semantics are as follows:
 
-XXX Document every single field
+* available-space:
+  The server SHOULD use this field to advertise the amount of space that it currently considers unused and is willing to allocate for client requests.
 
 
 ``PUT /storage/v1/lease/:storage_index``
@@ -518,21 +519,23 @@ Writing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Initialize an immutable storage index with some buckets.
-The buckets may have share data written to them once.
-A lease is also created for the shares.
+The server MUST allow share data to be written to the buckets at most one time.
+The server MAY create a lease for the buckets.
 Details of the buckets to create are encoded in the request body.
 For example::
 
   {"share-numbers": [1, 7, ...], "allocated-size": 12345}
 
-The request must include ``X-Tahoe-Authorization`` HTTP headers that set the various secrets—upload, lease renewal, lease cancellation—that will be later used to authorize various operations.
+The server SHOULD accept a value for **allocated-size** that is less than or equal to the value for the server's version message's **maximum-immutable-share-size** value.
+
+The request MUST include ``X-Tahoe-Authorization`` HTTP headers that set the various secrets—upload, lease renewal, lease cancellation—that will be later used to authorize various operations.
 For example::
 
    X-Tahoe-Authorization: lease-renew-secret <base64-lease-renew-secret>
    X-Tahoe-Authorization: lease-cancel-secret <base64-lease-cancel-secret>
    X-Tahoe-Authorization: upload-secret <base64-upload-secret>
 
-The response body includes encoded information about the created buckets.
+The response body MUST include encoded information about the created buckets.
 For example::
 
   {"already-have": [1, ...], "allocated": [7, ...]}
@@ -589,26 +592,28 @@ Rejected designs for upload secrets:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Write data for the indicated share.
-The share number must belong to the storage index.
-The request body is the raw share data (i.e., ``application/octet-stream``).
-*Content-Range* requests are required; for large transfers this allows partially complete uploads to be resumed.
+The share number MUST belong to the storage index.
+The request body MUST be the raw share data (i.e., ``application/octet-stream``).
+The request MUST include a *Content-Range* header field;
+for large transfers this allows partially complete uploads to be resumed.
+
 For example,
 a 1MiB share can be divided in to eight separate 128KiB chunks.
 Each chunk can be uploaded in a separate request.
 Each request can include a *Content-Range* value indicating its placement within the complete share.
 If any one of these requests fails then at most 128KiB of upload work needs to be retried.
 
-The server must recognize when all of the data has been received and mark the share as complete
+The server MUST recognize when all of the data has been received and mark the share as complete
 (which it can do because it was informed of the size when the storage index was initialized).
 
-The request must include a ``X-Tahoe-Authorization`` header that includes the upload secret::
+The request MUST include a ``X-Tahoe-Authorization`` header that includes the upload secret::
 
     X-Tahoe-Authorization: upload-secret <base64-upload-secret>
 
 Responses:
 
-* When a chunk that does not complete the share is successfully uploaded the response is ``OK``.
-  The response body indicates the range of share data that has yet to be uploaded.
+* When a chunk that does not complete the share is successfully uploaded the response MUST be ``OK``.
+  The response body MUST indicate the range of share data that has yet to be uploaded.
   That is::
 
     { "required":
@@ -620,11 +625,12 @@ Responses:
       ]
     }
 
-* When the chunk that completes the share is successfully uploaded the response is ``CREATED``.
+* When the chunk that completes the share is successfully uploaded the response MUST be ``CREATED``.
 * If the *Content-Range* for a request covers part of the share that has already,
   and the data does not match already written data,
-  the response is ``CONFLICT``.
-  At this point the only thing to do is abort the upload and start from scratch (see below).
+  the response MUST be ``CONFLICT``.
+  In this case the client MUST abort the upload.
+  The client MAY then restart the upload from scratch.
 
 Discussion
 ``````````
@@ -650,34 +656,32 @@ From RFC 7231::
 
 This cancels an *in-progress* upload.
 
-The request must include a ``X-Tahoe-Authorization`` header that includes the upload secret::
+The request MUST include a ``X-Tahoe-Authorization`` header that includes the upload secret::
 
     X-Tahoe-Authorization: upload-secret <base64-upload-secret>
 
-The response code:
+If there is an incomplete upload with a matching upload-secret then the server MUST consider the abort to have succeeded.
+In this case the response MUST be ``OK``.
+The server MUST respond to all future requests as if the operations related to this upload did not take place.
 
-* When the upload is still in progress and therefore the abort has succeeded,
-  the response is ``OK``.
-  Future uploads can start from scratch with no pre-existing upload state stored on the server.
-* If the uploaded has already finished, the response is 405 (Method Not Allowed)
-  and no change is made.
-
+If there is no incomplete upload with a matching upload-secret then the server MUST respond with ``Method Not Allowed`` (405).
+The server MUST make no client-visible changes to its state in this case.
 
 ``POST /storage/v1/immutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Advise the server the data read from the indicated share was corrupt. The
-request body includes an human-meaningful text string with details about the
-corruption. It also includes potentially important details about the share.
+Advise the server the data read from the indicated share was corrupt.
+The request body includes an human-meaningful text string with details about the corruption.
+It also includes potentially important details about the share.
 
 For example::
 
   {"reason": "expected hash abcd, got hash efgh"}
 
-.. share-type, storage-index, and share-number are inferred from the URL
-
-The response code is OK (200) by default, or NOT FOUND (404) if the share
-couldn't be found.
+The report pertains to the immutable share with a **storage index** and **share number** given in the request path.
+If the identified **storage index** and **share number** are known to the server then the response SHOULD be accepted and made available to server administrators.
+In this case the response SHOULD be ``OK``.
+If the response is not accepted then the response SHOULD be ``Not Found`` (404).
 
 Reading
 ~~~~~~~
@@ -685,26 +689,34 @@ Reading
 ``GET /storage/v1/immutable/:storage_index/shares``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Retrieve a list (semantically, a set) indicating all shares available for the
-indicated storage index. For example::
+Retrieve a list (semantically, a set) indicating all shares available for the indicated storage index.
+For example::
 
   [1, 5]
 
-An unknown storage index results in an empty list.
+If the **storage index** in the request path is not known to the server then the response MUST include an empty list.
 
 ``GET /storage/v1/immutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Read a contiguous sequence of bytes from one share in one bucket.
-The response body is the raw share data (i.e., ``application/octet-stream``).
-The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
-Interpretation and response behavior is as specified in RFC 7233 § 4.1.
-Multiple ranges in a single request are *not* supported; open-ended ranges are also not supported.
+The response body MUST be the raw share data (i.e., ``application/octet-stream``).
+The ``Range`` header MAY be used to request exactly one ``bytes`` range,
+in which case the response code MUST be ``Partial Content`` (206).
+Interpretation and response behavior MUST be as specified in RFC 7233 § 4.1.
+Multiple ranges in a single request are *not* supported;
+open-ended ranges are also not supported.
+Clients MUST NOT send requests using these features.
 
-If the response reads beyond the end of the data, the response may be shorter than the requested range.
-The resulting ``Content-Range`` header will be consistent with the returned data.
+If the response reads beyond the end of the data,
+the response MUST be shorter than the requested range.
+It MUST contain all data in the share and then end.
+The resulting ``Content-Range`` header MUST be consistent with the returned data.
 
-If the response to a query is an empty range, the ``NO CONTENT`` (204) response code will be used.
+The server MUST indicate this behavior by specifying **True** for **tolerates-immutable-read-overrun** in its version response.
+
+If the response to a query is an empty range,
+the server MUST send a ``No Content`` (204) response.
 
 Discussion
 ``````````
@@ -743,13 +755,13 @@ The first write operation on a mutable storage index creates it
 (that is,
 there is no separate "create this storage index" operation as there is for the immutable storage index type).
 
-The request must include ``X-Tahoe-Authorization`` headers with write enabler and lease secrets::
+The request MUST include ``X-Tahoe-Authorization`` headers with write enabler and lease secrets::
 
     X-Tahoe-Authorization: write-enabler <base64-write-enabler-secret>
     X-Tahoe-Authorization: lease-cancel-secret <base64-lease-cancel-secret>
     X-Tahoe-Authorization: lease-renew-secret <base64-lease-renew-secret>
 
-The request body includes test, read, and write vectors for the operation.
+The request body MUST include test, read, and write vectors for the operation.
 For example::
 
    {
