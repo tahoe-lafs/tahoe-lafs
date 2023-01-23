@@ -139,12 +139,22 @@ install_requires = [
     "werkzeug != 2.2.0",
     "treq",
     "cbor2",
-    # Need 0.4 to be able to pass in mmap()
-    "pycddl >= 0.4",
+    # Ideally we want 0.4+ to be able to pass in mmap(), but it's not strictly
+    # necessary yet until we fix the workaround to
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3963 in
+    # allmydata.storage.http_server.
+    "pycddl",
 
     # for pid-file support
     "psutil",
     "filelock",
+
+    # treq needs requests, requests needs charset_normalizer,
+    # charset_normalizer breaks PyInstaller
+    # (https://github.com/Ousret/charset_normalizer/issues/253). So work around
+    # this by using a lower version number. Once upstream issue is fixed, or
+    # requests drops charset_normalizer, this can go away.
+    "charset_normalizer < 3",
 ]
 
 setup_requires = [
@@ -224,7 +234,7 @@ def run_command(args, cwd=None):
     use_shell = sys.platform == "win32"
     try:
         p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd, shell=use_shell)
-    except EnvironmentError as e:  # if this gives a SyntaxError, note that Tahoe-LAFS requires Python 3.7+
+    except EnvironmentError as e:  # if this gives a SyntaxError, note that Tahoe-LAFS requires Python 3.8+
         print("Warning: unable to run %r." % (" ".join(args),))
         print(e)
         return None
@@ -375,8 +385,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
       package_dir = {'':'src'},
       packages=find_packages('src') + ['allmydata.test.plugins'],
       classifiers=trove_classifiers,
-      # We support Python 3.7 or later. 3.11 is not supported yet.
-      python_requires=">=3.7, <3.11",
+      # We support Python 3.8 or later. 3.11 is not supported yet.
+      python_requires=">=3.8, <3.11",
       install_requires=install_requires,
       extras_require={
           # Duplicate the Twisted pywin32 dependency here.  See
@@ -389,9 +399,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
           ],
           "test": [
               "flake8",
-              # On Python 3.7, importlib_metadata v5 breaks flake8.
-              # https://github.com/python/importlib_metadata/issues/407
-              "importlib_metadata<5; python_version < '3.8'",
               # Pin a specific pyflakes so we don't have different folks
               # disagreeing on what is or is not a lint issue.  We can bump
               # this version from time to time, but we will do it

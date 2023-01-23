@@ -48,21 +48,20 @@ jobs:
           - windows-latest
           - ubuntu-latest
         python-version:
-          - "3.7"
           - "3.8"
           - "3.9"
           - "3.10"
         include:
-          # On macOS don't bother with 3.7-3.8, just to get faster builds.
+          # On macOS don't bother with 3.8, just to get faster builds.
           - os: macos-latest
             python-version: "3.9"
           - os: macos-latest
             python-version: "3.10"
           # We only support PyPy on Linux at the moment.
           - os: ubuntu-latest
-            python-version: "pypy-3.7"
-          - os: ubuntu-latest
             python-version: "pypy-3.8"
+          - os: ubuntu-latest
+            python-version: "pypy-3.9"
 
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
@@ -87,7 +86,19 @@ jobs:
         run: python misc/build_helpers/show-tool-versions.py
 
       - name: Run tox for corresponding Python version
+        if: ${{ !contains(matrix.os, 'windows') }}
         run: python -m tox
+
+      # On Windows, a non-blocking pipe might respond (when emulating Unix-y
+      # API) with ENOSPC to indicate buffer full. Trial doesn't handle this
+      # well, so it breaks test runs. To attempt to solve this, we pipe the
+      # output through passthrough.py that will hopefully be able to do the right
+      # thing by using Windows APIs.
+      - name: Run tox for corresponding Python version
+        if: ${{ contains(matrix.os, 'windows') }}
+        run: |
+          pip install twisted pywin32
+          python -m tox | python misc/windows-enospc/passthrough.py
 
       - name: Upload eliot.log
         uses: actions/upload-artifact@v3
@@ -162,9 +173,6 @@ jobs:
             force-foolscap: false
           # 22.04 has some issue with Tor at the moment:
           # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3943
-          - os: ubuntu-20.04
-            python-version: "3.7"
-            force-foolscap: true
           - os: ubuntu-20.04
             python-version: "3.9"
             force-foolscap: false

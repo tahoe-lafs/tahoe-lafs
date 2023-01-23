@@ -40,7 +40,6 @@ from .util import (
     await_client_ready,
     TahoeProcess,
     cli,
-    _run_node,
     generate_ssh_key,
     block_with_timeout,
 )
@@ -63,6 +62,22 @@ def pytest_addoption(parser):
         help=("If set, force Foolscap only for the storage protocol. " +
               "Otherwise HTTP will be used.")
     )
+    parser.addoption(
+        "--runslow", action="store_true", default=False,
+        dest="runslow",
+        help="If set, run tests marked as slow.",
+    )
+
+def pytest_collection_modifyitems(session, config, items):
+    if not config.option.runslow:
+        # The --runslow option was not given; keep only collected items not
+        # marked as slow.
+        items[:] = [
+            item
+            for item
+            in items
+            if item.get_closest_marker("slow") is None
+        ]
 
 
 @pytest.fixture(autouse=True, scope='session')
@@ -408,10 +423,9 @@ alice-key ssh-rsa {ssh_public_key} {rwcap}
 """.format(rwcap=rwcap, ssh_public_key=ssh_public_key))
 
     # 4. Restart the node with new SFTP config.
-    process.kill()
-    pytest_twisted.blockon(_run_node(reactor, process.node_dir, request, None))
-
+    pytest_twisted.blockon(process.restart_async(reactor, request))
     await_client_ready(process)
+    print(f"Alice pid: {process.transport.pid}")
     return process
 
 

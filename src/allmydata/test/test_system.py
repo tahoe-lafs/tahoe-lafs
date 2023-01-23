@@ -521,9 +521,11 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
 
     def test_mutable_sdmf(self):
+        """SDMF mutables can be uploaded, downloaded, and many other things."""
         return self._test_mutable(SDMF_VERSION)
 
     def test_mutable_mdmf(self):
+        """MDMF mutables can be uploaded, downloaded, and many other things."""
         return self._test_mutable(MDMF_VERSION)
 
     def _test_mutable(self, mutable_version):
