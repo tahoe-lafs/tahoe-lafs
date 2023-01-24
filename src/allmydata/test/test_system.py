@@ -1831,7 +1831,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             c.encoding_params["n"] = 1
 
         await self._upload_download_different_max_segment(128 * 1024, 1024 * 1024)
-        
         await self._upload_download_different_max_segment(1024 * 1024, 128 * 1024)
 
 

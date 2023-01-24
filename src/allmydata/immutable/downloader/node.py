@@ -50,7 +50,7 @@ class DownloadNode(object):
     callers use CiphertextFileNode instead."""
 
     default_max_segment_size = DEFAULT_MAX_SEGMENT_SIZE
-    
+
     # Share._node points to me
     def __init__(self, verifycap, storage_broker, secret_holder,
                  terminator, history, download_status):
