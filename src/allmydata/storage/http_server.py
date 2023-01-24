@@ -23,7 +23,7 @@ from twisted.internet.interfaces import (
     IPullProducer,
 )
 from twisted.internet import reactor
-from twisted.internet.task import deferToThread
+from twisted.internet.threads import deferToThread
 from twisted.internet.address import IPv4Address, IPv6Address
 from twisted.internet.defer import Deferred
 from twisted.internet.ssl import CertificateOptions, Certificate, PrivateCertificate
@@ -639,7 +639,7 @@ class HTTPServer(object):
                 storage_index, share_number, upload_secret, bucket
             )
 
-        return self._send_encoded(
+        return await self._send_encoded(
             request,
             {"already-have": set(already_got), "allocated": set(sharenum_to_bucket)},
         )
@@ -826,7 +826,9 @@ class HTTPServer(object):
             )
         except BadWriteEnablerError:
             raise _HTTPError(http.UNAUTHORIZED)
-        return self._send_encoded(request, {"success": success, "data": read_data})
+        return await self._send_encoded(
+            request, {"success": success, "data": read_data}
+        )
 
     @_authorized_route(
         _app,
