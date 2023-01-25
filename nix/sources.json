@@ -1,14 +1,14 @@
 {
     "mach-nix": {
-        "branch": "master",
+        "branch": "switch-to-nix-pypi-fetcher-2",
         "description": "Create highly reproducible python environments",
         "homepage": "",
-        "owner": "davhau",
+        "owner": "PrivateStorageio",
         "repo": "mach-nix",
-        "rev": "bdc97ba6b2ecd045a467b008cff4ae337b6a7a6b",
-        "sha256": "12b3jc0g0ak6s93g3ifvdpwxbyqx276k1kl66bpwz8a67qjbcbwf",
+        "rev": "f6d1a1841d8778c199326f95d0703c16bee2f8c4",
+        "sha256": "0krc4yhnpbzc4yhja9frnmym2vqm5zyacjnqb3fq9z9gav8vs9ls",
         "type": "tarball",
-        "url": "https://github.com/davhau/mach-nix/archive/bdc97ba6b2ecd045a467b008cff4ae337b6a7a6b.tar.gz",
+        "url": "https://github.com/PrivateStorageio/mach-nix/archive/f6d1a1841d8778c199326f95d0703c16bee2f8c4.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
@@ -53,10 +53,10 @@
         "homepage": "",
         "owner": "DavHau",
         "repo": "pypi-deps-db",
-        "rev": "5fe7d2d1c85cd86d64f4f079eef3f1ff5653bcd6",
-        "sha256": "0pc6mj7rzvmhh303rvj5wf4hrksm4h2rf4fsvqs0ljjdmgxrqm3f",
+        "rev": "5440c9c76f6431f300fb6a1ecae762a5444de5f6",
+        "sha256": "08r3iiaxzw9v2gq15y1m9bwajshyyz9280g6aia7mkgnjs9hnd1n",
         "type": "tarball",
-        "url": "https://github.com/DavHau/pypi-deps-db/archive/5fe7d2d1c85cd86d64f4f079eef3f1ff5653bcd6.tar.gz",
+        "url": "https://github.com/DavHau/pypi-deps-db/archive/5440c9c76f6431f300fb6a1ecae762a5444de5f6.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
