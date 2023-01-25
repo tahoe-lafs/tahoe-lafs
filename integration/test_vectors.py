@@ -36,7 +36,8 @@ async def test_capability(reactor, request, alice, case, expected):
     computed value.
     """
     # rewrite alice's config to match params and convergence
-    await reconfigure(reactor, request, alice, (1, case.params.required, case.params.total), case.convergence)
+    await reconfigure(
+        reactor, request, alice, (1, case.params.required, case.params.total), case.convergence, case.segment_size)
 
     # upload data in the correct format
     actual = upload(alice, case.fmt, case.data)

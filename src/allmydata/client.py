@@ -88,6 +88,7 @@ _client_config = configutil.ValidConfiguration(
             "shares.happy",
             "shares.needed",
             "shares.total",
+            "shares._max_immutable_segment_size_for_testing",
             "storage.plugins",
         ),
         "storage": (
@@ -896,6 +897,13 @@ class _Client(node.Node, pollmixin.PollMixin):
         DEP["k"] = int(self.config.get_config("client", "shares.needed", DEP["k"]))
         DEP["n"] = int(self.config.get_config("client", "shares.total", DEP["n"]))
         DEP["happy"] = int(self.config.get_config("client", "shares.happy", DEP["happy"]))
+        # At the moment this is only used for testing, thus the janky config
+        # attribute name.
+        DEP["max_segment_size"] = int(self.config.get_config(
+            "client",
+            "shares._max_immutable_segment_size_for_testing",
+            DEP["max_segment_size"])
+        )
 
         # for the CLI to authenticate to local JSON endpoints
         self._create_auth_token()
