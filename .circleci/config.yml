@@ -94,6 +94,9 @@ workflows:
           {}
 
       - "integration":
+          # Run even the slow integration tests here.  We need the `--` to
+          # sneak past tox and get to pytest.
+          tox-args: "-- --runslow integration"
           requires:
             # If the unit test suite doesn't pass, don't bother running the
             # integration tests.
@@ -294,6 +297,14 @@ jobs:
 
   integration:
     <<: *DEBIAN
+
+    parameters:
+      tox-args:
+        description: >-
+          Additional arguments to pass to the tox command.
+        type: "string"
+        default: ""
+
     docker:
       - <<: *DOCKERHUB_AUTH
         image: "tahoelafsci/debian:11-py3.9"
@@ -305,6 +316,9 @@ jobs:
       TAHOE_LAFS_TOX_ENVIRONMENT: "integration"
       # Disable artifact collection because py.test can't produce any.
       ARTIFACTS_OUTPUT_PATH: ""
+
+      # Pass on anything we got in our parameters.
+      TAHOE_LAFS_TOX_ARGS: "<< parameters.tox-args >>"
 
     steps:
       - "checkout"
