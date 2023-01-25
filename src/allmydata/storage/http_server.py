@@ -592,7 +592,26 @@ class HTTPServer(object):
     @_authorized_route(_app, set(), "/storage/v1/version", methods=["GET"])
     def version(self, request, authorization):
         """Return version information."""
-        return self._send_encoded(request, self._storage_server.get_version())
+        return self._send_encoded(request, self._get_version())
+
+    def _get_version(self) -> dict[str, Any]:
+        """
+        Get the HTTP version of the storage server's version response.
+
+        This differs from the Foolscap version by omitting certain obsolete
+        fields.
+        """
+        v = self._storage_server.get_version()
+        v1_identifier = b"http://allmydata.org/tahoe/protocols/storage/v1"
+        v1 = v[v1_identifier]
+        return {
+            v1_identifier: {
+                b"maximum-immutable-share-size": v1[b"maximum-immutable-share-size"],
+                b"maximum-mutable-share-size": v1[b"maximum-mutable-share-size"],
+                b"available-space": v1[b"available-space"],
+            },
+            b"application-version": v[b"application-version"],
+        }
 
     ##### Immutable APIs #####
 

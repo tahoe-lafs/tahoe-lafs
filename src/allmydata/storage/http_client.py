@@ -70,15 +70,14 @@ class ClientException(Exception):
 # indicates a set.
 _SCHEMAS = {
     "get_version": Schema(
+        # Note that the single-quoted (`'`) string keys in this schema
+        # represent *byte* strings - per the CDDL specification.  Text strings
+        # are represented using strings with *double* quotes (`"`).
         """
         response = {'http://allmydata.org/tahoe/protocols/storage/v1' => {
                  'maximum-immutable-share-size' => uint
                  'maximum-mutable-share-size' => uint
                  'available-space' => uint
-                 'tolerates-immutable-read-overrun' => bool
-                 'delete-mutable-shares-with-zero-length-writev' => bool
-                 'fills-holes-with-zero-bytes' => bool
-                 'prevents-read-past-end-of-share-data' => bool
                  }
                  'application-version' => bstr
               }
@@ -447,6 +446,15 @@ class StorageClientGeneral(object):
         decoded_response = yield self._client.decode_cbor(
             response, _SCHEMAS["get_version"]
         )
+        # Add some features we know are true because the HTTP API
+        # specification requires them and because other parts of the storage
+        # client implementation assumes they will be present.
+        decoded_response[b"http://allmydata.org/tahoe/protocols/storage/v1"].update({
+            b'tolerates-immutable-read-overrun': True,
+            b'delete-mutable-shares-with-zero-length-writev': True,
+            b'fills-holes-with-zero-bytes': True,
+            b'prevents-read-past-end-of-share-data': True,
+        })
         returnValue(decoded_response)
 
     @inlineCallbacks

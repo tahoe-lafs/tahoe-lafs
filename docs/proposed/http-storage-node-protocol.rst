@@ -444,10 +444,6 @@ The response MUST validate against this CDDL schema::
       'maximum-immutable-share-size' => uint
       'maximum-mutable-share-size' => uint
       'available-space' => uint
-      'tolerates-immutable-read-overrun' => bool
-      'delete-mutable-shares-with-zero-length-writev' => bool
-      'fills-holes-with-zero-bytes' => bool
-      'prevents-read-past-end-of-share-data' => bool
       }
    'application-version' => bstr
   }
@@ -522,11 +518,18 @@ Initialize an immutable storage index with some buckets.
 The server MUST allow share data to be written to the buckets at most one time.
 The server MAY create a lease for the buckets.
 Details of the buckets to create are encoded in the request body.
+The request body MUST validate against this CDDL schema::
+
+  {
+    share-numbers: #6.258([0*256 uint])
+    allocated-size: uint
+  }
+
 For example::
 
   {"share-numbers": [1, 7, ...], "allocated-size": 12345}
 
-The server SHOULD accept a value for **allocated-size** that is less than or equal to the value for the server's version message's **maximum-immutable-share-size** value.
+The server SHOULD accept a value for **allocated-size** that is less than or equal to the lesser of the values of the server's version message's **maximum-immutable-share-size** or **available-space** values.
 
 The request MUST include ``X-Tahoe-Authorization`` HTTP headers that set the various secrets—upload, lease renewal, lease cancellation—that will be later used to authorize various operations.
 For example::
@@ -536,6 +539,13 @@ For example::
    X-Tahoe-Authorization: upload-secret <base64-upload-secret>
 
 The response body MUST include encoded information about the created buckets.
+The response body MUST validate against this CDDL schema::
+
+  {
+    already-have: #6.258([0*256 uint])
+    allocated: #6.258([0*256 uint])
+  }
+
 For example::
 
   {"already-have": [1, ...], "allocated": [7, ...]}
@@ -614,7 +624,13 @@ Responses:
 
 * When a chunk that does not complete the share is successfully uploaded the response MUST be ``OK``.
   The response body MUST indicate the range of share data that has yet to be uploaded.
-  That is::
+  The response body MUST validate against this CDDL schema::
+
+    {
+      required: [0* {begin: uint, end: uint}]
+    }
+
+  For example::
 
     { "required":
       [ { "begin": <byte position, inclusive>
@@ -673,6 +689,11 @@ The server MUST make no client-visible changes to its state in this case.
 Advise the server the data read from the indicated share was corrupt.
 The request body includes an human-meaningful text string with details about the corruption.
 It also includes potentially important details about the share.
+The request body MUST validate against this CDDL schema::
+
+  {
+    reason: tstr
+  }
 
 For example::
 
@@ -690,6 +711,10 @@ Reading
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Retrieve a list (semantically, a set) indicating all shares available for the indicated storage index.
+The response body MUST validate against this CDDL schema::
+
+  #6.258([0*256 uint])
+
 For example::
 
   [1, 5]
@@ -710,10 +735,8 @@ Clients MUST NOT send requests using these features.
 
 If the response reads beyond the end of the data,
 the response MUST be shorter than the requested range.
-It MUST contain all data in the share and then end.
+It MUST contain all data up to the end of the share and then end.
 The resulting ``Content-Range`` header MUST be consistent with the returned data.
-
-The server MUST indicate this behavior by specifying **True** for **tolerates-immutable-read-overrun** in its version response.
 
 If the response to a query is an empty range,
 the server MUST send a ``No Content`` (204) response.
@@ -762,6 +785,20 @@ The request MUST include ``X-Tahoe-Authorization`` headers with write enabler an
     X-Tahoe-Authorization: lease-renew-secret <base64-lease-renew-secret>
 
 The request body MUST include test, read, and write vectors for the operation.
+The request body MUST validate against this CDDL schema::
+
+  {
+    "test-write-vectors": {
+      0*256 share_number : {
+        "test": [0*30 {"offset": uint, "size": uint, "specimen": bstr}]
+        "write": [* {"offset": uint, "data": bstr}]
+        "new-length": uint / null
+      }
+    }
+    "read-vector": [0*30 {"offset": uint, "size": uint}]
+  }
+  share_number = uint
+
 For example::
 
    {
@@ -784,6 +821,14 @@ For example::
 
 The response body contains a boolean indicating whether the tests all succeed
 (and writes were applied) and a mapping giving read data (pre-write).
+The response body MUST validate against this CDDL schema::
+
+  {
+    "success": bool,
+    "data": {0*256 share_number: [0* bstr]}
+  }
+  share_number = uint
+
 For example::
 
   {
@@ -795,7 +840,7 @@ For example::
       }
   }
 
-A test vector or read vector that read beyond the boundaries of existing data will return nothing for any bytes past the end.
+A server MUST return nothing for any bytes beyond the end of existing data for a test vector or read vector that reads tries to read such data.
 As a result, if there is no data at all, an empty bytestring is returned no matter what the offset or length.
 
 Reading
@@ -805,23 +850,34 @@ Reading
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Retrieve a set indicating all shares available for the indicated storage index.
-For example (this is shown as list, since it will be list for JSON, but will be set for CBOR)::
+The response body MUST validate against this CDDL schema::
+
+  #6.258([0*256 uint])
+
+For example::
 
   [1, 5]
 
 ``GET /storage/v1/mutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Read data from the indicated mutable shares, just like ``GET /storage/v1/immutable/:storage_index``
+Read data from the indicated mutable shares, just like ``GET /storage/v1/immutable/:storage_index``.
 
-The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
-Interpretation and response behavior is as specified in RFC 7233 § 4.1.
-Multiple ranges in a single request are *not* supported; open-ended ranges are also not supported.
+The response body MUST be the raw share data (i.e., ``application/octet-stream``).
+The ``Range`` header MAY be used to request exactly one ``bytes`` range,
+in which case the response code MUST be ``Partial Content`` (206).
+Interpretation and response behavior MUST be specified in RFC 7233 § 4.1.
+Multiple ranges in a single request are *not* supported;
+open-ended ranges are also not supported.
+Clients MUST NOT send requests using these features.
 
-If the response reads beyond the end of the data, the response may be shorter than the requested range.
-The resulting ``Content-Range`` header will be consistent with the returned data.
+If the response reads beyond the end of the data,
+the response MUST be shorter than the requested range.
+It MUST contain all data up to the end of the share and then end.
+The resulting ``Content-Range`` header MUST be consistent with the returned data.
 
-If the response to a query is an empty range, the ``NO CONTENT`` (204) response code will be used.
+If the response to a query is an empty range,
+the server MUST send a ``No Content`` (204) response.
 
 
 ``POST /storage/v1/mutable/:storage_index/:share_number/corrupt``
@@ -832,6 +888,9 @@ Just like the immutable version.
 
 Sample Interactions
 -------------------
+
+This section contains examples of client/server interactions to help illuminate the above specification.
+This section is non-normative.
 
 Immutable Data
 ~~~~~~~~~~~~~~
