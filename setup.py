@@ -147,13 +147,6 @@ install_requires = [
     # for pid-file support
     "psutil",
     "filelock",
-
-    # treq needs requests, requests needs charset_normalizer,
-    # charset_normalizer breaks PyInstaller
-    # (https://github.com/Ousret/charset_normalizer/issues/253). So work around
-    # this by using a lower version number. Once upstream issue is fixed, or
-    # requests drops charset_normalizer, this can go away.
-    "charset_normalizer < 3",
 ]
 
 setup_requires = [
