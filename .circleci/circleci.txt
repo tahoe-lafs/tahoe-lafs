@@ -1,0 +1,78 @@
+# A master build looks like this:
+
+# BASH_ENV=/tmp/.bash_env-63d018969ca480003a031e62-0-build
+# CI=true
+# CIRCLECI=true
+# CIRCLE_BRANCH=master
+# CIRCLE_BUILD_NUM=76545
+# CIRCLE_BUILD_URL=https://circleci.com/gh/tahoe-lafs/tahoe-lafs/76545
+# CIRCLE_JOB=NixOS 21.11
+# CIRCLE_NODE_INDEX=0
+# CIRCLE_NODE_TOTAL=1
+# CIRCLE_PROJECT_REPONAME=tahoe-lafs
+# CIRCLE_PROJECT_USERNAME=tahoe-lafs
+# CIRCLE_REPOSITORY_URL=git@github.com:tahoe-lafs/tahoe-lafs.git
+# CIRCLE_SHA1=ed0bda2d7456f4a2cd60870072e1fe79864a49a1
+# CIRCLE_SHELL_ENV=/tmp/.bash_env-63d018969ca480003a031e62-0-build
+# CIRCLE_USERNAME=alice
+# CIRCLE_WORKFLOW_ID=6d9bb71c-be3a-4659-bf27-60954180619b
+# CIRCLE_WORKFLOW_JOB_ID=0793c975-7b9f-489f-909b-8349b72d2785
+# CIRCLE_WORKFLOW_WORKSPACE_ID=6d9bb71c-be3a-4659-bf27-60954180619b
+# CIRCLE_WORKING_DIRECTORY=~/project
+
+# A build of an in-repo PR looks like this:
+
+# BASH_ENV=/tmp/.bash_env-63d1971a0298086d8841287e-0-build
+# CI=true
+# CIRCLECI=true
+# CIRCLE_BRANCH=3946-less-chatty-downloads
+# CIRCLE_BUILD_NUM=76612
+# CIRCLE_BUILD_URL=https://circleci.com/gh/tahoe-lafs/tahoe-lafs/76612
+# CIRCLE_JOB=NixOS 21.11
+# CIRCLE_NODE_INDEX=0
+# CIRCLE_NODE_TOTAL=1
+# CIRCLE_PROJECT_REPONAME=tahoe-lafs
+# CIRCLE_PROJECT_USERNAME=tahoe-lafs
+# CIRCLE_PULL_REQUEST=https://github.com/tahoe-lafs/tahoe-lafs/pull/1251
+# CIRCLE_PULL_REQUESTS=https://github.com/tahoe-lafs/tahoe-lafs/pull/1251
+# CIRCLE_REPOSITORY_URL=git@github.com:tahoe-lafs/tahoe-lafs.git
+# CIRCLE_SHA1=921a2083dcefdb5f431cdac195fc9ac510605349
+# CIRCLE_SHELL_ENV=/tmp/.bash_env-63d1971a0298086d8841287e-0-build
+# CIRCLE_USERNAME=bob
+# CIRCLE_WORKFLOW_ID=5e32c12e-be37-4868-9fa8-6a6929fec2f1
+# CIRCLE_WORKFLOW_JOB_ID=316ca408-81b4-4c96-bbdd-644e4c3e01e5
+# CIRCLE_WORKFLOW_WORKSPACE_ID=5e32c12e-be37-4868-9fa8-6a6929fec2f1
+# CIRCLE_WORKING_DIRECTORY=~/project
+# CI_PULL_REQUEST=https://github.com/tahoe-lafs/tahoe-lafs/pull/1251
+
+# A build of a PR from a fork looks like this:
+
+# BASH_ENV=/tmp/.bash_env-63d40f7b2e89cd3de10e0db9-0-build
+# CI=true
+# CIRCLECI=true
+# CIRCLE_BRANCH=pull/1252
+# CIRCLE_BUILD_NUM=76678
+# CIRCLE_BUILD_URL=https://circleci.com/gh/tahoe-lafs/tahoe-lafs/76678
+# CIRCLE_JOB=NixOS 21.05
+# CIRCLE_NODE_INDEX=0
+# CIRCLE_NODE_TOTAL=1
+# CIRCLE_PROJECT_REPONAME=tahoe-lafs
+# CIRCLE_PROJECT_USERNAME=tahoe-lafs
+# CIRCLE_PR_NUMBER=1252
+# CIRCLE_PR_REPONAME=tahoe-lafs
+# CIRCLE_PR_USERNAME=carol
+# CIRCLE_PULL_REQUEST=https://github.com/tahoe-lafs/tahoe-lafs/pull/1252
+# CIRCLE_PULL_REQUESTS=https://github.com/tahoe-lafs/tahoe-lafs/pull/1252
+# CIRCLE_REPOSITORY_URL=git@github.com:tahoe-lafs/tahoe-lafs.git
+# CIRCLE_SHA1=15c7916e0812e6baa2a931cd54b18f3382a8456e
+# CIRCLE_SHELL_ENV=/tmp/.bash_env-63d40f7b2e89cd3de10e0db9-0-build
+# CIRCLE_USERNAME=
+# CIRCLE_WORKFLOW_ID=19c917c8-3a38-4b20-ac10-3265259fa03e
+# CIRCLE_WORKFLOW_JOB_ID=58e95215-eccf-4664-a231-1dba7fd2d323
+# CIRCLE_WORKFLOW_WORKSPACE_ID=19c917c8-3a38-4b20-ac10-3265259fa03e
+# CIRCLE_WORKING_DIRECTORY=~/project
+# CI_PULL_REQUEST=https://github.com/tahoe-lafs/tahoe-lafs/pull/1252
+
+# A build of a PR from a fork where the owner has enabled CircleCI looks
+# the same as a build of an in-repo PR, except it runs on th owner's
+# CircleCI namespace.
