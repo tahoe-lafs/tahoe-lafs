@@ -52,9 +52,31 @@ function is_upstream() {
 	# CIRCLE_BRANCH is set to the real branch name for in-repo PRs and
 	# "pull/NNNN" for pull requests from forks.
 	#
-	# CIRCLE_PULL_REQUEST is set to the full URL of the PR page which ends
-	# with that same "pull/NNNN" for PRs from forks.
-	! endswith "/$CIRCLE_BRANCH" "$CIRCLE_PULL_REQUEST"
+	# CIRCLE_PULL_REQUESTS is set to a comma-separated list of the full
+	# URLs of the PR pages which share an underlying branch, with one of
+	# them ended with that same "pull/NNNN" for PRs from forks.
+	! any_element_endswith "/$CIRCLE_BRANCH" "," "$CIRCLE_PULL_REQUESTS"
+}
+
+# Return success if splitting $3 on $2 results in an array with any element
+# that ends with $1, failure otherwise.
+function any_element_endswith() {
+    suffix=$1
+    shift
+
+    sep=$1
+    shift
+
+    haystack=$1
+    shift
+
+    IFS="${sep}" read -r -a elements <<< "$haystack"
+    for elem in "${elements[@]}"; do
+	if endswith "$suffix" "$elem"; then
+	    return 0
+	fi
+    done
+    return 1
 }
 
 # Return success if $2 ends with $1, failure otherwise.
