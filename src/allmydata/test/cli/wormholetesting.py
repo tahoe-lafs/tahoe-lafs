@@ -32,7 +32,7 @@ For example::
 
 from __future__ import annotations
 
-from typing import Iterator, Optional, List, Tuple
+from typing import Iterator, Optional, List, Tuple, Any, TextIO, AnyStr, List, TypeVar
 from collections.abc import Awaitable
 from inspect import getargspec
 from itertools import count
@@ -62,22 +62,22 @@ class MemoryWormholeServer(object):
         specific application id and relay URL combination.
     """
     _apps: dict[ApplicationKey, _WormholeApp] = field(default=Factory(dict))
-    _waiters: dict[ApplicationKey, Deferred] = field(default=Factory(dict))
+    _waiters: dict[ApplicationKey, Deferred[Any]] = field(default=Factory(dict))
 
     def create(
         self,
-        appid,
-        relay_url,
-        reactor,
-        versions={},
-        delegate=None,
-        journal=None,
-        tor=None,
-        timing=None,
-        stderr=stderr,
-        _eventual_queue=None,
-        _enable_dilate=False,
-    ):
+        appid: str,
+        relay_url: str,
+        reactor: Any,
+        versions: dict[Any, Any] = {},
+        delegate: None = None,
+        journal: None = None,
+        tor: None = None,
+        timing: None = None,
+        stderr: TextIO = stderr,
+        _eventual_queue: Any = None,
+        _enable_dilate: bool = False,
+    ) -> Optional[_MemoryWormhole]:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
         by this instance (and constrained by the normal appid/relay_url
@@ -89,7 +89,7 @@ class MemoryWormholeServer(object):
             raise ValueError("Cannot deal with dilation right now.")
 
         key = (relay_url, appid)
-        wormhole = _MemoryWormhole(self._view(key))
+        wormhole: _MemoryWormhole = _MemoryWormhole(self._view(key))
         if key in self._waiters:
             self._waiters.pop(key).callback(wormhole)
         return wormhole
@@ -128,13 +128,13 @@ class TestingHelper(object):
         key = (relay_url, appid)
         if key in self._server._waiters:
             raise ValueError(f"There is already a waiter for {key}")
-        d: Deferred = Deferred()
+        d: Deferred[Any] = Deferred()
         self._server._waiters[key] = d
         wormhole = await d
         return wormhole
 
 
-def _verify():
+def _verify()-> None:
     """
     Roughly confirm that the in-memory wormhole creation function matches the
     interface of the real implementation.
@@ -158,7 +158,7 @@ class _WormholeApp(object):
     appid/relay_url scope.
     """
     wormholes: dict[WormholeCode, IWormhole] = field(default=Factory(dict))
-    _waiting: dict[WormholeCode, List[Deferred]] = field(default=Factory(dict))
+    _waiting: dict[WormholeCode, List[Deferred[Any]]] = field(default=Factory(dict))
     _counter: Iterator[int] = field(default=Factory(count))
 
     def allocate_code(self, wormhole: IWormhole, code: Optional[WormholeCode]) -> WormholeCode:
@@ -190,7 +190,7 @@ class _WormholeApp(object):
         with the given code.  This is used to let the first end of a wormhole
         rendezvous with the second end.
         """
-        d: Deferred = Deferred()
+        d: Deferred[Any] = Deferred()
         self._waiting.setdefault(code, []).append(d)
         return d
 
@@ -234,8 +234,8 @@ class _MemoryWormhole(object):
 
     _view: _WormholeServerView
     _code: Optional[WormholeCode] = None
-    _payload: DeferredQueue = field(default=Factory(DeferredQueue))
-    _waiting_for_code: list[Deferred] = field(default=Factory(list))
+    _payload: DeferredQueue[Any] = field(default=Factory(DeferredQueue))
+    _waiting_for_code: list[Deferred[Any]] = field(default=Factory(list))
 
     def allocate_code(self) -> None:
         if self._code is not None:
@@ -262,7 +262,7 @@ class _MemoryWormhole(object):
             return d
         return succeed(self._code)
 
-    def get_welcome(self):
+    def get_welcome(self)-> Deferred[str]:
         return succeed("welcome")
 
     def send_message(self, payload: WormholeMessage) -> None:
@@ -276,8 +276,8 @@ class _MemoryWormhole(object):
             )
         d = self._view.wormhole_by_code(self._code, exclude=self)
 
-        def got_wormhole(wormhole):
-            msg = wormhole._payload.get()
+        def got_wormhole(wormhole: _MemoryWormhole)-> Deferred[Any]:
+            msg: Deferred[Any] = wormhole._payload.get()
             return msg
 
         d.addCallback(got_wormhole)
