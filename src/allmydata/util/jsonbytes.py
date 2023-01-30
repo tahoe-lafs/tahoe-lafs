@@ -65,7 +65,7 @@ class UTF8BytesJSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.encode(
             self, bytes_to_unicode(False, o), **kwargs)
 
-def iterencode(self: json.JSONEncoder, o: bytes, **kwargs: bool)-> Iterator[str]:
+    def iterencode(self: json.JSONEncoder, o: bytes, **kwargs: bool)-> Iterator[str]:   # This seems to violate Liskov's substitution principle according to some research.
         return json.JSONEncoder.iterencode(
             self, bytes_to_unicode(False, o), **kwargs)
 
@@ -81,7 +81,7 @@ class AnyBytesJSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.encode(
             self, bytes_to_unicode(True, o), **kwargs)
 
-    def iterencode(self: json.JSONEncoder, o: bytes, **kwargs: bool) -> Iterator[str]:
+    def iterencode(self: json.JSONEncoder, o: bytes, **kwargs: bool) -> Iterator[str]:   # This seems to violate Liskov's substitution principle according to some research.
         return json.JSONEncoder.iterencode(
             self, bytes_to_unicode(True, o), **kwargs)
 

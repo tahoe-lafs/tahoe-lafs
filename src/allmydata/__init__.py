@@ -26,7 +26,7 @@ __version__ = "unknown"
 try:
     # type ignored as it fails in CI
     # (https://app.circleci.com/pipelines/github/tahoe-lafs/tahoe-lafs/1647/workflows/60ae95d4-abe8-492c-8a03-1ad3b9e42ed3/jobs/40972)
-    from allmydata._version import __version__  # type: ignore
+    from allmydata._version import __version__
 except ImportError:
     # We're running in a tree that hasn't run update_version, and didn't
     # come with a _version.py, so we don't know what our version is.
@@ -38,7 +38,7 @@ branch = "unknown"
 try:
     # type ignored as it fails in CI
     # (https://app.circleci.com/pipelines/github/tahoe-lafs/tahoe-lafs/1647/workflows/60ae95d4-abe8-492c-8a03-1ad3b9e42ed3/jobs/40972)
-    from allmydata._version import full_version, branch  # type: ignore
+    from allmydata._version import full_version, branch
 except ImportError:
     # We're running in a tree that hasn't run update_version, and didn't
     # come with a _version.py, so we don't know what our full version or
