@@ -41,6 +41,8 @@ from eliot.testing import (
 
 from .jsonbytes import AnyBytesJSONEncoder
 
+from typing import Any
+
 # There are currently a number of log messages that include non-UTF-8 bytes.
 # Allow these, at least for now.  Later when the whole test suite has been
 # converted to our SyncTestCase or AsyncTestCase it will be easier to turn
@@ -57,14 +59,14 @@ class _CustomEncoderMemoryLogger(_MemoryLogger):
     This is only necessary on Python 2 where we use an old version of Eliot
     that does not parameterize the encoder.
     """
-    def __init__(self, encoder=eliot_json_encoder):
+    def __init__(self, encoder=eliot_json_encoder)-> None:
         """
         @param encoder: A JSONEncoder subclass to use when encoding JSON.
         """
         self._encoder = encoder
         super(_CustomEncoderMemoryLogger, self).__init__()
 
-    def _validate_message(self, dictionary, serializer):
+    def _validate_message(self, dictionary: dict[Any, Any], serializer: Any)-> None:
         """Validate an individual message.
 
         As a side-effect, the message is replaced with its serialized contents.

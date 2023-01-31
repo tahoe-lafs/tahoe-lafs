@@ -32,8 +32,7 @@ For example::
 
 from __future__ import annotations
 
-from typing import Iterator, Optional, List, Tuple, Any, TextIO, AnyStr, List, TypeVar
-from collections.abc import Awaitable
+from typing import Iterator, Optional, Tuple, Any, TextIO, List
 from inspect import getargspec
 from itertools import count
 from sys import stderr
@@ -77,7 +76,7 @@ class MemoryWormholeServer(object):
         stderr: TextIO = stderr,
         _eventual_queue: Any = None,
         _enable_dilate: bool = False,
-    ) -> Optional[_MemoryWormhole]:
+    ) -> Any:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
         by this instance (and constrained by the normal appid/relay_url
