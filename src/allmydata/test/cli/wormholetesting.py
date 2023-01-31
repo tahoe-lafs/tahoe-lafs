@@ -133,7 +133,7 @@ class TestingHelper(object):
         return wormhole
 
 
-def _verify()-> None:
+def _verify():
     """
     Roughly confirm that the in-memory wormhole creation function matches the
     interface of the real implementation.
