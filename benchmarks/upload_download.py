@@ -3,7 +3,7 @@ First attempt at benchmarking uploads and downloads.
 
 To run:
 
-$ pytest benchmarks/upload_download.py  -s -v -Wignore
+$ pytest benchmarks/upload_download.py -s -v -Wignore
 
 To add latency of e.g. 60ms on Linux:
 
@@ -14,10 +14,22 @@ To reset:
 $ tc qdisc del dev lo root netem
 
 TODO Parameterization (pytest?)
-- Foolscap vs not foolscap
-- Number of nodes
-- Data size
-- Number of needed/happy/total shares.
+
+    - Foolscap vs not foolscap
+
+    - Number of nodes
+
+    - Data size
+
+    - Number of needed/happy/total shares.
+
+CAVEATS: The goal here isn't a realistic benchmark, or a benchmark that will be
+measured over time, or is expected to be maintainable over time.  This is just
+a quick and easy way to measure the speed of certain operations, compare HTTP
+and Foolscap, and see the short-term impact of changes.
+
+Eventually this will be replaced by a real benchmark suite that can be run over
+time to measure something more meaningful.
 """
 
 from time import time, process_time
