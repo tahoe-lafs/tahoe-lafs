@@ -61,11 +61,11 @@ class UTF8BytesJSONEncoder(json.JSONEncoder):
     """
     A JSON encoder than can also encode UTF-8 encoded strings.
     """
-    def encode(self: json.JSONEncoder, o: bytes, **kwargs: dict[str, Any]) -> str:
+    def encode(self, o: bytes, **kwargs: dict[str, Any]) -> str:
         return json.JSONEncoder.encode(
             self, bytes_to_unicode(False, o), **kwargs)
 
-    def iterencode(self: json.JSONEncoder, o: bytes, **kwargs: bool)-> Iterator[str]:   #type: ignore # This seems to violate Liskov's substitution principle according to some research.
+    def iterencode(self, o: bytes, **kwargs: bool)-> Iterator[str]:   #type: ignore # This seems to violate Liskov's substitution principle according to some research.
         return json.JSONEncoder.iterencode(
             self, bytes_to_unicode(False, o), **kwargs)
 
@@ -81,7 +81,7 @@ class AnyBytesJSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.encode(
             self, bytes_to_unicode(True, o), **kwargs)
 
-    def iterencode(self: json.JSONEncoder, o: bytes, **kwargs: bool) -> Iterator[str]:   #type: ignore # This seems to violate Liskov's substitution principle according to some research.
+    def iterencode(self, o: bytes, **kwargs: bool) -> Iterator[str]:   #type: ignore # This seems to violate Liskov's substitution principle according to some research.
         return json.JSONEncoder.iterencode(
             self, bytes_to_unicode(True, o), **kwargs)
 
@@ -95,7 +95,7 @@ def dumps(obj: object, *args: tuple[int], **kwargs: Any) -> str:
     """
     any_bytes = kwargs.pop("any_bytes", False)
     if any_bytes:
-        cls: Type[UTF8BytesJSONEncoder | AnyBytesJSONEncoder] = AnyBytesJSONEncoder
+        cls: Type[Union[UTF8BytesJSONEncoder, AnyBytesJSONEncoder]] = AnyBytesJSONEncoder
     else:
         cls = UTF8BytesJSONEncoder
     return json.dumps(obj, cls=cls, *args, **kwargs)

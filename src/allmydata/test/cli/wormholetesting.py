@@ -33,7 +33,6 @@ For example::
 from __future__ import annotations
 
 from typing import Iterator, Optional, Tuple, Any, TextIO, List
-from inspect import getargspec
 from itertools import count
 from sys import stderr
 
@@ -48,6 +47,13 @@ WormholeMessage = bytes
 AppId = str
 RelayURL = str
 ApplicationKey = Tuple[RelayURL, AppId]
+
+import six
+import inspect
+if six.PY3:
+    getargspec = inspect.getfullargspec
+else:
+    getargspec = inspect.getargspec
 
 @define
 class MemoryWormholeServer(object):
