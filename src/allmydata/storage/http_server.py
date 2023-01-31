@@ -545,11 +545,11 @@ class HTTPServer(object):
             raise _HTTPError(http.UNSUPPORTED_MEDIA_TYPE)
 
         # Make sure it's not too large:
-        request.content.seek(SEEK_END, 0)
+        request.content.seek(0, SEEK_END)
         size = request.content.tell()
         if size > max_size:
             raise _HTTPError(http.REQUEST_ENTITY_TOO_LARGE)
-        request.content.seek(SEEK_SET, 0)
+        request.content.seek(0, SEEK_SET)
 
         # We don't want to load the whole message into memory, cause it might
         # be quite large. The CDDL validator takes a read-only bytes-like
@@ -570,7 +570,7 @@ class HTTPServer(object):
         # Pycddl will release the GIL when validating larger documents, so
         # let's take advantage of multiple CPUs:
         if size > 10_000:
-            await deferToThread(reactor, schema.validate_cbor(message))
+            await deferToThread(schema.validate_cbor, message)
         else:
             schema.validate_cbor(message)
 
