@@ -38,6 +38,7 @@ from tempfile import mkdtemp
 import os
 
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import gatherResults
 
 from allmydata.util.deferredutil import async_to_deferred
 from allmydata.util.consumer import MemoryConsumer
@@ -112,3 +113,13 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
             with timeit("download"):
                 data = await result.download_best_version()
                 self.assertEqual(data, DATA)
+
+    @async_to_deferred
+    async def test_upload_mutable_in_parallel(self):
+        # To test larger files, change this:
+        DATA = b"Some data to upload\n" * 1_000_000
+        with timeit("  upload"):
+            await gatherResults([
+                self.clients[0].create_mutable_file(MutableData(DATA))
+                for _ in range(20)
+            ])
