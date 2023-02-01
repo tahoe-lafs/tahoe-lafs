@@ -15,7 +15,7 @@ if PY2:
 
 import json
 import codecs
-from typing import Any, Iterator, Type, Union, Optional
+from typing import Any, Iterator, Type, Union, Optional, Dict
 if PY2:
     def backslashreplace_py2(ex):
         """
@@ -61,7 +61,7 @@ class UTF8BytesJSONEncoder(json.JSONEncoder):
     """
     A JSON encoder than can also encode UTF-8 encoded strings.
     """
-    def encode(self, o: bytes, **kwargs: dict[str, Any]) -> str:
+    def encode(self, o: bytes, **kwargs: Dict[str, Any]) -> str:
         return json.JSONEncoder.encode(
             self, bytes_to_unicode(False, o), **kwargs)
 
