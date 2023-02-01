@@ -77,7 +77,7 @@ class AnyBytesJSONEncoder(json.JSONEncoder):
     Bytes are decoded to strings using UTF-8, if that fails to decode then the
     bytes are quoted.
     """
-    def encode(self, o: bytes, **kwargs: dict[str, Any]) -> str:
+    def encode(self, o: bytes, **kwargs: Dict[str, Any]) -> str:
         return json.JSONEncoder.encode(
             self, bytes_to_unicode(True, o), **kwargs)
 
@@ -101,7 +101,7 @@ def dumps(obj: object, *args: tuple[int], **kwargs: Any) -> str:
     return json.dumps(obj, cls=cls, *args, **kwargs)
 
 
-def dumps_bytes(obj: object, *args: tuple[int], **kwargs: dict[str, Any]) -> Any:
+def dumps_bytes(obj: object, *args: tuple[int], **kwargs: Dict[str, Any]) -> Any:
     """Encode to JSON, then encode as bytes.
 
     :param bool any_bytes: If False (the default) the bytes are assumed to be

@@ -65,8 +65,8 @@ class MemoryWormholeServer(object):
 
     def create(
         self,
-        appid: str,
-        relay_url: str,
+        appid: AppId,
+        relay_url: RelayURL,
         reactor: Any,
         versions: Any = {},
         delegate: Optional[Any] = None,
@@ -76,7 +76,7 @@ class MemoryWormholeServer(object):
         stderr: TextIO = stderr,
         _eventual_queue: Optional[Any] = None,
         _enable_dilate: bool = False,
-    ) -> Any:
+    )-> _MemoryWormhole:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
         by this instance (and constrained by the normal appid/relay_url
@@ -88,7 +88,7 @@ class MemoryWormholeServer(object):
             raise ValueError("Cannot deal with dilation right now.")
 
         key = (relay_url, appid)
-        wormhole: _MemoryWormhole = _MemoryWormhole(self._view(key))
+        wormhole = _MemoryWormhole(self._view(key))
         if key in self._waiters:
             self._waiters.pop(key).callback(wormhole)
         return wormhole
@@ -133,7 +133,7 @@ class TestingHelper(object):
         return wormhole
 
 
-def _verify():
+def _verify()-> None:
     """
     Roughly confirm that the in-memory wormhole creation function matches the
     interface of the real implementation.
