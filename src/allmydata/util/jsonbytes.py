@@ -15,7 +15,7 @@ if PY2:
 
 import json
 import codecs
-from typing import Any, Iterator, Type, Union, Optional, Dict
+from typing import Any, Iterator, Type, Union, Optional, Dict, Tuple
 if PY2:
     def backslashreplace_py2(ex):
         """
@@ -86,7 +86,7 @@ class AnyBytesJSONEncoder(json.JSONEncoder):
             self, bytes_to_unicode(True, o), **kwargs)
 
 
-def dumps(obj: object, *args: tuple[int], **kwargs: Any) -> str:
+def dumps(obj: object, *args: Tuple[int], **kwargs: Any) -> str:
     """Encode to JSON, supporting bytes as keys or values.
 
     :param bool any_bytes: If False (the default) the bytes are assumed to be
@@ -101,7 +101,7 @@ def dumps(obj: object, *args: tuple[int], **kwargs: Any) -> str:
     return json.dumps(obj, cls=cls, *args, **kwargs)
 
 
-def dumps_bytes(obj: object, *args: tuple[int], **kwargs: Dict[str, Any]) -> Any:
+def dumps_bytes(obj: object, *args: Tuple[int], **kwargs: Dict[str, Any]) -> Any:
     """Encode to JSON, then encode as bytes.
 
     :param bool any_bytes: If False (the default) the bytes are assumed to be
