@@ -65,8 +65,8 @@ class MemoryWormholeServer(object):
 
     def create(
         self,
-        appid: AppId,
-        relay_url: RelayURL,
+        appid: Any,
+        relay_url: Any,
         reactor: Any,
         versions: Any = {},
         delegate: Optional[Any] = None,
