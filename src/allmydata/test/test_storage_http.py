@@ -454,7 +454,11 @@ class CustomHTTPServerTests(SyncTestCase):
 
 @implementer(IReactorFromThreads)
 class Reactor(Clock):
-    """Fake reactor."""
+    """
+    Fake reactor that supports time APIs and callFromThread.
+
+    Advancing the clock also runs any callbacks scheduled via callFromThread.
+    """
     def __init__(self):
         Clock.__init__(self)
         self._queue = Queue()
@@ -526,6 +530,13 @@ class HttpTestFixture(Fixture):
             self.treq.flush()
             if result:
                 break
+            # By putting the sleep at the end, tests that are completely
+            # synchronous and don't use threads will have already broken out of
+            # the loop, and so will finish without any sleeps. This allows them
+            # to run as quickly as possible.
+            #
+            # However, some tests do talk to APIs that use a thread pool on the
+            # backend, so we need to allow actual time to pass for those.
             time.sleep(0.001)
 
         if result:
