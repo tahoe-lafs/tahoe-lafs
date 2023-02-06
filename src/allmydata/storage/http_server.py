@@ -21,8 +21,6 @@ from twisted.internet.interfaces import (
     IStreamServerEndpoint,
     IPullProducer,
 )
-from twisted.internet import reactor
-from twisted.internet.threads import deferToThread
 from twisted.internet.address import IPv4Address, IPv6Address
 from twisted.internet.defer import Deferred
 from twisted.internet.ssl import CertificateOptions, Certificate, PrivateCertificate
@@ -59,6 +57,7 @@ from .immutable import BucketWriter, ConflictingWriteError
 from ..util.hashutil import timing_safe_compare
 from ..util.base32 import rfc3548_alphabet
 from ..util.deferredutil import async_to_deferred
+from ..util.cputhreadpool import defer_to_thread
 from allmydata.interfaces import BadWriteEnablerError
 
 
@@ -489,8 +488,9 @@ class HTTPServer(object):
         return str(failure.value).encode("utf-8")
 
     def __init__(
-        self, storage_server, swissnum
+            self, reactor, storage_server, swissnum
     ):  # type: (StorageServer, bytes) -> None
+        self._reactor = reactor
         self._storage_server = storage_server
         self._swissnum = swissnum
         # Maps storage index to StorageIndexUploads:
@@ -570,7 +570,7 @@ class HTTPServer(object):
         # Pycddl will release the GIL when validating larger documents, so
         # let's take advantage of multiple CPUs:
         if size > 10_000:
-            await deferToThread(schema.validate_cbor, message)
+            await defer_to_thread(self._reactor, schema.validate_cbor, message)
         else:
             schema.validate_cbor(message)
 
