@@ -24,6 +24,7 @@ from twisted.internet.interfaces import (
 from twisted.internet.address import IPv4Address, IPv6Address
 from twisted.internet.defer import Deferred
 from twisted.internet.ssl import CertificateOptions, Certificate, PrivateCertificate
+from twisted.internet.interfaces import IReactorFromThreads
 from twisted.web.server import Site, Request
 from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.python.filepath import FilePath
@@ -488,8 +489,11 @@ class HTTPServer(object):
         return str(failure.value).encode("utf-8")
 
     def __init__(
-            self, reactor, storage_server, swissnum
-    ):  # type: (StorageServer, bytes) -> None
+        self,
+        reactor: IReactorFromThreads,
+        storage_server: StorageServer,
+        swissnum: bytes,
+    ):
         self._reactor = reactor
         self._storage_server = storage_server
         self._swissnum = swissnum
