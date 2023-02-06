@@ -1,6 +1,5 @@
 """
 A JSON encoder than can serialize bytes.
-
 Ported to Python 3.
 """
 
@@ -15,7 +14,7 @@ if PY2:
 
 import json
 import codecs
-from typing import Any, Iterator, Type, Union, Optional, Dict, Tuple
+
 if PY2:
     def backslashreplace_py2(ex):
         """
@@ -28,9 +27,8 @@ if PY2:
     codecs.register_error("backslashreplace_tahoe_py2", backslashreplace_py2)
 
 
-def bytes_to_unicode(any_bytes: bool, obj: bytes) -> Optional[Union[str, bytes]]:
+def bytes_to_unicode(any_bytes, obj):
     """Convert bytes to unicode.
-
     :param any_bytes: If True, also support non-UTF-8-encoded bytes.
     :param obj: Object to de-byte-ify.
     """
@@ -38,7 +36,7 @@ def bytes_to_unicode(any_bytes: bool, obj: bytes) -> Optional[Union[str, bytes]]
     if PY2 and errors == "backslashreplace":
         errors = "backslashreplace_tahoe_py2"
 
-    def doit(obj: bytes) -> Union[str, bytes]:
+    def doit(obj):
         """Convert any bytes objects to unicode, recursively."""
         if isinstance(obj, bytes):
             return obj.decode("utf-8", errors=errors)
@@ -61,11 +59,11 @@ class UTF8BytesJSONEncoder(json.JSONEncoder):
     """
     A JSON encoder than can also encode UTF-8 encoded strings.
     """
-    def encode(self, o: bytes, **kwargs: Dict[str, Any]) -> str:
+    def encode(self, o, **kwargs):
         return json.JSONEncoder.encode(
             self, bytes_to_unicode(False, o), **kwargs)
 
-    def iterencode(self, o: bytes, **kwargs: bool)-> Iterator[str]:   #type: ignore # This seems to violate Liskov's substitution principle according to some research.
+    def iterencode(self, o, **kwargs):
         return json.JSONEncoder.iterencode(
             self, bytes_to_unicode(False, o), **kwargs)
 
@@ -73,42 +71,39 @@ class UTF8BytesJSONEncoder(json.JSONEncoder):
 class AnyBytesJSONEncoder(json.JSONEncoder):
     """
     A JSON encoder than can also encode bytes of any sort.
-
     Bytes are decoded to strings using UTF-8, if that fails to decode then the
     bytes are quoted.
     """
-    def encode(self, o: bytes, **kwargs: Dict[str, Any]) -> str:
+    def encode(self, o, **kwargs):
         return json.JSONEncoder.encode(
             self, bytes_to_unicode(True, o), **kwargs)
 
-    def iterencode(self, o: bytes, **kwargs: bool) -> Iterator[str]:   #type: ignore # This seems to violate Liskov's substitution principle according to some research.
+    def iterencode(self, o, **kwargs):
         return json.JSONEncoder.iterencode(
             self, bytes_to_unicode(True, o), **kwargs)
 
 
-def dumps(obj: object, *args: Tuple[int], **kwargs: Any) -> str:
+def dumps(obj, *args, **kwargs):
     """Encode to JSON, supporting bytes as keys or values.
-
     :param bool any_bytes: If False (the default) the bytes are assumed to be
         UTF-8 encoded Unicode strings.  If True, non-UTF-8 bytes are quoted for
         human consumption.
     """
     any_bytes = kwargs.pop("any_bytes", False)
     if any_bytes:
-        cls: Type[Union[UTF8BytesJSONEncoder, AnyBytesJSONEncoder]] = AnyBytesJSONEncoder
+        cls = AnyBytesJSONEncoder
     else:
         cls = UTF8BytesJSONEncoder
     return json.dumps(obj, cls=cls, *args, **kwargs)
 
 
-def dumps_bytes(obj: object, *args: Tuple[int], **kwargs: Dict[str, Any]) -> Any:
+def dumps_bytes(obj, *args, **kwargs):
     """Encode to JSON, then encode as bytes.
-
     :param bool any_bytes: If False (the default) the bytes are assumed to be
         UTF-8 encoded Unicode strings.  If True, non-UTF-8 bytes are quoted for
         human consumption.
     """
-    result: Any = dumps(obj, *args, **kwargs)
+    result = dumps(obj, *args, **kwargs)
     if PY3:
         result = result.encode("utf-8")
     return result

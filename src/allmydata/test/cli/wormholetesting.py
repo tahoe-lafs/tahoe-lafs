@@ -32,7 +32,7 @@ For example::
 
 from __future__ import annotations
 
-from typing import Iterator, Optional, Tuple, Any, TextIO, List
+from typing import Iterator, Optional, Tuple, Any, TextIO, List, Dict
 from inspect import getargspec
 from itertools import count
 from sys import stderr
@@ -60,8 +60,8 @@ class MemoryWormholeServer(object):
     :ivar _waiters: Observers waiting for a wormhole to be created for a
         specific application id and relay URL combination.
     """
-    _apps: dict[ApplicationKey, _WormholeApp] = field(default=Factory(dict))
-    _waiters: dict[ApplicationKey, Deferred[Any]] = field(default=Factory(dict))
+    _apps: Dict[ApplicationKey, _WormholeApp] = field(default=Factory(dict))
+    _waiters: Dict[ApplicationKey, Deferred[Any]] = field(default=Factory(dict))
 
     def create(
         self,
@@ -156,8 +156,8 @@ class _WormholeApp(object):
     Represent a collection of wormholes that belong to the same
     appid/relay_url scope.
     """
-    wormholes: dict[WormholeCode, IWormhole] = field(default=Factory(dict))
-    _waiting: dict[WormholeCode, List[Deferred[Any]]] = field(default=Factory(dict))
+    wormholes: Dict[WormholeCode, IWormhole] = field(default=Factory(dict))
+    _waiting: Dict[WormholeCode, List[Deferred[Any]]] = field(default=Factory(dict))
     _counter: Iterator[int] = field(default=Factory(count))
 
     def allocate_code(self, wormhole: IWormhole, code: Optional[WormholeCode]) -> WormholeCode:
