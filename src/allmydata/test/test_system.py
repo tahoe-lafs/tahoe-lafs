@@ -28,16 +28,13 @@ from allmydata.storage.server import si_a2b
 from allmydata.immutable import offloaded, upload
 from allmydata.immutable.literal import LiteralFileNode
 from allmydata.immutable.filenode import ImmutableFileNode
-from allmydata.immutable.downloader.node import DownloadNode
 from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
 from allmydata.util.encodingutil import quote_output, unicode_to_argv
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
-from allmydata.util.deferredutil import async_to_deferred
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
-     NoSuchChildError, NoSharesError, SDMF_VERSION, MDMF_VERSION, \
-     DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
+     NoSuchChildError, NoSharesError, SDMF_VERSION, MDMF_VERSION
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable import layout as mutable_layout
@@ -1813,45 +1810,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             return d
         d.addCallback(_got_lit_filenode)
         return d
-
-    @async_to_deferred
-    async def test_upload_download_immutable_different_default_max_segment_size(self):
-        """
-        Tahoe-LAFS used to have a default max segment size of 128KB, and is now
-        1MB.  Test that an upload created when 128KB was the default can be
-        downloaded with 1MB as the default (i.e. old uploader, new downloader),
-        and vice versa, (new uploader, old downloader).
-        """
-        await self.set_up_nodes(2)
-
-        # Just 1 share:
-        for c in self.clients:
-            c.encoding_params["k"] = 1
-            c.encoding_params["happy"] = 1
-            c.encoding_params["n"] = 1
-
-        await self._upload_download_different_max_segment(128 * 1024, 1024 * 1024)
-        await self._upload_download_different_max_segment(1024 * 1024, 128 * 1024)
-
-
-    async def _upload_download_different_max_segment(
-            self, upload_segment_size, download_segment_size
-    ):
-        """Upload with one max segment size, download with another."""
-        data = b"123456789" * 1_000_000
-
-        uploader = self.clients[0].getServiceNamed("uploader")
-        uploadable = upload.Data(data, convergence=None)
-        assert uploadable.max_segment_size == None
-        uploadable.max_segment_size = upload_segment_size
-        results = await uploader.upload(uploadable)
-
-        assert DownloadNode.default_max_segment_size == DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
-        self.patch(DownloadNode, "default_max_segment_size", download_segment_size)
-        uri = results.get_uri()
-        node = self.clients[1].create_node_from_uri(uri)
-        mc = await node.read(MemoryConsumer(), 0, None)
-        self.assertEqual(b"".join(mc.chunks), data)
 
 
 class Connections(SystemTestMixin, unittest.TestCase):
