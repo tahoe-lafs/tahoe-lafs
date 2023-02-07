@@ -19,7 +19,7 @@ from foolscap.api import eventually
 from allmydata import uri
 from allmydata.codec import CRSDecoder
 from allmydata.util import base32, log, hashutil, mathutil, observer
-from allmydata.interfaces import DEFAULT_MAX_SEGMENT_SIZE
+from allmydata.interfaces import DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
 from allmydata.hashtree import IncompleteHashTree, BadHashError, \
      NotEnoughHashesError
 
@@ -49,7 +49,7 @@ class DownloadNode(object):
     """Internal class which manages downloads and holds state. External
     callers use CiphertextFileNode instead."""
 
-    default_max_segment_size = DEFAULT_MAX_SEGMENT_SIZE
+    default_max_segment_size = DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
 
     # Share._node points to me
     def __init__(self, verifycap, storage_broker, secret_holder,

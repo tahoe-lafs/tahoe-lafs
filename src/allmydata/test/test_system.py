@@ -37,7 +37,7 @@ from allmydata.util.consumer import MemoryConsumer, download_to_data
 from allmydata.util.deferredutil import async_to_deferred
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
      NoSuchChildError, NoSharesError, SDMF_VERSION, MDMF_VERSION, \
-     DEFAULT_MAX_SEGMENT_SIZE
+     DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable import layout as mutable_layout
@@ -1846,7 +1846,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         uploadable.max_segment_size = upload_segment_size
         results = await uploader.upload(uploadable)
 
-        assert DownloadNode.default_max_segment_size == DEFAULT_MAX_SEGMENT_SIZE
+        assert DownloadNode.default_max_segment_size == DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
         self.patch(DownloadNode, "default_max_segment_size", download_segment_size)
         uri = results.get_uri()
         node = self.clients[1].create_node_from_uri(uri)

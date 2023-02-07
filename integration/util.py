@@ -46,7 +46,7 @@ from allmydata.util.configutil import (
     write_config,
 )
 from allmydata import client
-from allmydata.interfaces import DEFAULT_MAX_SEGMENT_SIZE
+from allmydata.interfaces import DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
 
 import pytest_twisted
 
@@ -774,7 +774,7 @@ async def reconfigure(reactor, request, node: TahoeProcess,
             config.write_private_config("convergence", base32.b2a(convergence))
 
     if max_segment_size is not None:
-        cur_segment_size = int(config.get_config("client", "shares._max_immutable_segment_size_for_testing", DEFAULT_MAX_SEGMENT_SIZE))
+        cur_segment_size = int(config.get_config("client", "shares._max_immutable_segment_size_for_testing", DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE))
         if cur_segment_size != max_segment_size:
             changed = True
             config.set_config(

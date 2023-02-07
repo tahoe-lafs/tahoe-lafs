@@ -41,7 +41,7 @@ URI = StringConstraint(300) # kind of arbitrary
 
 MAX_BUCKETS = 256  # per peer -- zfec offers at most 256 shares per file
 
-DEFAULT_MAX_SEGMENT_SIZE = 1024*1024
+DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE = 1024*1024
 
 ShareData = StringConstraint(None)
 URIExtensionData = StringConstraint(1000)

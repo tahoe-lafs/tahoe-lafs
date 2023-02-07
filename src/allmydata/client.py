@@ -50,7 +50,7 @@ from allmydata.interfaces import (
     IStatsProducer,
     SDMF_VERSION,
     MDMF_VERSION,
-    DEFAULT_MAX_SEGMENT_SIZE,
+    DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE,
     IFoolscapStoragePlugin,
     IAnnounceableStorageServer,
 )
@@ -607,7 +607,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     DEFAULT_ENCODING_PARAMETERS = {"k": 3,
                                    "happy": 7,
                                    "n": 10,
-                                   "max_segment_size": DEFAULT_MAX_SEGMENT_SIZE,
+                                   "max_segment_size": DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE,
                                    }
 
     def __init__(self, config, main_tub, i2p_provider, tor_provider, introducer_clients,
