@@ -111,7 +111,8 @@ async def generate(
             request,
             alice,
             (happy, case.params.required, case.params.total),
-            case.convergence
+            case.convergence,
+            case.segment_size
         )
 
         # Give the format a chance to make an RSA key if it needs it.
