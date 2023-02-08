@@ -25,7 +25,7 @@ For example::
 
 from __future__ import annotations
 
-from typing import Iterator, Optional, List, Tuple, Any
+from typing import Iterator, Optional, List, Tuple, Any, TextIO
 from inspect import getfullargspec
 from itertools import count
 from sys import stderr
@@ -56,18 +56,18 @@ class MemoryWormholeServer(object):
     #create()ouput type should be _Memorywormhole but getargs() takes object type specifically and mypy does not like this
     def create( #type: ignore
         self,
-        appid,
-        relay_url,
-        reactor,
-        versions={},
-        delegate=None,
-        journal=None,
-        tor=None,
-        timing=None,
-        stderr=stderr,
-        _eventual_queue=None,
-        _enable_dilate=False,
-    ):
+        appid: AppId,
+        relay_url: RelayURL,
+        reactor: Any, #twisted does not have an all encompassing base reactor class
+        versions: Any={},
+        delegate: Optional[Any]=None,
+        journal: Optional[Any]=None,
+        tor: Optional[Any]=None,
+        timing: Optional[Any]=None,
+        stderr: TextIO=stderr,
+        _eventual_queue: Optional[Any]=None,
+        _enable_dilate: bool=False,
+    )-> _MemoryWormhole:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
         by this instance (and constrained by the normal appid/relay_url
