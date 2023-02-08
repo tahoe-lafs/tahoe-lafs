@@ -26,7 +26,7 @@ For example::
 from __future__ import annotations
 
 from typing import Iterator, Optional, List, Tuple, Any, TextIO
-from inspect import getfullargspec
+from inspect import getargspec, signature
 from itertools import count
 from sys import stderr
 
@@ -58,16 +58,16 @@ class MemoryWormholeServer(object):
         self,
         appid: AppId,
         relay_url: RelayURL,
-        reactor: Any, #twisted does not have an all encompassing base reactor class
+        reactor: Any,
         versions: Any={},
-        delegate: Optional[Any]=None,
-        journal: Optional[Any]=None,
-        tor: Optional[Any]=None,
-        timing: Optional[Any]=None,
-        stderr: TextIO=stderr,
-        _eventual_queue: Optional[Any]=None,
-        _enable_dilate: bool=False,
-    )-> _MemoryWormhole:
+        delegate: Optional[Any] = None,
+        journal: Optional[Any] = None,
+        tor: Optional[Any] = None,
+        timing: Optional[Any] = None,
+        stderr: TextIO = stderr,
+        _eventual_queue: Optional[Any] = None,
+        _enable_dilate: bool = False,
+    ):
         """
         Create a wormhole.  It will be able to connect to other wormholes created
         by this instance (and constrained by the normal appid/relay_url
@@ -126,9 +126,12 @@ def _verify()-> None:
     interface of the real implementation.
     """
     # Poor man's interface verification.
-
-    a = getfullargspec(create)
-    b = getfullargspec(MemoryWormholeServer.create)
+    asig = signature(create)
+    print(asig)
+    bsig = signature(MemoryWormholeServer.create)
+    print(bsig)
+    a = getargspec(create)
+    b = getargspec(MemoryWormholeServer.create)
     # I know it has a `self` argument at the beginning.  That's okay.
     b = b._replace(args=b.args[1:])
     assert a == b, "{} != {}".format(a, b)
