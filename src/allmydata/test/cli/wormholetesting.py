@@ -25,7 +25,7 @@ For example::
 
 from __future__ import annotations
 
-from typing import Iterator, Optional, List, Tuple, Any
+from typing import Iterator, Optional, List, Tuple, Any, TextIO
 from inspect import getargspec
 from itertools import count
 from sys import stderr
@@ -56,18 +56,18 @@ class MemoryWormholeServer(object):
 
     def create(
         self,
-        appid,
-        relay_url,
-        reactor,
-        versions={},
-        delegate=None,
-        journal=None,
-        tor=None,
-        timing=None,
-        stderr=stderr,
-        _eventual_queue=None,
-        _enable_dilate=False,
-    ):
+        appid: AppId,
+        relay_url: RelayURL,
+        reactor: Any, #There does not seem to be all encompassing base reactor
+        versions: Any={},
+        delegate: Optional[None]=None,
+        journal: Optional[None]=None,
+        tor: Optional[None]=None,
+        timing: Optional[None]=None,
+        stderr: TextIO =stderr,
+        _eventual_queue: Optional[None]=None,
+        _enable_dilate: bool=False,
+    )-> _MemoryWormhole:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
         by this instance (and constrained by the normal appid/relay_url
