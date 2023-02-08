@@ -54,7 +54,7 @@ class MemoryWormholeServer(object):
     _apps: dict[ApplicationKey, _WormholeApp] = field(default=Factory(dict))
     _waiters: dict[ApplicationKey, Deferred] = field(default=Factory(dict))
     #create()ouput type should be _Memorywormhole but getargs() takes object type specifically and mypy does not like this
-    def create( #type: ignore 
+    def create( #type: ignore
         self,
         appid,
         relay_url,
