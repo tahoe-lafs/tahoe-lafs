@@ -25,8 +25,8 @@ For example::
 
 from __future__ import annotations
 
-from typing import Iterator, Optional, List, Tuple, Any, TextIO
-from inspect import getargspec
+from typing import Iterator, Optional, List, Tuple, Any
+from inspect import getfullargspec
 from itertools import count
 from sys import stderr
 
@@ -53,21 +53,21 @@ class MemoryWormholeServer(object):
     """
     _apps: dict[ApplicationKey, _WormholeApp] = field(default=Factory(dict))
     _waiters: dict[ApplicationKey, Deferred] = field(default=Factory(dict))
-
-    def create(
+    #create()ouput type should be _Memorywormhole but getargs() takes object type specifically and mypy does not like this
+    def create( #type: ignore 
         self,
-        appid: AppId,
-        relay_url: RelayURL,
-        reactor: Any, #There does not seem to be all encompassing base reactor
-        versions: Any={},
-        delegate: Optional[None]=None,
-        journal: Optional[None]=None,
-        tor: Optional[None]=None,
-        timing: Optional[None]=None,
-        stderr: TextIO =stderr,
-        _eventual_queue: Optional[None]=None,
-        _enable_dilate: bool=False,
-    )-> Any:
+        appid,
+        relay_url,
+        reactor,
+        versions={},
+        delegate=None,
+        journal=None,
+        tor=None,
+        timing=None,
+        stderr=stderr,
+        _eventual_queue=None,
+        _enable_dilate=False,
+    ):
         """
         Create a wormhole.  It will be able to connect to other wormholes created
         by this instance (and constrained by the normal appid/relay_url
@@ -95,7 +95,7 @@ class MemoryWormholeServer(object):
 @frozen
 class TestingHelper(object):
     """
-    Provide extra functionality for interacting with an in-memory wormhole
+    Provide extra functionality for interacting with d in-memory wormhole
     implementation.
     This is intentionally a separate API so that it is not confused with
     proper public interface of the real wormhole implementation.
@@ -127,8 +127,8 @@ def _verify()-> None:
     """
     # Poor man's interface verification.
 
-    a = getargspec(create)
-    b = getargspec(MemoryWormholeServer.create)
+    a = getfullargspec(create)
+    b = getfullargspec(MemoryWormholeServer.create)
     # I know it has a `self` argument at the beginning.  That's okay.
     b = b._replace(args=b.args[1:])
     assert a == b, "{} != {}".format(a, b)
