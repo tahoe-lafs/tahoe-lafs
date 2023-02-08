@@ -26,7 +26,6 @@ For example::
 from __future__ import annotations
 
 from typing import Iterator, Optional, List, Tuple, Any
-from collections.abc import Awaitable
 from inspect import getargspec
 from itertools import count
 from sys import stderr
