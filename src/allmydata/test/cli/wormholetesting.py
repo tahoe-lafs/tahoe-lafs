@@ -1,19 +1,25 @@
 """
 An in-memory implementation of some of the magic-wormhole interfaces for
 use by automated tests.
+
 For example::
+
     async def peerA(mw):
         wormhole = mw.create("myapp", "wss://myserver", reactor)
         code = await wormhole.get_code()
         print(f"I have a code: {code}")
         message = await wormhole.when_received()
         print(f"I have a message: {message}")
+
     async def local_peerB(helper, mw):
         peerA_wormhole = await helper.wait_for_wormhole("myapp", "wss://myserver")
         code = await peerA_wormhole.when_code()
+
         peerB_wormhole = mw.create("myapp", "wss://myserver")
         peerB_wormhole.set_code(code)
+
         peerB_wormhole.send_message("Hello, peer A")
+
     # Run peerA against local_peerB with pure in-memory message passing.
     server, helper = memory_server()
     run(gather(peerA(server), local_peerB(helper, server)))
@@ -35,7 +41,7 @@ from twisted.internet.defer import Deferred, DeferredQueue, succeed
 from wormhole._interfaces import IWormhole
 from wormhole.wormhole import create
 from zope.interface import implementer
-[]
+
 WormholeCode = str
 WormholeMessage = bytes
 AppId = str
@@ -53,20 +59,20 @@ class MemoryWormholeServer(object):
     """
     _apps: dict[ApplicationKey, _WormholeApp] = field(default=Factory(dict))
     _waiters: dict[ApplicationKey, Deferred] = field(default=Factory(dict))
-    #create()ouput type should be _Memorywormhole but getargs() takes object type specifically and mypy does not like this
+
     def create(
         self,
         appid: AppId,
         relay_url: RelayURL,
         reactor: Any,
         versions: Any={},
-        delegate: Optional[Any] = None,
-        journal: Optional[Any] = None,
-        tor: Optional[Any] = None,
-        timing: Optional[Any] = None,
-        stderr: TextIO = stderr,
-        _eventual_queue: Optional[Any] = None,
-        _enable_dilate: bool = False,
+        delegate: Optional[Any]=None,
+        journal: Optional[Any]=None,
+        tor: Optional[Any]=None,
+        timing: Optional[Any]=None,
+        stderr: TextIO=stderr,
+        _eventual_queue: Optional[Any]=None,
+        _enable_dilate: bool=False,
     )-> _MemoryWormhole:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
@@ -95,8 +101,9 @@ class MemoryWormholeServer(object):
 @frozen
 class TestingHelper(object):
     """
-    Provide extra functionality for interacting with d in-memory wormhole
+    Provide extra functionality for interacting with an in-memory wormhole
     implementation.
+
     This is intentionally a separate API so that it is not confused with
     proper public interface of the real wormhole implementation.
     """
@@ -131,9 +138,9 @@ def _verify()-> None:
     # I know it has a `self` argument at the beginning.  That's okay.
     # Interestingly a gives relay_url and b gives relay url, even though both have relay_url.
     b = b._replace(args = b.args[1:])
-    # Since this is not a comprehensive test we compare length to allow type annotations.
-    # getfullargspec and getargspec both have an list of annotations so we either just count elements or comment wormhole too.
-    assert len(a) == len(b)  # Temporary change hopefully we can change it back after wormhole is annotated.
+    # Since this is not a comprehensive test we can just compare length verify and to allow type annotations.
+    # getfullargspec and getargspec both have an list of annotations and create is slightly different so just count elements.
+    assert len(a) == len(b) 
 
 _verify()
 
