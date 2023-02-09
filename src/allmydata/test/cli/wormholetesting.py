@@ -133,6 +133,7 @@ def _verify()-> None:
     interface of the real implementation.
     """
     # Poor man's interface verification.
+    # Upgrade to getfullargspec since getargspec deprecated since python 3.5
     a = getfullargspec(create)
     b = getfullargspec(MemoryWormholeServer.create)
     # I know it has a `self` argument at the beginning.  That's okay.
