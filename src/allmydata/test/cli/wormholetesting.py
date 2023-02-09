@@ -129,8 +129,11 @@ def _verify()-> None:
     a = getfullargspec(create)
     b = getfullargspec(MemoryWormholeServer.create)
     # I know it has a `self` argument at the beginning.  That's okay.
+    # Interestingly a gives relay_url and b gives relay url, even though both have relay_url.
     b = b._replace(args = b.args[1:])
-    assert len(a) == len(b)
+    # Since this is not a comprehensive test we compare length to allow type annotations.
+    # getfullargspec and getargspec both have an list of annotations so we either just count elements or comment wormhole too.
+    assert len(a) == len(b)  # Temporary change hopefully we can change it back after wormhole is annotated.
 
 _verify()
 
