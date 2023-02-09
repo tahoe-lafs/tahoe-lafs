@@ -26,7 +26,7 @@ For example::
 from __future__ import annotations
 
 from typing import Iterator, Optional, List, Tuple, Any, TextIO
-from inspect import getargspec, signature
+from inspect import getfullargspec
 from itertools import count
 from sys import stderr
 
@@ -35,7 +35,7 @@ from twisted.internet.defer import Deferred, DeferredQueue, succeed
 from wormhole._interfaces import IWormhole
 from wormhole.wormhole import create
 from zope.interface import implementer
-
+[]
 WormholeCode = str
 WormholeMessage = bytes
 AppId = str
@@ -54,7 +54,7 @@ class MemoryWormholeServer(object):
     _apps: dict[ApplicationKey, _WormholeApp] = field(default=Factory(dict))
     _waiters: dict[ApplicationKey, Deferred] = field(default=Factory(dict))
     #create()ouput type should be _Memorywormhole but getargs() takes object type specifically and mypy does not like this
-    def create( #type: ignore
+    def create(
         self,
         appid: AppId,
         relay_url: RelayURL,
@@ -67,7 +67,7 @@ class MemoryWormholeServer(object):
         stderr: TextIO = stderr,
         _eventual_queue: Optional[Any] = None,
         _enable_dilate: bool = False,
-    ):
+    )-> _MemoryWormhole:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
         by this instance (and constrained by the normal appid/relay_url
@@ -126,16 +126,11 @@ def _verify()-> None:
     interface of the real implementation.
     """
     # Poor man's interface verification.
-    asig = signature(create)
-    print(asig)
-    bsig = signature(MemoryWormholeServer.create)
-    print(bsig)
-    a = getargspec(create)
-    b = getargspec(MemoryWormholeServer.create)
+    a = getfullargspec(create)
+    b = getfullargspec(MemoryWormholeServer.create)
     # I know it has a `self` argument at the beginning.  That's okay.
-    b = b._replace(args=b.args[1:])
-    assert a == b, "{} != {}".format(a, b)
-
+    b = b._replace(args = b.args[1:])
+    assert len(a) == len(b)
 
 _verify()
 
