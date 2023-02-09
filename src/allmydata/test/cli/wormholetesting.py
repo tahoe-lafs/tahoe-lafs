@@ -140,7 +140,7 @@ def _verify()-> None:
     b = b._replace(args = b.args[1:])
     # Since this is not a comprehensive test we can just compare length verify and to allow type annotations.
     # getfullargspec and getargspec both have an list of annotations and create is slightly different so just count elements.
-    assert len(a) == len(b) 
+    assert len(a) == len(b)
 
 _verify()
 
