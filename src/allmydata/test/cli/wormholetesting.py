@@ -145,7 +145,7 @@ def _verify()-> None:
     assert a.varkw == b.varkw
     assert a.args == b.args
     assert a.varargs == b.varargs
-    assert a.defaults == b.defaults
+    assert a.kwonlydefaults == b.kwonlydefaults
 
 
 _verify()
