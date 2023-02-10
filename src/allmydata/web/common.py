@@ -707,12 +707,12 @@ def url_for_string(req, url_string):
 T = TypeVar("T")
 
 @overload
-def get_arg(req: IRequest, argname: str | bytes, default: T = None, *, multiple: Literal[False] = False) -> T | bytes: ...
+def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *, multiple: Literal[False] = False) -> T | bytes: ...
 
 @overload
-def get_arg(req: IRequest, argname: str | bytes, default: T = None, *, multiple: Literal[True]) -> T | tuple[bytes, ...]: ...
+def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *, multiple: Literal[True]) -> T | tuple[bytes, ...]: ...
 
-def get_arg(req: IRequest, argname: str | bytes, default: T = None, *, multiple: bool = False) -> None | T | bytes | tuple[bytes, ...]:
+def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *, multiple: bool = False) -> None | T | bytes | tuple[bytes, ...]:
     """Extract an argument from either the query args (req.args) or the form
     body fields (req.fields). If multiple=False, this returns a single value
     (or the default, which defaults to None), and the query args take
