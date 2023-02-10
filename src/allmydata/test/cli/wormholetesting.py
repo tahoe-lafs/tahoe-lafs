@@ -62,8 +62,8 @@ class MemoryWormholeServer(object):
 
     def create(
         self,
-        appid: AppId,
-        relay_url: RelayURL,
+        appid: str,
+        relay_url: str,
         reactor: Any,
         versions: Any={},
         delegate: Optional[Any]=None,
@@ -136,11 +136,17 @@ def _verify()-> None:
     # Upgrade to getfullargspec since getargspec deprecated since python 3.5
     a = getfullargspec(create)
     b = getfullargspec(MemoryWormholeServer.create)
+
     # I know it has a `self` argument at the beginning.  That's okay.
-    b = b._replace(args = b.args[1:])
-    # Since this is not a comprehensive test we can just compare length verify and to allow type annotations.
-    # getfullargspec and getargspec both have an list of annotations and create is slightly different so just count elements.
-    assert len(a) == len(b)
+    b = b._replace(args=b.args[1:])
+
+    # getfullargspec returns more information than getargspec.
+    # Just compare the same information to check function signature
+    assert a.varkw == b.varkw
+    assert a.args == b.args
+    assert a.varargs == b.varargs
+    assert a.defaults == b.defaults
+
 
 _verify()
 
