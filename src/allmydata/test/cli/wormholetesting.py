@@ -121,7 +121,7 @@ class TestingHelper(object):
         key = (relay_url, appid)
         if key in self._server._waiters:
             raise ValueError(f"There is already a waiter for {key}")
-        d: Deferred[_MemoryWormhole] = Deferred()
+        d = Deferred()
         self._server._waiters[key] = d
         wormhole = await d
         return wormhole
@@ -188,7 +188,7 @@ class _WormholeApp(object):
         with the given code.  This is used to let the first end of a wormhole
         rendezvous with the second end.
         """
-        d: Deferred[_MemoryWormhole] = Deferred()
+        d = Deferred()
         self._waiting.setdefault(code, []).append(d)
         return d
 
@@ -255,7 +255,7 @@ class _MemoryWormhole(object):
 
     def when_code(self) -> Deferred[WormholeCode]:
         if self._code is None:
-            d: Deferred[WormholeCode] = Deferred()
+            d = Deferred()
             self._waiting_for_code.append(d)
             return d
         return succeed(self._code)
