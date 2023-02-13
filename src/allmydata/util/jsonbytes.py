@@ -85,6 +85,7 @@ class AnyBytesJSONEncoder(json.JSONEncoder):
 
 def dumps(obj, *args, **kwargs):
     """Encode to JSON, supporting bytes as keys or values.
+    
     :param bool any_bytes: If False (the default) the bytes are assumed to be
         UTF-8 encoded Unicode strings.  If True, non-UTF-8 bytes are quoted for
         human consumption.
@@ -99,6 +100,7 @@ def dumps(obj, *args, **kwargs):
 
 def dumps_bytes(obj, *args, **kwargs):
     """Encode to JSON, then encode as bytes.
+    
     :param bool any_bytes: If False (the default) the bytes are assumed to be
         UTF-8 encoded Unicode strings.  If True, non-UTF-8 bytes are quoted for
         human consumption.

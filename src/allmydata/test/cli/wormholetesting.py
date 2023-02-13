@@ -164,8 +164,10 @@ class _WormholeApp(object):
     def allocate_code(self, wormhole: IWormhole, code: Optional[WormholeCode]) -> WormholeCode:
         """
         Allocate a new code for the given wormhole.
+        
         This also associates the given wormhole with the code for future
         lookup.
+        
         Code generation logic is trivial and certainly not good enough for any
         real use.  It is sufficient for automated testing, though.
         """

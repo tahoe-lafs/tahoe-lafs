@@ -1,5 +1,6 @@
 """
 Decentralized storage grid.
+
 community web site: U{https://tahoe-lafs.org/}
 """
 from __future__ import absolute_import
