@@ -13,6 +13,15 @@ To reset:
 
 $ tc qdisc del dev lo root netem
 
+Frequency scaling can spoil the results.
+To see the range of frequency scaling on a Linux system:
+
+$ cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_available_frequencies
+
+And to pin the CPU frequency to the lower bound found in these files:
+
+$ sudo cpupower frequency-set -f <lowest available frequency>
+
 TODO Parameterization (pytest?)
 
     - Foolscap vs not foolscap
