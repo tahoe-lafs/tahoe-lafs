@@ -1,5 +1,6 @@
 """
 A JSON encoder than can serialize bytes.
+
 Ported to Python 3.
 """
 
@@ -30,6 +31,7 @@ if PY2:
 def bytes_to_unicode(any_bytes, obj):
     """Convert bytes to unicode.
     :param any_bytes: If True, also support non-UTF-8-encoded bytes.
+
     :param obj: Object to de-byte-ify.
     """
     errors = "backslashreplace" if any_bytes else "strict"
@@ -71,6 +73,7 @@ class UTF8BytesJSONEncoder(json.JSONEncoder):
 class AnyBytesJSONEncoder(json.JSONEncoder):
     """
     A JSON encoder than can also encode bytes of any sort.
+
     Bytes are decoded to strings using UTF-8, if that fails to decode then the
     bytes are quoted.
     """
@@ -85,7 +88,7 @@ class AnyBytesJSONEncoder(json.JSONEncoder):
 
 def dumps(obj, *args, **kwargs):
     """Encode to JSON, supporting bytes as keys or values.
-    
+
     :param bool any_bytes: If False (the default) the bytes are assumed to be
         UTF-8 encoded Unicode strings.  If True, non-UTF-8 bytes are quoted for
         human consumption.
@@ -100,7 +103,7 @@ def dumps(obj, *args, **kwargs):
 
 def dumps_bytes(obj, *args, **kwargs):
     """Encode to JSON, then encode as bytes.
-    
+
     :param bool any_bytes: If False (the default) the bytes are assumed to be
         UTF-8 encoded Unicode strings.  If True, non-UTF-8 bytes are quoted for
         human consumption.

@@ -23,6 +23,7 @@ For example::
     # Run peerA against local_peerB with pure in-memory message passing.
     server, helper = memory_server()
     run(gather(peerA(server), local_peerB(helper, server)))
+
     # Run peerA against a peerB somewhere out in the world, using a real
     # wormhole relay server somewhere.
     import wormhole
@@ -52,8 +53,10 @@ ApplicationKey = Tuple[RelayURL, AppId]
 class MemoryWormholeServer(object):
     """
     A factory for in-memory wormholes.
+
     :ivar _apps: Wormhole state arranged by the application id and relay URL
         it belongs to.
+
     :ivar _waiters: Observers waiting for a wormhole to be created for a
         specific application id and relay URL combination.
     """
@@ -112,9 +115,12 @@ class TestingHelper(object):
     async def wait_for_wormhole(self, appid: AppId, relay_url: RelayURL) -> IWormhole:
         """
         Wait for a wormhole to appear at a specific location.
+
         :param appid: The appid that the resulting wormhole will have.
+
         :param relay_url: The URL of the relay at which the resulting wormhole
             will presume to be created.
+
         :return: The first wormhole to be created which matches the given
             parameters.
         """
@@ -164,10 +170,10 @@ class _WormholeApp(object):
     def allocate_code(self, wormhole: IWormhole, code: Optional[WormholeCode]) -> WormholeCode:
         """
         Allocate a new code for the given wormhole.
-        
+
         This also associates the given wormhole with the code for future
         lookup.
-        
+
         Code generation logic is trivial and certainly not good enough for any
         real use.  It is sufficient for automated testing, though.
         """
