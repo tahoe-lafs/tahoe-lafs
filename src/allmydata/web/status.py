@@ -550,7 +550,7 @@ class DownloadStatusElement(Element):
             length = r_ev["length"]
             bytes_returned = r_ev["bytes_returned"]
             decrypt_time = ""
-            if bytes:
+            if isinstance(r_ev, bytes):
                 decrypt_time = self._rate_and_time(bytes_returned, r_ev["decrypt_time"])
             speed, rtt = "",""
             if r_ev["finish_time"] is not None:
