@@ -87,7 +87,7 @@ def write_config(tahoe_cfg: FilePath, config: ConfigParser) -> None:
         tahoe_cfg.remove()
     tmp.moveTo(tahoe_cfg)
 
-def validate_config(fname: Any, cfg: Any, valid_config: ValidConfiguration) -> None:
+def validate_config(fname: Any, cfg: Any, valid_config: Any) -> None:
     """
     :param ValidConfiguration valid_config: The definition of a valid
         configuration.
