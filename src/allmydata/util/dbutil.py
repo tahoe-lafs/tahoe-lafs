@@ -19,14 +19,15 @@ import os, sys
 
 import sqlite3
 
+from typing import Any, TextIO, Dict
 
 class DBError(Exception):
     pass
 
 
-def get_db(dbfile, stderr=sys.stderr,
-           create_version=(None, None), updaters={}, just_create=False, dbname="db",
-           ):
+def get_db(dbfile: Any, stderr:TextIO=sys.stderr,
+           create_version: Any=(None, None), updaters: Dict={}, just_create: bool=False, dbname: str="db",
+           ) -> tuple:
     """Open or create the given db file. The parent directory must exist.
     create_version=(SCHEMA, VERNUM), and SCHEMA must have a 'version' table.
     Updaters is a {newver: commands} mapping, where e.g. updaters[2] is used
