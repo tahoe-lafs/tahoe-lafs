@@ -183,7 +183,7 @@ class HookMixin(object):
                 _with_log(d.callback, res)
         return res
 
-    def _log(self, msg: str) -> None:
+    def _log(self, msg: Any) -> None:
         log.msg(msg, level=log.NOISY)
 
 
