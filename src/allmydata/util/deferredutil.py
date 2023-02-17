@@ -10,6 +10,10 @@ from functools import wraps
 from typing import (
     Callable,
     Any,
+    Union,
+    NoReturn,
+    Dict,
+    Optional,
 )
 
 from foolscap.api import eventually
@@ -18,6 +22,9 @@ from eliot.twisted import (
 )
 from twisted.internet import defer, reactor, error
 from twisted.python.failure import Failure
+from twisted.internet.interfaces import Deferred
+from twisted.internet.defer import DeferredList
+from twisted.internet.task import LoopingCall
 
 from allmydata.util import log
 from allmydata.util.assertutil import _assert
@@ -28,17 +35,17 @@ class TimeoutError(Exception):
     pass
 
 
-def timeout_call(reactor, d, timeout):
+def timeout_call(reactor: Any, d: Deferred, timeout: Any) -> Deferred:
     """
     This returns the result of 'd', unless 'timeout' expires before
     'd' is completed in which case a TimeoutError is raised.
     """
     timer_d = defer.Deferred()
 
-    def _timed_out():
+    def _timed_out() -> None:
         timer_d.errback(Failure(TimeoutError()))
 
-    def _got_result(x):
+    def _got_result(x: Any) -> None:
         try:
             timer.cancel()
             timer_d.callback(x)
@@ -53,7 +60,7 @@ def timeout_call(reactor, d, timeout):
 
 
 # utility wrapper for DeferredList
-def _check_deferred_list(results):
+def _check_deferred_list(results: Any) -> Union[Any, list]:
     # if any of the component Deferreds failed, return the first failure such
     # that an addErrback() would fire. If all were ok, return a list of the
     # results (without the success/failure booleans)
@@ -62,19 +69,19 @@ def _check_deferred_list(results):
             return f
     return [r[1] for r in results]
 
-def DeferredListShouldSucceed(dl):
+def DeferredListShouldSucceed(dl: Any) -> DeferredList:
     d = defer.DeferredList(dl)
     d.addCallback(_check_deferred_list)
     return d
 
-def _parseDListResult(l):
+def _parseDListResult(l: Any) -> list:
     return [x[1] for x in l]
 
-def _unwrapFirstError(f):
+def _unwrapFirstError(f: Any) -> NoReturn:
     f.trap(defer.FirstError)
     raise f.value.subFailure
 
-def gatherResults(deferredList):
+def gatherResults(deferredList: DeferredList) -> DeferredList:
     """Returns list with result of given Deferreds.
 
     This builds on C{DeferredList} but is useful since you don't
@@ -87,7 +94,7 @@ def gatherResults(deferredList):
     return d
 
 
-def _with_log(op, res):
+def _with_log(op: Any, res: Any) -> None:
     """
     The default behaviour on firing an already-fired Deferred is unhelpful for
     debugging, because the AlreadyCalledError can easily get lost or be raised
@@ -100,19 +107,19 @@ def _with_log(op, res):
     except defer.AlreadyCalledError as e:
         log.err(e, op=repr(op), level=log.WEIRD)
 
-def eventually_callback(d):
-    def _callback(res):
+def eventually_callback(d: Deferred) -> Any:
+    def _callback(res: Any) -> Any:
         eventually(_with_log, d.callback, res)
         return res
     return _callback
 
-def eventually_errback(d):
-    def _errback(res):
+def eventually_errback(d: Deferred) -> Any:
+    def _errback(res: Any) -> Any:
         eventually(_with_log, d.errback, res)
         return res
     return _errback
 
-def eventual_chain(source, target):
+def eventual_chain(source: Any, target: Any) -> None:
     source.addCallbacks(eventually_callback(target), eventually_errback(target))
 
 
@@ -127,7 +134,7 @@ class HookMixin(object):
     I assume a '_hooks' attribute that should set by the class constructor to
     a dict mapping each valid hook name to None.
     """
-    def set_hook(self, name, d=None, ignore_count=0):
+    def set_hook(self: Any, name: Any, d: Deferred=None, ignore_count: int=0) -> Deferred:
         """
         Called by the hook observer (e.g. by a test).
         If d is not given, an unfired Deferred is created and returned.
@@ -144,7 +151,7 @@ class HookMixin(object):
         self._hooks[name] = (d, ignore_count)
         return d
 
-    def _call_hook(self, res, name, **kwargs):
+    def _call_hook(self: Any, res: Any, name: Any, **kwargs: Dict[str, Any]) -> Any:
         """
         Called to trigger the hook, with argument 'res'. This is a no-op if
         the hook is unset. If the hook's ignore_count is positive, it will be
@@ -176,12 +183,12 @@ class HookMixin(object):
                 _with_log(d.callback, res)
         return res
 
-    def _log(self, msg):
+    def _log(self, msg: str) -> None:
         log.msg(msg, level=log.NOISY)
 
 
 class WaitForDelayedCallsMixin(PollMixin):
-    def _delayed_calls_done(self):
+    def _delayed_calls_done(self) -> bool:
         # We're done when the only remaining DelayedCalls fire after threshold.
         # (These will be associated with the test timeout, or else they *should*
         # cause an unclean reactor error because the test should have waited for
@@ -192,7 +199,7 @@ class WaitForDelayedCallsMixin(PollMixin):
                 return False
         return True
 
-    def wait_for_delayed_calls(self, res=None):
+    def wait_for_delayed_calls(self, res: Optional[Any]=None) -> Deferred[LoopingCall]:
         """
         Use like this at the end of a test:
           d.addBoth(self.wait_for_delayed_calls)
@@ -222,7 +229,7 @@ def until(
             break
 
 
-def async_to_deferred(f):
+def async_to_deferred(f: Any) -> Deferred:
     """
     Wrap an async function to return a Deferred instead.
 
@@ -230,7 +237,7 @@ def async_to_deferred(f):
     """
 
     @wraps(f)
-    def not_async(*args, **kwargs):
+    def not_async(*args: tuple, **kwargs: Dict[str, Any]) -> Deferred:
         return defer.Deferred.fromCoroutine(f(*args, **kwargs))
 
     return not_async
