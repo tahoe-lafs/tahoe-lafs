@@ -30,8 +30,8 @@ if PY2:
 
 def bytes_to_unicode(any_bytes, obj):
     """Convert bytes to unicode.
+    
     :param any_bytes: If True, also support non-UTF-8-encoded bytes.
-
     :param obj: Object to de-byte-ify.
     """
     errors = "backslashreplace" if any_bytes else "strict"
