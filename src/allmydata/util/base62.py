@@ -45,7 +45,7 @@ def b2a(os: bytes) -> Union[Any, bytes]:
     assert num_octets_that_encode_to_this_many_chars(len(cs)) == len(os), "%s != %s, numchars: %s" % (num_octets_that_encode_to_this_many_chars(len(cs)), len(os), len(cs))
     return cs
 
-def b2a_l(os: Union[bytes, list[int]], lengthinbits: int) -> bytes:
+def b2a_l(os: Any, lengthinbits: int) -> bytes:
     """
     @param os the data to be encoded (as bytes)
     @param lengthinbits the number of bits of data in os to be encoded
