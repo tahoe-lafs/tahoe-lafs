@@ -391,7 +391,7 @@ Clients and servers MUST use the ``Authorization`` header field,
 as specified in `RFC 9110`_,
 for authorization of all requests to all endpoints specified here.
 The authentication *type* MUST be ``Tahoe-LAFS``.
-Clients MUST present the swissnum from the NURL used to locate the storage service as the *credentials*.
+Clients MUST present the `Base64`_-encoded representation of the swissnum from the NURL used to locate the storage service as the *credentials*.
 
 If credentials are not presented or the swissnum is not associated with a storage service then the server MUST issue a ``401 UNAUTHORIZED`` response and perform no other processing of the message.
 
