@@ -33,7 +33,7 @@ For example::
 from __future__ import annotations
 
 from typing import Iterator, Optional, List, Tuple, Any, TextIO
-from inspect import getargspec
+from inspect import getfullargspec
 from itertools import count
 from sys import stderr
 
@@ -133,18 +133,24 @@ class TestingHelper(object):
         return wormhole
 
 
-def _verify():
+def _verify() -> None:
     """
     Roughly confirm that the in-memory wormhole creation function matches the
     interface of the real implementation.
     """
     # Poor man's interface verification.
 
-    a = getargspec(create)
-    b = getargspec(MemoryWormholeServer.create)
+    a = getfullargspec(create)
+    b = getfullargspec(MemoryWormholeServer.create)
+
     # I know it has a `self` argument at the beginning.  That's okay.
     b = b._replace(args=b.args[1:])
-    assert a == b, "{} != {}".format(a, b)
+
+    # Just compare the same information to check function signature
+    assert a.varkw == b.varkw
+    assert a.args == b.args
+    assert a.varargs == b.varargs
+    assert a.kwonlydefaults == b.kwonlydefaults
 
 
 _verify()
