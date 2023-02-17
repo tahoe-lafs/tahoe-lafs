@@ -133,7 +133,7 @@ class TestingHelper(object):
         return wormhole
 
 
-def _verify()-> None:
+def _verify() -> None:
     """
     Roughly confirm that the in-memory wormhole creation function matches the
     interface of the real implementation.
@@ -282,8 +282,8 @@ class _MemoryWormhole(object):
             )
         d = self._view.wormhole_by_code(self._code, exclude=self)
 
-        def got_wormhole(wormhole: _MemoryWormhole)-> Deferred[Any]:
-            msg: Deferred[Any] = wormhole._payload.get()
+        def got_wormhole(wormhole: _MemoryWormhole) -> Deferred[_MemoryWormhole]:
+            msg: Deferred[_MemoryWormhole] = wormhole._payload.get()
             return msg
 
         d.addCallback(got_wormhole)
