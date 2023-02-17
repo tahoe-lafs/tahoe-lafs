@@ -21,6 +21,10 @@ except ImportError:
     pass
 
 from twisted.internet import task
+from twisted.internet.interfaces import Deferred
+from twisted.internet.task import LoopingCall
+
+from typing import Any
 
 class TimeoutError(Exception):
     pass
@@ -31,7 +35,7 @@ class PollComplete(Exception):
 class PollMixin(object):
     _poll_should_ignore_these_errors = []  # type: List[Exception]
 
-    def poll(self, check_f, pollinterval=0.01, timeout=1000):
+    def poll(self, check_f: Any, pollinterval: float=0.01, timeout: int=1000) -> Deferred[LoopingCall]:
         # Return a Deferred, then call check_f periodically until it returns
         # True, at which point the Deferred will fire.. If check_f raises an
         # exception, the Deferred will errback. If the check_f does not
@@ -43,13 +47,13 @@ class PollMixin(object):
             cutoff = time.time() + timeout
         lc = task.LoopingCall(self._poll, check_f, cutoff)
         d = lc.start(pollinterval)
-        def _convert_done(f):
+        def _convert_done(f: Any) -> None:
             f.trap(PollComplete)
             return None
         d.addErrback(_convert_done)
         return d
 
-    def _poll(self, check_f, cutoff):
+    def _poll(self: Any, check_f: Any, cutoff: int) -> None:
         if cutoff is not None and time.time() > cutoff:
             raise TimeoutError("PollMixin never saw %s return True" % check_f)
         if check_f():
