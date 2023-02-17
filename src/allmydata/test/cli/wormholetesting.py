@@ -32,8 +32,7 @@ For example::
 
 from __future__ import annotations
 
-from typing import Iterator, Optional, List, Tuple
-from collections.abc import Awaitable
+from typing import Iterator, Optional, List, Tuple, Any, TextIO
 from inspect import getargspec
 from itertools import count
 from sys import stderr
@@ -66,18 +65,18 @@ class MemoryWormholeServer(object):
 
     def create(
         self,
-        appid,
-        relay_url,
-        reactor,
-        versions={},
-        delegate=None,
-        journal=None,
-        tor=None,
-        timing=None,
-        stderr=stderr,
-        _eventual_queue=None,
-        _enable_dilate=False,
-    ):
+        appid: str,
+        relay_url: str,
+        reactor: Any,
+        versions: Any={},
+        delegate: Optional[Any]=None,
+        journal: Optional[Any]=None,
+        tor: Optional[Any]=None,
+        timing: Optional[Any]=None,
+        stderr: TextIO=stderr,
+        _eventual_queue: Optional[Any]=None,
+        _enable_dilate: bool=False,
+    )-> _MemoryWormhole:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
         by this instance (and constrained by the normal appid/relay_url
@@ -184,7 +183,7 @@ class _WormholeApp(object):
 
         return code
 
-    def wait_for_wormhole(self, code: WormholeCode) -> Awaitable[_MemoryWormhole]:
+    def wait_for_wormhole(self, code: WormholeCode) -> Deferred[_MemoryWormhole]:
         """
         Return a ``Deferred`` which fires with the next wormhole to be associated
         with the given code.  This is used to let the first end of a wormhole
@@ -262,7 +261,7 @@ class _MemoryWormhole(object):
             return d
         return succeed(self._code)
 
-    def get_welcome(self):
+    def get_welcome(self) -> Deferred[str]:
         return succeed("welcome")
 
     def send_message(self, payload: WormholeMessage) -> None:
@@ -276,8 +275,8 @@ class _MemoryWormhole(object):
             )
         d = self._view.wormhole_by_code(self._code, exclude=self)
 
-        def got_wormhole(wormhole):
-            msg = wormhole._payload.get()
+        def got_wormhole(wormhole: _MemoryWormhole) -> Deferred[_MemoryWormhole]:
+            msg: Deferred[_MemoryWormhole] = wormhole._payload.get()
             return msg
 
         d.addCallback(got_wormhole)
