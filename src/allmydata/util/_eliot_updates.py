@@ -59,7 +59,7 @@ class _CustomEncoderMemoryLogger(_MemoryLogger):
     This is only necessary on Python 2 where we use an old version of Eliot
     that does not parameterize the encoder.
     """
-    def __init__(self, encoder=eliot_json_encoder)-> None:
+    def __init__(self, encoder=eliot_json_encoder) -> None:
         """
         @param encoder: A JSONEncoder subclass to use when encoding JSON.
         """
