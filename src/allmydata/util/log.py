@@ -39,7 +39,7 @@ SCARY = log.SCARY # 35
 BAD = log.BAD # 40
 
 
-def msg(*args: tuple, **kwargs: Any) -> Union[int, Any]:
+def msg(*args: Any, **kwargs: Any) -> Union[int, Any]:
     return log.msg(*args, **bytes_to_unicode(True, kwargs))
 
 # If log.err() happens during a unit test, the unit test should fail. We
