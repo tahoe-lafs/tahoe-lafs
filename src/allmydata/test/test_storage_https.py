@@ -12,7 +12,7 @@ from cryptography import x509
 
 from twisted.internet.endpoints import serverFromString
 from twisted.internet import reactor
-from twisted.internet.task import deferLater
+from twisted.internet.defer import maybeDeferred
 from twisted.web.server import Site
 from twisted.web.static import Data
 from twisted.web.client import Agent, HTTPConnectionPool, ResponseNeverReceived
@@ -30,6 +30,7 @@ from ..storage.http_common import get_spki_hash
 from ..storage.http_client import _StorageClientHTTPSPolicy
 from ..storage.http_server import _TLSEndpointWrapper
 from ..util.deferredutil import async_to_deferred
+from .common_system import spin_until_cleanup_done
 
 
 class HTTPSNurlTests(SyncTestCase):
@@ -87,6 +88,10 @@ class PinningHTTPSValidation(AsyncTestCase):
         self.addCleanup(self._port_assigner.tearDown)
         return AsyncTestCase.setUp(self)
 
+    def tearDown(self):
+        d = maybeDeferred(AsyncTestCase.tearDown, self)
+        return d.addCallback(lambda _: spin_until_cleanup_done())
+
     @asynccontextmanager
     async def listen(self, private_key_path: FilePath, cert_path: FilePath):
         """
@@ -107,9 +112,6 @@ class PinningHTTPSValidation(AsyncTestCase):
             yield f"https://127.0.0.1:{listening_port.getHost().port}/"
         finally:
             await listening_port.stopListening()
-            # Make sure all server connections are closed :( No idea why this
-            # is necessary when it's not for IStorageServer HTTPS tests.
-            await deferLater(reactor, 0.01)
 
     def request(self, url: str, expected_certificate: x509.Certificate):
         """
@@ -197,10 +199,6 @@ class PinningHTTPSValidation(AsyncTestCase):
         ) as url:
             response = await self.request(url, certificate)
             self.assertEqual(await response.content(), b"YOYODYNE")
-
-        # We keep getting TLSMemoryBIOProtocol being left around, so try harder
-        # to wait for it to finish.
-        await deferLater(reactor, 0.001)
 
     # A potential attack to test is a private key that doesn't match the
     # certificate... but OpenSSL (quite rightly) won't let you listen with that

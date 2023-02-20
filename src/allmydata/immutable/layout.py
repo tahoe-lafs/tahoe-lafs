@@ -1,21 +1,18 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 import struct
+from io import BytesIO
+
+from attrs import define, field
 from zope.interface import implementer
 from twisted.internet import defer
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
      FileTooLargeError, HASH_SIZE
-from allmydata.util import mathutil, observer, pipeline, log
+from allmydata.util import mathutil, observer, log
 from allmydata.util.assertutil import precondition
 from allmydata.storage.server import si_b2a
 
@@ -107,19 +104,58 @@ def make_write_bucket_proxy(rref, server,
                                   num_share_hashes, uri_extension_size)
     return wbp
 
+
+@define
+class _WriteBuffer:
+    """
+    Queue up small writes to be written in a single batched larger write.
+    """
+    _batch_size: int
+    _to_write : BytesIO = field(factory=BytesIO)
+    _written_bytes : int = field(default=0)
+
+    def queue_write(self, data: bytes) -> bool:
+        """
+        Queue a write.  If the result is ``False``, no further action is needed
+        for now.  If the result is some ``True``, it's time to call ``flush()``
+        and do a real write.
+        """
+        self._to_write.write(data)
+        return self.get_queued_bytes() >= self._batch_size
+
+    def flush(self) -> tuple[int, bytes]:
+        """Return offset and data to be written."""
+        offset = self._written_bytes
+        data = self._to_write.getvalue()
+        self._written_bytes += len(data)
+        self._to_write = BytesIO()
+        return (offset, data)
+
+    def get_queued_bytes(self) -> int:
+        """Return number of queued, unwritten bytes."""
+        return self._to_write.tell()
+
+    def get_total_bytes(self) -> int:
+        """Return how many bytes were written or queued in total."""
+        return self._written_bytes + self.get_queued_bytes()
+
+
 @implementer(IStorageBucketWriter)
 class WriteBucketProxy(object):
+    """
+    Note: The various ``put_`` methods need to be called in the order in which the
+    bytes will get written.
+    """
     fieldsize = 4
     fieldstruct = ">L"
 
     def __init__(self, rref, server, data_size, block_size, num_segments,
-                 num_share_hashes, uri_extension_size, pipeline_size=50000):
+                 num_share_hashes, uri_extension_size, batch_size=1_000_000):
         self._rref = rref
         self._server = server
         self._data_size = data_size
         self._block_size = block_size
         self._num_segments = num_segments
-        self._written_bytes = 0
 
         effective_segments = mathutil.next_power_of_k(num_segments,2)
         self._segment_hash_size = (2*effective_segments - 1) * HASH_SIZE
@@ -130,11 +166,13 @@ class WriteBucketProxy(object):
 
         self._create_offsets(block_size, data_size)
 
-        # k=3, max_segment_size=128KiB gives us a typical segment of 43691
-        # bytes. Setting the default pipeline_size to 50KB lets us get two
-        # segments onto the wire but not a third, which would keep the pipe
-        # filled.
-        self._pipeline = pipeline.Pipeline(pipeline_size)
+        # With a ~1MB batch size, max upload speed is 1MB/(round-trip latency)
+        # assuming the writing code waits for writes to finish, so 20MB/sec if
+        # latency is 50ms. In the US many people only have 1MB/sec upload speed
+        # as of 2022 (standard Comcast). For further discussion of how one
+        # might set batch sizes see
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3787#comment:1.
+        self._write_buffer = _WriteBuffer(batch_size)
 
     def get_allocated_size(self):
         return (self._offsets['uri_extension'] + self.fieldsize +
@@ -179,7 +217,7 @@ class WriteBucketProxy(object):
         return "<WriteBucketProxy for node %r>" % self._server.get_name()
 
     def put_header(self):
-        return self._write(0, self._offset_data)
+        return self._queue_write(0, self._offset_data)
 
     def put_block(self, segmentnum, data):
         offset = self._offsets['data'] + segmentnum * self._block_size
@@ -193,13 +231,13 @@ class WriteBucketProxy(object):
                                        (self._block_size *
                                         (self._num_segments - 1))),
                          len(data), self._block_size)
-        return self._write(offset, data)
+        return self._queue_write(offset, data)
 
     def put_crypttext_hashes(self, hashes):
         # plaintext_hash_tree precedes crypttext_hash_tree. It is not used, and
         # so is not explicitly written, but we need to write everything, so
         # fill it in with nulls.
-        d = self._write(self._offsets['plaintext_hash_tree'], b"\x00" * self._segment_hash_size)
+        d = self._queue_write(self._offsets['plaintext_hash_tree'], b"\x00" * self._segment_hash_size)
         d.addCallback(lambda _: self._really_put_crypttext_hashes(hashes))
         return d
 
@@ -212,7 +250,7 @@ class WriteBucketProxy(object):
         precondition(offset + len(data) <= self._offsets['block_hashes'],
                      offset, len(data), offset+len(data),
                      self._offsets['block_hashes'])
-        return self._write(offset, data)
+        return self._queue_write(offset, data)
 
     def put_block_hashes(self, blockhashes):
         offset = self._offsets['block_hashes']
@@ -223,7 +261,7 @@ class WriteBucketProxy(object):
         precondition(offset + len(data) <= self._offsets['share_hashes'],
                      offset, len(data), offset+len(data),
                      self._offsets['share_hashes'])
-        return self._write(offset, data)
+        return self._queue_write(offset, data)
 
     def put_share_hashes(self, sharehashes):
         # sharehashes is a list of (index, hash) tuples, so they get stored
@@ -237,29 +275,45 @@ class WriteBucketProxy(object):
         precondition(offset + len(data) <= self._offsets['uri_extension'],
                      offset, len(data), offset+len(data),
                      self._offsets['uri_extension'])
-        return self._write(offset, data)
+        return self._queue_write(offset, data)
 
     def put_uri_extension(self, data):
         offset = self._offsets['uri_extension']
         assert isinstance(data, bytes)
         precondition(len(data) == self._uri_extension_size)
         length = struct.pack(self.fieldstruct, len(data))
-        return self._write(offset, length+data)
+        return self._queue_write(offset, length+data)
 
-    def _write(self, offset, data):
-        # use a Pipeline to pipeline several writes together. TODO: another
-        # speedup would be to coalesce small writes into a single call: this
-        # would reduce the foolscap CPU overhead per share, but wouldn't
-        # reduce the number of round trips, so it might not be worth the
-        # effort.
-        self._written_bytes += len(data)
-        return self._pipeline.add(len(data),
-                                  self._rref.callRemote, "write", offset, data)
+    def _queue_write(self, offset, data):
+        """
+        This queues up small writes to be written in a single batched larger
+        write.
+
+        Callers of this function are expected to queue the data in order, with
+        no holes.  As such, the offset is technically unnecessary, but is used
+        to check the inputs.  Possibly we should get rid of it.
+        """
+        assert offset == self._write_buffer.get_total_bytes()
+        if self._write_buffer.queue_write(data):
+            return self._actually_write()
+        else:
+            return defer.succeed(False)
+
+    def _actually_write(self):
+        """Write data to the server."""
+        offset, data = self._write_buffer.flush()
+        return self._rref.callRemote("write", offset, data)
 
     def close(self):
-        assert self._written_bytes == self.get_allocated_size(), f"{self._written_bytes} != {self.get_allocated_size()}"
-        d = self._pipeline.add(0, self._rref.callRemote, "close")
-        d.addCallback(lambda ign: self._pipeline.flush())
+        assert self._write_buffer.get_total_bytes() == self.get_allocated_size(), (
+            f"{self._written_buffer.get_total_bytes_queued()} != {self.get_allocated_size()}"
+        )
+        if self._write_buffer.get_queued_bytes() > 0:
+            d = self._actually_write()
+        else:
+            # No data queued, don't send empty string write.
+            d = defer.succeed(True)
+        d.addCallback(lambda _: self._rref.callRemote("close"))
         return d
 
     def abort(self):
@@ -371,16 +425,16 @@ class ReadBucketProxy(object):
         self._fieldsize = fieldsize
         self._fieldstruct = fieldstruct
 
-        for field in ( 'data',
-                       'plaintext_hash_tree', # UNUSED
-                       'crypttext_hash_tree',
-                       'block_hashes',
-                       'share_hashes',
-                       'uri_extension',
-                       ):
+        for field_name in ( 'data',
+                            'plaintext_hash_tree', # UNUSED
+                            'crypttext_hash_tree',
+                            'block_hashes',
+                            'share_hashes',
+                            'uri_extension',
+                           ):
             offset = struct.unpack(fieldstruct, data[x:x+fieldsize])[0]
             x += fieldsize
-            self._offsets[field] = offset
+            self._offsets[field_name] = offset
         return self._offsets
 
     def _get_block_data(self, unused, blocknum, blocksize, thisblocksize):

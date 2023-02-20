@@ -36,6 +36,7 @@ from allmydata.storage.server import StorageServer, FoolscapStorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
+from allmydata.mutable.filenode import MutableFileNode
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import (
     hashutil, base32, pollmixin, log, idlib,
@@ -110,6 +111,7 @@ _client_config = configutil.ValidConfiguration(
             "storage_dir",
             "plugins",
             "grid_management",
+            "force_foolscap",
         ),
         "sftpd": (
             "accounts.file",
@@ -832,9 +834,10 @@ class _Client(node.Node, pollmixin.PollMixin):
             furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
             furl = self.tub.registerReference(FoolscapStorageServer(ss), furlFile=furl_file)
             (_, _, swissnum) = decode_furl(furl)
-            self.storage_nurls = self.tub.negotiationClass.add_storage_server(
-                ss, swissnum.encode("ascii")
-            )
+            if hasattr(self.tub.negotiationClass, "add_storage_server"):
+                nurls = self.tub.negotiationClass.add_storage_server(ss, swissnum.encode("ascii"))
+                self.storage_nurls = nurls
+                announcement[storage_client.ANONYMOUS_STORAGE_NURLS] = [n.to_text() for n in nurls]
             announcement["anonymous-storage-FURL"] = furl
 
         enabled_storage_servers = self._enable_storage_servers(
@@ -1103,9 +1106,40 @@ class _Client(node.Node, pollmixin.PollMixin):
     def create_immutable_dirnode(self, children, convergence=None):
         return self.nodemaker.create_immutable_directory(children, convergence)
 
-    def create_mutable_file(self, contents=None, version=None):
+    def create_mutable_file(
+            self,
+            contents: bytes | None = None,
+            version: int | None = None,
+            *,
+            unique_keypair: tuple[rsa.PublicKey, rsa.PrivateKey] | None = None,
+    ) -> MutableFileNode:
+        """
+        Create *and upload* a new mutable object.
+
+        :param contents: If given, the initial contents for the new object.
+
+        :param version: If given, the mutable file format for the new object
+            (otherwise a format will be chosen automatically).
+
+        :param unique_keypair: **Warning** This value independently determines
+            the identity of the mutable object to create.  There cannot be two
+            different mutable objects that share a keypair.  They will merge
+            into one object (with undefined contents).
+
+            It is common to pass a None value (or not pass a valuye) for this
+            parameter.  In these cases, a new random keypair will be
+            generated.
+
+            If non-None, the given public/private keypair will be used for the
+            new object.  The expected use-case is for implementing compliance
+            tests.
+
+        :return: A Deferred which will fire with a representation of the new
+            mutable object after it has been uploaded.
+        """
         return self.nodemaker.create_mutable_file(contents,
-                                                  version=version)
+                                                  version=version,
+                                                  keypair=unique_keypair)
 
     def upload(self, uploadable, reactor=None):
         uploader = self.getServiceNamed("uploader")

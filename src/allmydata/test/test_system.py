@@ -34,7 +34,7 @@ from allmydata.util.encodingutil import quote_output, unicode_to_argv
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
-     NoSuchChildError, NoSharesError
+     NoSuchChildError, NoSharesError, SDMF_VERSION, MDMF_VERSION
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable import layout as mutable_layout
@@ -117,11 +117,17 @@ class CountingDataUploadable(upload.Data):
 
 
 class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
-
+    """Foolscap integration-y tests."""
+    FORCE_FOOLSCAP_FOR_STORAGE = True
     timeout = 180
 
+    @property
+    def basedir(self):
+        return "system/SystemTest/{}-foolscap-{}".format(
+            self.id().split(".")[-1], self.FORCE_FOOLSCAP_FOR_STORAGE
+        )
+
     def test_connections(self):
-        self.basedir = "system/SystemTest/test_connections"
         d = self.set_up_nodes()
         self.extra_node = None
         d.addCallback(lambda res: self.add_extra_node(self.numclients))
@@ -149,11 +155,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     del test_connections
 
     def test_upload_and_download_random_key(self):
-        self.basedir = "system/SystemTest/test_upload_and_download_random_key"
         return self._test_upload_and_download(convergence=None)
 
     def test_upload_and_download_convergent(self):
-        self.basedir = "system/SystemTest/test_upload_and_download_convergent"
         return self._test_upload_and_download(convergence=b"some convergence string")
 
     def _test_upload_and_download(self, convergence):
@@ -473,9 +477,10 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
     def _corrupt_mutable_share(self, filename, which):
         msf = MutableShareFile(filename)
-        datav = msf.readv([ (0, 1000000) ])
+        # Read more than share length:
+        datav = msf.readv([ (0, 10_000_000) ])
         final_share = datav[0]
-        assert len(final_share) < 1000000 # ought to be truncated
+        assert len(final_share) < 10_000_000 # ought to be truncated
         pieces = mutable_layout.unpack_share(final_share)
         (seqnum, root_hash, IV, k, N, segsize, datalen,
          verification_key, signature, share_hash_chain, block_hash_tree,
@@ -515,13 +520,20 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         msf.writev( [(0, final_share)], None)
 
 
-    def test_mutable(self):
-        self.basedir = "system/SystemTest/test_mutable"
+    def test_mutable_sdmf(self):
+        """SDMF mutables can be uploaded, downloaded, and many other things."""
+        return self._test_mutable(SDMF_VERSION)
+
+    def test_mutable_mdmf(self):
+        """MDMF mutables can be uploaded, downloaded, and many other things."""
+        return self._test_mutable(MDMF_VERSION)
+
+    def _test_mutable(self, mutable_version):
         DATA = b"initial contents go here."  # 25 bytes % 3 != 0
         DATA_uploadable = MutableData(DATA)
         NEWDATA = b"new contents yay"
         NEWDATA_uploadable = MutableData(NEWDATA)
-        NEWERDATA = b"this is getting old"
+        NEWERDATA = b"this is getting old" * 1_000_000
         NEWERDATA_uploadable = MutableData(NEWERDATA)
 
         d = self.set_up_nodes()
@@ -529,7 +541,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _create_mutable(res):
             c = self.clients[0]
             log.msg("starting create_mutable_file")
-            d1 = c.create_mutable_file(DATA_uploadable)
+            d1 = c.create_mutable_file(DATA_uploadable, mutable_version)
             def _done(res):
                 log.msg("DONE: %s" % (res,))
                 self._mutable_node_1 = res
@@ -551,27 +563,33 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                                           filename)
             self.failUnlessEqual(rc, 0)
             try:
+                share_type = 'SDMF' if mutable_version == SDMF_VERSION else 'MDMF'
                 self.failUnless("Mutable slot found:\n" in output)
-                self.failUnless("share_type: SDMF\n" in output)
+                self.assertIn(f"share_type: {share_type}\n", output)
                 peerid = idlib.nodeid_b2a(self.clients[client_num].nodeid)
                 self.failUnless(" WE for nodeid: %s\n" % peerid in output)
                 self.failUnless(" num_extra_leases: 0\n" in output)
                 self.failUnless("  secrets are for nodeid: %s\n" % peerid
                                 in output)
-                self.failUnless(" SDMF contents:\n" in output)
+                self.failUnless(f" {share_type} contents:\n" in output)
                 self.failUnless("  seqnum: 1\n" in output)
                 self.failUnless("  required_shares: 3\n" in output)
                 self.failUnless("  total_shares: 10\n" in output)
-                self.failUnless("  segsize: 27\n" in output, (output, filename))
+                if mutable_version == SDMF_VERSION:
+                    self.failUnless("  segsize: 27\n" in output, (output, filename))
                 self.failUnless("  datalen: 25\n" in output)
                 # the exact share_hash_chain nodes depends upon the sharenum,
                 # and is more of a hassle to compute than I want to deal with
                 # now
                 self.failUnless("  share_hash_chain: " in output)
                 self.failUnless("  block_hash_tree: 1 nodes\n" in output)
-                expected = ("  verify-cap: URI:SSK-Verifier:%s:" %
-                            str(base32.b2a(storage_index), "ascii"))
-                self.failUnless(expected in output)
+                if mutable_version == SDMF_VERSION:
+                    expected = ("  verify-cap: URI:SSK-Verifier:%s:" %
+                                str(base32.b2a(storage_index), "ascii"))
+                else:
+                    expected = ("  verify-cap: URI:MDMF-Verifier:%s" %
+                                str(base32.b2a(storage_index), "ascii"))
+                self.assertIn(expected, output)
             except unittest.FailTest:
                 print()
                 print("dump-share output was:")
@@ -691,7 +709,10 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 # when we retrieve this, we should get three signature
                 # failures (where we've mangled seqnum, R, and segsize). The
                 # pubkey mangling
-        d.addCallback(_corrupt_shares)
+
+        if mutable_version == SDMF_VERSION:
+            # TODO Corrupting shares in test_systm doesn't work for MDMF right now
+            d.addCallback(_corrupt_shares)
 
         d.addCallback(lambda res: self._newnode3.download_best_version())
         d.addCallback(_check_download_5)
@@ -699,7 +720,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_empty_file(res):
             # make sure we can create empty files, this usually screws up the
             # segsize math
-            d1 = self.clients[2].create_mutable_file(MutableData(b""))
+            d1 = self.clients[2].create_mutable_file(MutableData(b""), mutable_version)
             d1.addCallback(lambda newnode: newnode.download_best_version())
             d1.addCallback(lambda res: self.failUnlessEqual(b"", res))
             return d1
@@ -746,7 +767,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     # plaintext_hash check.
 
     def test_filesystem(self):
-        self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
         d = self.set_up_nodes()
         def _new_happy_semantics(ign):
@@ -1713,7 +1733,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     def test_filesystem_with_cli_in_subprocess(self):
         # We do this in a separate test so that test_filesystem doesn't skip if we can't run bin/tahoe.
 
-        self.basedir = "system/SystemTest/test_filesystem_with_cli_in_subprocess"
         d = self.set_up_nodes()
         def _new_happy_semantics(ign):
             for c in self.clients:
@@ -1794,9 +1813,21 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
 
 class Connections(SystemTestMixin, unittest.TestCase):
+    FORCE_FOOLSCAP_FOR_STORAGE = True
 
     def test_rref(self):
-        self.basedir = "system/Connections/rref"
+        # The way the listening port is created is via
+        # SameProcessStreamEndpointAssigner (allmydata.test.common), which then
+        # makes an endpoint string parsed by AdoptedServerPort. The latter does
+        # dup(fd), which results in the filedescriptor staying alive _until the
+        # test ends_. That means that when we disown the service, we still have
+        # the listening port there on the OS level! Just the resulting
+        # connections aren't handled. So this test relies on aggressive
+        # timeouts in the HTTP client and presumably some equivalent in
+        # Foolscap, since connection refused does _not_ happen.
+        self.basedir = "system/Connections/rref-foolscap-{}".format(
+            self.FORCE_FOOLSCAP_FOR_STORAGE
+        )
         d = self.set_up_nodes(2)
         def _start(ign):
             self.c0 = self.clients[0]
@@ -1812,9 +1843,13 @@ class Connections(SystemTestMixin, unittest.TestCase):
 
         # now shut down the server
         d.addCallback(lambda ign: self.clients[1].disownServiceParent())
+
+        # kill any persistent http connections that might continue to work
+        d.addCallback(lambda ign: self.close_idle_http_connections())
+
         # and wait for the client to notice
         def _poll():
-            return len(self.c0.storage_broker.get_connected_servers()) < 2
+            return len(self.c0.storage_broker.get_connected_servers()) == 1
         d.addCallback(lambda ign: self.poll(_poll))
 
         def _down(ign):
@@ -1824,3 +1859,16 @@ class Connections(SystemTestMixin, unittest.TestCase):
             self.assertEqual(storage_server, self.s1_storage_server)
         d.addCallback(_down)
         return d
+
+
+class HTTPSystemTest(SystemTest):
+    """HTTP storage protocol variant of the system tests."""
+
+    FORCE_FOOLSCAP_FOR_STORAGE = False
+
+
+
+class HTTPConnections(Connections):
+    """HTTP storage protocol variant of the connections tests."""
+    FORCE_FOOLSCAP_FOR_STORAGE = False
+

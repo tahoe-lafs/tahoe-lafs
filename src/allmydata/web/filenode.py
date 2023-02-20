@@ -1,23 +1,12 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
-    # Use native unicode() as str() to prevent leaking futurebytes in ways that
-    # break string formattin.
-    from past.builtins import unicode as str
-from past.builtins import long
+from __future__ import annotations
 
 from twisted.web import http, static
 from twisted.internet import defer
 from twisted.web.resource import (
-    Resource,  # note: Resource is an old-style class
+    Resource,
     ErrorPage,
 )
 
@@ -34,6 +23,7 @@ from allmydata.blacklist import (
 )
 
 from allmydata.web.common import (
+    get_keypair,
     boolean_of_arg,
     exception_to_child,
     get_arg,
@@ -56,7 +46,6 @@ from allmydata.web.check_results import (
 from allmydata.web.info import MoreInfo
 from allmydata.util import jsonbytes as json
 
-
 class ReplaceMeMixin(object):
     def replace_me_with_a_child(self, req, client, replace):
         # a new file is being uploaded in our place.
@@ -64,7 +53,8 @@ class ReplaceMeMixin(object):
         mutable_type = get_mutable_type(file_format)
         if mutable_type is not None:
             data = MutableFileHandle(req.content)
-            d = client.create_mutable_file(data, version=mutable_type)
+            keypair = get_keypair(req)
+            d = client.create_mutable_file(data, version=mutable_type, unique_keypair=keypair)
             def _uploaded(newnode):
                 d2 = self.parentnode.set_node(self.name, newnode,
                                               overwrite=replace)
@@ -106,7 +96,8 @@ class ReplaceMeMixin(object):
         if file_format in ("SDMF", "MDMF"):
             mutable_type = get_mutable_type(file_format)
             uploadable = MutableFileHandle(contents.file)
-            d = client.create_mutable_file(uploadable, version=mutable_type)
+            keypair = get_keypair(req)
+            d = client.create_mutable_file(uploadable, version=mutable_type, unique_keypair=keypair)
             def _uploaded(newnode):
                 d2 = self.parentnode.set_node(self.name, newnode,
                                               overwrite=replace)
@@ -395,7 +386,7 @@ class FileDownloader(Resource, object):
         # list of (first,last) inclusive range tuples.
 
         filesize = self.filenode.get_size()
-        assert isinstance(filesize, (int,long)), filesize
+        assert isinstance(filesize, int), filesize
 
         try:
             # byte-ranges-specifier
@@ -408,19 +399,19 @@ class FileDownloader(Resource, object):
 
                 if first == '':
                     # suffix-byte-range-spec
-                    first = filesize - long(last)
+                    first = filesize - int(last)
                     last = filesize - 1
                 else:
                     # byte-range-spec
 
                     # first-byte-pos
-                    first = long(first)
+                    first = int(first)
 
                     # last-byte-pos
                     if last == '':
                         last = filesize - 1
                     else:
-                        last = long(last)
+                        last = int(last)
 
                 if last < first:
                     raise ValueError
@@ -456,7 +447,7 @@ class FileDownloader(Resource, object):
                           b'attachment; filename="%s"' % self.filename)
 
         filesize = self.filenode.get_size()
-        assert isinstance(filesize, (int,long)), filesize
+        assert isinstance(filesize, int), filesize
         first, size = 0, None
         contentsize = filesize
         req.setHeader("accept-ranges", "bytes")

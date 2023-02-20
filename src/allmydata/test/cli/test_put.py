@@ -1,19 +1,18 @@
 """
-Ported to Python 3.
+Tests for the ``tahoe put`` CLI tool.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
+from typing import Callable, Awaitable, TypeVar, Any
 import os.path
 from twisted.trial import unittest
 from twisted.python import usage
+from twisted.python.filepath import FilePath
 
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
+from allmydata.crypto.rsa import PrivateKey
+from allmydata.uri import from_string
 from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
 from allmydata.scripts import cli
@@ -22,6 +21,9 @@ from ..common_util import skip_if_cannot_represent_filename
 from allmydata.util.encodingutil import get_io_encoding
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from .common import CLITestMixin
+from allmydata.mutable.common import derive_mutable_keys
+
+T = TypeVar("T")
 
 class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
@@ -214,6 +216,65 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda rc_out_err: self.failUnlessReallyEqual(rc_out_err[1], DATA3))
 
         return d
+
+    async def test_unlinked_mutable_specified_private_key(self) -> None:
+        """
+        A new unlinked mutable can be created using a specified private
+        key.
+        """
+        self.basedir = "cli/Put/unlinked-mutable-with-key"
+        await self._test_mutable_specified_key(
+            lambda do_cli, pempath, datapath: do_cli(
+                "put", "--mutable", "--private-key-path", pempath.path,
+                stdin=datapath.getContent(),
+            ),
+        )
+
+    async def test_linked_mutable_specified_private_key(self) -> None:
+        """
+        A new linked mutable can be created using a specified private key.
+        """
+        self.basedir = "cli/Put/linked-mutable-with-key"
+        await self._test_mutable_specified_key(
+            lambda do_cli, pempath, datapath: do_cli(
+                "put", "--mutable", "--private-key-path", pempath.path, datapath.path,
+            ),
+        )
+
+    async def _test_mutable_specified_key(
+            self,
+            run: Callable[[Any, FilePath, FilePath], Awaitable[tuple[int, bytes, bytes]]],
+    ) -> None:
+        """
+        A helper for testing mutable creation.
+
+        :param run: A function to do the creation.  It is called with
+            ``self.do_cli`` and the path to a private key PEM file and a data
+            file.  It returns whatever ``do_cli`` returns.
+        """
+        self.set_up_grid(oneshare=True)
+
+        pempath = FilePath(__file__).parent().sibling("data").child("openssl-rsa-2048.txt")
+        datapath = FilePath(self.basedir).child("data")
+        datapath.setContent(b"Hello world" * 1024)
+
+        (rc, out, err) = await run(self.do_cli, pempath, datapath)
+        self.assertEqual(rc, 0, (out, err))
+        cap = from_string(out.strip())
+        # The capability is derived from the key we specified.
+        privkey = load_pem_private_key(pempath.getContent(), password=None)
+        assert isinstance(privkey, PrivateKey)
+        pubkey = privkey.public_key()
+        writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
+        self.assertEqual(
+            (writekey, fingerprint),
+            (cap.writekey, cap.fingerprint),
+        )
+        # Also the capability we were given actually refers to the data we
+        # uploaded.
+        (rc, out, err) = await self.do_cli("get", out.strip())
+        self.assertEqual(rc, 0, (out, err))
+        self.assertEqual(out, datapath.getContent().decode("ascii"))
 
     def test_mutable(self):
         # echo DATA1 | tahoe put --mutable - uploaded.txt

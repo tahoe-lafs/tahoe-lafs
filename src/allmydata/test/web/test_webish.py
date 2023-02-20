@@ -202,6 +202,16 @@ class TahoeLAFSSiteTests(SyncTestCase):
             ),
         )
 
+    def test_private_key_censoring(self):
+        """
+        The log event for a request including a **private-key** query
+        argument has the private key value censored.
+        """
+        self._test_censoring(
+            b"/uri?uri=URI:CHK:aaa:bbb&private-key=AAAAaaaabbbb==",
+            b"/uri?uri=[CENSORED]&private-key=[CENSORED]",
+        )
+
     def test_uri_censoring(self):
         """
         The log event for a request for **/uri/<CAP>** has the capability value

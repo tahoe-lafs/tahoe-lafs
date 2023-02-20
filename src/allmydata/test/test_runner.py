@@ -47,6 +47,9 @@ from twisted.internet.defer import (
     inlineCallbacks,
     DeferredList,
 )
+from twisted.internet.testing import (
+    MemoryReactorClock,
+)
 from twisted.python.filepath import FilePath
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv
@@ -59,6 +62,9 @@ from allmydata.test import common_util
 import allmydata
 from allmydata.scripts.runner import (
     parse_options,
+)
+from allmydata.scripts.tahoe_run import (
+    on_stdin_close,
 )
 
 from .common import (
@@ -622,6 +628,64 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin):
         # What's left is a perfect indicator that the process has exited and
         # we won't get blamed for leaving the reactor dirty.
         yield client_running
+
+
+def _simulate_windows_stdin_close(stdio):
+    """
+    on Unix we can just close all the readers, correctly "simulating"
+    a stdin close .. of course, Windows has to be difficult
+    """
+    stdio.writeConnectionLost()
+    stdio.readConnectionLost()
+
+
+class OnStdinCloseTests(SyncTestCase):
+    """
+    Tests for on_stdin_close
+    """
+
+    def test_close_called(self):
+        """
+        our on-close method is called when stdin closes
+        """
+        reactor = MemoryReactorClock()
+        called = []
+
+        def onclose():
+            called.append(True)
+        transport = on_stdin_close(reactor, onclose)
+        self.assertEqual(called, [])
+
+        if platform.isWindows():
+            _simulate_windows_stdin_close(transport)
+        else:
+            for reader in reactor.getReaders():
+                reader.loseConnection()
+            reactor.advance(1)  # ProcessReader does a callLater(0, ..)
+
+        self.assertEqual(called, [True])
+
+    def test_exception_ignored(self):
+        """
+        An exception from our on-close function is discarded.
+        """
+        reactor = MemoryReactorClock()
+        called = []
+
+        def onclose():
+            called.append(True)
+            raise RuntimeError("unexpected error")
+        transport = on_stdin_close(reactor, onclose)
+        self.assertEqual(called, [])
+
+        if platform.isWindows():
+            _simulate_windows_stdin_close(transport)
+        else:
+            for reader in reactor.getReaders():
+                reader.loseConnection()
+            reactor.advance(1)  # ProcessReader does a callLater(0, ..)
+
+        self.assertEqual(called, [True])
 
 
 class PidFileLocking(SyncTestCase):
