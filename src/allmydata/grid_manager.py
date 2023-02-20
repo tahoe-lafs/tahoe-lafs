@@ -19,7 +19,10 @@ from allmydata.util import (
     dictutil,
 )
 
-from attrs import define, asdict, Factory
+from attrs import (
+    define,
+    Factory,
+)
 
 
 @define
@@ -40,9 +43,6 @@ class SignedCertificate(object):
             certificate=data["certificate"].encode("utf-8"),
             signature=data["signature"].encode("ascii")
         )
-
-    def asdict(self):
-        return asdict(self)
 
 
 @define
