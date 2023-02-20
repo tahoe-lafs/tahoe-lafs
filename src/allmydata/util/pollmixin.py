@@ -21,7 +21,7 @@ except ImportError:
     pass
 
 from twisted.internet import task
-from twisted.internet.interfaces import Deferred
+from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 
 from typing import Any
