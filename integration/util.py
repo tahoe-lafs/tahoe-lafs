@@ -755,9 +755,6 @@ async def reconfigure(reactor, request, node: TahoeProcess,
     :return: ``None`` after the node configuration has been rewritten, the
         node has been restarted, and the node is ready to provide service.
     """
-    # TODO reconfigure() seems to have issues on Windows. If you need to use it
-    # there, delete this assert and try to figure out what's going on...
-    assert not sys.platform.startswith("win")
     happy, needed, total = params
     config = node.get_config()
 
@@ -789,6 +786,11 @@ async def reconfigure(reactor, request, node: TahoeProcess,
             )
 
     if changed:
+        # TODO reconfigure() seems to have issues on Windows. If you need to
+        # use it there, delete this assert and try to figure out what's going
+        # on...
+        assert not sys.platform.startswith("win")
+
         # restart the node
         print(f"Restarting {node.node_dir} for ZFEC reconfiguration")
         await node.restart_async(reactor, request)
