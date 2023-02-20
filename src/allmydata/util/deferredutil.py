@@ -22,8 +22,7 @@ from eliot.twisted import (
 )
 from twisted.internet import defer, reactor, error
 from twisted.python.failure import Failure
-from twisted.internet.interfaces import Deferred
-from twisted.internet.defer import DeferredList
+from twisted.internet.defer import DeferredList, Deferred
 from twisted.internet.task import LoopingCall
 
 from allmydata.util import log
