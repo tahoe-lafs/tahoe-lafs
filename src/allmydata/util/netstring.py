@@ -15,7 +15,7 @@ if PY2:
 from past.builtins import long
 
 try:
-    from typing import Optional, Tuple, List  # noqa: F401
+    from typing import Optional, Any, List, Tuple
 except ImportError:
     pass
 
@@ -26,7 +26,7 @@ def netstring(s):  # type: (bytes) -> bytes
 
 def split_netstring(data: bytes, numstrings: int,
                     position: int=0,
-                    required_trailer: Optional[bytes]=None) -> tuple[list[bytes], int]:
+                    required_trailer: Optional[bytes]=None) -> Tuple[List[bytes], int]:
     """like string.split(), but extracts netstrings. Ignore all bytes of data
     before the 'position' byte. Return a tuple of (list of elements (numstrings
     in length), new position index). The new position index points to the first
