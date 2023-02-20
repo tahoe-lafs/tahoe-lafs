@@ -41,7 +41,7 @@ fcntl = requireModule("fcntl")
 
 from foolscap.util import allocate_tcp_port # re-exported
 
-from typing import Any
+from typing import Any, List
 
 try:
     import resource
@@ -104,7 +104,7 @@ except ImportError:
     increase_rlimits = _increase_rlimits
 
 
-def get_local_addresses_sync() -> list[str]:
+def get_local_addresses_sync() -> List[str]:
     """
     Get locally assigned addresses as dotted-quad native strings.
 
