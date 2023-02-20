@@ -738,6 +738,8 @@ async def reconfigure(reactor, request, node: TahoeProcess,
     Reconfigure a Tahoe-LAFS node with different ZFEC parameters and
     convergence secret.
 
+    TODO This appears to have issues on Windows.
+
     If the current configuration is different from the specified
     configuration, the node will be restarted so it takes effect.
 
@@ -753,6 +755,9 @@ async def reconfigure(reactor, request, node: TahoeProcess,
     :return: ``None`` after the node configuration has been rewritten, the
         node has been restarted, and the node is ready to provide service.
     """
+    # TODO reconfigure() seems to have issues on Windows. If you need to use it
+    # there, delete this assert and try to figure out what's going on...
+    assert not sys.platform.startswith("win")
     happy, needed, total = params
     config = node.get_config()
 
