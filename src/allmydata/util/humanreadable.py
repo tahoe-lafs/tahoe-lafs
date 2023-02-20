@@ -16,8 +16,10 @@ if PY2:
 import os
 from reprlib import Repr
 
+from typing import Any
+
 class BetterRepr(Repr, object):
-    def __init__(self):
+    def __init__(self) -> None:
         Repr.__init__(self)
 
         # Note: These levels can get adjusted dynamically!  My goal is to get more info when printing important debug stuff like exceptions and stack traces and less info when logging normal events.  --Zooko 2000-10-14
@@ -28,19 +30,19 @@ class BetterRepr(Repr, object):
         self.maxstring = 300
         self.maxother = 300
 
-    def repr_function(self, obj, level):
+    def repr_function(self, obj: Any, level: int) -> None:
         if hasattr(obj, '__code__'):
             return '<' + obj.__name__ + '() at ' + os.path.basename(obj.__code__.co_filename) + ':' + str(obj.__code__.co_firstlineno) + '>'
         else:
             return '<' + obj.__name__ + '() at (builtin)'
 
-    def repr_instance_method(self, obj, level):
+    def repr_instance_method(self, obj: Any, level: int) -> None:
         if hasattr(obj, '__code__'):
             return '<' + obj.__self__.__class__.__name__ + '.' + obj.__func__.__name__ + '() at ' + os.path.basename(obj.__func__.__code__.co_filename) + ':' + str(obj.__func__.__code__.co_firstlineno) + '>'
         else:
             return '<' + obj.__self__.__class__.__name__ + '.' + obj.__func__.__name__ + '() at (builtin)'
 
-    def repr_long(self, obj, level):
+    def repr_long(self, obj: Any, level: int) -> str:
         s = repr(obj) # XXX Hope this isn't too slow...
         if len(s) > self.maxlong:
             i = max(0, (self.maxlong-3) // 2)
@@ -50,7 +52,7 @@ class BetterRepr(Repr, object):
             return s[:-1]
         return s
 
-    def repr_instance(self, obj, level):
+    def repr_instance(self, obj: Any, level: int) -> str:
         """
         If it is an instance of Exception, format it nicely (trying to emulate
         the format that you see when an exception is actually raised, plus
@@ -84,7 +86,7 @@ class BetterRepr(Repr, object):
 
         return Repr.repr_instance(self, obj, level)
 
-    def repr_list(self, obj, level):
+    def repr_list(self, obj: Any, level: int) -> str:
         """
         copied from standard repr.py and fixed to work on multithreadedly mutating lists.
         """
@@ -99,7 +101,7 @@ class BetterRepr(Repr, object):
         if n > self.maxlist: s = s + ', ...'
         return '[' + s + ']'
 
-    def repr_dict(self, obj, level):
+    def repr_dict(self, obj: Any, level: int) -> str:
         """
         copied from standard repr.py and fixed to work on multithreadedly mutating dicts.
         """
@@ -122,5 +124,5 @@ class BetterRepr(Repr, object):
 # (e.g. libbase32's base32id.AbbrevRepr).
 brepr = BetterRepr()
 
-def hr(x):
+def hr(x: Any) -> str:
     return brepr.repr(x)
