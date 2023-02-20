@@ -6,7 +6,11 @@ import sys
 from datetime import (
     datetime,
 )
-from typing import Optional, Union
+from typing import (
+    Optional,
+    Union,
+    List,
+)
 
 from twisted.python.filepath import FilePath
 
@@ -99,7 +103,7 @@ def create_grid_manager():
     )
 
 
-def _load_certificates_for(config_path: Optional[FilePath], name: str, gm_key=Optional[ed25519.Ed25519PublicKey]):
+def _load_certificates_for(config_path: Optional[FilePath], name: str, gm_key=Optional[ed25519.Ed25519PublicKey]) -> List[_GridManagerCertificate]:
     """
     Load any existing certificates for the given storage-server.
 

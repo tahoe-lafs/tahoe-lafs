@@ -293,17 +293,22 @@ class StorageFarmBroker(service.MultiService):
             by the given announcement.
         """
         assert isinstance(server_id, bytes)
-        if len(server["ann"].get(ANONYMOUS_STORAGE_NURLS, [])) > 0:
-            s = HTTPNativeStorageServer(server_id, server["ann"])
-            s.on_status_changed(lambda _: self._got_connection())
-            return s
-        handler_overrides = server.get("connections", {})
         gm_verifier = create_grid_manager_verifier(
             self.storage_client_config.grid_manager_keys,
             server["ann"].get("grid-manager-certificates", []),
             "pub-{}".format(str(server_id, "ascii")),  # server_id is v0-<key> not pub-v0-key .. for reasons?
         )
 
+        if len(server["ann"].get(ANONYMOUS_STORAGE_NURLS, [])) > 0:
+            s = HTTPNativeStorageServer(
+                server_id,
+                server["ann"],
+                grid_manager_verifier=gm_verifier,
+            )
+            s.on_status_changed(lambda _: self._got_connection())
+            return s
+
+        handler_overrides = server.get("connections", {})
         s = NativeStorageServer(
             server_id,
             server["ann"],
@@ -1013,13 +1018,14 @@ class HTTPNativeStorageServer(service.MultiService):
     "connected".
     """
 
-    def __init__(self, server_id: bytes, announcement, reactor=reactor):
+    def __init__(self, server_id: bytes, announcement, reactor=reactor, grid_manager_verifier=None):
         service.MultiService.__init__(self)
         assert isinstance(server_id, bytes)
         self._server_id = server_id
         self.announcement = announcement
         self._on_status_changed = ObserverList()
         self._reactor = reactor
+        self._grid_manager_verifier = grid_manager_verifier
         furl = announcement["anonymous-storage-FURL"].encode("utf-8")
         (
             self._nickname,
@@ -1068,6 +1074,21 @@ class HTTPNativeStorageServer(service.MultiService):
             NativeStorageServer) that is notified when we become connected
         """
         return self._on_status_changed.subscribe(status_changed)
+
+    def upload_permitted(self):
+        """
+        If our client is configured with Grid Manager public-keys, we will
+        only upload to storage servers that have a currently-valid
+        certificate signed by at least one of the Grid Managers we
+        accept.
+
+        :return: True if we should use this server for uploads, False
+            otherwise.
+        """
+        # if we have no Grid Manager keys configured, choice is easy
+        if self._grid_manager_verifier is None:
+            return True
+        return self._grid_manager_verifier()
 
     # Special methods used by copy.copy() and copy.deepcopy(). When those are
     # used in allmydata.immutable.filenode to copy CheckResults during
