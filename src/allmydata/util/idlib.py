@@ -14,7 +14,7 @@ from six import ensure_text
 from foolscap import base32
 
 
-def nodeid_b2a(nodeid):
+def nodeid_b2a(nodeid: str) -> str:
     """
     We display nodeids using the same base32 alphabet that Foolscap uses.
 
@@ -22,7 +22,7 @@ def nodeid_b2a(nodeid):
     """
     return ensure_text(base32.encode(nodeid))
 
-def shortnodeid_b2a(nodeid):
+def shortnodeid_b2a(nodeid: str) -> str:
     """
     Short version of nodeid_b2a() output, Unicode string.
     """
