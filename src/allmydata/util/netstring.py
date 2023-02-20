@@ -24,9 +24,9 @@ def netstring(s):  # type: (bytes) -> bytes
     assert isinstance(s, bytes), s # no unicode here
     return b"%d:%s," % (len(s), s,)
 
-def split_netstring(data, numstrings,
-                    position=0,
-                    required_trailer=None):  # type (bytes, init, int, Optional[bytes]) -> Tuple[List[bytes], int]
+def split_netstring(data: bytes, numstrings: int,
+                    position: int=0,
+                    required_trailer: Optional[bytes]=None) -> tuple[list[bytes], int]:
     """like string.split(), but extracts netstrings. Ignore all bytes of data
     before the 'position' byte. Return a tuple of (list of elements (numstrings
     in length), new position index). The new position index points to the first
