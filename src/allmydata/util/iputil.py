@@ -41,7 +41,7 @@ fcntl = requireModule("fcntl")
 
 from foolscap.util import allocate_tcp_port # re-exported
 
-from typing import Any, List
+from typing import Any, List, Tuple
 
 try:
     import resource
@@ -120,7 +120,7 @@ def get_local_addresses_sync() -> List[str]:
     )
 
 
-def _foolscapEndpointForPortNumber(portnum: int) -> tuple[Any, Any]:
+def _foolscapEndpointForPortNumber(portnum: int) -> Tuple[Any, Any]:
     """
     Create an endpoint that can be passed to ``Tub.listen``.
 
