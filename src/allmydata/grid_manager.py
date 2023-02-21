@@ -39,7 +39,8 @@ class SignedCertificate(object):
     # A JSON-encoded, UTF-8-encoded certificate.
     certificate : bytes
 
-    # The signature in base32.
+    # The signature (although the signature is in base32 in "public",
+    # this contains the decoded raw bytes -- not base32)
     signature : bytes
 
     @classmethod
@@ -47,11 +48,17 @@ class SignedCertificate(object):
         data = json.load(file_like)
         return cls(
             certificate=data["certificate"].encode("utf-8"),
-            signature=data["signature"].encode("ascii")
+            signature=base32.a2b(data["signature"].encode("ascii")),
         )
 
-    def asdict(self):
-        return asdict(self)
+    def marshal(self):
+        """
+        :return dict: a json-able dict
+        """
+        return dict(
+            certificate=self.certificate,
+            signature=base32.b2a(self.signature),
+        )
 
 
 @frozen
@@ -261,7 +268,7 @@ class _GridManager(object):
         sig = ed25519.sign_data(self._private_key, cert_data)
         certificate = SignedCertificate(
             certificate=cert_data,
-            signature=base32.b2a(sig),
+            signature=sig,
         )
         vk = ed25519.verifying_key_from_signing_key(self._private_key)
         ed25519.verify_signature(vk, sig, cert_data)
@@ -388,7 +395,7 @@ def validate_grid_manager_certificate(gm_key, alleged_cert):
     try:
         ed25519.verify_signature(
             gm_key,
-            base32.a2b(alleged_cert.signature),
+            alleged_cert.signature,
             alleged_cert.certificate,
         )
     except ed25519.BadSignature:

@@ -175,7 +175,7 @@ class GridManagerVerifier(SyncTestCase):
         self.assertEqual(
             ed25519.verify_signature(
                 gm_key,
-                base32.a2b(cert0.signature),
+                cert0.signature,
                 cert0.certificate,
             ),
             None
