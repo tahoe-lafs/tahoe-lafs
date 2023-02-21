@@ -74,10 +74,7 @@ def write_config(tahoe_cfg, config):
     :return: ``None``
     """
     tmp = tahoe_cfg.temporarySibling()
-    try:
-        tahoe_cfg.parent().makedirs()
-    except OSError:
-        pass
+    tahoe_cfg.parent().makedirs(ignoreExistingDirectory=True)
     # FilePath.open can only open files in binary mode which does not work
     # with ConfigParser.write.
     with open(tmp.path, "wt") as fp:
