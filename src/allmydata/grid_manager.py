@@ -26,6 +26,7 @@ from allmydata.util import (
 from attrs import (
     define,
     frozen,
+    asdict,
     Factory,
 )
 
@@ -48,6 +49,9 @@ class SignedCertificate(object):
             certificate=data["certificate"].encode("utf-8"),
             signature=data["signature"].encode("ascii")
         )
+
+    def asdict(self):
+        return asdict(self)
 
 
 @frozen

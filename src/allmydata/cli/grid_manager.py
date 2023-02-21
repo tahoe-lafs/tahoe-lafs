@@ -9,7 +9,6 @@ from datetime import (
 )
 
 import click
-import attr
 
 from twisted.python.filepath import (
     FilePath,
@@ -197,7 +196,7 @@ def sign(ctx, name, expiry_days):
             "No storage-server called '{}' exists".format(name)
         )
 
-    certificate_data = json.dumps(attr.asdict(certificate), indent=4)
+    certificate_data = json.dumps(certificate.asdict(), indent=4)
     click.echo(certificate_data)
     if fp is not None:
         next_serial = 0
