@@ -47,7 +47,7 @@ from zope.interface import (
 )
 from twisted.python.failure import Failure
 from twisted.web import http
-from twisted.internet.task import LoopingCall
+from twisted.internet.task import LoopingCall, deferLater
 from twisted.internet import defer, reactor
 from twisted.application import service
 from twisted.plugin import (
@@ -935,6 +935,21 @@ class NativeStorageServer(service.MultiService):
         self._reconnector.reset()
 
 
+async def _pick_a_http_server(reactor, nurls: list[DecodedURL]) -> DecodedURL:
+    """Pick the first server we successfully talk to."""
+    while True:
+        try:
+            _, index = await defer.DeferredList([
+                StorageClientGeneral(
+                    StorageClient.from_nurl(nurl, reactor)
+                ).get_version() for nurl in nurls
+            ], consumeErrors=True, fireOnOneCallback=True)
+            return nurls[index]
+        except Exception as e:
+            log.err(e, "Failed to connect to any of the HTTP NURLs for server")
+            await deferLater(reactor, 1, lambda: None)
+
+
 @implementer(IServer)
 class HTTPNativeStorageServer(service.MultiService):
     """
@@ -962,10 +977,8 @@ class HTTPNativeStorageServer(service.MultiService):
         ) = _parse_announcement(server_id, furl, announcement)
         # TODO need some way to do equivalent of Happy Eyeballs for multiple NURLs?
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3935
-        nurl = DecodedURL.from_text(announcement[ANONYMOUS_STORAGE_NURLS][0])
-        self._istorage_server = _HTTPStorageServer.from_http_client(
-            StorageClient.from_nurl(nurl, reactor)
-        )
+        self._nurls = [DecodedURL.from_text(u) for u in announcement[ANONYMOUS_STORAGE_NURLS]]
+        self._istorage_server = None
 
         self._connection_status = connection_status.ConnectionStatus.unstarted()
         self._version = None
@@ -1033,7 +1046,14 @@ class HTTPNativeStorageServer(service.MultiService):
         version = self.get_version()
         return _available_space_from_version(version)
 
-    def start_connecting(self, trigger_cb):
+    @async_to_deferred
+    async def start_connecting(self, trigger_cb):
+        # The problem with this scheme is that while picking the HTTP server to
+        # talk to, we don't have connection status updates...
+        nurl = await _pick_a_http_server(reactor, self._nurls)
+        self._istorage_server = _HTTPStorageServer.from_http_client(
+            StorageClient.from_nurl(nurl, reactor)
+        )
         self._lc = LoopingCall(self._connect)
         self._lc.start(1, True)
 
