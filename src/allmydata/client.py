@@ -50,7 +50,7 @@ from allmydata.interfaces import (
     IStatsProducer,
     SDMF_VERSION,
     MDMF_VERSION,
-    DEFAULT_MAX_SEGMENT_SIZE,
+    DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE,
     IFoolscapStoragePlugin,
     IAnnounceableStorageServer,
 )
@@ -88,6 +88,7 @@ _client_config = configutil.ValidConfiguration(
             "shares.happy",
             "shares.needed",
             "shares.total",
+            "shares._max_immutable_segment_size_for_testing",
             "storage.plugins",
         ),
         "storage": (
@@ -606,7 +607,7 @@ class _Client(node.Node, pollmixin.PollMixin):
     DEFAULT_ENCODING_PARAMETERS = {"k": 3,
                                    "happy": 7,
                                    "n": 10,
-                                   "max_segment_size": DEFAULT_MAX_SEGMENT_SIZE,
+                                   "max_segment_size": DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE,
                                    }
 
     def __init__(self, config, main_tub, i2p_provider, tor_provider, introducer_clients,
@@ -896,6 +897,13 @@ class _Client(node.Node, pollmixin.PollMixin):
         DEP["k"] = int(self.config.get_config("client", "shares.needed", DEP["k"]))
         DEP["n"] = int(self.config.get_config("client", "shares.total", DEP["n"]))
         DEP["happy"] = int(self.config.get_config("client", "shares.happy", DEP["happy"]))
+        # At the moment this is only used for testing, thus the janky config
+        # attribute name.
+        DEP["max_segment_size"] = int(self.config.get_config(
+            "client",
+            "shares._max_immutable_segment_size_for_testing",
+            DEP["max_segment_size"])
+        )
 
         # for the CLI to authenticate to local JSON endpoints
         self._create_auth_token()
