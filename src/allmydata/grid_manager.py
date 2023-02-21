@@ -103,7 +103,7 @@ def create_grid_manager():
     )
 
 
-def _load_certificates_for(config_path: Optional[FilePath], name: str, gm_key=Optional[ed25519.Ed25519PublicKey]) -> List[_GridManagerCertificate]:
+def _load_certificates_for(config_path: FilePath, name: str, gm_key=Optional[ed25519.Ed25519PublicKey]) -> List[_GridManagerCertificate]:
     """
     Load any existing certificates for the given storage-server.
 
@@ -119,8 +119,6 @@ def _load_certificates_for(config_path: Optional[FilePath], name: str, gm_key=Op
 
     :raises: ed25519.BadSignature if any certificate signature fails to verify
     """
-    if config_path is None:
-        return []
     cert_index = 0
     cert_path = config_path.child('{}.cert.{}'.format(name, cert_index))
     certificates = []
@@ -199,7 +197,7 @@ def load_grid_manager(config_path: Optional[FilePath]):
         storage_servers[name] = _GridManagerStorageServer(
             name,
             ed25519.verifying_key_from_string(srv_config['public_key'].encode('ascii')),
-            _load_certificates_for(config_path, name, public_key),
+            [] if config_path is None else _load_certificates_for(config_path, name, public_key),
         )
 
     return _GridManager(private_key_bytes, storage_servers)
