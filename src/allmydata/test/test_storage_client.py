@@ -1,16 +1,8 @@
 """
-Ported from Python 3.
+Tests for allmydata.storage_client.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-from six import ensure_text
+from __future__ import annotations
 
 from json import (
     loads,
@@ -475,7 +467,7 @@ class StoragePluginWebPresence(AsyncTestCase):
                 # config validation policy).
                 "tub.port": tubport_endpoint,
                 "tub.location": tubport_location,
-                "web.port": ensure_text(webport_endpoint),
+                "web.port": str(webport_endpoint),
             },
             storage_plugin=self.storage_plugin,
             basedir=self.basedir,
