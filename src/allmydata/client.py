@@ -859,11 +859,9 @@ class _Client(node.Node, pollmixin.PollMixin):
             grid_manager_certificates = self.config.get_grid_manager_certificates()
             announcement[u"grid-manager-certificates"] = grid_manager_certificates
 
-        # XXX we should probably verify that the certificates are
-        # valid and not expired, as that could be confusing for the
-        # storage-server operator -- but then we need the public key
-        # of the Grid Manager (should that go in the config too,
-        # then? How to handle multiple grid-managers?)
+        # Note: certificates are not verified for validity here, but
+        # that may be useful. See:
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3977
 
         for ic in self.introducer_clients:
             ic.publish("storage", announcement, self._node_private_key)
