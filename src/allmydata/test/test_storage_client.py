@@ -7,8 +7,10 @@ from __future__ import annotations
 from json import (
     loads,
 )
-
 import hashlib
+from typing import Union, Any
+
+from hyperlink import DecodedURL
 from fixtures import (
     TempDir,
 )
@@ -52,6 +54,7 @@ from twisted.internet.defer import (
 from twisted.python.filepath import (
     FilePath,
 )
+from twisted.internet.task import Clock
 
 from foolscap.api import (
     Tub,
@@ -80,12 +83,14 @@ from allmydata.webish import (
     WebishServer,
 )
 from allmydata.util import base32, yamlutil
+from allmydata.util.deferredutil import async_to_deferred
 from allmydata.storage_client import (
     IFoolscapStorageServer,
     NativeStorageServer,
     StorageFarmBroker,
     _FoolscapStorage,
     _NullStorage,
+    _pick_a_http_server
 )
 from ..storage.server import (
     StorageServer,
@@ -731,3 +736,60 @@ storage:
 
         yield done
         self.assertTrue(done.called)
+
+
+class PickHTTPServerTests(unittest.SynchronousTestCase):
+    """Tests for ``_pick_a_http_server``."""
+
+    def loop_until_result(self, url_to_results: dict[DecodedURL, list[tuple[float, Union[Exception, Any]]]]) -> Deferred[DecodedURL]:
+        """
+        Given mapping of URLs to list of (delay, result), return the URL of the
+        first selected server.
+        """
+        clock = Clock()
+
+        def request(reactor, url):
+            delay, value = url_to_results[url].pop(0)
+            result = Deferred()
+            def add_result_value():
+                if isinstance(value, Exception):
+                    result.errback(value)
+                else:
+                    result.callback(value)
+            reactor.callLater(delay, add_result_value)
+            return result
+
+        d = async_to_deferred(_pick_a_http_server)(
+            clock, list(url_to_results.keys()), request
+        )
+        for i in range(1000):
+            clock.advance(0.1)
+        return d
+
+    def test_first_successful_connect_is_picked(self):
+        """
+        Given multiple good URLs, the first one that connects is chosen.
+        """
+        earliest_url = DecodedURL.from_text("http://a")
+        latest_url = DecodedURL.from_text("http://b")
+        d = self.loop_until_result({
+            latest_url: [(2, None)],
+            earliest_url: [(1, None)]
+        })
+        self.assertEqual(self.successResultOf(d), earliest_url)
+
+    def test_failures_are_retried(self):
+        """
+        If the initial requests all fail, ``_pick_a_http_server`` keeps trying
+        until success.
+        """
+        eventually_good_url = DecodedURL.from_text("http://good")
+        bad_url = DecodedURL.from_text("http://bad")
+        d = self.loop_until_result({
+            eventually_good_url: [
+                (1, ZeroDivisionError()), (0.1, ZeroDivisionError()), (1, None)
+            ],
+            bad_url: [(0.1, RuntimeError()), (0.1, RuntimeError()), (0.1, RuntimeError())]
+        })
+        self.flushLoggedErrors(ZeroDivisionError, RuntimeError)
+        self.assertEqual(self.successResultOf(d), eventually_good_url)

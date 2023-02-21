@@ -33,7 +33,7 @@ Ported to Python 3.
 from __future__ import annotations
 
 from six import ensure_text
-from typing import Union
+from typing import Union, Callable, Any
 import re, time, hashlib
 from os import urandom
 from configparser import NoSectionError
@@ -935,19 +935,25 @@ class NativeStorageServer(service.MultiService):
         self._reconnector.reset()
 
 
-async def _pick_a_http_server(reactor, nurls: list[DecodedURL]) -> DecodedURL:
-    """Pick the first server we successfully talk to."""
+async def _pick_a_http_server(
+        reactor,
+        nurls: list[DecodedURL],
+        request: Callable[[DecodedURL, Any], defer.Deferred[Any]]
+) -> DecodedURL:
+    """Pick the first server we successfully send a request to."""
     while True:
-        try:
-            _, index = await defer.DeferredList([
-                StorageClientGeneral(
-                    StorageClient.from_nurl(nurl, reactor)
-                ).get_version() for nurl in nurls
-            ], consumeErrors=True, fireOnOneCallback=True)
+        result = await defer.DeferredList([
+                request(reactor, nurl) for nurl in nurls
+        ], consumeErrors=True, fireOnOneCallback=True)
+        # Apparently DeferredList is an awful awful API. If everything fails,
+        # you get back a list of (False, Failure), if it succeeds, you get a
+        # tuple of (value, index).
+        if isinstance(result, list):
+             await deferLater(reactor, 1, lambda: None)
+        else:
+            assert isinstance(result, tuple)
+            _, index = result
             return nurls[index]
-        except Exception as e:
-            log.err(e, "Failed to connect to any of the HTTP NURLs for server")
-            await deferLater(reactor, 1, lambda: None)
 
 
 @implementer(IServer)
@@ -975,9 +981,10 @@ class HTTPNativeStorageServer(service.MultiService):
             self._short_description,
             self._long_description
         ) = _parse_announcement(server_id, furl, announcement)
-        # TODO need some way to do equivalent of Happy Eyeballs for multiple NURLs?
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3935
-        self._nurls = [DecodedURL.from_text(u) for u in announcement[ANONYMOUS_STORAGE_NURLS]]
+        self._nurls = [
+            DecodedURL.from_text(u)
+            for u in announcement[ANONYMOUS_STORAGE_NURLS]
+        ]
         self._istorage_server = None
 
         self._connection_status = connection_status.ConnectionStatus.unstarted()
@@ -1048,9 +1055,14 @@ class HTTPNativeStorageServer(service.MultiService):
 
     @async_to_deferred
     async def start_connecting(self, trigger_cb):
-        # The problem with this scheme is that while picking the HTTP server to
-        # talk to, we don't have connection status updates...
-        nurl = await _pick_a_http_server(reactor, self._nurls)
+        # TODO file a bug: The problem with this scheme is that while picking
+        # the HTTP server to talk to, we don't have connection status
+        # updates...
+        def request(reactor, nurl: DecodedURL):
+            return StorageClientGeneral(
+                StorageClient.from_nurl(nurl, reactor)
+            ).get_version()
+        nurl = await _pick_a_http_server(reactor, self._nurls, request)
         self._istorage_server = _HTTPStorageServer.from_http_client(
             StorageClient.from_nurl(nurl, reactor)
         )
