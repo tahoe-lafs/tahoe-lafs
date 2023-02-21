@@ -5,6 +5,7 @@ Functions and classes relating to the Grid Manager internal state
 import sys
 from datetime import (
     datetime,
+    timezone,
 )
 from typing import (
     Optional,
@@ -115,6 +116,14 @@ def create_grid_manager():
     )
 
 
+def current_datetime_with_zone():
+    """
+    :returns: a timezone-aware datetime object representing the
+        current timestamp in UTC
+    """
+    return datetime.now(timezone.utc)
+
+
 def _load_certificates_for(config_path: FilePath, name: str, gm_key=Optional[ed25519.Ed25519PublicKey]) -> List[_GridManagerCertificate]:
     """
     Load any existing certificates for the given storage-server.
@@ -150,7 +159,7 @@ def _load_certificates_for(config_path: FilePath, name: str, gm_key=Optional[ed2
             _GridManagerCertificate(
                 filename=cert_path.path,
                 index=cert_index,
-                expires=datetime.utcfromtimestamp(cert_data['expires']),
+                expires=datetime.fromisoformat(cert_data['expires']),
                 public_key=ed25519.verifying_key_from_string(cert_data['public_key'].encode('ascii')),
             )
         )
@@ -257,10 +266,9 @@ class _GridManager(object):
             raise KeyError(
                 "No storage server named '{}'".format(name)
             )
-        expiration = datetime.utcnow() + expiry
-        epoch_offset = (expiration - datetime(1970, 1, 1)).total_seconds()
+        expiration = current_datetime_with_zone() + expiry
         cert_info = {
-            "expires": epoch_offset,
+            "expires": expiration.isoformat(),
             "public_key": srv.public_key_string(),
             "version": 1,
         }
@@ -421,7 +429,7 @@ def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=
         certificates for.
 
     :param callable now_fn: a callable which returns the current UTC
-        timestamp (or datetime.utcnow if None).
+        timestamp (or current_datetime_with_zone() if None).
 
     :param callable bad_cert: a two-argument callable which is invoked
         when a certificate verification fails. The first argument is
@@ -436,7 +444,7 @@ def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=
         expired) in `certs` signed by one of the keys in `keys`.
     """
 
-    now_fn = datetime.utcnow if now_fn is None else now_fn
+    now_fn = current_datetime_with_zone if now_fn is None else now_fn
     valid_certs = []
 
     # if we have zero grid-manager keys then everything is valid
@@ -479,7 +487,7 @@ def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=
         """
         now = now_fn()
         for cert in valid_certs:
-            expires = datetime.utcfromtimestamp(cert['expires'])
+            expires = datetime.fromisoformat(cert["expires"])
             if cert['public_key'].encode("ascii") == public_key:
                 if expires > now:
                     # not-expired

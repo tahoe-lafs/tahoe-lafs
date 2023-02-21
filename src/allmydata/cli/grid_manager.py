@@ -24,6 +24,7 @@ from allmydata.grid_manager import (
     create_grid_manager,
     save_grid_manager,
     load_grid_manager,
+    current_datetime_with_zone,
 )
 from allmydata.util import jsonbytes as json
 
@@ -167,7 +168,7 @@ def list(ctx):
             name,
             str(ctx.obj.grid_manager.storage_servers[name].public_key_string(), "utf-8")))
         for cert in ctx.obj.grid_manager.storage_servers[name].certificates:
-            delta = datetime.utcnow() - cert.expires
+            delta = current_datetime_with_zone() - cert.expires
             click.echo("{}  cert {}: ".format(blank_name, cert.index), nl=False)
             if delta.total_seconds() < 0:
                 click.echo("valid until {} ({})".format(cert.expires, abbreviate_time(delta)))
