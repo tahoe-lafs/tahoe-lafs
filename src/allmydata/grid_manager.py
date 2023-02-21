@@ -25,11 +25,12 @@ from allmydata.util import (
 
 from attrs import (
     define,
+    frozen,
     Factory,
 )
 
 
-@define
+@frozen
 class SignedCertificate(object):
     """
     A signed certificate.
