@@ -74,6 +74,10 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
     # To use Foolscap, change to True:
     FORCE_FOOLSCAP_FOR_STORAGE = False
 
+    # Don't reduce HTTP connection timeouts, that messes up the more aggressive
+    # benchmarks:
+    REDUCE_HTTP_CLIENT_TIMEOUT = False
+
     @async_to_deferred
     async def setUp(self):
         SystemTestMixin.setUp(self)
