@@ -601,7 +601,6 @@ class CPUThreadPool(unittest.TestCase):
     async def test_runs_in_thread(self):
         """The given function runs in a thread."""
         def f(*args, **kwargs):
-            time.sleep(0.1)
             return current_thread(), args, kwargs
 
         this_thread = current_thread().ident
