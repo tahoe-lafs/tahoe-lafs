@@ -46,6 +46,7 @@ from allmydata.util.configutil import (
     write_config,
 )
 from allmydata import client
+from allmydata.interfaces import DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
 
 import pytest_twisted
 
@@ -729,10 +730,15 @@ def upload(alice: TahoeProcess, fmt: CHK | SSK, data: bytes) -> str:
             return cli(*argv).decode("utf-8").strip()
 
 
-async def reconfigure(reactor, request, node: TahoeProcess, params: tuple[int, int, int], convergence: None | bytes) -> None:
+async def reconfigure(reactor, request, node: TahoeProcess,
+                      params: tuple[int, int, int],
+                      convergence: None | bytes,
+                      max_segment_size: None | int = None) -> None:
     """
     Reconfigure a Tahoe-LAFS node with different ZFEC parameters and
     convergence secret.
+
+    TODO This appears to have issues on Windows.
 
     If the current configuration is different from the specified
     configuration, the node will be restarted so it takes effect.
@@ -769,7 +775,22 @@ async def reconfigure(reactor, request, node: TahoeProcess, params: tuple[int, i
             changed = True
             config.write_private_config("convergence", base32.b2a(convergence))
 
+    if max_segment_size is not None:
+        cur_segment_size = int(config.get_config("client", "shares._max_immutable_segment_size_for_testing", DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE))
+        if cur_segment_size != max_segment_size:
+            changed = True
+            config.set_config(
+                "client",
+                "shares._max_immutable_segment_size_for_testing",
+                str(max_segment_size)
+            )
+
     if changed:
+        # TODO reconfigure() seems to have issues on Windows. If you need to
+        # use it there, delete this assert and try to figure out what's going
+        # on...
+        assert not sys.platform.startswith("win")
+
         # restart the node
         print(f"Restarting {node.node_dir} for ZFEC reconfiguration")
         await node.restart_async(reactor, request)
