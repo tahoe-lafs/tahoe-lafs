@@ -69,7 +69,7 @@ class _GridManagerStorageServer(object):
 
     name : str
     public_key : ed25519.Ed25519PublicKey
-    certificates : list = Factory(list)
+    certificates : list = Factory(list)  # SignedCertificates
 
     def add_certificate(self, certificate):
         """
