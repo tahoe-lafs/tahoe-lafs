@@ -205,13 +205,10 @@ def sign(ctx, name, expiry_days):
             fname = "{}.cert.{}".format(name, next_serial)
             try:
                 f = fp.child(fname).create()
+            except FileExistsError:
+                f = None
             except OSError as e:
-                if e.errno == 17:  # file exists
-                    f = None
-                else:
-                    raise click.ClickException(
-                        "{}: {}".format(fname, e)
-                    )
+                raise click.ClickException(f"{fname}: {e}")
             next_serial += 1
         with f:
             f.write(certificate_data.encode("ascii"))
