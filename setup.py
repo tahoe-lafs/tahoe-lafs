@@ -146,7 +146,7 @@ install_requires = [
 
     # Command-line parsing
     "click >= 7.0",
-    
+
     # for pid-file support
     "psutil",
     "filelock",
