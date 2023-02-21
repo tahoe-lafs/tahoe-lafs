@@ -55,6 +55,10 @@ certificate, or no certificate) because clients check the ciphertext
 and re-assembled plaintext against the keys in the capability;
 "grid-manager" certificates only control uploads.
 
+Clients make use of this functionality by configuring one or more Grid Manager public keys.
+This tells the client to only upload to storage-servers that have a currently-valid certificate from any of the Grid Managers their client allows.
+In case none are configured, the default behavior (of using any storage server) prevails.
+
 
 Grid Manager Data Storage
 -------------------------
