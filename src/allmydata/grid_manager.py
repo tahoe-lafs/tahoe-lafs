@@ -50,7 +50,7 @@ class SignedCertificate(object):
         )
 
 
-@define
+@frozen
 class _GridManagerStorageServer(object):
     """
     A Grid Manager's notion of a storage server
