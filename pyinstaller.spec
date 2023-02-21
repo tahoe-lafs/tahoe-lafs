@@ -36,6 +36,7 @@ hidden_imports = [
     'allmydata.stats',
     'base64',
     'cffi',
+    'charset_normalizer.md__mypyc',
     'collections',
     'commands',
     'Crypto',

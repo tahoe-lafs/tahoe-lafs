@@ -36,7 +36,7 @@ from allmydata.mutable.layout import get_version_from_checkstring,\
                                      SDMFSlotWriteProxy
 
 KiB = 1024
-DEFAULT_MAX_SEGMENT_SIZE = 128 * KiB
+DEFAULT_MUTABLE_MAX_SEGMENT_SIZE = 128 * KiB
 PUSHING_BLOCKS_STATE = 0
 PUSHING_EVERYTHING_ELSE_STATE = 1
 DONE_STATE = 2
@@ -367,7 +367,7 @@ class Publish(object):
 
         self.data = newdata
         self.datalength = newdata.get_size()
-        #if self.datalength >= DEFAULT_MAX_SEGMENT_SIZE:
+        #if self.datalength >= DEFAULT_MUTABLE_MAX_SEGMENT_SIZE:
         #    self._version = MDMF_VERSION
         #else:
         #    self._version = SDMF_VERSION
@@ -551,7 +551,7 @@ class Publish(object):
 
     def setup_encoding_parameters(self, offset=0):
         if self._version == MDMF_VERSION:
-            segment_size = DEFAULT_MAX_SEGMENT_SIZE # 128 KiB by default
+            segment_size = DEFAULT_MUTABLE_MAX_SEGMENT_SIZE # 128 KiB by default
         else:
             segment_size = self.datalength # SDMF is only one segment
         # this must be a multiple of self.required_shares
