@@ -22,7 +22,6 @@ from allmydata.crypto import (
     ed25519,
 )
 from allmydata.util import (
-    base32,
     jsonbytes as json,
 )
 from allmydata.grid_manager import (

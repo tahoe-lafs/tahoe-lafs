@@ -4,7 +4,6 @@ A CLI for configuring a grid manager.
 
 from typing import Optional
 from datetime import (
-    datetime,
     timedelta,
 )
 

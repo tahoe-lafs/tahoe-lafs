@@ -25,9 +25,7 @@ from allmydata.util import (
 )
 
 from attrs import (
-    define,
     frozen,
-    asdict,
     Factory,
 )
 
@@ -93,7 +91,7 @@ class _GridManagerStorageServer(object):
         }
 
 
-@define
+@frozen
 class _GridManagerCertificate(object):
     """
     Represents a single certificate for a single storage-server
