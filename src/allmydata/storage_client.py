@@ -938,7 +938,7 @@ class NativeStorageServer(service.MultiService):
 async def _pick_a_http_server(
         reactor,
         nurls: list[DecodedURL],
-        request: Callable[[DecodedURL, Any], defer.Deferred[Any]]
+        request: Callable[[Any, DecodedURL], defer.Deferred[Any]]
 ) -> DecodedURL:
     """Pick the first server we successfully send a request to."""
     while True:
@@ -951,7 +951,7 @@ async def _pick_a_http_server(
             result.callback(nurl)
 
         def failed(failure, failures=[], result=result):
-            log.err(failure)
+            log.err(failure, "Failed to connect to NURL")
             failures.append(None)
             if len(failures) == len(nurls):
                 # All our potential NURLs failed...
