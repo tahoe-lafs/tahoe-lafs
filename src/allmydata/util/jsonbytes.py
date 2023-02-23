@@ -116,4 +116,4 @@ loads = json.loads
 load = json.load
 
 
-__all__ = ["dumps", "loads"]
+__all__ = ["dumps", "loads", "load"]
