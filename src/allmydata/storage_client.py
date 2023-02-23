@@ -942,18 +942,31 @@ async def _pick_a_http_server(
 ) -> DecodedURL:
     """Pick the first server we successfully send a request to."""
     while True:
-        result = await defer.DeferredList([
-                request(reactor, nurl) for nurl in nurls
-        ], consumeErrors=True, fireOnOneCallback=True)
-        # Apparently DeferredList is an awful awful API. If everything fails,
-        # you get back a list of (False, Failure), if it succeeds, you get a
-        # tuple of (value, index).
-        if isinstance(result, list):
-             await deferLater(reactor, 1, lambda: None)
+        result : defer.Deferred[Union[DecodedURL, None]] = defer.Deferred()
+
+        def succeeded(nurl: DecodedURL, result=result):
+            # Only need the first successful NURL:
+            if result.called:
+                return
+            result.callback(nurl)
+
+        def failed(failure, failures=[], result=result):
+            log.err(failure)
+            failures.append(None)
+            if len(failures) == len(nurls):
+                # All our potential NURLs failed...
+                result.callback(None)
+
+        for index, nurl in enumerate(nurls):
+            request(reactor, nurl).addCallback(
+                lambda _, nurl=nurl: nurl).addCallbacks(succeeded, failed)
+
+        first_nurl = await result
+        if first_nurl is None:
+            # Failed to connect to any of the NURLs:
+            await deferLater(reactor, 1, lambda: None)
         else:
-            assert isinstance(result, tuple)
-            _, index = result
-            return nurls[index]
+            return first_nurl
 
 
 @implementer(IServer)
