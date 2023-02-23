@@ -1068,9 +1068,9 @@ class HTTPNativeStorageServer(service.MultiService):
 
     @async_to_deferred
     async def start_connecting(self, trigger_cb):
-        # TODO file a bug: The problem with this scheme is that while picking
+        # TODO The problem with this scheme is that while picking
         # the HTTP server to talk to, we don't have connection status
-        # updates...
+        # updates... https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3978
         def request(reactor, nurl: DecodedURL):
             return StorageClientGeneral(
                 StorageClient.from_nurl(nurl, reactor)
