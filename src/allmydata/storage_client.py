@@ -963,8 +963,9 @@ async def _pick_a_http_server(
 
         first_nurl = await result
         if first_nurl is None:
-            # Failed to connect to any of the NURLs:
-            await deferLater(reactor, 1, lambda: None)
+            # Failed to connect to any of the NURLs, try again in a few
+            # seconds:
+            await deferLater(reactor, 5, lambda: None)
         else:
             return first_nurl
 
