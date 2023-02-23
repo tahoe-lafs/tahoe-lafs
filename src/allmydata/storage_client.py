@@ -33,7 +33,7 @@ Ported to Python 3.
 from __future__ import annotations
 
 from six import ensure_text
-from typing import Union, Callable, Any
+from typing import Union, Callable, Any, Optional
 import re, time, hashlib
 from os import urandom
 from configparser import NoSectionError
@@ -942,7 +942,7 @@ async def _pick_a_http_server(
 ) -> DecodedURL:
     """Pick the first server we successfully send a request to."""
     while True:
-        result : defer.Deferred[Union[DecodedURL, None]] = defer.Deferred()
+        result : defer.Deferred[Optional[DecodedURL]] = defer.Deferred()
 
         def succeeded(nurl: DecodedURL, result=result):
             # Only need the first successful NURL:
@@ -1300,7 +1300,7 @@ class _HTTPBucketWriter(object):
         return self.finished
 
 
-def _ignore_404(failure: Failure) -> Union[Failure, None]:
+def _ignore_404(failure: Failure) -> Optional[Failure]:
     """
     Useful for advise_corrupt_share(), since it swallows unknown share numbers
     in Foolscap.
