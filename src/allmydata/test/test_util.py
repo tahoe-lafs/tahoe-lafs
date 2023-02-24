@@ -29,7 +29,6 @@ from allmydata.util import yamlutil
 from allmydata.util import rrefutil
 from allmydata.util.fileutil import EncryptedTemporaryFile
 from allmydata.util.cputhreadpool import defer_to_thread
-from allmydata.util.deferredutil import async_to_deferred
 from allmydata.test.common_util import ReallyEqualMixin
 from .no_network import fireNow, LocalWrapper
 
@@ -597,7 +596,6 @@ class RrefUtilTests(unittest.TestCase):
 class CPUThreadPool(unittest.TestCase):
     """Tests for cputhreadpool."""
 
-    @async_to_deferred
     async def test_runs_in_thread(self):
         """The given function runs in a thread."""
         def f(*args, **kwargs):
