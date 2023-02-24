@@ -791,5 +791,4 @@ class PickHTTPServerTests(unittest.SynchronousTestCase):
             ],
             bad_url: [(0.1, RuntimeError()), (0.1, RuntimeError()), (0.1, RuntimeError())]
         })
-        self.flushLoggedErrors(ZeroDivisionError, RuntimeError)
         self.assertEqual(self.successResultOf(d), eventually_good_url)

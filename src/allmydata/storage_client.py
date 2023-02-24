@@ -951,7 +951,10 @@ async def _pick_a_http_server(
             result.callback(nurl)
 
         def failed(failure, failures=[], result=result):
-            log.err(failure, "Failed to connect to NURL")
+            # Logging errors breaks a bunch of tests, and it's not a _bug_ to
+            # have a failed connection, it's often expected and transient. More
+            # of a warning, really?
+            log.msg("Failed to connect to NURL: {}".format(failure))
             failures.append(None)
             if len(failures) == len(nurls):
                 # All our potential NURLs failed...
