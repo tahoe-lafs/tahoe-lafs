@@ -1067,19 +1067,7 @@ class HTTPNativeStorageServer(service.MultiService):
         version = self.get_version()
         return _available_space_from_version(version)
 
-    @async_to_deferred
-    async def start_connecting(self, trigger_cb):
-        # TODO The problem with this scheme is that while picking
-        # the HTTP server to talk to, we don't have connection status
-        # updates... https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3978
-        def request(reactor, nurl: DecodedURL):
-            return StorageClientGeneral(
-                StorageClient.from_nurl(nurl, reactor)
-            ).get_version()
-        nurl = await _pick_a_http_server(reactor, self._nurls, request)
-        self._istorage_server = _HTTPStorageServer.from_http_client(
-            StorageClient.from_nurl(nurl, reactor)
-        )
+    def start_connecting(self, trigger_cb):
         self._lc = LoopingCall(self._connect)
         self._lc.start(1, True)
 
@@ -1113,7 +1101,24 @@ class HTTPNativeStorageServer(service.MultiService):
     def try_to_connect(self):
         self._connect()
 
-    def _connect(self):
+    @async_to_deferred
+    async def _connect(self):
+        if self._istorage_server is None:
+            # We haven't selected a server yet, so let's do so.
+
+            # TODO The problem with this scheme is that while picking
+            # the HTTP server to talk to, we don't have connection status
+            # updates... https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3978
+            def request(reactor, nurl: DecodedURL):
+                return StorageClientGeneral(
+                    StorageClient.from_nurl(nurl, reactor)
+                ).get_version()
+
+            nurl = await _pick_a_http_server(reactor, self._nurls, request)
+            self._istorage_server = _HTTPStorageServer.from_http_client(
+                StorageClient.from_nurl(nurl, reactor)
+            )
+
         result = self._istorage_server.get_version()
 
         def remove_connecting_deferred(result):
@@ -1126,6 +1131,9 @@ class HTTPNativeStorageServer(service.MultiService):
             self._got_version,
             self._failed_to_connect
         )
+
+        # TODO Make sure LoopingCall waits for the above timeout for looping again:
+        #return self._connecting_deferred
 
     def stopService(self):
         if self._connecting_deferred is not None:
