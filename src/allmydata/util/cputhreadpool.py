@@ -18,6 +18,7 @@ import os
 from typing import TypeVar, Callable, cast
 from functools import partial
 import threading
+from typing_extensions import ParamSpec
 
 from twisted.python.threadpool import ThreadPool
 from twisted.internet.defer import Deferred
@@ -30,25 +31,24 @@ if hasattr(threading, "_register_atexit"):
     # This is a private API present in Python 3.8 or later, specifically
     # designed for thread pool shutdown. Since it's private, it might go away
     # at any point, so if it doesn't exist we still have a solution.
-    threading._register_atexit(_CPU_THREAD_POOL.stop)
+    threading._register_atexit(_CPU_THREAD_POOL.stop)  # type: ignore
 else:
     # Daemon threads allow shutdown to happen without any explicit stopping of
     # threads. There are some bugs in old Python versions related to daemon
     # threads (fixed in subsequent CPython patch releases), but Python's own
     # thread pools use daemon threads in those versions so we're no worse off.
-    _CPU_THREAD_POOL.threadFactory = partial(
+    _CPU_THREAD_POOL.threadFactory = partial(  # type: ignore
         _CPU_THREAD_POOL.threadFactory, daemon=True
     )
 _CPU_THREAD_POOL.start()
 
 
-# Eventually type annotations should use PEP 612, but that requires Python
-# 3.10.
+P = ParamSpec("P")
 R = TypeVar("R")
 
 
 def defer_to_thread(
-    reactor: IReactorFromThreads, f: Callable[..., R], *args, **kwargs
+    reactor: IReactorFromThreads, f: Callable[P, R], *args: P.args, **kwargs: P.kwargs
 ) -> Deferred[R]:
     """Run the function in a thread, return the result as a ``Deferred``."""
     # deferToThreadPool has no type annotations...
