@@ -681,6 +681,9 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
     # test code.
     FORCE_FOOLSCAP_FOR_STORAGE : Optional[bool] = None
 
+    # If True, reduce the timeout on connections:
+    REDUCE_HTTP_CLIENT_TIMEOUT : bool = True
+
     def setUp(self):
         self._http_client_pools = []
         http_client.StorageClient.start_test_mode(self._got_new_http_connection_pool)
@@ -707,7 +710,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             d.addTimeout(1, reactor)
             return d
 
-        pool.getConnection = getConnectionWithTimeout
+        if self.REDUCE_HTTP_CLIENT_TIMEOUT:
+            pool.getConnection = getConnectionWithTimeout
 
     def close_idle_http_connections(self):
         """Close all HTTP client connections that are just hanging around."""
