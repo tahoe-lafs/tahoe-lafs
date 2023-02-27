@@ -83,7 +83,6 @@ from allmydata.webish import (
     WebishServer,
 )
 from allmydata.util import base32, yamlutil
-from allmydata.util.deferredutil import async_to_deferred
 from allmydata.storage_client import (
     IFoolscapStorageServer,
     NativeStorageServer,
@@ -741,7 +740,7 @@ storage:
 class PickHTTPServerTests(unittest.SynchronousTestCase):
     """Tests for ``_pick_a_http_server``."""
 
-    def loop_until_result(self, url_to_results: dict[DecodedURL, list[tuple[float, Union[Exception, Any]]]]) -> Deferred[DecodedURL]:
+    def loop_until_result(self, url_to_results: dict[DecodedURL, list[tuple[float, Union[Exception, Any]]]]) -> tuple[int, DecodedURL]:
         """
         Given mapping of URLs to list of (delay, result), return the URL of the
         first selected server.
@@ -759,12 +758,15 @@ class PickHTTPServerTests(unittest.SynchronousTestCase):
             reactor.callLater(delay, add_result_value)
             return result
 
-        d = async_to_deferred(_pick_a_http_server)(
-            clock, list(url_to_results.keys()), request
-        )
-        for i in range(1000):
-            clock.advance(0.1)
-        return d
+        iterations = 0
+        while True:
+            iterations += 1
+            d = _pick_a_http_server(clock, list(url_to_results.keys()), request)
+            for i in range(100):
+                clock.advance(0.1)
+            result = self.successResultOf(d)
+            if result is not None:
+                return iterations, result
 
     def test_first_successful_connect_is_picked(self):
         """
@@ -772,11 +774,12 @@ class PickHTTPServerTests(unittest.SynchronousTestCase):
         """
         earliest_url = DecodedURL.from_text("http://a")
         latest_url = DecodedURL.from_text("http://b")
-        d = self.loop_until_result({
+        iterations, result = self.loop_until_result({
             latest_url: [(2, None)],
             earliest_url: [(1, None)]
         })
-        self.assertEqual(self.successResultOf(d), earliest_url)
+        self.assertEqual(iterations, 1)
+        self.assertEqual(result, earliest_url)
 
     def test_failures_are_retried(self):
         """
@@ -785,10 +788,11 @@ class PickHTTPServerTests(unittest.SynchronousTestCase):
         """
         eventually_good_url = DecodedURL.from_text("http://good")
         bad_url = DecodedURL.from_text("http://bad")
-        d = self.loop_until_result({
+        iterations, result = self.loop_until_result({
             eventually_good_url: [
                 (1, ZeroDivisionError()), (0.1, ZeroDivisionError()), (1, None)
             ],
             bad_url: [(0.1, RuntimeError()), (0.1, RuntimeError()), (0.1, RuntimeError())]
         })
-        self.assertEqual(self.successResultOf(d), eventually_good_url)
+        self.assertEqual(iterations, 3)
+        self.assertEqual(result, eventually_good_url)

@@ -47,7 +47,7 @@ from zope.interface import (
 )
 from twisted.python.failure import Failure
 from twisted.web import http
-from twisted.internet.task import LoopingCall, deferLater
+from twisted.internet.task import LoopingCall
 from twisted.internet import defer, reactor
 from twisted.application import service
 from twisted.plugin import (
@@ -935,42 +935,52 @@ class NativeStorageServer(service.MultiService):
         self._reconnector.reset()
 
 
-async def _pick_a_http_server(
+def _pick_a_http_server(
         reactor,
         nurls: list[DecodedURL],
         request: Callable[[Any, DecodedURL], defer.Deferred[Any]]
-) -> DecodedURL:
-    """Pick the first server we successfully send a request to."""
-    while True:
-        result : defer.Deferred[Optional[DecodedURL]] = defer.Deferred()
+) -> defer.Deferred[Optional[DecodedURL]]:
+    """Pick the first server we successfully send a request to.
 
-        def succeeded(nurl: DecodedURL, result=result):
-            # Only need the first successful NURL:
-            if result.called:
-                return
-            result.callback(nurl)
+    Fires with ``None`` if no server was found, or with the ``DecodedURL`` of
+    the first successfully-connected server.
+    """
 
-        def failed(failure, failures=[], result=result):
-            # Logging errors breaks a bunch of tests, and it's not a _bug_ to
-            # have a failed connection, it's often expected and transient. More
-            # of a warning, really?
-            log.msg("Failed to connect to NURL: {}".format(failure))
-            failures.append(None)
-            if len(failures) == len(nurls):
-                # All our potential NURLs failed...
-                result.callback(None)
+    to_cancel : list[defer.Deferred] = []
 
-        for index, nurl in enumerate(nurls):
-            request(reactor, nurl).addCallback(
-                lambda _, nurl=nurl: nurl).addCallbacks(succeeded, failed)
+    def cancel(result: Optional[defer.Deferred]):
+        for d in to_cancel:
+            if not d.called:
+                d.cancel()
+        if result is not None:
+            result.errback(defer.CancelledError())
 
-        first_nurl = await result
-        if first_nurl is None:
-            # Failed to connect to any of the NURLs, try again in a few
-            # seconds:
-            await deferLater(reactor, 5, lambda: None)
-        else:
-            return first_nurl
+    result : defer.Deferred[Optional[DecodedURL]] = defer.Deferred(canceller=cancel)
+
+    def succeeded(nurl: DecodedURL, result=result):
+        # Only need the first successful NURL:
+        if result.called:
+            return
+        result.callback(nurl)
+        # No point in continuing other requests if we're connected:
+        cancel(None)
+
+    def failed(failure, failures=[], result=result):
+        # Logging errors breaks a bunch of tests, and it's not a _bug_ to
+        # have a failed connection, it's often expected and transient. More
+        # of a warning, really?
+        log.msg("Failed to connect to NURL: {}".format(failure))
+        failures.append(None)
+        if len(failures) == len(nurls):
+            # All our potential NURLs failed...
+            result.callback(None)
+
+    for index, nurl in enumerate(nurls):
+        d = request(reactor, nurl)
+        to_cancel.append(d)
+        d.addCallback(lambda _, nurl=nurl: nurl).addCallbacks(succeeded, failed)
+
+    return result
 
 
 @implementer(IServer)
@@ -1117,8 +1127,22 @@ class HTTPNativeStorageServer(service.MultiService):
                     StorageClient.from_nurl(nurl, reactor)
                 ).get_version()
 
-            nurl = await _pick_a_http_server(reactor, self._nurls, request)
-            self._istorage_server = _HTTPStorageServer.from_http_client(
+            # LoopingCall.stop() doesn't cancel Deferreds, unfortunately:
+            # https://github.com/twisted/twisted/issues/11814 Thus we want
+            # store the Deferred so it gets cancelled.
+            picking = _pick_a_http_server(reactor, self._nurls, request)
+            self._connecting_deferred = picking
+            try:
+                nurl = await picking
+            finally:
+                self._connecting_deferred = None
+
+            if nurl is None:
+                # We failed to find a server to connect to. Perhaps the next
+                # iteration of the loop will succeed.
+                return
+            else:
+                self._istorage_server = _HTTPStorageServer.from_http_client(
                 StorageClient.from_nurl(nurl, reactor)
             )
 
