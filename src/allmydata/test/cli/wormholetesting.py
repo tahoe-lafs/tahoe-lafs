@@ -151,6 +151,7 @@ def _verify() -> None:
     assert a.args == b.args
     assert a.varargs == b.varargs
     assert a.kwonlydefaults == b.kwonlydefaults
+    assert a.defaults == b.defaults
 
 
 _verify()
