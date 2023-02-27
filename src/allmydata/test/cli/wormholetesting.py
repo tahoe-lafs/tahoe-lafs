@@ -38,7 +38,7 @@ from itertools import count
 from sys import stderr
 
 from attrs import frozen, define, field, Factory
-from twisted.internet.defer import Deferred, DeferredQueue, succeed
+from twisted.internet.defer import Deferred, DeferredQueue, succeed, Awaitable
 from wormhole._interfaces import IWormhole
 from wormhole.wormhole import create
 from zope.interface import implementer
@@ -189,7 +189,7 @@ class _WormholeApp(object):
 
         return code
 
-    def wait_for_wormhole(self, code: WormholeCode) -> Deferred[_MemoryWormhole]:
+    def wait_for_wormhole(self, code: WormholeCode) -> Awaitable[_MemoryWormhole]:
         """
         Return a ``Deferred`` which fires with the next wormhole to be associated
         with the given code.  This is used to let the first end of a wormhole
@@ -281,8 +281,8 @@ class _MemoryWormhole(object):
             )
         d = self._view.wormhole_by_code(self._code, exclude=self)
 
-        def got_wormhole(wormhole: _MemoryWormhole) -> Deferred[_MemoryWormhole]:
-            msg: Deferred[_MemoryWormhole] = wormhole._payload.get()
+        def got_wormhole(wormhole: _MemoryWormhole) -> Deferred[WormholeMessage]:
+            msg: Deferred[WormholeMessage] = wormhole._payload.get()
             return msg
 
         d.addCallback(got_wormhole)
