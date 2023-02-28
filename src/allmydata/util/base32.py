@@ -39,7 +39,7 @@ c2vtranstable = maketrans(chars, vals)
 v2ctranstable = maketrans(vals, chars)
 identitytranstable = maketrans(b'', b'')
 
-def _get_trailing_chars_without_lsbs(N :int, d: Dict[Any, Any]) -> List[bytes]:
+def _get_trailing_chars_without_lsbs(N :int, d: Dict[int, None]) -> List[bytes]:
     """
     @return: a list of chars that can legitimately appear in the last place when the least significant N bits are ignored.
     """
@@ -58,7 +58,7 @@ def get_trailing_chars_without_lsbs(N: int) -> bytes:
     precondition((N >= 0) and (N < 5), "N is required to be > 0 and < len(chars).", N=N)
     if N == 0:
         return chars
-    d: Dict[Any, Any] = {}
+    d: Dict[int, None] = {}
     return b''.join(_get_trailing_chars_without_lsbs(N, d=d))
 
 BASE32CHAR = backwardscompat_bytes(b'['+get_trailing_chars_without_lsbs(0)+b']')
