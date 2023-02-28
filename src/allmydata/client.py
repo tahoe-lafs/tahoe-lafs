@@ -76,7 +76,8 @@ def _is_valid_section(section_name):
     """
     return (
         section_name.startswith("storageserver.plugins.") or
-        section_name.startswith("storageclient.plugins.")
+        section_name.startswith("storageclient.plugins.") or
+        section_name in ("grid_managers", "grid_manager_certificates")
     )
 
 
@@ -93,8 +94,6 @@ _client_config = configutil.ValidConfiguration(
             "shares.total",
             "storage.plugins",
         ),
-        "grid_managers": None,  # means "any options valid"
-        "grid_manager_certificates": None,
         "storage": (
             "debug_discard",
             "enabled",
