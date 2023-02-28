@@ -84,7 +84,7 @@ def write_config(tahoe_cfg, config):
     if platform.isWindows():
         try:
             tahoe_cfg.remove()
-        except OSError:
+        except FileNotFoundError:
             pass
     tmp.moveTo(tahoe_cfg)
 
