@@ -25,7 +25,7 @@ else:
     def backwardscompat_bytes(b: bytes) -> bytes:
         return b
     maketrans = bytes.maketrans
-    from typing import Optional, Dict, Any, Tuple, Union
+    from typing import Optional, Dict, Any, Tuple, Union, List
 
 import base64
 
@@ -39,7 +39,7 @@ c2vtranstable = maketrans(chars, vals)
 v2ctranstable = maketrans(vals, chars)
 identitytranstable = maketrans(b'', b'')
 
-def _get_trailing_chars_without_lsbs(N :int, d: Dict[Any, Any]) -> list:
+def _get_trailing_chars_without_lsbs(N :int, d: Dict[Any, Any]) -> List[bytes]:
     """
     @return: a list of chars that can legitimately appear in the last place when the least significant N bits are ignored.
     """
@@ -107,14 +107,14 @@ if PY2:
 # original data had 8K bits for a positive integer K.
 # The boolean value of s8[len(s)%8][ord(s[-1])], where s is the possibly base-32 encoded string
 # tells whether the final character is reasonable.
-def add_check_array(cs: bytes, sfmap: list) -> None:
+def add_check_array(cs: bytes, sfmap: List[Tuple[int, ...]]) -> None:
     checka=[0] * 256
     for c in bytes(cs):
         checka[c] = 1
     sfmap.append(tuple(checka))
 
 def init_s8() -> Tuple[Any, ...]:
-    s8: list = []
+    s8: List[Tuple[int, ...]] = []
     add_check_array(chars, s8)
     for lenmod8 in (1, 2, 3, 4, 5, 6, 7,):
         if NUM_QS_LEGIT[lenmod8]:
