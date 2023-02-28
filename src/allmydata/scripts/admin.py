@@ -12,8 +12,6 @@ if PY2:
 
 from six import ensure_binary
 
-from typing import Union
-
 from twisted.python import usage
 from twisted.python.filepath import (
     FilePath,
