@@ -165,6 +165,8 @@ def parse_or_exit(config, argv, stdout, stderr):
     :return: ``config``, after using it to parse the argument list.
     """
     try:
+        config.stdout = stdout
+        config.stderr = stderr
         parse_options(argv[1:], config=config)
     except usage.error as e:
         # `parse_options` may have the side-effect of initializing a
@@ -199,6 +201,7 @@ def dispatch(config,
     so.stdout = stdout
     so.stderr = stderr
     so.stdin = stdin
+    config.stdin = stdin
 
     if command in create_dispatch:
         f = create_dispatch[command]

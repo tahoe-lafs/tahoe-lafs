@@ -144,6 +144,9 @@ install_requires = [
     # amount of copying involved.
     "pycddl >= 0.4",
 
+    # Command-line parsing
+    "click >= 7.0",
+
     # for pid-file support
     "psutil",
     "filelock",
@@ -428,6 +431,11 @@ setup(name="tahoe-lafs", # also set in __init__.py
                     },
       include_package_data=True,
       setup_requires=setup_requires,
-      entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
+      entry_points={
+          'console_scripts': [
+              'tahoe = allmydata.scripts.runner:run',
+              'grid-manager = allmydata.cli.grid_manager:grid_manager',
+          ]
+      },
       **setup_args
       )

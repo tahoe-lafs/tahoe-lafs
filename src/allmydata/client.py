@@ -3,8 +3,11 @@ Ported to Python 3.
 """
 from __future__ import annotations
 
+import os
+import stat
+import time
+import weakref
 from typing import Optional
-import os, stat, time, weakref
 from base64 import urlsafe_b64encode
 from functools import partial
 # On Python 2 this will be the backported package:
@@ -26,6 +29,7 @@ from twisted.application.internet import TimerService
 from twisted.python.filepath import FilePath
 
 import allmydata
+from allmydata import node
 from allmydata.crypto import rsa, ed25519
 from allmydata.crypto.util import remove_prefix
 from allmydata.storage.server import StorageServer, FoolscapStorageServer
@@ -56,7 +60,6 @@ from allmydata.interfaces import (
 )
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
-from allmydata import node
 
 
 KiB=1024
@@ -73,7 +76,8 @@ def _is_valid_section(section_name):
     """
     return (
         section_name.startswith("storageserver.plugins.") or
-        section_name.startswith("storageclient.plugins.")
+        section_name.startswith("storageclient.plugins.") or
+        section_name in ("grid_managers", "grid_manager_certificates")
     )
 
 
@@ -106,6 +110,7 @@ _client_config = configutil.ValidConfiguration(
             "reserved_space",
             "storage_dir",
             "plugins",
+            "grid_management",
             "force_foolscap",
         ),
         "sftpd": (
@@ -490,6 +495,7 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
             **kwargs
         )
 
+    # create the actual storage-broker
     sb = storage_client.StorageFarmBroker(
         permute_peers=True,
         tub_maker=tub_creator,
@@ -796,16 +802,18 @@ class _Client(node.Node, pollmixin.PollMixin):
             sharetypes.append("mutable")
         expiration_sharetypes = tuple(sharetypes)
 
-        ss = StorageServer(storedir, self.nodeid,
-                           reserved_space=reserved,
-                           discard_storage=discard,
-                           readonly_storage=readonly,
-                           stats_provider=self.stats_provider,
-                           expiration_enabled=expire,
-                           expiration_mode=mode,
-                           expiration_override_lease_duration=o_l_d,
-                           expiration_cutoff_date=cutoff_date,
-                           expiration_sharetypes=expiration_sharetypes)
+        ss = StorageServer(
+            storedir, self.nodeid,
+            reserved_space=reserved,
+            discard_storage=discard,
+            readonly_storage=readonly,
+            stats_provider=self.stats_provider,
+            expiration_enabled=expire,
+            expiration_mode=mode,
+            expiration_override_lease_duration=o_l_d,
+            expiration_cutoff_date=cutoff_date,
+            expiration_sharetypes=expiration_sharetypes,
+        )
         ss.setServiceParent(self)
         return ss
 
@@ -846,6 +854,14 @@ class _Client(node.Node, pollmixin.PollMixin):
             plugins_announcement[u"storage-options"] = storage_options
 
         announcement.update(plugins_announcement)
+
+        if self.config.get_config("storage", "grid_management", default=False, boolean=True):
+            grid_manager_certificates = self.config.get_grid_manager_certificates()
+            announcement[u"grid-manager-certificates"] = grid_manager_certificates
+
+        # Note: certificates are not verified for validity here, but
+        # that may be useful. See:
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3977
 
         for ic in self.introducer_clients:
             ic.publish("storage", announcement, self._node_private_key)

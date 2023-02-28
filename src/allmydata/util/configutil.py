@@ -66,13 +66,15 @@ def write_config(tahoe_cfg, config):
     """
     Write a configuration to a file.
 
-    :param FilePath tahoe_cfg: The path to which to write the config.
+    :param FilePath tahoe_cfg: The path to which to write the
+        config. The directories are created if they do not already exist.
 
     :param ConfigParser config: The configuration to write.
 
     :return: ``None``
     """
     tmp = tahoe_cfg.temporarySibling()
+    tahoe_cfg.parent().makedirs(ignoreExistingDirectory=True)
     # FilePath.open can only open files in binary mode which does not work
     # with ConfigParser.write.
     with open(tmp.path, "wt") as fp:
@@ -80,7 +82,10 @@ def write_config(tahoe_cfg, config):
     # Windows doesn't have atomic overwrite semantics for moveTo.  Thus we end
     # up slightly less than atomic.
     if platform.isWindows():
-        tahoe_cfg.remove()
+        try:
+            tahoe_cfg.remove()
+        except FileNotFoundError:
+            pass
     tmp.moveTo(tahoe_cfg)
 
 def validate_config(fname, cfg, valid_config):
@@ -162,7 +167,7 @@ class ValidConfiguration(object):
 
     def is_valid_item(self, section_name, item_name):
         """
-        :return: True if the given section name, ite name pair is valid, False
+        :return: True if the given section name, item_name pair is valid, False
             otherwise.
         """
         return (

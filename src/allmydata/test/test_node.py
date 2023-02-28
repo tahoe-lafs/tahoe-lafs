@@ -261,6 +261,20 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         with self.assertRaises(MissingConfigEntry):
             config.get_config("node", "log_gatherer.furl")
 
+    def test_missing_config_section(self):
+        """
+        Enumerating a missing section returns empty dict
+        """
+        basedir = self.mktemp()
+        fileutil.make_dirs(basedir)
+        with open(os.path.join(basedir, 'tahoe.cfg'), 'w'):
+            pass
+        config = read_config(basedir, "")
+        self.assertEquals(
+            config.enumerate_section("not-a-section"),
+            {}
+        )
+
     def test_config_required(self):
         """
         Asking for missing (but required) configuration is an error
