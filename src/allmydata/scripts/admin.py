@@ -113,7 +113,7 @@ class AddGridManagerCertOptions(BaseOptions):
     def getSynopsis(self):
         return "Usage: tahoe [global-options] admin add-grid-manager-cert [options]"
 
-    def postOptions(self):
+    def postOptions(self) -> None:
         if self['name'] is None:
             raise usage.UsageError(
                 "Must provide --name option"
