@@ -123,7 +123,7 @@ class AddGridManagerCertOptions(BaseOptions):
                 "Must provide --filename option"
             )
 
-        data : Union [bytes, str]
+        data: str
         if self['filename'] == '-':
             print("reading certificate from stdin", file=self.parent.parent.stderr)
             data = self.parent.parent.stdin.read()
