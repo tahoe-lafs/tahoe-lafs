@@ -9,6 +9,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+from __future__ import annotations
 
 from future.utils import PY2
 if PY2:
@@ -27,7 +28,9 @@ from twisted.python.filepath import (
     FilePath,
 )
 
-from typing import Any, Union
+from typing import Any, Callable, TypeVar, Type
+
+T = TypeVar('T', bound='ValidConfiguration')
 
 class UnknownConfigError(Exception):
     """
@@ -60,7 +63,7 @@ def get_config_from_string(tahoe_cfg_string: str) -> ConfigParser:
     return parser
 
 
-def set_config(config: Any, section: Any, option: Any, value: Any) -> None:
+def set_config(config: ConfigParser, section: str, option: str, value: Any) -> None:
     if not config.has_section(section):
         config.add_section(section)
     config.set(section, option, value)
@@ -87,7 +90,7 @@ def write_config(tahoe_cfg: FilePath, config: ConfigParser) -> None:
         tahoe_cfg.remove()
     tmp.moveTo(tahoe_cfg)
 
-def validate_config(fname: Any, cfg: Any, valid_config: Any) -> None:
+def validate_config(fname: str, cfg: ConfigParser, valid_config: ValidConfiguration) -> None:
     """
     :param ValidConfiguration valid_config: The definition of a valid
         configuration.
@@ -130,11 +133,11 @@ class ValidConfiguration(object):
     _static_valid_sections: dict = attr.ib(
         validator=attr.validators.instance_of(dict)
     )
-    _is_valid_section: Any = attr.ib(default=lambda section_name: False)
-    _is_valid_item: Any = attr.ib(default=lambda section_name, item_name: False)
+    _is_valid_section: Callable[[str], bool]= attr.ib(default=lambda section_name: False)
+    _is_valid_item: Callable[[str, str], bool] = attr.ib(default=lambda section_name, item_name: False)
 
     @classmethod
-    def everything(cls: Any) -> Any:
+    def everything(cls: Type[T]) -> T:
         """
         Create a validator which considers everything valid.
         """
@@ -145,7 +148,7 @@ class ValidConfiguration(object):
         )
 
     @classmethod
-    def nothing(cls: Any) -> Any:
+    def nothing(cls: Type[T]) -> T:
         """
         Create a validator which considers nothing valid.
         """
@@ -155,7 +158,7 @@ class ValidConfiguration(object):
             lambda section_name, item_name: False,
         )
 
-    def is_valid_section(self, section_name: Any) -> Union[Any, bool]:
+    def is_valid_section(self, section_name: str) -> bool:
         """
         :return: True if the given section name is valid, False otherwise.
         """
@@ -164,7 +167,7 @@ class ValidConfiguration(object):
             self._is_valid_section(section_name)
         )
 
-    def is_valid_item(self, section_name: Any, item_name: Any) -> Union[Any, bool]:
+    def is_valid_item(self, section_name: str, item_name: str) -> bool:
         """
         :return: True if the given section name, ite name pair is valid, False
             otherwise.
@@ -175,7 +178,7 @@ class ValidConfiguration(object):
         )
 
 
-    def update(self, valid_config: Any) -> Any:
+    def update(self, valid_config: ValidConfiguration) -> ValidConfiguration:
         static_valid_sections = self._static_valid_sections.copy()
         static_valid_sections.update(valid_config._static_valid_sections)
         return ValidConfiguration(
