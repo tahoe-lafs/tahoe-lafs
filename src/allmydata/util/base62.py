@@ -24,7 +24,7 @@ from past.builtins import chr as byteschr
 
 from allmydata.util.mathutil import log_ceil, log_floor
 
-from typing import Any, Union
+from typing import Any, Union, List
 
 chars = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
@@ -35,7 +35,7 @@ c2vtranstable = maketrans(chars, vals)
 v2ctranstable = maketrans(vals, chars)
 identitytranstable = maketrans(chars, chars)
 
-def b2a(os: bytes) -> Union[Any, bytes]:
+def b2a(os: List[int]) -> Union[Any, bytes]:
     """
     @param os the data to be encoded (as bytes)
 
@@ -45,7 +45,7 @@ def b2a(os: bytes) -> Union[Any, bytes]:
     assert num_octets_that_encode_to_this_many_chars(len(cs)) == len(os), "%s != %s, numchars: %s" % (num_octets_that_encode_to_this_many_chars(len(cs)), len(os), len(cs))
     return cs
 
-def b2a_l(os: Any, lengthinbits: int) -> bytes:
+def b2a_l(os: List[int], lengthinbits: int) -> bytes:
     """
     @param os the data to be encoded (as bytes)
     @param lengthinbits the number of bits of data in os to be encoded
