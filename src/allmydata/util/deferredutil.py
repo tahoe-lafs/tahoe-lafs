@@ -14,6 +14,8 @@ from typing import (
     NoReturn,
     Dict,
     Optional,
+    List,
+    Tuple,
 )
 
 from foolscap.api import eventually
@@ -44,7 +46,7 @@ def timeout_call(reactor: Any, d: Deferred, timeout: Any) -> Deferred:
     def _timed_out() -> None:
         timer_d.errback(Failure(TimeoutError()))
 
-    def _got_result(x: Any) -> None:
+    def _got_result(x: Deferred) -> None:
         try:
             timer.cancel()
             timer_d.callback(x)
@@ -59,7 +61,7 @@ def timeout_call(reactor: Any, d: Deferred, timeout: Any) -> Deferred:
 
 
 # utility wrapper for DeferredList
-def _check_deferred_list(results: Any) -> Union[Any, list]:
+def _check_deferred_list(results: Any) -> Union[Any, List[Any]]:
     # if any of the component Deferreds failed, return the first failure such
     # that an addErrback() would fire. If all were ok, return a list of the
     # results (without the success/failure booleans)
@@ -73,10 +75,10 @@ def DeferredListShouldSucceed(dl: Any) -> DeferredList:
     d.addCallback(_check_deferred_list)
     return d
 
-def _parseDListResult(l: Any) -> list:
+def _parseDListResult(l: DeferredList) -> Deferred:
     return [x[1] for x in l]
 
-def _unwrapFirstError(f: Any) -> NoReturn:
+def _unwrapFirstError(f: Deferred) -> NoReturn:
     f.trap(defer.FirstError)
     raise f.value.subFailure
 
@@ -118,7 +120,7 @@ def eventually_errback(d: Deferred) -> Any:
         return res
     return _errback
 
-def eventual_chain(source: Any, target: Any) -> None:
+def eventual_chain(source: Deferred, target: Any) -> None:
     source.addCallbacks(eventually_callback(target), eventually_errback(target))
 
 
@@ -133,7 +135,7 @@ class HookMixin(object):
     I assume a '_hooks' attribute that should set by the class constructor to
     a dict mapping each valid hook name to None.
     """
-    def set_hook(self: Any, name: Any, d: Deferred=None, ignore_count: int=0) -> Deferred:
+    def set_hook(self: Any, name: str, d: Deferred=None, ignore_count: int=0) -> Deferred:
         """
         Called by the hook observer (e.g. by a test).
         If d is not given, an unfired Deferred is created and returned.
@@ -150,7 +152,7 @@ class HookMixin(object):
         self._hooks[name] = (d, ignore_count)
         return d
 
-    def _call_hook(self: Any, res: Any, name: Any, **kwargs: Dict[str, Any]) -> Any:
+    def _call_hook(self: Any, res: Any, name: str, **kwargs: Dict[str, Any]) -> Any:
         """
         Called to trigger the hook, with argument 'res'. This is a no-op if
         the hook is unset. If the hook's ignore_count is positive, it will be
@@ -236,7 +238,7 @@ def async_to_deferred(f: Any) -> Deferred:
     """
 
     @wraps(f)
-    def not_async(*args: tuple, **kwargs: Dict[str, Any]) -> Deferred:
+    def not_async(*args: Tuple[Any, Any], **kwargs: Dict[str, Any]) -> Deferred:
         return defer.Deferred.fromCoroutine(f(*args, **kwargs))
 
     return not_async
