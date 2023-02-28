@@ -224,7 +224,8 @@ Enrolling a Client: Config
 --------------------------
 
 You may instruct a Tahoe client to use only storage servers from given
-Grid Managers. If there are no such keys, any servers are used. If
+Grid Managers. If there are no such keys, any servers are used
+(but see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3979).  If
 there are one or more keys, the client will only upload to a storage
 server that has a valid certificate (from any of the keys).
 
