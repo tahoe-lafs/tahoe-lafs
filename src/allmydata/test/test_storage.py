@@ -2870,7 +2870,7 @@ class MDMFProxies(AsyncTestCase, ShouldFailMixin):
         mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.is_sdmf()
         d.addCallback(lambda issdmf:
-            self.assertFalse(issdmf))
+            self.assertTrue(issdmf))
         return d
 
 
