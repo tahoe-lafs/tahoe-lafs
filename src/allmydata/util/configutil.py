@@ -167,7 +167,7 @@ class ValidConfiguration(object):
 
     def is_valid_item(self, section_name, item_name):
         """
-        :return: True if the given section name, ite name pair is valid, False
+        :return: True if the given section name, item_name pair is valid, False
             otherwise.
         """
         valid_items = self._static_valid_sections.get(section_name, ())
