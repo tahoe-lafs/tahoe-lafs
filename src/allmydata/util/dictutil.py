@@ -29,7 +29,7 @@ class AuxValueDict(dict):
     values: the main value, and an auxilliary one. Setting the main value
     (with the usual d[key]=value) clears the auxvalue. You can set both main
     and auxvalue at the same time, and can retrieve the values separately.
-s
+
     The main use case is a dictionary that represents unpacked child values
     for a directory node, where a common pattern is to modify one or more
     children and then pass the dict back to a packing function. The original
