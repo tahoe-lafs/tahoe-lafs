@@ -9,6 +9,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from future.utils import PY2
+
+
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_str
@@ -17,6 +19,7 @@ from pyutil import nummedobj
 
 from foolscap.logging import log
 from twisted.python import log as tw_log
+from twisted.python.failure import Failure
 
 from typing import Any, Optional, Dict, Union
 if PY2:
@@ -47,7 +50,7 @@ def msg(*args: Any, **kwargs: Any) -> Union[int, Any]:
 # thing happens that is nevertheless handled, use log.msg(failure=f,
 # level=WEIRD) instead.
 
-def err(failure: Optional[Any]=None, _why: Optional[Any]=None, **kwargs: Any) -> Union[int, Any]:
+def err(failure: Optional[Union[BaseException, Failure]]=None, _why: Optional[Any]=None, **kwargs: Union[bytes, str, int]) -> Union[int, Any]:
     tw_log.err(failure, _why, **kwargs)
     if 'level' not in kwargs:
         kwargs['level'] = log.UNUSUAL
