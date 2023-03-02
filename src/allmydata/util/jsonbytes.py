@@ -10,11 +10,13 @@ from __future__ import division
 from __future__ import print_function
 
 from future.utils import PY2, PY3
+
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import json
 import codecs
+from typing import Any, Iterator, Optional, Union, AnyStr
 
 if PY2:
     def backslashreplace_py2(ex):
@@ -28,7 +30,7 @@ if PY2:
     codecs.register_error("backslashreplace_tahoe_py2", backslashreplace_py2)
 
 
-def bytes_to_unicode(any_bytes, obj):
+def bytes_to_unicode(any_bytes: bool, obj: object) -> object:
     """Convert bytes to unicode.
 
     :param any_bytes: If True, also support non-UTF-8-encoded bytes.
@@ -38,7 +40,7 @@ def bytes_to_unicode(any_bytes, obj):
     if PY2 and errors == "backslashreplace":
         errors = "backslashreplace_tahoe_py2"
 
-    def doit(obj):
+    def doit(obj: object) -> object:
         """Convert any bytes objects to unicode, recursively."""
         if isinstance(obj, bytes):
             return obj.decode("utf-8", errors=errors)
@@ -61,15 +63,15 @@ class UTF8BytesJSONEncoder(json.JSONEncoder):
     """
     A JSON encoder than can also encode UTF-8 encoded strings.
     """
-    def encode(self, o, **kwargs):
+    def encode(self, o: object, **kwargs: Any) -> str:
         return json.JSONEncoder.encode(
             self, bytes_to_unicode(False, o), **kwargs)
 
-    def iterencode(self, o, **kwargs):
+    def iterencode(self, o: object, _one_shot: bool=False) -> Iterator[str]:
         return json.JSONEncoder.iterencode(
-            self, bytes_to_unicode(False, o), **kwargs)
-
-
+            self, bytes_to_unicode(False, o), _one_shot)
+    
+    
 class AnyBytesJSONEncoder(json.JSONEncoder):
     """
     A JSON encoder than can also encode bytes of any sort.
@@ -77,16 +79,16 @@ class AnyBytesJSONEncoder(json.JSONEncoder):
     Bytes are decoded to strings using UTF-8, if that fails to decode then the
     bytes are quoted.
     """
-    def encode(self, o, **kwargs):
+    def encode(self, o: object, **kwargs: Any) -> str:
         return json.JSONEncoder.encode(
             self, bytes_to_unicode(True, o), **kwargs)
 
-    def iterencode(self, o, **kwargs):
+    def iterencode(self, o: object, _one_shot: bool=False) -> Iterator[str]:
         return json.JSONEncoder.iterencode(
-            self, bytes_to_unicode(True, o), **kwargs)
+            self, bytes_to_unicode(True, o), _one_shot)
 
 
-def dumps(obj, *args, **kwargs):
+def dumps(obj: object, *args: Any, **kwargs: Any) -> Any:
     """Encode to JSON, supporting bytes as keys or values.
 
     :param bool any_bytes: If False (the default) the bytes are assumed to be
@@ -95,13 +97,13 @@ def dumps(obj, *args, **kwargs):
     """
     any_bytes = kwargs.pop("any_bytes", False)
     if any_bytes:
-        cls = AnyBytesJSONEncoder
+        cls = AnyBytesJSONEncoder   # type: ignore
     else:
-        cls = UTF8BytesJSONEncoder
+        cls = UTF8BytesJSONEncoder  # type: ignore
     return json.dumps(obj, cls=cls, *args, **kwargs)
 
 
-def dumps_bytes(obj, *args, **kwargs):
+def dumps_bytes(obj: object, *args: Any, **kwargs: Any) -> Any: 
     """Encode to JSON, then encode as bytes.
 
     :param bool any_bytes: If False (the default) the bytes are assumed to be
