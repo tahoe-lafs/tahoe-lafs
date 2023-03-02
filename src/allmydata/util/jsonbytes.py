@@ -88,14 +88,14 @@ class AnyBytesJSONEncoder(json.JSONEncoder):
             self, bytes_to_unicode(True, o), _one_shot)
 
 
-def dumps(obj: object, *args: Any, **kwargs: Any) -> Any:
+def dumps(obj: object, *args: Any, **kwargs: Any) -> str:
     """Encode to JSON, supporting bytes as keys or values.
 
     :param bool any_bytes: If False (the default) the bytes are assumed to be
         UTF-8 encoded Unicode strings.  If True, non-UTF-8 bytes are quoted for
         human consumption.
     """
-    any_bytes = kwargs.pop("any_bytes", False)
+    any_bytes: bool = kwargs.pop("any_bytes", False)
     if any_bytes:
         cls = AnyBytesJSONEncoder   # type: ignore
     else:
@@ -103,17 +103,17 @@ def dumps(obj: object, *args: Any, **kwargs: Any) -> Any:
     return json.dumps(obj, cls=cls, *args, **kwargs)
 
 
-def dumps_bytes(obj: object, *args: Any, **kwargs: Any) -> Any: 
+def dumps_bytes(obj: object, *args: Any, **kwargs: Any) -> bytes: 
     """Encode to JSON, then encode as bytes.
 
     :param bool any_bytes: If False (the default) the bytes are assumed to be
         UTF-8 encoded Unicode strings.  If True, non-UTF-8 bytes are quoted for
         human consumption.
     """
-    result = dumps(obj, *args, **kwargs)
+    result: str = dumps(obj, *args, **kwargs)
     if PY3:
-        result = result.encode("utf-8")
-    return result
+        resultbytes = result.encode("utf-8")
+    return resultbytes
 
 
 # To make this module drop-in compatible with json module:
