@@ -38,6 +38,7 @@ from functools import wraps
 from logging import (
     INFO,
     Handler,
+    LogRecord,
     getLogger,
 )
 from json import loads
@@ -81,37 +82,41 @@ from twisted.logger import (
     ILogObserver,
     eventAsJSON,
     globalLogPublisher,
+    LogEvent,
+    Logger,
 )
 from twisted.internet.defer import (
     maybeDeferred,
+    Deferred
 )
-from twisted.application.service import Service
+from twisted.application.service import Service, IService
 
 from ._eliot_updates import (
     MemoryLogger,
     eliot_json_encoder,
     capture_logging,
 )
+from typing import Any, List, Optional, Dict, Tuple
 
-def validateInstanceOf(t):
+def validateInstanceOf(t: Any) -> Any:
     """
     Return an Eliot validator that requires values to be instances of ``t``.
     """
-    def validator(v):
+    def validator(v: Any) -> None:
         if not isinstance(v, t):
             raise ValidationError("{} not an instance of {}".format(v, t))
     return validator
 
-def validateSetMembership(s):
+def validateSetMembership(s: Any) -> Any:
     """
     Return an Eliot validator that requires values to be elements of ``s``.
     """
-    def validator(v):
+    def validator(v: Any) -> None:
         if v not in s:
             raise ValidationError("{} not in {}".format(v, s))
     return validator
 
-def eliot_logging_service(reactor, destinations):
+def eliot_logging_service(reactor: Any, destinations: Any) -> IService:
     """
     Parse the given Eliot destination descriptions and return an ``IService``
     which will add them when started and remove them when stopped.
@@ -128,7 +133,7 @@ def eliot_logging_service(reactor, destinations):
 
 # An Options-based argument parser for configuring Eliot logging.  Set this as
 # a same-named attribute on your Options subclass.
-def opt_eliot_destination(self, description):
+def opt_eliot_destination(self: Any, description: Any) -> None:
     """
     Add an Eliot logging destination.  May be given more than once.
     """
@@ -140,7 +145,7 @@ def opt_eliot_destination(self, description):
         self.setdefault("destinations", []).append(destination)
 
 
-def opt_help_eliot_destinations(self):
+def opt_help_eliot_destinations(self: Any) -> None:
     """
     Emit usage information for --eliot-destination.
     """
@@ -161,7 +166,7 @@ class _EliotLogging(Service):
     """
     A service which adds stdout as an Eliot destination while it is running.
     """
-    def __init__(self, destinations):
+    def __init__(self, destinations: List[Any]):
         """
         :param list destinations: The Eliot destinations which will is added by this
             service.
@@ -169,7 +174,7 @@ class _EliotLogging(Service):
         self.destinations = destinations
 
 
-    def startService(self):
+    def startService(self) -> None:
         self.stdlib_cleanup = _stdlib_logging_to_eliot_configuration(getLogger())
         self.twisted_observer = _TwistedLoggerToEliotObserver()
         globalLogPublisher.addObserver(self.twisted_observer)
@@ -177,7 +182,7 @@ class _EliotLogging(Service):
         return Service.startService(self)
 
 
-    def stopService(self):
+    def stopService(self) -> None:
         for dest in self.destinations:
             remove_destination(dest)
         globalLogPublisher.removeObserver(self.twisted_observer)
@@ -191,9 +196,9 @@ class _TwistedLoggerToEliotObserver(object):
     """
     An ``ILogObserver`` which re-publishes events as Eliot messages.
     """
-    logger = attr.ib(default=None, validator=optional(provides(ILogger)))
+    logger: Logger = attr.ib(default=None, validator=optional(provides(ILogger)))
 
-    def _observe(self, event):
+    def _observe(self, event: LogEvent) -> None:
         flattened = loads(eventAsJSON(event))
         # We get a timestamp from Eliot.
         flattened.pop(u"log_time")
@@ -212,11 +217,11 @@ class _TwistedLoggerToEliotObserver(object):
 
 
 class _StdlibLoggingToEliotHandler(Handler):
-    def __init__(self, logger=None):
+    def __init__(self, logger: Optional[Logger]=None) -> None:
         Handler.__init__(self)
         self.logger = logger
 
-    def emit(self, record):
+    def emit(self, record: LogRecord) -> None:
         Message.new(
             message_type=u"eliot:stdlib",
             log_level=record.levelname,
@@ -231,7 +236,7 @@ class _StdlibLoggingToEliotHandler(Handler):
             )
 
 
-def _stdlib_logging_to_eliot_configuration(stdlib_logger, eliot_logger=None):
+def _stdlib_logging_to_eliot_configuration(stdlib_logger: Logger, eliot_logger: Optional[Logger]=None) -> Any:
     """
     Add a handler to ``stdlib_logger`` which will relay events to
     ``eliot_logger`` (or the default Eliot logger if ``eliot_logger`` is
@@ -245,7 +250,7 @@ def _stdlib_logging_to_eliot_configuration(stdlib_logger, eliot_logger=None):
 
 
 class _DestinationParser(object):
-    def parse(self, description):
+    def parse(self, description: str) -> Any:
         description = ensure_text(description)
 
         try:
@@ -264,7 +269,7 @@ class _DestinationParser(object):
         else:
             return parser(kind, args)
 
-    def _get_arg(self, arg_name, default, arg_list):
+    def _get_arg(self, arg_name: Any, default: Any, arg_list: Any) -> Any:
         return dict(
             arg.split(u"=", 1)
             for arg
@@ -274,7 +279,7 @@ class _DestinationParser(object):
             default,
         )
 
-    def _parse_file(self, kind, arg_text):
+    def _parse_file(self, kind: Any, arg_text: str) -> FileDestination:
         # Reserve the possibility of an escape character in the future.  \ is
         # the standard choice but it's the path separator on Windows which
         # pretty much ruins it in this context.  Most other symbols already
@@ -301,7 +306,7 @@ class _DestinationParser(object):
                 10,
                 arg_list,
             ))
-            def get_file():
+            def get_file() -> LogFile:
                 path.parent().makedirs(ignoreExistingDirectory=True)
                 return LogFile(
                     path.basename(),
@@ -314,13 +319,13 @@ class _DestinationParser(object):
 
 _parse_destination_description = _DestinationParser().parse
 
-def log_call_deferred(action_type):
+def log_call_deferred(action_type: Any) -> Deferred:
     """
     Like ``eliot.log_call`` but for functions which return ``Deferred``.
     """
-    def decorate_log_call_deferred(f):
+    def decorate_log_call_deferred(f: Any) -> Deferred:
         @wraps(f)
-        def logged_f(*a, **kw):
+        def logged_f(*a: Tuple[Any, Any], **kw: Dict[str, Any]) -> Deferred:
             # Use the action's context method to avoid ending the action when
             # the `with` block ends.
             with start_action(action_type=action_type).context():
