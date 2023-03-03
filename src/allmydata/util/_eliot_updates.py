@@ -41,7 +41,7 @@ from eliot.testing import (
 
 from .jsonbytes import AnyBytesJSONEncoder
 
-from typing import Any, Tuple, Dict, Type, Union, Mapping
+from typing import Any, Tuple, Dict, Type
 
 
 # There are currently a number of log messages that include non-UTF-8 bytes.
