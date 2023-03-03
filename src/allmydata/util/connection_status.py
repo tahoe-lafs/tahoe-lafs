@@ -16,11 +16,16 @@ if PY2:
 import time
 from zope.interface import implementer
 from ..interfaces import IConnectionStatus
+from typing import Dict, Any, List, Optional, Union, TypeVar, Type
+from foolscap.reconnector import Reconnector
+from foolscap.info import ConnectionInfo
+
+T = TypeVar('T', bound='ConnectionStatus')
 
 @implementer(IConnectionStatus)
 class ConnectionStatus(object):
-    def __init__(self, connected, summary, non_connected_statuses,
-                 last_connection_time, last_received_time):
+    def __init__(self, connected: bool, summary: Optional[str], non_connected_statuses: Dict[str, List[Any]],
+                 last_connection_time: Optional[Union[int, float]], last_received_time: Optional[Union[int, float]]) -> None:
         self.connected = connected
         self.summary = summary
         self.non_connected_statuses = non_connected_statuses
@@ -28,7 +33,7 @@ class ConnectionStatus(object):
         self.last_received_time = last_received_time
 
     @classmethod
-    def unstarted(cls):
+    def unstarted(cls: Type[T]) -> T:
         """
         Create a ``ConnectionStatus`` representing a connection for which no
         attempts have yet been made.
@@ -36,12 +41,12 @@ class ConnectionStatus(object):
         return cls(
             connected=False,
             summary=u"unstarted",
-            non_connected_statuses=[],
+            non_connected_statuses={},
             last_connection_time=None,
             last_received_time=None,
         )
 
-def _hint_statuses(which, handlers, statuses):
+def _hint_statuses(which: Any, handlers: Any, statuses: List[Any]) -> Dict[str, List[Any]]:
     non_connected_statuses = {}
     for hint in which:
         handler = handlers.get(hint)
@@ -50,7 +55,7 @@ def _hint_statuses(which, handlers, statuses):
         non_connected_statuses["%s%s" % (hint, handler_dsc)] = dsc
     return non_connected_statuses
 
-def from_foolscap_reconnector(rc, last_received):
+def from_foolscap_reconnector(rc: Reconnector, last_received: Any) -> "ConnectionStatus":
     ri = rc.getReconnectionInfo()
     # See foolscap/reconnector.py, ReconnectionInfo, for details about possible
     # states. The returned result is a native string, it seems, so convert to
@@ -61,7 +66,7 @@ def from_foolscap_reconnector(rc, last_received):
     if state == "unstarted":
         return ConnectionStatus.unstarted()
 
-    ci = ri.connectionInfo
+    ci: ConnectionInfo = ri.connectionInfo
     connected = False
     last_connected = None
     others = set(ci.connectorStatuses.keys())
