@@ -31,7 +31,10 @@ from twisted.internet.endpoints import AdoptedStreamServerEndpoint
 from twisted.internet.interfaces import (
     IReactorSocket,
     IStreamServerEndpoint,
+    IProtocolFactory,
+    IListeningPort,
 )
+from twisted.internet.defer import Deferred
 
 from .gcutil import (
     fileDescriptorResource,
@@ -40,8 +43,9 @@ from .gcutil import (
 fcntl = requireModule("fcntl")
 
 from foolscap.util import allocate_tcp_port # re-exported
+from foolscap.pb import Tub
 
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Optional
 
 try:
     import resource
@@ -192,7 +196,7 @@ class CleanupEndpoint(object):
     _fd: int = attr.ib()
     _listened: bool = attr.ib(default=False)
 
-    def listen(self, protocolFactory: Any) -> Any:
+    def listen(self, protocolFactory: IProtocolFactory) -> Deferred[IListeningPort]:
         self._listened = True
         return self._wrapped.listen(protocolFactory)
 
@@ -205,7 +209,7 @@ class CleanupEndpoint(object):
             fileDescriptorResource.release()
 
 
-def listenOnUnused(tub, portnum=None): #type: ignore
+def listenOnUnused(tub: Tub, portnum: Optional[int]=None) -> Optional[int]:
     """
     Start listening on an unused TCP port number with the given tub.
 
@@ -216,9 +220,9 @@ def listenOnUnused(tub, portnum=None): #type: ignore
     :return: An integer indicating the TCP port number on which the tub is now
         listening.
     """
-    portnum, endpoint = _foolscapEndpointForPortNumber(portnum)
+    portnum, endpoint = _foolscapEndpointForPortNumber(portnum) #type: ignore
     tub.listenOn(endpoint)
-    tub.setLocation(native_str("localhost:%d" % (portnum,)))
+    tub.setLocation(native_str("localhost:%d" % (portnum,)))  #type: ignore
     return portnum
 
 
