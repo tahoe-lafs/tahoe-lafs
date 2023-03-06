@@ -16,10 +16,12 @@ from zope.interface import (
     implementer,
 )
 
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, Deferred, DeferredList
 from twisted.internet.endpoints import clientFromString, TCP4ServerEndpoint
 from twisted.internet.error import ConnectionRefusedError, ConnectError
+from twisted.internet.interfaces import IStreamClientEndpoint
 from twisted.application import service
+from twisted.python.failure import Failure
 
 from .observer import OneShotObserverList
 from .iputil import allocate_tcp_port
@@ -27,21 +29,27 @@ from ..interfaces import (
     IAddressFamily,
 )
 
-def _import_tor():
+from types import ModuleType
+from typing import Optional, Any, Type, TextIO, Callable, Generator, Dict
+import txtorcon
+from txtorcon.interface import ITorControlProtocol
+from txtorcon import EphemeralHiddenService, TorConfig
+
+def _import_tor() -> Optional[ModuleType]:
     try:
         from foolscap.connections import tor
         return tor
     except ImportError: # pragma: no cover
         return None
 
-def _import_txtorcon():
+def _import_txtorcon() -> Optional[ModuleType]:
     try:
         import txtorcon
         return txtorcon
     except ImportError: # pragma: no cover
         return None
 
-def create(reactor, config, import_tor=None, import_txtorcon=None):
+def create(reactor: service.IService, config: Any, import_tor: Optional[Callable[[], Optional[ModuleType]]]=None, import_txtorcon: Optional[Callable[[], Optional[ModuleType]]]=None) -> Type['_Provider']:
     """
     Create a new _Provider service (this is an IService so must be
     hooked up to a parent or otherwise started).
@@ -55,12 +63,12 @@ def create(reactor, config, import_tor=None, import_txtorcon=None):
         import_tor = _import_tor
     if import_txtorcon is None:
         import_txtorcon = _import_txtorcon
-    provider = _Provider(config, reactor, import_tor(), import_txtorcon())
+    provider: txtorcon = _Provider(config, reactor, import_tor(), import_txtorcon())
     provider.check_onion_config()
     return provider
 
 
-def data_directory(private_dir):
+def data_directory(private_dir: Any) -> str:
     return os.path.join(private_dir, "tor-statedir")
 
 # different ways we might approach this:
@@ -69,11 +77,11 @@ def data_directory(private_dir):
 # txtorcon.EphemeralHiddenService(ports), yield ehs.add_to_tor(tcp), store
 # ehs.hostname and ehs.private_key, yield ehs.remove_from_tor(tcp)
 
-def _try_to_connect(reactor, endpoint_desc, stdout, txtorcon):
+def _try_to_connect(reactor: ITorControlProtocol, endpoint_desc: str, stdout: TextIO, txtorcon: txtorcon) -> Optional[Deferred]:
     # yields a TorState, or None
     ep = clientFromString(reactor, endpoint_desc)
-    d = txtorcon.build_tor_connection(ep)
-    def _failed(f):
+    d: Deferred = txtorcon.build_tor_connection(ep)
+    def _failed(f: Failure) -> Deferred:
         # depending upon what's listening at that endpoint, we might get
         # various errors. If this list is too short, we might expose an
         # exception to the user (causing "tahoe create-node" to fail messily)
@@ -97,14 +105,14 @@ def _try_to_connect(reactor, endpoint_desc, stdout, txtorcon):
     return d
 
 @inlineCallbacks
-def _launch_tor(reactor, tor_executable, private_dir, txtorcon):
+def _launch_tor(reactor: ITorControlProtocol, tor_executable: str, private_dir: str, txtorcon: txtorcon) -> Generator[Deferred[inlineCallbacks], Any, None]:
     # TODO: handle default tor-executable
     # TODO: it might be a good idea to find exactly which Tor we used,
     # and record it's absolute path into tahoe.cfg . This would protect
     # us against one Tor being on $PATH at create-node time, but then a
     # different Tor being present at node startup. OTOH, maybe we don't
     # need to worry about it.
-    tor_config = txtorcon.TorConfig()
+    tor_config: TorConfig = txtorcon.TorConfig()
     tor_config.DataDirectory = data_directory(private_dir)
 
     # unix-domain control socket
@@ -123,7 +131,7 @@ def _launch_tor(reactor, tor_executable, private_dir, txtorcon):
 
     # now tor is launched and ready to be spoken to
     # as a side effect, we've got an ITorControlProtocol ready to go
-    tor_control_proto = tpp.tor_protocol
+    tor_control_proto: TorConfig = tpp.tor_protocol
 
     # How/when to shut down the new process? for normal usage, the child
     # tor will exit when it notices its parent (us) quit. Unit tests will
@@ -137,7 +145,7 @@ def _launch_tor(reactor, tor_executable, private_dir, txtorcon):
     returnValue((tor_control_endpoint_desc, tor_control_proto))
 
 @inlineCallbacks
-def _connect_to_tor(reactor, cli_config, txtorcon):
+def _connect_to_tor(reactor: ITorControlProtocol, cli_config: Any, txtorcon: Optional[ModuleType]) -> Generator[Deferred, Any, None]:
     # we assume tor is already running
     ports_to_try = ["unix:/var/run/tor/control",
                     "tcp:127.0.0.1:9051",
@@ -155,12 +163,12 @@ def _connect_to_tor(reactor, cli_config, txtorcon):
         raise ValueError("unable to reach any default Tor control port")
 
 @inlineCallbacks
-def create_config(reactor, cli_config):
-    txtorcon = _import_txtorcon()
-    if not txtorcon:
+def create_config(reactor: ITorControlProtocol, cli_config: Any) -> Generator[Deferred, Any, None]:
+    txtorcon_: txtorcon = _import_txtorcon()
+    if not txtorcon_:
         raise ValueError("Cannot create onion without txtorcon. "
                          "Please 'pip install tahoe-lafs[tor]' to fix this.")
-    tahoe_config_tor = {} # written into tahoe.cfg:[tor]
+    tahoe_config_tor: Dict[str, Any] = {} # written into tahoe.cfg:[tor]
     private_dir = os.path.abspath(os.path.join(cli_config["basedir"], "private"))
     stdout = cli_config.stdout
     if cli_config["tor-launch"]:
@@ -170,19 +178,19 @@ def create_config(reactor, cli_config):
             tahoe_config_tor["tor.executable"] = tor_executable
         print("launching Tor (to allocate .onion address)..", file=stdout)
         (_, tor_control_proto) = yield _launch_tor(
-            reactor, tor_executable, private_dir, txtorcon)
+            reactor, tor_executable, private_dir, txtorcon_)
         print("Tor launched", file=stdout)
     else:
         print("connecting to Tor (to allocate .onion address)..", file=stdout)
         (port, tor_control_proto) = yield _connect_to_tor(
-            reactor, cli_config, txtorcon)
+            reactor, cli_config, txtorcon_)
         print("Tor connection established", file=stdout)
         tahoe_config_tor["control.port"] = port
 
     external_port = 3457 # TODO: pick this randomly? there's no contention.
 
     local_port = allocate_tcp_port()
-    ehs = txtorcon.EphemeralHiddenService(
+    ehs = txtorcon_.EphemeralHiddenService(
         "%d 127.0.0.1:%d" % (external_port, local_port)
     )
     print("allocating .onion address (takes ~40s)..", file=stdout)
@@ -232,25 +240,25 @@ def create_config(reactor, cli_config):
 
 @implementer(IAddressFamily)
 class _Provider(service.MultiService):
-    def __init__(self, config, reactor, tor, txtorcon):
+    def __init__(self, config: Any, reactor: Any, tor: Any, txtorcon: txtorcon) -> None:
         service.MultiService.__init__(self)
-        self._config = config
-        self._tor_launched = None
-        self._onion_ehs = None
+        self._config: Any = config
+        self._tor_launched: Optional[OneShotObserverList] = None
+        self._onion_ehs: Optional[EphemeralHiddenService] = None
         self._onion_tor_control_proto = None
         self._tor = tor
         self._txtorcon = txtorcon
         self._reactor = reactor
 
-    def _get_tor_config(self, *args, **kwargs):
+    def _get_tor_config(self, *args: Any, **kwargs: Any) -> Any:
         return self._config.get_config("tor", *args, **kwargs)
 
-    def get_listener(self):
+    def get_listener(self) -> TCP4ServerEndpoint:
         local_port = int(self._get_tor_config("onion.local_port"))
         ep = TCP4ServerEndpoint(self._reactor, local_port, interface="127.0.0.1")
         return ep
 
-    def get_client_endpoint(self):
+    def get_client_endpoint(self) -> IStreamClientEndpoint:
         """
         Get an ``IStreamClientEndpoint`` which will set up a connection using Tor.
 
@@ -285,7 +293,7 @@ class _Provider(service.MultiService):
     get_tor_handler = get_client_endpoint
 
     @inlineCallbacks
-    def _make_control_endpoint(self, reactor, update_status):
+    def _make_control_endpoint(self, reactor: ITorControlProtocol, update_status: Any) -> Deferred:
         # this will only be called when tahoe.cfg has "[tor] launch = true"
         update_status("launching Tor")
         with self._tor.add_context(update_status, "launching Tor"):
@@ -293,7 +301,7 @@ class _Provider(service.MultiService):
         tor_control_endpoint = clientFromString(reactor, endpoint_desc)
         returnValue(tor_control_endpoint)
 
-    def _get_launched_tor(self, reactor):
+    def _get_launched_tor(self, reactor: ITorControlProtocol) -> Type['_Provider']:
         # this fires with a tuple of (control_endpoint, tor_protocol)
         if not self._tor_launched:
             self._tor_launched = OneShotObserverList()
@@ -303,7 +311,7 @@ class _Provider(service.MultiService):
             d.addBoth(self._tor_launched.fire)
         return self._tor_launched.when_fired()
 
-    def check_onion_config(self):
+    def check_onion_config(self) -> None:
         if self._get_tor_config("onion", False, boolean=True):
             if not self._txtorcon:
                 raise ValueError("Cannot create onion without txtorcon. "
@@ -317,7 +325,7 @@ class _Provider(service.MultiService):
                 raise ValueError("[tor] onion = true, but we have neither "
                                  "launch=true nor control.port=")
             # check that all the expected onion-specific keys are present
-            def require(name):
+            def require(name: str) -> None:
                 if not self._get_tor_config("onion.%s" % name, None):
                     raise ValueError("[tor] onion = true,"
                                      " but onion.%s= is missing" % name)
@@ -326,7 +334,7 @@ class _Provider(service.MultiService):
             require("private_key_file")
 
     @inlineCallbacks
-    def _start_onion(self, reactor):
+    def _start_onion(self, reactor: ITorControlProtocol) -> Generator[Deferred, Any, None]:
         # launch tor, if necessary
         if self._get_tor_config("launch", False, boolean=True):
             (_, tor_control_proto) = yield self._get_launched_tor(reactor)
@@ -350,14 +358,15 @@ class _Provider(service.MultiService):
         self._onion_tor_control_proto = tor_control_proto
 
 
-    def startService(self):
+    def startService(self) -> Optional[Deferred[inlineCallbacks]]:
         service.MultiService.startService(self)
         # if we need to start an onion service, now is the time
         if self._get_tor_config("onion", False, boolean=True):
             return self._start_onion(self._reactor) # so tests can synchronize
+        return None
 
     @inlineCallbacks
-    def stopService(self):
+    def stopService(self) -> Generator[Generator[Deferred[inlineCallbacks], Any, Any ]| DeferredList, None, None ]:
         if self._onion_ehs and self._onion_tor_control_proto:
             yield self._onion_ehs.remove_from_tor(self._onion_tor_control_proto)
         # TODO: can we also stop tor?
