@@ -17,7 +17,7 @@ if PY2:
 from copy import deepcopy
 from allmydata.immutable.happiness_upload import residual_network
 from allmydata.immutable.happiness_upload import augmenting_path_for
-from allmydata.immutable.upload import ServerTracker
+from allmydata.immutable import upload
 
 from typing import Dict, Set, Optional, List, Any, Tuple
 
@@ -70,7 +70,7 @@ def shares_by_server(servermap: Dict[str, set[str]]) -> Dict[str, set[str]]:
             ret.setdefault(peerid, set()).add(shareid)
     return ret
 
-def merge_servers(servermap:  Dict[int, Set[str]], upload_trackers: Optional[Set['ServerTracker']]=None) -> Dict[int, Set[str]]:
+def merge_servers(servermap:  Dict[int, Set[str]], upload_trackers: Optional[Set['upload.ServerTracker']]=None) -> Dict[int, Set[str]]:
     """
     I accept a dict of shareid -> set(serverid) mappings, and optionally a
     set of ServerTrackers. If no set of ServerTrackers is provided, I return
