@@ -30,7 +30,7 @@ from ..interfaces import (
 )
 
 from types import ModuleType
-from typing import Optional, Any, Type, TextIO, Callable, Generator, Dict
+from typing import Optional, Any, Type, TextIO, Callable, Generator, Dict, Union
 import txtorcon
 from txtorcon.interface import ITorControlProtocol
 from txtorcon import EphemeralHiddenService, TorConfig
@@ -366,7 +366,7 @@ class _Provider(service.MultiService):
         return None
 
     @inlineCallbacks
-    def stopService(self) -> Generator[Generator[Deferred[inlineCallbacks], Any, Any ]| DeferredList, None, None ]:
+    def stopService(self) -> Union[Generator[DeferredList, Any, Any], Generator[Deferred[inlineCallbacks], Any, Any]]:
         if self._onion_ehs and self._onion_tor_control_proto:
             yield self._onion_ehs.remove_from_tor(self._onion_tor_control_proto)
         # TODO: can we also stop tor?
