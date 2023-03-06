@@ -56,7 +56,7 @@ def failure_message(peer_count: int, k: int, happy: int, effective_happy: int) -
     return msg
 
 
-def shares_by_server(servermap: Dict[str, set[str]]) -> Dict[str, set[str]]:
+def shares_by_server(servermap: Dict[str, Set[str]]) -> Dict[str, Set[str]]:
     """
     I accept a dict of shareid -> set(peerid) mappings, and return a
     dict of peerid -> set(shareid) mappings. My argument is a dictionary
