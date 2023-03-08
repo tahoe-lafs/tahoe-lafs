@@ -53,17 +53,20 @@ def test_put_from_stdin(alice, get_put_alias, tmpdir):
 def test_get_to_stdout(alice, get_put_alias, tmpdir):
     """
     It's possible to upload a file, and then download it to stdout.
+
+    We test with large file, this time.
     """
     tempfile = tmpdir.join("file")
+    large_data = DATA * 1_000_000
     with tempfile.open("wb") as f:
-        f.write(DATA)
+        f.write(large_data)
     cli(alice, "put", str(tempfile), "getput:tostdout")
 
     p = Popen(
         ["tahoe", "--node-directory", alice.node_dir, "get", "getput:tostdout", "-"],
         stdout=PIPE
     )
-    assert p.stdout.read() == DATA
+    assert p.stdout.read() == large_data
     assert p.wait() == 0
 
 
