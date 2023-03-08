@@ -55,7 +55,9 @@ install_requires = [
     # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
     # * foolscap 0.13.2 drops i2p support completely
     # * foolscap >= 21.7 is necessary for Python 3 with i2p support.
+    # * foolscap >= 23.3 is necessary for Python 3.11.
     "foolscap >= 21.7.0",
+    "foolscap >= 23.3.0; python_version > '3.10'",
 
     # * cryptography 2.6 introduced some ed25519 APIs we rely on.  Note that
     #   Twisted[conch] also depends on cryptography and Twisted[tls]
@@ -380,8 +382,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
       package_dir = {'':'src'},
       packages=find_packages('src') + ['allmydata.test.plugins'],
       classifiers=trove_classifiers,
-      # We support Python 3.8 or later. 3.11 is not supported yet.
-      python_requires=">=3.8, <3.11",
+      # We support Python 3.8 or later
+      python_requires=">=3.8",
       install_requires=install_requires,
       extras_require={
           # Duplicate the Twisted pywin32 dependency here.  See
