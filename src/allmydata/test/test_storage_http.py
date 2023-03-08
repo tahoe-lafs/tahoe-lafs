@@ -18,10 +18,12 @@ sadly, an internal implementation detail of Twisted being leaked to tests...
 For definitely synchronous calls, you can just use ``result_of()``.
 """
 
+import time
 from base64 import b64encode
 from contextlib import contextmanager
 from os import urandom
 from typing import Union, Callable, Tuple, Iterable
+from queue import Queue
 from cbor2 import dumps
 from pycddl import ValidationError as CDDLValidationError
 from hypothesis import assume, given, strategies as st
@@ -31,13 +33,14 @@ from klein import Klein
 from hyperlink import DecodedURL
 from collections_extended import RangeMap
 from twisted.internet.task import Clock, Cooperator
-from twisted.internet.interfaces import IReactorTime
+from twisted.internet.interfaces import IReactorTime, IReactorFromThreads
 from twisted.internet.defer import CancelledError, Deferred
 from twisted.web import http
 from twisted.web.http_headers import Headers
 from werkzeug import routing
 from werkzeug.exceptions import NotFound as WNotFound
 from testtools.matchers import Equals
+from zope.interface import implementer
 
 from .common import SyncTestCase
 from ..storage.http_common import get_content_type, CBOR_MIME_TYPE
@@ -449,6 +452,27 @@ class CustomHTTPServerTests(SyncTestCase):
         self.assertEqual(len(self._http_server.clock.getDelayedCalls()), 0)
 
 
+@implementer(IReactorFromThreads)
+class Reactor(Clock):
+    """
+    Fake reactor that supports time APIs and callFromThread.
+
+    Advancing the clock also runs any callbacks scheduled via callFromThread.
+    """
+    def __init__(self):
+        Clock.__init__(self)
+        self._queue = Queue()
+
+    def callFromThread(self, f, *args, **kwargs):
+        self._queue.put((f, args, kwargs))
+
+    def advance(self, *args, **kwargs):
+        Clock.advance(self, *args, **kwargs)
+        while not self._queue.empty():
+            f, args, kwargs = self._queue.get()
+            f(*args, **kwargs)
+
+
 class HttpTestFixture(Fixture):
     """
     Setup HTTP tests' infrastructure, the storage server and corresponding
@@ -460,7 +484,7 @@ class HttpTestFixture(Fixture):
             lambda pool: self.addCleanup(pool.closeCachedConnections)
         )
         self.addCleanup(StorageClient.stop_test_mode)
-        self.clock = Clock()
+        self.clock = Reactor()
         self.tempdir = self.useFixture(TempDir())
         # The global Cooperator used by Twisted (a) used by pull producers in
         # twisted.web, (b) is driven by a real reactor. We want to push time
@@ -475,7 +499,7 @@ class HttpTestFixture(Fixture):
         self.storage_server = StorageServer(
             self.tempdir.path, b"\x00" * 20, clock=self.clock
         )
-        self.http_server = HTTPServer(self.storage_server, SWISSNUM_FOR_TEST)
+        self.http_server = HTTPServer(self.clock, self.storage_server, SWISSNUM_FOR_TEST)
         self.treq = StubTreq(self.http_server.get_resource())
         self.client = StorageClient(
             DecodedURL.from_text("http://127.0.0.1"),
@@ -501,13 +525,25 @@ class HttpTestFixture(Fixture):
 
         # OK, no result yet, probably async HTTP endpoint handler, so advance
         # time, flush treq, and try again:
-        for i in range(100):
+        for i in range(10_000):
             self.clock.advance(0.001)
-        self.treq.flush()
+            self.treq.flush()
+            if result:
+                break
+            # By putting the sleep at the end, tests that are completely
+            # synchronous and don't use threads will have already broken out of
+            # the loop, and so will finish without any sleeps. This allows them
+            # to run as quickly as possible.
+            #
+            # However, some tests do talk to APIs that use a thread pool on the
+            # backend, so we need to allow actual time to pass for those.
+            time.sleep(0.001)
+
         if result:
             return result[0]
         if error:
             error[0].raiseException()
+
         raise RuntimeError(
             "We expected given Deferred to have result already, but it wasn't. "
             + "This is probably a test design issue."
