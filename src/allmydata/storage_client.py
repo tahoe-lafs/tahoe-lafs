@@ -1212,8 +1212,8 @@ class HTTPNativeStorageServer(service.MultiService):
                 return
             else:
                 self._istorage_server = _HTTPStorageServer.from_http_client(
-                StorageClient.from_nurl(nurl, reactor)
-            )
+                    StorageClient.from_nurl(nurl, reactor)
+                )
 
         result = self._istorage_server.get_version()
 
