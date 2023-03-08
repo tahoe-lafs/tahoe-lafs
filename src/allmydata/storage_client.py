@@ -299,7 +299,9 @@ class StorageFarmBroker(service.MultiService):
             "pub-{}".format(str(server_id, "ascii")),  # server_id is v0-<key> not pub-v0-key .. for reasons?
         )
 
-        if len(server["ann"].get(ANONYMOUS_STORAGE_NURLS, [])) > 0:
+        if not self.node_config.get_config(
+                "storage", "force_foolscap", default=True, boolean=True,
+        ) and len(server["ann"].get(ANONYMOUS_STORAGE_NURLS, [])) > 0:
             s = HTTPNativeStorageServer(
                 server_id,
                 server["ann"],
