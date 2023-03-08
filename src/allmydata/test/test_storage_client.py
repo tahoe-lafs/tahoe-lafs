@@ -8,7 +8,7 @@ from json import (
     loads,
 )
 import hashlib
-from typing import Union, Any
+from typing import Union, Any, Optional
 
 from hyperlink import DecodedURL
 from fixtures import (
@@ -740,15 +740,15 @@ storage:
 class PickHTTPServerTests(unittest.SynchronousTestCase):
     """Tests for ``_pick_a_http_server``."""
 
-    def loop_until_result(self, url_to_results: dict[DecodedURL, list[tuple[float, Union[Exception, Any]]]]) -> tuple[int, DecodedURL]:
+    def pick_result(self, url_to_results: dict[DecodedURL, tuple[float, Union[Exception, Any]]]) -> Optional[DecodedURL]:
         """
-        Given mapping of URLs to list of (delay, result), return the URL of the
-        first selected server.
+        Given mapping of URLs to (delay, result), return the URL of the
+        first selected server, or None.
         """
         clock = Clock()
 
         def request(reactor, url):
-            delay, value = url_to_results[url].pop(0)
+            delay, value = url_to_results[url]
             result = Deferred()
             def add_result_value():
                 if isinstance(value, Exception):
@@ -758,15 +758,10 @@ class PickHTTPServerTests(unittest.SynchronousTestCase):
             reactor.callLater(delay, add_result_value)
             return result
 
-        iterations = 0
-        while True:
-            iterations += 1
-            d = _pick_a_http_server(clock, list(url_to_results.keys()), request)
-            for i in range(100):
-                clock.advance(0.1)
-            result = self.successResultOf(d)
-            if result is not None:
-                return iterations, result
+        d = _pick_a_http_server(clock, list(url_to_results.keys()), request)
+        for i in range(100):
+            clock.advance(0.1)
+        return self.successResultOf(d)
 
     def test_first_successful_connect_is_picked(self):
         """
@@ -774,25 +769,22 @@ class PickHTTPServerTests(unittest.SynchronousTestCase):
         """
         earliest_url = DecodedURL.from_text("http://a")
         latest_url = DecodedURL.from_text("http://b")
-        iterations, result = self.loop_until_result({
-            latest_url: [(2, None)],
-            earliest_url: [(1, None)]
+        bad_url = DecodedURL.from_text("http://bad")
+        result = self.pick_result({
+            latest_url: (2, None),
+            earliest_url: (1, None),
+            bad_url: (0.5, RuntimeError()),
         })
-        self.assertEqual(iterations, 1)
         self.assertEqual(result, earliest_url)
 
     def test_failures_are_retried(self):
         """
-        If the initial requests all fail, ``_pick_a_http_server`` keeps trying
-        until success.
+        If the requests all fail, ``_pick_a_http_server`` returns ``None``.
         """
         eventually_good_url = DecodedURL.from_text("http://good")
         bad_url = DecodedURL.from_text("http://bad")
-        iterations, result = self.loop_until_result({
-            eventually_good_url: [
-                (1, ZeroDivisionError()), (0.1, ZeroDivisionError()), (1, None)
-            ],
-            bad_url: [(0.1, RuntimeError()), (0.1, RuntimeError()), (0.1, RuntimeError())]
+        result = self.pick_result({
+            eventually_good_url: (1, ZeroDivisionError()),
+            bad_url: (0.1, RuntimeError())
         })
-        self.assertEqual(iterations, 3)
-        self.assertEqual(result, eventually_good_url)
+        self.assertEqual(result, None)
