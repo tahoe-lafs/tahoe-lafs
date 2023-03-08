@@ -2,6 +2,8 @@
 Tests for allmydata.util.deferredutil.
 """
 
+from __future__ import annotations
+
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.internet.defer import Deferred
