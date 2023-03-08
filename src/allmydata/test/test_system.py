@@ -658,6 +658,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             self.failUnlessEqual(res, NEWERDATA)
         d.addCallback(_check_download_5)
 
+        # The previous checks upload a complete replacement. This uses a
+        # different API that is supposed to do a partial write at an offset.
         @async_to_deferred
         async def _check_write_at_offset(newnode):
             log.msg("writing at offset")
