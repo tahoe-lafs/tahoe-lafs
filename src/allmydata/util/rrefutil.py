@@ -23,8 +23,6 @@ def add_version_to_remote_reference(rref: Any, default: Any) -> Deferred[Any]:
     the remote get_version() method to learn its version. I'll add the
     default value if the remote side doesn't appear to have a get_version()
     method."""
-    if not hasattr(rref, 'version'):
-        rref.version =
     d: Deferred[Any] = rref.callRemote("get_version")
     def _got_version(version: Any) -> Any:
         rref.version = version
