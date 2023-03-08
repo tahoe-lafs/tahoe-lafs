@@ -30,6 +30,10 @@ For example::
     run(peerA(wormhole))
 """
 # mypy: warn-unused-configs, disallow-any-generics, disallow-subclassing-any, disallow-untyped-calls, disallow-untyped-defs, disallow-incomplete-defs, check-untyped-defs, disallow-untyped-decorators, warn-redundant-casts, warn-unused-ignores, warn-return-any, no-implicit-reexport, strict-equality, strict-concatenate
+# This inline mypy config applies a per-file mypy config for this file.
+# It applies the '--strict' list of flags to this file.
+# If you want to test using CLI run the command remove the inline config above and run:
+# "mypy --follow-imports silent --strict src/allmydata/test/cli/wormholetesting.py"
 
 from __future__ import annotations
 
