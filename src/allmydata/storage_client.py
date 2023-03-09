@@ -300,7 +300,7 @@ class StorageFarmBroker(service.MultiService):
         )
 
         if not self.node_config.get_config(
-                "storage", "force_foolscap", default=True, boolean=True,
+                "client", "force_foolscap", default=True, boolean=True,
         ) and len(server["ann"].get(ANONYMOUS_STORAGE_NURLS, [])) > 0:
             s = HTTPNativeStorageServer(
                 server_id,

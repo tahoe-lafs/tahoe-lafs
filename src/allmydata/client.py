@@ -94,6 +94,7 @@ _client_config = configutil.ValidConfiguration(
             "shares.total",
             "shares._max_immutable_segment_size_for_testing",
             "storage.plugins",
+            "force_foolscap",
         ),
         "storage": (
             "debug_discard",
