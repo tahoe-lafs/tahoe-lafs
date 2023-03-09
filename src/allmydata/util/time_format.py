@@ -15,22 +15,25 @@ if PY2:
 from future.utils import native_str
 
 import calendar, datetime, re, time
+from typing import Union, Optional, Pattern, Callable
+from typing_extensions import TypeAlias
+_TimeTuple: TypeAlias = tuple[int, int, int, int, int, int, int, int, int]
 
-def format_time(t):
+def format_time(t: Union[_TimeTuple, time.struct_time]) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", t)
 
-def iso_utc_date(now=None, t=time.time):
+def iso_utc_date(now: Optional[float]=None, t: Callable[[], float]=time.time) -> str:
     if now is None:
         now = t()
     return datetime.datetime.utcfromtimestamp(now).isoformat()[:10]
 
-def iso_utc(now=None, sep='_', t=time.time):
+def iso_utc(now:  Optional[float]=None, sep: str='_', t: Callable[[], float]=time.time) -> str:
     if now is None:
         now = t()
     sep = native_str(sep)  # Python 2 doesn't allow unicode input to isoformat
     return datetime.datetime.utcfromtimestamp(now).isoformat(sep)
 
-def iso_utc_time_to_seconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})[T_ ](?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(?P<subsecond>\.\d+)?")):
+def iso_utc_time_to_seconds(isotime: str, _conversion_re: Pattern[str]=re.compile(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})[T_ ](?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(?P<subsecond>\.\d+)?")) -> Union[float, int]:
     """
     The inverse of iso_utc().
 
@@ -50,7 +53,7 @@ def iso_utc_time_to_seconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})
 
     return calendar.timegm( (year, month, day, hour, minute, second, 0, 1, 0) ) + subsecfloat
 
-def parse_duration(s):
+def parse_duration(s: str) -> int:
     orig = s
     unit = None
     DAY = 24*60*60
@@ -75,12 +78,12 @@ def parse_duration(s):
     s = s.strip()
     return int(s) * unit
 
-def parse_date(s):
+def parse_date(s: str) -> int:
     # return seconds-since-epoch for the UTC midnight that starts the given
     # day
     return int(iso_utc_time_to_seconds(s + "T00:00:00"))
 
-def format_delta(time_1, time_2):
+def format_delta(time_1: Optional[float], time_2: float) -> str:
     if time_1 is None:
         return "N/A"
     if time_1 > time_2:
