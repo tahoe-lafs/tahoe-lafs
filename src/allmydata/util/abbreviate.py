@@ -62,7 +62,7 @@ def abbreviate_time(s: Union[timedelta, float]) -> str:
         return _plural(s / MONTH, "month")
     return _plural(s / YEAR, "year")
 
-def abbreviate_space(s: Optional[int], SI: bool=True):
+def abbreviate_space(s: Optional[int], SI: bool=True) -> str:
     """
     Given size in bytes summarize as English by returning unicode string.
     """
@@ -74,7 +74,7 @@ def abbreviate_space(s: Optional[int], SI: bool=True):
     else:
         U = 1024.0
         isuffix = "iB"
-    def r(count, suffix):
+    def r(count: Union[float, int], suffix: str) -> str:
         return "%.2f %s%s" % (count, suffix, isuffix)
 
     if s < 1024: # 1000-1023 get emitted as bytes, even in SI mode
