@@ -15,9 +15,9 @@ if PY2:
 from future.utils import native_str
 
 import calendar, datetime, re, time
-from typing import Union, Optional, Pattern, Callable
+from typing import Union, Optional, Pattern, Callable, Tuple
 from typing_extensions import TypeAlias
-_TimeTuple: TypeAlias = tuple[int, int, int, int, int, int, int, int, int]
+_TimeTuple: TypeAlias = Tuple[int, int, int, int, int, int, int, int, int]
 
 def format_time(t: Union[_TimeTuple, time.struct_time]) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", t)
