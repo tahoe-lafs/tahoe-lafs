@@ -466,7 +466,7 @@ def create_introducer_clients(config, main_tub, _introducer_factory=None):
     return introducer_clients
 
 
-def create_storage_farm_broker(config, default_connection_handlers, foolscap_connection_handlers, tub_options, introducer_clients):
+def create_storage_farm_broker(config: _Config, default_connection_handlers, foolscap_connection_handlers, tub_options, introducer_clients):
     """
     Create a StorageFarmBroker object, for use by Uploader/Downloader
     (and everybody else who wants to use storage servers)

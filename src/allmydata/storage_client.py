@@ -89,6 +89,7 @@ from allmydata.storage.http_client import (
     ClientException as HTTPClientException, StorageClientMutables,
     ReadVector, TestWriteVectors, WriteVector, TestVector, ClientException
 )
+from .node import _Config
 
 ANONYMOUS_STORAGE_NURLS = "anonymous-storage-NURLs"
 
@@ -199,7 +200,7 @@ class StorageFarmBroker(service.MultiService):
             self,
             permute_peers,
             tub_maker,
-            node_config,
+            node_config: _Config,
             storage_client_config=None,
     ):
         service.MultiService.__init__(self)
@@ -274,6 +275,16 @@ class StorageFarmBroker(service.MultiService):
             in self.storage_client_config.storage_plugins.items()
         })
 
+    @staticmethod
+    def _should_we_use_http(node_config: _Config, announcement: dict) -> bool:
+        """
+        Given an announcement dictionary and config, return whether we should
+        connect to storage server over HTTP.
+        """
+        return not node_config.get_config(
+            "client", "force_foolscap", default=True, boolean=True,
+        ) and len(announcement.get(ANONYMOUS_STORAGE_NURLS, [])) > 0
+
     @log_call(
         action_type=u"storage-client:broker:make-storage-server",
         include_args=["server_id"],
@@ -299,9 +310,7 @@ class StorageFarmBroker(service.MultiService):
             "pub-{}".format(str(server_id, "ascii")),  # server_id is v0-<key> not pub-v0-key .. for reasons?
         )
 
-        if not self.node_config.get_config(
-                "client", "force_foolscap", default=True, boolean=True,
-        ) and len(server["ann"].get(ANONYMOUS_STORAGE_NURLS, [])) > 0:
+        if self._should_we_use_http(self.node_config, server["ann"]):
             s = HTTPNativeStorageServer(
                 server_id,
                 server["ann"],

@@ -94,10 +94,13 @@ from allmydata.storage_client import (
     StorageFarmBroker,
     _FoolscapStorage,
     _NullStorage,
+    ANONYMOUS_STORAGE_NURLS
 )
 from ..storage.server import (
     StorageServer,
 )
+from ..client import config_from_string
+
 from allmydata.interfaces import (
     IConnectionStatus,
     IStorageServer,
@@ -739,3 +742,42 @@ storage:
 
         yield done
         self.assertTrue(done.called)
+
+    def test_should_we_use_http_default(self):
+        """Default is to not use HTTP; this will change eventually"""
+        basedir = self.mktemp()
+        node_config = config_from_string(basedir, "", "")
+        announcement = {ANONYMOUS_STORAGE_NURLS: ["pb://..."]}
+        self.assertFalse(
+            StorageFarmBroker._should_we_use_http(node_config, announcement)
+        )
+        self.assertFalse(
+            StorageFarmBroker._should_we_use_http(node_config, {})
+        )
+
+    def test_should_we_use_http(self):
+        """
+        If HTTP is allowed, it will only be used if the announcement includes
+        some NURLs.
+        """
+        basedir = self.mktemp()
+
+        no_nurls = {}
+        empty_nurls = {ANONYMOUS_STORAGE_NURLS: []}
+        has_nurls = {ANONYMOUS_STORAGE_NURLS: ["pb://.."]}
+
+        for force_foolscap, announcement, expected_http_usage in [
+                ("false", no_nurls, False),
+                ("false", empty_nurls, False),
+                ("false", has_nurls, True),
+                ("true", empty_nurls, False),
+                ("true", no_nurls, False),
+                ("true", has_nurls, False),
+        ]:
+            node_config = config_from_string(
+                basedir, "", f"[client]\nforce_foolscap = {force_foolscap}"
+            )
+            self.assertEqual(
+                StorageFarmBroker._should_we_use_http(node_config, announcement),
+                expected_http_usage
+            )
