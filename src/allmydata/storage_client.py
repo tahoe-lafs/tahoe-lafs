@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from six import ensure_text
 
-from typing import Union
+from typing import Union, Any
 from os import urandom
 import re
 import time
@@ -219,9 +219,9 @@ class StorageFarmBroker(service.MultiService):
         # own Reconnector, and will give us a RemoteReference when we ask
         # them for it.
         self.servers = BytesKeyDict()
-        self._static_server_ids = set() # ignore announcements for these
+        self._static_server_ids : set[bytes] = set() # ignore announcements for these
         self.introducer_client = None
-        self._threshold_listeners = [] # tuples of (threshold, Deferred)
+        self._threshold_listeners : list[tuple[float,defer.Deferred[Any]]]= [] # tuples of (threshold, Deferred)
         self._connected_high_water_mark = 0
 
     @log_call(action_type=u"storage-client:broker:set-static-servers")

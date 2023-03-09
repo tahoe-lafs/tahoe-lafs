@@ -60,7 +60,7 @@ from allmydata.interfaces import (
 )
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
-
+from allmydata.node import _Config
 
 KiB=1024
 MiB=1024*KiB
