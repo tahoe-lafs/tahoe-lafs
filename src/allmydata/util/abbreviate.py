@@ -14,6 +14,7 @@ if PY2:
 
 import re
 from datetime import timedelta
+from typing import Union, Optional
 
 HOUR = 3600
 DAY = 24*3600
@@ -21,7 +22,7 @@ WEEK = 7*DAY
 MONTH = 30*DAY
 YEAR = 365*DAY
 
-def abbreviate_time(s):
+def abbreviate_time(s: Union[timedelta, float]) -> str:
     """
     Given time in seconds (float or int) or timedelta, summarize as English by
     returning unicode string.
@@ -42,7 +43,7 @@ def abbreviate_time(s):
         else:
             postfix = ' in the future'
             s = -s
-    def _plural(count, unit):
+    def _plural(count: Union[float, int], unit: str) -> str:
         count = int(count)
         if count == 1:
             return "%d %s%s" % (count, unit, postfix)
@@ -61,7 +62,7 @@ def abbreviate_time(s):
         return _plural(s / MONTH, "month")
     return _plural(s / YEAR, "year")
 
-def abbreviate_space(s, SI=True):
+def abbreviate_space(s: Optional[int], SI: bool=True):
     """
     Given size in bytes summarize as English by returning unicode string.
     """
@@ -90,11 +91,11 @@ def abbreviate_space(s, SI=True):
         return r(s/(U*U*U*U*U), "P")
     return r(s/(U*U*U*U*U*U), "E")
 
-def abbreviate_space_both(s):
+def abbreviate_space_both(s: Optional[int]) -> str:
     return "(%s, %s)" % (abbreviate_space(s, True),
                          abbreviate_space(s, False))
 
-def parse_abbreviated_size(s):
+def parse_abbreviated_size(s: Optional[str]) -> Optional[int]:
     if s is None or s == "":
         return None
     m = re.match(r"^(\d+)([KMGTPE]?[I]?[B]?)$", s.upper())
