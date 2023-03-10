@@ -692,7 +692,7 @@ It also includes potentially important details about the share.
 The request body MUST validate against this CDDL schema::
 
   {
-    reason: tstr
+    reason: tstr .size (1..32765)
   }
 
 For example::
@@ -703,6 +703,11 @@ The report pertains to the immutable share with a **storage index** and **share 
 If the identified **storage index** and **share number** are known to the server then the response SHOULD be accepted and made available to server administrators.
 In this case the response SHOULD be ``OK``.
 If the response is not accepted then the response SHOULD be ``Not Found`` (404).
+
+Discussion
+``````````
+
+The seemingly odd length limit on ``reason`` is chosen so that the *encoded* representation of the message is limited to 32768.
 
 Reading
 ~~~~~~~
