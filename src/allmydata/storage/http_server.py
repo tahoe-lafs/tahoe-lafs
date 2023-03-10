@@ -606,7 +606,10 @@ class HTTPServer(object):
     async def allocate_buckets(self, request, authorization, storage_index):
         """Allocate buckets."""
         upload_secret = authorization[Secrets.UPLOAD]
-        info = await self._read_encoded(request, _SCHEMAS["allocate_buckets"])
+        # It's just a list of up to ~256 shares, shouldn't use many bytes.
+        info = await self._read_encoded(
+            request, _SCHEMAS["allocate_buckets"], max_size=8192
+        )
 
         # We do NOT validate the upload secret for existing bucket uploads.
         # Another upload may be happening in parallel, with a different upload
@@ -773,7 +776,11 @@ class HTTPServer(object):
         except KeyError:
             raise _HTTPError(http.NOT_FOUND)
 
-        info = await self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
+        # The reason can be a string with explanation, so in theory it could be
+        # longish?
+        info = await self._read_encoded(
+            request, _SCHEMAS["advise_corrupt_share"], max_size=32768,
+        )
         bucket.advise_corrupt_share(info["reason"].encode("utf-8"))
         return b""
 
@@ -872,7 +879,11 @@ class HTTPServer(object):
         }:
             raise _HTTPError(http.NOT_FOUND)
 
-        info = await self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
+        # The reason can be a string with explanation, so in theory it could be
+        # longish?
+        info = await self._read_encoded(
+            request, _SCHEMAS["advise_corrupt_share"], max_size=32768
+        )
         self._storage_server.advise_corrupt_share(
             b"mutable", storage_index, share_number, info["reason"].encode("utf-8")
         )
