@@ -864,7 +864,7 @@ For example::
   [1, 5]
 
 ``GET /storage/v1/mutable/:storage_index/:share_number``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Read data from the indicated mutable shares, just like ``GET /storage/v1/immutable/:storage_index``.
 
