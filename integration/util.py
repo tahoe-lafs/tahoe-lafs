@@ -367,6 +367,12 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
                 'force_foolscap',
                 str(force_foolscap),
             )
+            set_config(
+                config,
+                'client',
+                'force_foolscap',
+                str(force_foolscap),
+            )
             write_config(FilePath(config_path), config)
         created_d.addCallback(created)
 
