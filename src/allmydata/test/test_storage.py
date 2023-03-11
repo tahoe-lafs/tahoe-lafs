@@ -1547,8 +1547,8 @@ class MutableServer(SyncTestCase):
                         },
                        [(0,12), (20,5)],
                        )
-        self.assertThat(answer, (False,
-                                      Equals({0: [b"000000000011", b"22222"],
+        self.assertThat(answer, Equals((False,
+                                      {0: [b"000000000011", b"22222"],
                                        1: [b"", b""],
                                        2: [b"", b""],
                                        })))
