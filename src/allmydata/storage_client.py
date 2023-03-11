@@ -33,9 +33,13 @@ Ported to Python 3.
 from __future__ import annotations
 
 from six import ensure_text
-from typing import Union
-import re, time, hashlib
+
+from typing import Union, Any
 from os import urandom
+import re
+import time
+import hashlib
+
 from configparser import NoSectionError
 
 import attr
@@ -67,6 +71,12 @@ from allmydata.interfaces import (
     IStorageServer,
     IFoolscapStoragePlugin,
 )
+from allmydata.grid_manager import (
+    create_grid_manager_verifier,
+)
+from allmydata.crypto import (
+    ed25519,
+)
 from allmydata.util import log, base32, connection_status
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
@@ -79,6 +89,7 @@ from allmydata.storage.http_client import (
     ClientException as HTTPClientException, StorageClientMutables,
     ReadVector, TestWriteVectors, WriteVector, TestVector, ClientException
 )
+from .node import _Config
 
 ANONYMOUS_STORAGE_NURLS = "anonymous-storage-NURLs"
 
@@ -112,9 +123,15 @@ class StorageClientConfig(object):
     :ivar dict[unicode, dict[unicode, unicode]] storage_plugins: A mapping from
         names of ``IFoolscapStoragePlugin`` configured in *tahoe.cfg* to the
         respective configuration.
+
+    :ivar list[ed25519.VerifyKey] grid_manager_keys: with no keys in
+        this list, we'll upload to any storage server. Otherwise, we will
+        only upload to a storage-server that has a valid certificate
+        signed by at least one of these keys.
     """
     preferred_peers = attr.ib(default=())
     storage_plugins = attr.ib(default=attr.Factory(dict))
+    grid_manager_keys = attr.ib(default=attr.Factory(list))
 
     @classmethod
     def from_node_config(cls, config):
@@ -146,9 +163,17 @@ class StorageClientConfig(object):
                 plugin_config = []
             storage_plugins[plugin_name] = dict(plugin_config)
 
+        grid_manager_keys = []
+        for name, gm_key in config.enumerate_section('grid_managers').items():
+            grid_manager_keys.append(
+                ed25519.verifying_key_from_string(gm_key.encode("ascii"))
+            )
+
+
         return cls(
             preferred_peers,
             storage_plugins,
+            grid_manager_keys,
         )
 
 
@@ -175,7 +200,7 @@ class StorageFarmBroker(service.MultiService):
             self,
             permute_peers,
             tub_maker,
-            node_config,
+            node_config: _Config,
             storage_client_config=None,
     ):
         service.MultiService.__init__(self)
@@ -194,9 +219,9 @@ class StorageFarmBroker(service.MultiService):
         # own Reconnector, and will give us a RemoteReference when we ask
         # them for it.
         self.servers = BytesKeyDict()
-        self._static_server_ids = set() # ignore announcements for these
+        self._static_server_ids : set[bytes] = set() # ignore announcements for these
         self.introducer_client = None
-        self._threshold_listeners = [] # tuples of (threshold, Deferred)
+        self._threshold_listeners : list[tuple[float,defer.Deferred[Any]]]= [] # tuples of (threshold, Deferred)
         self._connected_high_water_mark = 0
 
     @log_call(action_type=u"storage-client:broker:set-static-servers")
@@ -250,6 +275,16 @@ class StorageFarmBroker(service.MultiService):
             in self.storage_client_config.storage_plugins.items()
         })
 
+    @staticmethod
+    def _should_we_use_http(node_config: _Config, announcement: dict) -> bool:
+        """
+        Given an announcement dictionary and config, return whether we should
+        connect to storage server over HTTP.
+        """
+        return not node_config.get_config(
+            "client", "force_foolscap", default=True, boolean=True,
+        ) and len(announcement.get(ANONYMOUS_STORAGE_NURLS, [])) > 0
+
     @log_call(
         action_type=u"storage-client:broker:make-storage-server",
         include_args=["server_id"],
@@ -269,10 +304,21 @@ class StorageFarmBroker(service.MultiService):
             by the given announcement.
         """
         assert isinstance(server_id, bytes)
-        if len(server["ann"].get(ANONYMOUS_STORAGE_NURLS, [])) > 0:
-            s = HTTPNativeStorageServer(server_id, server["ann"])
+        gm_verifier = create_grid_manager_verifier(
+            self.storage_client_config.grid_manager_keys,
+            server["ann"].get("grid-manager-certificates", []),
+            "pub-{}".format(str(server_id, "ascii")),  # server_id is v0-<key> not pub-v0-key .. for reasons?
+        )
+
+        if self._should_we_use_http(self.node_config, server["ann"]):
+            s = HTTPNativeStorageServer(
+                server_id,
+                server["ann"],
+                grid_manager_verifier=gm_verifier,
+            )
             s.on_status_changed(lambda _: self._got_connection())
             return s
+
         handler_overrides = server.get("connections", {})
         s = NativeStorageServer(
             server_id,
@@ -281,6 +327,7 @@ class StorageFarmBroker(service.MultiService):
             handler_overrides,
             self.node_config,
             self.storage_client_config,
+            gm_verifier,
         )
         s.on_status_changed(lambda _: self._got_connection())
         return s
@@ -429,11 +476,26 @@ class StorageFarmBroker(service.MultiService):
         for dsc in list(self.servers.values()):
             dsc.try_to_connect()
 
-    def get_servers_for_psi(self, peer_selection_index):
+    def get_servers_for_psi(self, peer_selection_index, for_upload=False):
+        """
+        :param for_upload: used to determine if we should include any
+        servers that are invalid according to Grid Manager
+        processing. When for_upload is True and we have any Grid
+        Manager keys configured, any storage servers with invalid or
+        missing certificates will be excluded.
+        """
         # return a list of server objects (IServers)
         assert self.permute_peers == True
         connected_servers = self.get_connected_servers()
         preferred_servers = frozenset(s for s in connected_servers if s.get_longname() in self.preferred_peers)
+        if for_upload:
+            # print("upload processing: {}".format([srv.upload_permitted() for srv in connected_servers]))
+            connected_servers = [
+                srv
+                for srv in connected_servers
+                if srv.upload_permitted()
+            ]
+
         def _permuted(server):
             seed = server.get_permutation_seed()
             is_unpreferred = server not in preferred_servers
@@ -609,9 +671,10 @@ class _FoolscapStorage(object):
 
             {"permutation-seed-base32": "...",
              "nickname": "...",
+             "grid-manager-certificates": [..],
             }
 
-        *nickname* is optional.
+        *nickname* and *grid-manager-certificates* are optional.
 
         The furl will be a Unicode string on Python 3; on Python 2 it will be
         either a native (bytes) string or a Unicode string.
@@ -741,13 +804,19 @@ class NativeStorageServer(service.MultiService):
         "application-version": "unknown: no get_version()",
         })
 
-    def __init__(self, server_id, ann, tub_maker, handler_overrides, node_config, config=StorageClientConfig()):
+    def __init__(self, server_id, ann, tub_maker, handler_overrides, node_config, config=None,
+                 grid_manager_verifier=None):
         service.MultiService.__init__(self)
         assert isinstance(server_id, bytes)
         self._server_id = server_id
         self.announcement = ann
         self._tub_maker = tub_maker
         self._handler_overrides = handler_overrides
+
+        if config is None:
+            config = StorageClientConfig()
+
+        self._grid_manager_verifier = grid_manager_verifier
 
         self._storage = self._make_storage_system(node_config, config, ann)
 
@@ -758,6 +827,21 @@ class NativeStorageServer(service.MultiService):
         self._reconnector = None
         self._trigger_cb = None
         self._on_status_changed = ObserverList()
+
+    def upload_permitted(self):
+        """
+        If our client is configured with Grid Manager public-keys, we will
+        only upload to storage servers that have a currently-valid
+        certificate signed by at least one of the Grid Managers we
+        accept.
+
+        :return: True if we should use this server for uploads, False
+            otherwise.
+        """
+        # if we have no Grid Manager keys configured, choice is easy
+        if self._grid_manager_verifier is None:
+            return True
+        return self._grid_manager_verifier()
 
     def _make_storage_system(self, node_config, config, ann):
         """
@@ -945,13 +1029,14 @@ class HTTPNativeStorageServer(service.MultiService):
     "connected".
     """
 
-    def __init__(self, server_id: bytes, announcement, reactor=reactor):
+    def __init__(self, server_id: bytes, announcement, reactor=reactor, grid_manager_verifier=None):
         service.MultiService.__init__(self)
         assert isinstance(server_id, bytes)
         self._server_id = server_id
         self.announcement = announcement
         self._on_status_changed = ObserverList()
         self._reactor = reactor
+        self._grid_manager_verifier = grid_manager_verifier
         furl = announcement["anonymous-storage-FURL"].encode("utf-8")
         (
             self._nickname,
@@ -1000,6 +1085,21 @@ class HTTPNativeStorageServer(service.MultiService):
             NativeStorageServer) that is notified when we become connected
         """
         return self._on_status_changed.subscribe(status_changed)
+
+    def upload_permitted(self):
+        """
+        If our client is configured with Grid Manager public-keys, we will
+        only upload to storage servers that have a currently-valid
+        certificate signed by at least one of the Grid Managers we
+        accept.
+
+        :return: True if we should use this server for uploads, False
+            otherwise.
+        """
+        # if we have no Grid Manager keys configured, choice is easy
+        if self._grid_manager_verifier is None:
+            return True
+        return self._grid_manager_verifier()
 
     # Special methods used by copy.copy() and copy.deepcopy(). When those are
     # used in allmydata.immutable.filenode to copy CheckResults during

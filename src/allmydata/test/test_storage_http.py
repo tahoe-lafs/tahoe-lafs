@@ -18,10 +18,12 @@ sadly, an internal implementation detail of Twisted being leaked to tests...
 For definitely synchronous calls, you can just use ``result_of()``.
 """
 
+import time
 from base64 import b64encode
 from contextlib import contextmanager
 from os import urandom
 from typing import Union, Callable, Tuple, Iterable
+from queue import Queue
 from cbor2 import dumps
 from pycddl import ValidationError as CDDLValidationError
 from hypothesis import assume, given, strategies as st
@@ -31,10 +33,14 @@ from klein import Klein
 from hyperlink import DecodedURL
 from collections_extended import RangeMap
 from twisted.internet.task import Clock, Cooperator
+from twisted.internet.interfaces import IReactorTime, IReactorFromThreads
+from twisted.internet.defer import CancelledError, Deferred
 from twisted.web import http
 from twisted.web.http_headers import Headers
 from werkzeug import routing
 from werkzeug.exceptions import NotFound as WNotFound
+from testtools.matchers import Equals
+from zope.interface import implementer
 
 from .common import SyncTestCase
 from ..storage.http_common import get_content_type, CBOR_MIME_TYPE
@@ -245,6 +251,7 @@ def gen_bytes(length: int) -> bytes:
 class TestApp(object):
     """HTTP API for testing purposes."""
 
+    clock: IReactorTime
     _app = Klein()
     _swissnum = SWISSNUM_FOR_TEST  # Match what the test client is using
 
@@ -265,6 +272,25 @@ class TestApp(object):
     def generate_bytes(self, request, authorization, length):
         """Return bytes to the given length using ``gen_bytes()``."""
         return gen_bytes(length)
+
+    @_authorized_route(_app, set(), "/slowly_never_finish_result", methods=["GET"])
+    def slowly_never_finish_result(self, request, authorization):
+        """
+        Send data immediately, after 59 seconds, after another 59 seconds, and then
+        never again, without finishing the response.
+        """
+        request.write(b"a")
+        self.clock.callLater(59, request.write, b"b")
+        self.clock.callLater(59 + 59, request.write, b"c")
+        return Deferred()
+
+    @_authorized_route(_app, set(), "/die_unfinished", methods=["GET"])
+    def die(self, request, authorization):
+        """
+        Dies half-way.
+        """
+        request.transport.loseConnection()
+        return Deferred()
 
 
 def result_of(d):
@@ -298,12 +324,18 @@ class CustomHTTPServerTests(SyncTestCase):
         # Could be a fixture, but will only be used in this test class so not
         # going to bother:
         self._http_server = TestApp()
+        treq = StubTreq(self._http_server._app.resource())
         self.client = StorageClient(
             DecodedURL.from_text("http://127.0.0.1"),
             SWISSNUM_FOR_TEST,
-            treq=StubTreq(self._http_server._app.resource()),
-            clock=Clock(),
+            treq=treq,
+            # We're using a Treq private API to get the reactor, alas, but only
+            # in a test, so not going to worry about it too much. This would be
+            # fixed if https://github.com/twisted/treq/issues/226 were ever
+            # fixed.
+            clock=treq._agent._memoryReactor,
         )
+        self._http_server.clock = self.client._clock
 
     def test_authorization_enforcement(self):
         """
@@ -351,7 +383,9 @@ class CustomHTTPServerTests(SyncTestCase):
             )
 
             self.assertEqual(
-                result_of(limited_content(response, at_least_length)).read(),
+                result_of(
+                    limited_content(response, self._http_server.clock, at_least_length)
+                ).read(),
                 gen_bytes(length),
             )
 
@@ -370,7 +404,73 @@ class CustomHTTPServerTests(SyncTestCase):
             )
 
             with self.assertRaises(ValueError):
-                result_of(limited_content(response, too_short))
+                result_of(limited_content(response, self._http_server.clock, too_short))
+
+    def test_limited_content_silence_causes_timeout(self):
+        """
+        ``http_client.limited_content() times out if it receives no data for 60
+        seconds.
+        """
+        response = result_of(
+            self.client.request(
+                "GET",
+                "http://127.0.0.1/slowly_never_finish_result",
+            )
+        )
+
+        body_deferred = limited_content(response, self._http_server.clock, 4)
+        result = []
+        error = []
+        body_deferred.addCallbacks(result.append, error.append)
+
+        for i in range(59 + 59 + 60):
+            self.assertEqual((result, error), ([], []))
+            self._http_server.clock.advance(1)
+            # Push data between in-memory client and in-memory server:
+            self.client._treq._agent.flush()
+
+        # After 59 (second write) + 59 (third write) + 60 seconds (quiescent
+        # timeout) the limited_content() response times out.
+        self.assertTrue(error)
+        with self.assertRaises(CancelledError):
+            error[0].raiseException()
+
+    def test_limited_content_cancels_timeout_on_failed_response(self):
+        """
+        If the response fails somehow, the timeout is still cancelled.
+        """
+        response = result_of(
+            self.client.request(
+                "GET",
+                "http://127.0.0.1/die",
+            )
+        )
+
+        d = limited_content(response, self._http_server.clock, 4)
+        with self.assertRaises(ValueError):
+            result_of(d)
+        self.assertEqual(len(self._http_server.clock.getDelayedCalls()), 0)
+
+
+@implementer(IReactorFromThreads)
+class Reactor(Clock):
+    """
+    Fake reactor that supports time APIs and callFromThread.
+
+    Advancing the clock also runs any callbacks scheduled via callFromThread.
+    """
+    def __init__(self):
+        Clock.__init__(self)
+        self._queue = Queue()
+
+    def callFromThread(self, f, *args, **kwargs):
+        self._queue.put((f, args, kwargs))
+
+    def advance(self, *args, **kwargs):
+        Clock.advance(self, *args, **kwargs)
+        while not self._queue.empty():
+            f, args, kwargs = self._queue.get()
+            f(*args, **kwargs)
 
 
 class HttpTestFixture(Fixture):
@@ -384,7 +484,7 @@ class HttpTestFixture(Fixture):
             lambda pool: self.addCleanup(pool.closeCachedConnections)
         )
         self.addCleanup(StorageClient.stop_test_mode)
-        self.clock = Clock()
+        self.clock = Reactor()
         self.tempdir = self.useFixture(TempDir())
         # The global Cooperator used by Twisted (a) used by pull producers in
         # twisted.web, (b) is driven by a real reactor. We want to push time
@@ -399,7 +499,7 @@ class HttpTestFixture(Fixture):
         self.storage_server = StorageServer(
             self.tempdir.path, b"\x00" * 20, clock=self.clock
         )
-        self.http_server = HTTPServer(self.storage_server, SWISSNUM_FOR_TEST)
+        self.http_server = HTTPServer(self.clock, self.storage_server, SWISSNUM_FOR_TEST)
         self.treq = StubTreq(self.http_server.get_resource())
         self.client = StorageClient(
             DecodedURL.from_text("http://127.0.0.1"),
@@ -425,13 +525,25 @@ class HttpTestFixture(Fixture):
 
         # OK, no result yet, probably async HTTP endpoint handler, so advance
         # time, flush treq, and try again:
-        for i in range(100):
+        for i in range(10_000):
             self.clock.advance(0.001)
-        self.treq.flush()
+            self.treq.flush()
+            if result:
+                break
+            # By putting the sleep at the end, tests that are completely
+            # synchronous and don't use threads will have already broken out of
+            # the loop, and so will finish without any sleeps. This allows them
+            # to run as quickly as possible.
+            #
+            # However, some tests do talk to APIs that use a thread pool on the
+            # backend, so we need to allow actual time to pass for those.
+            time.sleep(0.001)
+
         if result:
             return result[0]
         if error:
             error[0].raiseException()
+
         raise RuntimeError(
             "We expected given Deferred to have result already, but it wasn't. "
             + "This is probably a test design issue."
@@ -479,6 +591,20 @@ class GenericHTTPAPITests(SyncTestCase):
     def setUp(self):
         super(GenericHTTPAPITests, self).setUp()
         self.http = self.useFixture(HttpTestFixture())
+
+    def test_missing_authentication(self) -> None:
+        """
+        If nothing is given in the ``Authorization`` header at all an
+        ``Unauthorized`` response is returned.
+        """
+        client = StubTreq(self.http.http_server.get_resource())
+        response = self.http.result_of_with_flush(
+            client.request(
+                "GET",
+                "http://127.0.0.1/storage/v1/version",
+            ),
+        )
+        self.assertThat(response.code, Equals(http.UNAUTHORIZED))
 
     def test_bad_authentication(self):
         """
@@ -1111,18 +1237,42 @@ class MutableHTTPAPIsTests(SyncTestCase):
         )
         return storage_index, write_secret, lease_secret
 
-    def test_write_can_be_read(self):
+    def test_write_can_be_read_small_data(self):
+        """
+        Small written data can be read using ``read_share_chunk``.
+        """
+        self.write_can_be_read(b"abcdef")
+
+    def test_write_can_be_read_large_data(self):
+        """
+        Large written data (50MB) can be read using ``read_share_chunk``.
+        """
+        self.write_can_be_read(b"abcdefghij" * 5 * 1024 * 1024)
+
+    def write_can_be_read(self, data):
         """
         Written data can be read using ``read_share_chunk``.
         """
-        storage_index, _, _ = self.create_upload()
-        data0 = self.http.result_of_with_flush(
-            self.mut_client.read_share_chunk(storage_index, 0, 1, 7)
+        lease_secret = urandom(32)
+        storage_index = urandom(16)
+        self.http.result_of_with_flush(
+            self.mut_client.read_test_write_chunks(
+                storage_index,
+                urandom(32),
+                lease_secret,
+                lease_secret,
+                {
+                    0: TestWriteVectors(
+                        write_vectors=[WriteVector(offset=0, data=data)]
+                    ),
+                },
+                [],
+            )
         )
-        data1 = self.http.result_of_with_flush(
-            self.mut_client.read_share_chunk(storage_index, 1, 0, 8)
+        read_data = self.http.result_of_with_flush(
+            self.mut_client.read_share_chunk(storage_index, 0, 0, len(data))
         )
-        self.assertEqual((data0, data1), (b"bcdef-0", b"abcdef-1"))
+        self.assertEqual(read_data, data)
 
     def test_read_before_write(self):
         """In combo read/test/write operation, reads happen before writes."""
@@ -1200,15 +1350,6 @@ class MutableHTTPAPIsTests(SyncTestCase):
             ),
             b"aXYZef-0",
         )
-
-    def test_too_large_write(self):
-        """
-        Writing too large of a chunk results in a REQUEST ENTITY TOO LARGE http
-        error.
-        """
-        with self.assertRaises(ClientException) as e:
-            self.create_upload(b"0123456789" * 1024 * 1024)
-        self.assertEqual(e.exception.code, http.REQUEST_ENTITY_TOO_LARGE)
 
     def test_list_shares(self):
         """``list_shares()`` returns the shares for a given storage index."""

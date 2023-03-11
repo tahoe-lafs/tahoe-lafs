@@ -262,6 +262,8 @@ class Encoder(object):
 
         d.addCallback(lambda res: self.finish_hashing())
 
+        # These calls have to happen in order; layout.py now requires writes to
+        # be appended to the data written so far.
         d.addCallback(lambda res:
                       self.send_crypttext_hash_tree_to_all_shareholders())
         d.addCallback(lambda res: self.send_all_block_hash_trees())

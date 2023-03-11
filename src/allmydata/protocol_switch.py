@@ -89,7 +89,7 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
             certificate=cls.tub.myCertificate.original,
         )
 
-        http_storage_server = HTTPServer(storage_server, swissnum)
+        http_storage_server = HTTPServer(reactor, storage_server, swissnum)
         cls.https_factory = TLSMemoryBIOFactory(
             certificate_options,
             False,

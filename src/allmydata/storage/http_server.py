@@ -9,6 +9,8 @@ from functools import wraps
 from base64 import b64decode
 import binascii
 from tempfile import TemporaryFile
+from os import SEEK_END, SEEK_SET
+import mmap
 
 from cryptography.x509 import Certificate as CryptoCertificate
 from zope.interface import implementer
@@ -22,6 +24,7 @@ from twisted.internet.interfaces import (
 from twisted.internet.address import IPv4Address, IPv6Address
 from twisted.internet.defer import Deferred
 from twisted.internet.ssl import CertificateOptions, Certificate, PrivateCertificate
+from twisted.internet.interfaces import IReactorFromThreads
 from twisted.web.server import Site, Request
 from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.python.filepath import FilePath
@@ -39,7 +42,7 @@ from cryptography.x509 import load_pem_x509_certificate
 
 
 # TODO Make sure to use pure Python versions?
-from cbor2 import dump, loads
+import cbor2
 from pycddl import Schema, ValidationError as CDDLValidationError
 from .server import StorageServer
 from .http_common import (
@@ -54,6 +57,8 @@ from .common import si_a2b
 from .immutable import BucketWriter, ConflictingWriteError
 from ..util.hashutil import timing_safe_compare
 from ..util.base32 import rfc3548_alphabet
+from ..util.deferredutil import async_to_deferred
+from ..util.cputhreadpool import defer_to_thread
 from allmydata.interfaces import BadWriteEnablerError
 
 
@@ -100,7 +105,7 @@ def _authorization_decorator(required_secrets):
         @wraps(f)
         def route(self, request, *args, **kwargs):
             if not timing_safe_compare(
-                request.requestHeaders.getRawHeaders("Authorization", [None])[0].encode(
+                request.requestHeaders.getRawHeaders("Authorization", [""])[0].encode(
                     "utf-8"
                 ),
                 swissnum_auth_header(self._swissnum),
@@ -278,7 +283,7 @@ _SCHEMAS = {
             "test-write-vectors": {
                 0*256 share_number : {
                     "test": [0*30 {"offset": uint, "size": uint, "specimen": bstr}]
-                    "write": [0*30 {"offset": uint, "data": bstr}]
+                    "write": [* {"offset": uint, "data": bstr}]
                     "new-length": uint / null
                 }
             }
@@ -484,8 +489,12 @@ class HTTPServer(object):
         return str(failure.value).encode("utf-8")
 
     def __init__(
-        self, storage_server, swissnum
-    ):  # type: (StorageServer, bytes) -> None
+        self,
+        reactor: IReactorFromThreads,
+        storage_server: StorageServer,
+        swissnum: bytes,
+    ):
+        self._reactor = reactor
         self._storage_server = storage_server
         self._swissnum = swissnum
         # Maps storage index to StorageIndexUploads:
@@ -515,7 +524,7 @@ class HTTPServer(object):
         if accept.best == CBOR_MIME_TYPE:
             request.setHeader("Content-Type", CBOR_MIME_TYPE)
             f = TemporaryFile()
-            dump(data, f)
+            cbor2.dump(data, f)
 
             def read_data(offset: int, length: int) -> bytes:
                 f.seek(offset)
@@ -527,26 +536,56 @@ class HTTPServer(object):
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3861
             raise _HTTPError(http.NOT_ACCEPTABLE)
 
-    def _read_encoded(self, request, schema: Schema) -> Any:
+    async def _read_encoded(
+        self, request, schema: Schema, max_size: int = 1024 * 1024
+    ) -> Any:
         """
         Read encoded request body data, decoding it with CBOR by default.
 
-        Somewhat arbitrarily, limit body size to 1MB; this may be too low, we
-        may want to customize per query type, but this is the starting point
-        for now.
+        Somewhat arbitrarily, limit body size to 1MiB by default.
         """
         content_type = get_content_type(request.requestHeaders)
-        if content_type == CBOR_MIME_TYPE:
-            # Read 1 byte more than 1MB. We expect length to be 1MB or
-            # less; if it's more assume it's not a legitimate message.
-            message = request.content.read(1024 * 1024 + 1)
-            if len(message) > 1024 * 1024:
-                raise _HTTPError(http.REQUEST_ENTITY_TOO_LARGE)
-            schema.validate_cbor(message)
-            result = loads(message)
-            return result
-        else:
+        if content_type != CBOR_MIME_TYPE:
             raise _HTTPError(http.UNSUPPORTED_MEDIA_TYPE)
+
+        # Make sure it's not too large:
+        request.content.seek(0, SEEK_END)
+        size = request.content.tell()
+        if size > max_size:
+            raise _HTTPError(http.REQUEST_ENTITY_TOO_LARGE)
+        request.content.seek(0, SEEK_SET)
+
+        # We don't want to load the whole message into memory, cause it might
+        # be quite large. The CDDL validator takes a read-only bytes-like
+        # thing. Luckily, for large request bodies twisted.web will buffer the
+        # data in a file, so we can use mmap() to get a memory view. The CDDL
+        # validator will not make a copy, so it won't increase memory usage
+        # beyond that.
+        try:
+            fd = request.content.fileno()
+        except (ValueError, OSError):
+            fd = -1
+        if fd >= 0:
+            # It's a file, so we can use mmap() to save memory.
+            message = mmap.mmap(fd, 0, access=mmap.ACCESS_READ)
+        else:
+            message = request.content.read()
+
+        # Pycddl will release the GIL when validating larger documents, so
+        # let's take advantage of multiple CPUs:
+        if size > 10_000:
+            await defer_to_thread(self._reactor, schema.validate_cbor, message)
+        else:
+            schema.validate_cbor(message)
+
+        # The CBOR parser will allocate more memory, but at least we can feed
+        # it the file-like object, so that if it's large it won't be make two
+        # copies.
+        request.content.seek(SEEK_SET, 0)
+        # Typically deserialization to Python will not release the GIL, and
+        # indeed as of Jan 2023 cbor2 didn't have any code to release the GIL
+        # in the decode path. As such, running it in a different thread has no benefit.
+        return cbor2.load(request.content)
 
     ##### Generic APIs #####
 
@@ -563,10 +602,14 @@ class HTTPServer(object):
         "/storage/v1/immutable/<storage_index:storage_index>",
         methods=["POST"],
     )
-    def allocate_buckets(self, request, authorization, storage_index):
+    @async_to_deferred
+    async def allocate_buckets(self, request, authorization, storage_index):
         """Allocate buckets."""
         upload_secret = authorization[Secrets.UPLOAD]
-        info = self._read_encoded(request, _SCHEMAS["allocate_buckets"])
+        # It's just a list of up to ~256 shares, shouldn't use many bytes.
+        info = await self._read_encoded(
+            request, _SCHEMAS["allocate_buckets"], max_size=8192
+        )
 
         # We do NOT validate the upload secret for existing bucket uploads.
         # Another upload may be happening in parallel, with a different upload
@@ -588,7 +631,7 @@ class HTTPServer(object):
                 storage_index, share_number, upload_secret, bucket
             )
 
-        return self._send_encoded(
+        return await self._send_encoded(
             request,
             {"already-have": set(already_got), "allocated": set(sharenum_to_bucket)},
         )
@@ -723,7 +766,8 @@ class HTTPServer(object):
         "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
         methods=["POST"],
     )
-    def advise_corrupt_share_immutable(
+    @async_to_deferred
+    async def advise_corrupt_share_immutable(
         self, request, authorization, storage_index, share_number
     ):
         """Indicate that given share is corrupt, with a text reason."""
@@ -732,7 +776,11 @@ class HTTPServer(object):
         except KeyError:
             raise _HTTPError(http.NOT_FOUND)
 
-        info = self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
+        # The reason can be a string with explanation, so in theory it could be
+        # longish?
+        info = await self._read_encoded(
+            request, _SCHEMAS["advise_corrupt_share"], max_size=32768,
+        )
         bucket.advise_corrupt_share(info["reason"].encode("utf-8"))
         return b""
 
@@ -744,9 +792,12 @@ class HTTPServer(object):
         "/storage/v1/mutable/<storage_index:storage_index>/read-test-write",
         methods=["POST"],
     )
-    def mutable_read_test_write(self, request, authorization, storage_index):
+    @async_to_deferred
+    async def mutable_read_test_write(self, request, authorization, storage_index):
         """Read/test/write combined operation for mutables."""
-        rtw_request = self._read_encoded(request, _SCHEMAS["mutable_read_test_write"])
+        rtw_request = await self._read_encoded(
+            request, _SCHEMAS["mutable_read_test_write"], max_size=2**48
+        )
         secrets = (
             authorization[Secrets.WRITE_ENABLER],
             authorization[Secrets.LEASE_RENEW],
@@ -771,7 +822,9 @@ class HTTPServer(object):
             )
         except BadWriteEnablerError:
             raise _HTTPError(http.UNAUTHORIZED)
-        return self._send_encoded(request, {"success": success, "data": read_data})
+        return await self._send_encoded(
+            request, {"success": success, "data": read_data}
+        )
 
     @_authorized_route(
         _app,
@@ -816,7 +869,8 @@ class HTTPServer(object):
         "/storage/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
         methods=["POST"],
     )
-    def advise_corrupt_share_mutable(
+    @async_to_deferred
+    async def advise_corrupt_share_mutable(
         self, request, authorization, storage_index, share_number
     ):
         """Indicate that given share is corrupt, with a text reason."""
@@ -825,7 +879,11 @@ class HTTPServer(object):
         }:
             raise _HTTPError(http.NOT_FOUND)
 
-        info = self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
+        # The reason can be a string with explanation, so in theory it could be
+        # longish?
+        info = await self._read_encoded(
+            request, _SCHEMAS["advise_corrupt_share"], max_size=32768
+        )
         self._storage_server.advise_corrupt_share(
             b"mutable", storage_index, share_number, info["reason"].encode("utf-8")
         )

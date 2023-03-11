@@ -21,7 +21,11 @@ from twisted.scripts import twistd
 from twisted.python import usage
 from twisted.python.filepath import FilePath
 from twisted.python.reflect import namedAny
-from twisted.internet.defer import maybeDeferred
+from twisted.python.failure import Failure
+from twisted.internet.defer import maybeDeferred, Deferred
+from twisted.internet.protocol import Protocol
+from twisted.internet.stdio import StandardIO
+from twisted.internet.error import ReactorNotRunning
 from twisted.application.service import Service
 
 from allmydata.scripts.default_nodedir import _default_nodedir
@@ -155,6 +159,8 @@ class DaemonizeTheRealService(Service, HookMixin):
 
     def startService(self):
 
+        from twisted.internet import reactor
+
         def start():
             node_to_instance = {
                 u"client": lambda: maybeDeferred(namedAny("allmydata.client.create_client"), self.basedir),
@@ -194,12 +200,14 @@ class DaemonizeTheRealService(Service, HookMixin):
 
             def created(srv):
                 srv.setServiceParent(self.parent)
+                # exiting on stdin-closed facilitates cleanup when run
+                # as a subprocess
+                on_stdin_close(reactor, reactor.stop)
             d.addCallback(created)
             d.addErrback(handle_config_error)
             d.addBoth(self._call_hook, 'running')
             return d
 
-        from twisted.internet import reactor
         reactor.callWhenRunning(start)
 
 
@@ -211,6 +219,46 @@ class DaemonizeTahoeNodePlugin(object):
 
     def makeService(self, so):
         return DaemonizeTheRealService(self.nodetype, self.basedir, so)
+
+
+def on_stdin_close(reactor, fn):
+    """
+    Arrange for the function `fn` to run when our stdin closes
+    """
+    when_closed_d = Deferred()
+
+    class WhenClosed(Protocol):
+        """
+        Notify a Deferred when our connection is lost .. as this is passed
+        to twisted's StandardIO class, it is used to detect our parent
+        going away.
+        """
+
+        def connectionLost(self, reason):
+            when_closed_d.callback(None)
+
+    def on_close(arg):
+        try:
+            fn()
+        except ReactorNotRunning:
+            pass
+        except Exception:
+            # for our "exit" use-case failures will _mostly_ just be
+            # ReactorNotRunning (because we're already shutting down
+            # when our stdin closes) but no matter what "bad thing"
+            # happens we just want to ignore it .. although other
+            # errors might be interesting so we'll log those
+            print(Failure())
+        return arg
+
+    when_closed_d.addBoth(on_close)
+    # we don't need to do anything with this instance because it gets
+    # hooked into the reactor and thus remembered .. but we return it
+    # for Windows testing purposes.
+    return StandardIO(
+        proto=WhenClosed(),
+        reactor=reactor,
+    )
 
 
 def run(reactor, config, runApp=twistd.runApp):

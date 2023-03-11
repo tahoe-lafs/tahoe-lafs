@@ -20,6 +20,7 @@ from foolscap.api import flushEventualQueue
 from allmydata import client
 from allmydata.introducer.server import create_introducer
 from allmydata.util import fileutil, log, pollmixin
+from allmydata.util.deferredutil import async_to_deferred
 from allmydata.storage import http_client
 from allmydata.storage_client import (
     NativeStorageServer,
@@ -639,12 +640,49 @@ def _render_section_values(values):
     ))
 
 
+@async_to_deferred
+async def spin_until_cleanup_done(value=None, timeout=10):
+    """
+    At the end of the test, spin until the reactor has no more DelayedCalls
+    and file descriptors (or equivalents) registered. This prevents dirty
+    reactor errors, while also not hard-coding a fixed amount of time, so it
+    can finish faster on faster computers.
+
+    There is also a timeout: if it takes more than 10 seconds (by default) for
+    the remaining reactor state to clean itself up, the presumption is that it
+    will never get cleaned up and the spinning stops.
+
+    Make sure to run as last thing in tearDown.
+    """
+    def num_fds():
+        if hasattr(reactor, "handles"):
+            # IOCP!
+            return len(reactor.handles)
+        else:
+            # Normal reactor; having internal readers still registered is fine,
+            # that's not our code.
+            return len(
+                set(reactor.getReaders()) - set(reactor._internalReaders)
+            ) + len(reactor.getWriters())
+
+    for i in range(timeout * 1000):
+        # There's a single DelayedCall for AsynchronousDeferredRunTest's
+        # timeout...
+        if (len(reactor.getDelayedCalls()) < 2 and num_fds() == 0):
+            break
+        await deferLater(reactor, 0.001)
+    return value
+
+
 class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
     # If set to True, use Foolscap for storage protocol. If set to False, HTTP
     # will be used when possible. If set to None, this suggests a bug in the
     # test code.
     FORCE_FOOLSCAP_FOR_STORAGE : Optional[bool] = None
+
+    # If True, reduce the timeout on connections:
+    REDUCE_HTTP_CLIENT_TIMEOUT : bool = True
 
     def setUp(self):
         self._http_client_pools = []
@@ -672,7 +710,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             d.addTimeout(1, reactor)
             return d
 
-        pool.getConnection = getConnectionWithTimeout
+        if self.REDUCE_HTTP_CLIENT_TIMEOUT:
+            pool.getConnection = getConnectionWithTimeout
 
     def close_idle_http_connections(self):
         """Close all HTTP client connections that are just hanging around."""
@@ -685,7 +724,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d = self.sparent.stopService()
         d.addBoth(flush_but_dont_ignore)
         d.addBoth(lambda x: self.close_idle_http_connections().addCallback(lambda _: x))
-        d.addBoth(lambda x: deferLater(reactor, 2, lambda: x))
+        d.addBoth(spin_until_cleanup_done)
         return d
 
     def getdir(self, subdir):
@@ -832,6 +871,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         setnode("nickname", u"client %d \N{BLACK SMILING FACE}" % (which,))
         setconf(config, which, "storage", "force_foolscap", str(force_foolscap))
+        setconf(config, which, "client", "force_foolscap", str(force_foolscap))
 
         tub_location_hint, tub_port_endpoint = self.port_assigner.assign(reactor)
         setnode("tub.port", tub_port_endpoint)

@@ -26,6 +26,11 @@ from ..uri import (
     MDMFDirectoryURI,
 )
 
+from allmydata.util.base32 import (
+    b2a,
+)
+
+
 def write_capabilities():
     """
     Build ``IURI`` providers representing all kinds of write capabilities.
@@ -121,6 +126,7 @@ def dir2_mdmf_capabilities():
         mdmf_capabilities(),
     )
 
+
 def offsets(min_value=0, max_value=2 ** 16):
     """
     Build ``int`` values that could be used as valid offsets into a sequence
@@ -134,3 +140,13 @@ def lengths(min_value=1, max_value=2 ** 16):
     share data in a share file).
     """
     return integers(min_value, max_value)
+
+
+def base32text():
+    """
+    Build text()s that are valid base32
+    """
+    return builds(
+        lambda b: str(b2a(b), "ascii"),
+        binary(),
+    )

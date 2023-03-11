@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from typing import Iterator, Optional, List, Tuple
 from collections.abc import Awaitable
-from inspect import getargspec
+from inspect import getfullargspec
 from itertools import count
 from sys import stderr
 
@@ -141,8 +141,8 @@ def _verify():
     """
     # Poor man's interface verification.
 
-    a = getargspec(create)
-    b = getargspec(MemoryWormholeServer.create)
+    a = getfullargspec(create)
+    b = getfullargspec(MemoryWormholeServer.create)
     # I know it has a `self` argument at the beginning.  That's okay.
     b = b._replace(args=b.args[1:])
     assert a == b, "{} != {}".format(a, b)

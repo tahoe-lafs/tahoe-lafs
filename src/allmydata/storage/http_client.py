@@ -20,7 +20,11 @@ from twisted.web.http_headers import Headers
 from twisted.web import http
 from twisted.web.iweb import IPolicyForHTTPS
 from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred, succeed
-from twisted.internet.interfaces import IOpenSSLClientConnectionCreator, IReactorTime
+from twisted.internet.interfaces import (
+    IOpenSSLClientConnectionCreator,
+    IReactorTime,
+    IDelayedCall,
+)
 from twisted.internet.ssl import CertificateOptions
 from twisted.web.client import Agent, HTTPConnectionPool
 from zope.interface import implementer
@@ -124,16 +128,22 @@ class _LengthLimitedCollector:
     """
 
     remaining_length: int
+    timeout_on_silence: IDelayedCall
     f: BytesIO = field(factory=BytesIO)
 
     def __call__(self, data: bytes):
+        self.timeout_on_silence.reset(60)
         self.remaining_length -= len(data)
         if self.remaining_length < 0:
             raise ValueError("Response length was too long")
         self.f.write(data)
 
 
-def limited_content(response, max_length: int = 30 * 1024 * 1024) -> Deferred[BinaryIO]:
+def limited_content(
+    response,
+    clock: IReactorTime,
+    max_length: int = 30 * 1024 * 1024,
+) -> Deferred[BinaryIO]:
     """
     Like ``treq.content()``, but limit data read from the response to a set
     length.  If the response is longer than the max allowed length, the result
@@ -142,39 +152,29 @@ def limited_content(response, max_length: int = 30 * 1024 * 1024) -> Deferred[Bi
     A potentially useful future improvement would be using a temporary file to
     store the content; since filesystem buffering means that would use memory
     for small responses and disk for large responses.
+
+    This will time out if no data is received for 60 seconds; so long as a
+    trickle of data continues to arrive, it will continue to run.
     """
-    collector = _LengthLimitedCollector(max_length)
+    d = succeed(None)
+    timeout = clock.callLater(60, d.cancel)
+    collector = _LengthLimitedCollector(max_length, timeout)
+
     # Make really sure everything gets called in Deferred context, treq might
     # call collector directly...
-    d = succeed(None)
     d.addCallback(lambda _: treq.collect(response, collector))
 
     def done(_):
+        timeout.cancel()
         collector.f.seek(0)
         return collector.f
 
-    d.addCallback(done)
-    return d
+    def failed(f):
+        if timeout.active():
+            timeout.cancel()
+        return f
 
-
-def _decode_cbor(response, schema: Schema):
-    """Given HTTP response, return decoded CBOR body."""
-
-    def got_content(f: BinaryIO):
-        data = f.read()
-        schema.validate_cbor(data)
-        return loads(data)
-
-    if response.code > 199 and response.code < 300:
-        content_type = get_content_type(response.headers)
-        if content_type == CBOR_MIME_TYPE:
-            return limited_content(response).addCallback(got_content)
-        else:
-            raise ClientException(-1, "Server didn't send CBOR")
-    else:
-        return treq.content(response).addCallback(
-            lambda data: fail(ClientException(response.code, response.phrase, data))
-        )
+    return d.addCallbacks(done, failed)
 
 
 @define
@@ -323,6 +323,7 @@ class StorageClient(object):
         swissnum = nurl.path[0].encode("ascii")
         certificate_hash = nurl.user.encode("ascii")
         pool = HTTPConnectionPool(reactor)
+        pool.maxPersistentPerHost = 20
 
         if cls.TEST_MODE_REGISTER_HTTP_POOL is not None:
             cls.TEST_MODE_REGISTER_HTTP_POOL(pool)
@@ -362,6 +363,7 @@ class StorageClient(object):
         write_enabler_secret=None,
         headers=None,
         message_to_serialize=None,
+        timeout: float = 60,
         **kwargs,
     ):
         """
@@ -370,6 +372,8 @@ class StorageClient(object):
 
         If ``message_to_serialize`` is set, it will be serialized (by default
         with CBOR) and set as the request body.
+
+        Default timeout is 60 seconds.
         """
         headers = self._get_headers(headers)
 
@@ -401,7 +405,28 @@ class StorageClient(object):
             kwargs["data"] = dumps(message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
-        return self._treq.request(method, url, headers=headers, **kwargs)
+        return self._treq.request(
+            method, url, headers=headers, timeout=timeout, **kwargs
+        )
+
+    def decode_cbor(self, response, schema: Schema):
+        """Given HTTP response, return decoded CBOR body."""
+
+        def got_content(f: BinaryIO):
+            data = f.read()
+            schema.validate_cbor(data)
+            return loads(data)
+
+        if response.code > 199 and response.code < 300:
+            content_type = get_content_type(response.headers)
+            if content_type == CBOR_MIME_TYPE:
+                return limited_content(response, self._clock).addCallback(got_content)
+            else:
+                raise ClientException(-1, "Server didn't send CBOR")
+        else:
+            return treq.content(response).addCallback(
+                lambda data: fail(ClientException(response.code, response.phrase, data))
+            )
 
 
 @define(hash=True)
@@ -419,7 +444,9 @@ class StorageClientGeneral(object):
         """
         url = self._client.relative_url("/storage/v1/version")
         response = yield self._client.request("GET", url)
-        decoded_response = yield _decode_cbor(response, _SCHEMAS["get_version"])
+        decoded_response = yield self._client.decode_cbor(
+            response, _SCHEMAS["get_version"]
+        )
         returnValue(decoded_response)
 
     @inlineCallbacks
@@ -486,6 +513,9 @@ def read_share_chunk(
             share_type, _encode_si(storage_index), share_number
         )
     )
+    # The default 60 second timeout is for getting the response, so it doesn't
+    # include the time it takes to download the body... so we will will deal
+    # with that later, via limited_content().
     response = yield client.request(
         "GET",
         url,
@@ -494,6 +524,7 @@ def read_share_chunk(
             # but Range constructor does that the conversion for us.
             {"range": [Range("bytes", [(offset, offset + length)]).to_header()]}
         ),
+        unbuffered=True,  # Don't buffer the response in memory.
     )
 
     if response.code == http.NO_CONTENT:
@@ -516,7 +547,7 @@ def read_share_chunk(
             raise ValueError("Server sent more than we asked for?!")
         # It might also send less than we asked for. That's (probably) OK, e.g.
         # if we went past the end of the file.
-        body = yield limited_content(response, supposed_length)
+        body = yield limited_content(response, client._clock, supposed_length)
         body.seek(0, SEEK_END)
         actual_length = body.tell()
         if actual_length != supposed_length:
@@ -603,7 +634,9 @@ class StorageClientImmutables(object):
             upload_secret=upload_secret,
             message_to_serialize=message,
         )
-        decoded_response = yield _decode_cbor(response, _SCHEMAS["allocate_buckets"])
+        decoded_response = yield self._client.decode_cbor(
+            response, _SCHEMAS["allocate_buckets"]
+        )
         returnValue(
             ImmutableCreateResult(
                 already_have=decoded_response["already-have"],
@@ -679,7 +712,9 @@ class StorageClientImmutables(object):
             raise ClientException(
                 response.code,
             )
-        body = yield _decode_cbor(response, _SCHEMAS["immutable_write_share_chunk"])
+        body = yield self._client.decode_cbor(
+            response, _SCHEMAS["immutable_write_share_chunk"]
+        )
         remaining = RangeMap()
         for chunk in body["required"]:
             remaining.set(True, chunk["begin"], chunk["end"])
@@ -708,7 +743,7 @@ class StorageClientImmutables(object):
             url,
         )
         if response.code == http.OK:
-            body = yield _decode_cbor(response, _SCHEMAS["list_shares"])
+            body = yield self._client.decode_cbor(response, _SCHEMAS["list_shares"])
             returnValue(set(body))
         else:
             raise ClientException(response.code)
@@ -825,7 +860,9 @@ class StorageClientMutables:
             message_to_serialize=message,
         )
         if response.code == http.OK:
-            result = await _decode_cbor(response, _SCHEMAS["mutable_read_test_write"])
+            result = await self._client.decode_cbor(
+                response, _SCHEMAS["mutable_read_test_write"]
+            )
             return ReadTestWriteResult(success=result["success"], reads=result["data"])
         else:
             raise ClientException(response.code, (await response.content()))
@@ -854,7 +891,9 @@ class StorageClientMutables:
         )
         response = await self._client.request("GET", url)
         if response.code == http.OK:
-            return await _decode_cbor(response, _SCHEMAS["mutable_list_shares"])
+            return await self._client.decode_cbor(
+                response, _SCHEMAS["mutable_list_shares"]
+            )
         else:
             raise ClientException(response.code)
 
