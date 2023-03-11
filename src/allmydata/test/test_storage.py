@@ -1816,7 +1816,7 @@ class MutableServer(SyncTestCase):
         prefix = si[:2]
         prefixdir = os.path.join(self.workdir("test_remove"), "shares", prefix)
         bucketdir = os.path.join(prefixdir, si)
-        self.assertThat(prefixdir, Contains(os.path.exists(prefixdir)))
+        self.assertTrue(os.path.exists(prefixdir), prefixdir)
         self.assertFalse(os.path.exists(bucketdir), bucketdir)
 
     def test_writev_without_renew_lease(self):
@@ -2425,7 +2425,7 @@ class MDMFProxies(AsyncTestCase, ShouldFailMixin):
         # any point during the process, it should fail to write when we
         # tell it to write.
         def _check_failure(results):
-            self.assertThat(results, Equals(2))
+            self.assertThat(results, HasLength(2))
             res, d = results
             self.assertFalse(res)
 
@@ -3191,7 +3191,7 @@ class MDMFProxies(AsyncTestCase, ShouldFailMixin):
         d.addCallback(lambda ignored:
             mr.get_verinfo())
         def _check_verinfo(verinfo):
-            self.assertThat(verinfo)
+            self.assertTrue(verinfo)
             self.assertThat(verinfo, HasLength(9))
             (seqnum,
              root_hash,
