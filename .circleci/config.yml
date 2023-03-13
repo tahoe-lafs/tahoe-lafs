@@ -418,7 +418,8 @@ jobs:
             # half cores.  Don't let Nix autodetect this high core count
             # because it blows up memory usage and fails the test run.  Pick a
             # number of cores that suites the build environment we're paying
-            # for (the free one!).h
+            # for (the free one!).
+            source .circleci/lib.sh
             cache_if_able nix-build \
               --cores 8 \
               --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
