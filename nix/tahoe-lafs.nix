@@ -32,7 +32,7 @@
 , txtorcon
 
 # i2p extra dependencies
-, txi2p-tahoe
+, txi2p
 
 # test dependencies
 , beautifulsoup4
@@ -56,7 +56,7 @@ let
 
   pythonExtraDependencies = {
     tor = [ txtorcon ];
-    i2p = [ txi2p-tahoe ];
+    i2p = [ txi2p ];
   };
 
   pythonPackageDependencies = [

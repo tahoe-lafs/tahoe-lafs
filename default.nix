@@ -48,6 +48,7 @@ callPackage ./nix/tahoe-lafs.nix {
   # when files that make no difference to the package have changed.
   tahoe-lafs-src = pkgs.lib.cleanSource ./.;
 
-  # pycddl isn't packaged in nixpkgs so supply our own package of it.
+  # Some dependencies aren't packaged in nixpkgs so supply our own packages.
   pycddl = callPackage ./nix/pycddl.nix { };
+  txi2p = callPackage ./nix/txi2p.nix { };
 }
