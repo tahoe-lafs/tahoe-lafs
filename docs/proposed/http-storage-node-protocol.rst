@@ -346,7 +346,7 @@ Where the specification refers to Base32 the meaning is *unpadded* Base32 encodi
 That is, the alphabet is:
 
 .. list-table:: Base32 Alphabet
-		:header-rows: 1
+   :header-rows: 1
 
    * - Value
      - Encoding
