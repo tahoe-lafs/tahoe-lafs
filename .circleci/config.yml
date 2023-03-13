@@ -438,7 +438,7 @@ jobs:
             cache_if_able nix-build \
               --cores 8 \
               --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
-              tests.nix
+              nix/tests/
 
   typechecks:
     docker:

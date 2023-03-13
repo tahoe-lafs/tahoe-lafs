@@ -2,6 +2,9 @@
 , tahoe-lafs-src
 , extras
 
+# control how the test suite is run
+, doCheck ? false
+
 # always dependencies
 , attrs
 , autobahn
@@ -117,6 +120,11 @@ buildPythonPackage {
   inherit pname version;
   src = tahoe-lafs-src;
   buildInputs = pythonPackageDependencies;
+
+  inherit doCheck;
   checkInputs = pythonCheckDependencies;
-  checkPhase = "TAHOE_LAFS_HYPOTHESIS_PROFILE=ci python -m twisted.trial -j $NIX_BUILD_CORES allmydata";
+  checkPhase = ''
+    export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
+    python -m twisted.trial -j $NIX_BUILD_CORES allmydata
+  '';
 }
