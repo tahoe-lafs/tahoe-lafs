@@ -127,4 +127,11 @@ buildPythonPackage {
     export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
     python -m twisted.trial -j $NIX_BUILD_CORES allmydata
   '';
+
+  meta = with lib; {
+    homepage = "https://tahoe-lafs.org/";
+    description = "secure, decentralized, fault-tolerant file store";
+    # Also TGPPL
+    license = licenses.gpl2Plus;
+  };
 }
