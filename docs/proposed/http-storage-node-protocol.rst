@@ -244,9 +244,9 @@ When Bob's client issues HTTP requests to Alice's storage node it includes the *
 .. note::
 
    Foolscap TubIDs are 20 bytes (SHA1 digest of the certificate).
-   They are encoded with Base32 for a length of 32 bytes.
+   They are encoded with `Base32_` for a length of 32 bytes.
    SPKI information discussed here is 32 bytes (SHA256 digest).
-   They would be encoded in Base32 for a length of 52 bytes.
+   They would be encoded in `Base32`_ for a length of 52 bytes.
    `unpadded base64url`_ provides a more compact encoding of the information while remaining URL-compatible.
    This would encode the SPKI information for a length of merely 43 bytes.
    SHA1,
@@ -335,6 +335,100 @@ storage indexes
 and shares.
 A particular resource is addressed by the HTTP request path.
 Details about the interface are encoded in the HTTP message body.
+
+String Encoding
+~~~~~~~~~~~~~~~
+
+.. _Base32:
+
+Where the specification refers to Base32 the meaning is *unpadded* Base32 encoding as specified by `RFC 4648`_ using a *lowercase variation* of the alphabet from Section 6.
+
+That is, the alphabet is:
+
+.. list-table:: Base32 Alphabet
+		:header-rows: 1
+
+   * - Value
+     - Encoding
+     - Value
+     - Encoding
+     - Value
+     - Encoding
+     - Value
+     - Encoding
+
+   * - 0
+     - a
+     - 9
+     - j
+     - 18
+     - s
+     - 27
+     - 3
+   * - 1
+     - b
+     - 10
+     - k
+     - 19
+     - t
+     - 28
+     - 4
+   * - 2
+     - c
+     - 11
+     - l
+     - 20
+     - u
+     - 29
+     - 5
+   * - 3
+     - d
+     - 12
+     - m
+     - 21
+     - v
+     - 30
+     - 6
+   * - 4
+     - e
+     - 13
+     - n
+     - 22
+     - w
+     - 31
+     - 7
+   * - 5
+     - f
+     - 14
+     - o
+     - 23
+     - x
+     -
+     -
+   * - 6
+     - g
+     - 15
+     - p
+     - 24
+     - y
+     -
+     -
+   * - 7
+     - h
+     - 16
+     - q
+     - 25
+     - z
+     -
+     -
+   * - 8
+     - i
+     - 17
+     - r
+     - 26
+     - 2
+     -
+     -
 
 Message Encoding
 ~~~~~~~~~~~~~~~~
@@ -1057,8 +1151,6 @@ otherwise it will read a byte which won't match `b""`::
      204 NO CONTENT
 
 .. _Base64: https://www.rfc-editor.org/rfc/rfc4648#section-4
-
-.. _Base32: https://www.rfc-editor.org/rfc/rfc4648#section-6
 
 .. _RFC 4648: https://tools.ietf.org/html/rfc4648
 
