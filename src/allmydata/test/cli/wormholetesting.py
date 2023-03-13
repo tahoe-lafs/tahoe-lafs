@@ -32,7 +32,7 @@ For example::
 
 from __future__ import annotations
 
-__all__ = ['IWormhole']
+__all__ = ['MemoryWormholeServer', 'TestingHelper', 'memory_server', 'IWormhole']
 
 from typing import Iterator, Optional, List, Tuple, Any, TextIO
 from inspect import getfullargspec
