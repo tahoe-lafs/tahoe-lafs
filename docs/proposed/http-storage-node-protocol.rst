@@ -436,6 +436,7 @@ Encoding
 ~~~~~~~~
 
 * ``storage_index`` MUST be `Base32`_ encoded in URLs.
+* ``share_number`` MUST be a decimal representation
 
 General
 ~~~~~~~
