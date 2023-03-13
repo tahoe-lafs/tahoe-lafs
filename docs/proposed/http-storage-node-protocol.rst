@@ -194,7 +194,7 @@ An HTTP-based protocol, dubbed "Great Black Swamp" (or "GBS"), is described belo
 This protocol aims to satisfy the above requirements at a lower level of complexity than the current Foolscap-based protocol.
 
 Summary (Non-normative)
-!!!!!!!!!!!!!!!!!!!!!!!
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Communication with the storage node will take place using TLS.
 The TLS version and configuration will be dictated by an ongoing understanding of best practices.
