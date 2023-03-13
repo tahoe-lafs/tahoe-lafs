@@ -1,4 +1,5 @@
-{ buildPythonPackage
+{ lib
+, buildPythonPackage
 , tahoe-lafs-src
 , extrasNames
 
