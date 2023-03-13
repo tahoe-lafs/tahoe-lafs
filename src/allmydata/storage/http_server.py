@@ -273,7 +273,7 @@ _SCHEMAS = {
     "advise_corrupt_share": Schema(
         """
     request = {
-      reason: tstr
+      reason: tstr .size (1..32765)
     }
     """
     ),
