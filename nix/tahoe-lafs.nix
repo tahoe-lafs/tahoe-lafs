@@ -119,7 +119,7 @@ in
 buildPythonPackage {
   inherit pname version;
   src = tahoe-lafs-src;
-  buildInputs = pythonPackageDependencies;
+  propagatedBuildInputs = pythonPackageDependencies;
 
   inherit doCheck;
   checkInputs = pythonCheckDependencies;
