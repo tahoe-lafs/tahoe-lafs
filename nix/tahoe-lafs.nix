@@ -34,6 +34,15 @@
 # i2p extra dependencies
 , txi2p
 
+# twisted extra dependencies - if there is overlap with our dependencies we
+# have to skip them since we can't have a name in the argument set twice.
+, appdirs
+, bcrypt
+, idna
+, pyasn1
+, pyopenssl
+, service-identity
+
 # test dependencies
 , beautifulsoup4
 , fixtures
@@ -81,8 +90,9 @@ let
     six
     treq
     twisted
-    (twisted.passthru.optional-dependencies.tls)
-    (twisted.passthru.optional-dependencies.conch)
+    # Get the dependencies for the Twisted extras we depend on, too.
+    twisted.passthru.optional-dependencies.tls
+    twisted.passthru.optional-dependencies.conch
     werkzeug
     zfec
     zope_interface

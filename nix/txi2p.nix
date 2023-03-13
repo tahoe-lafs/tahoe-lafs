@@ -1,4 +1,9 @@
-{ fetchPypi, buildPythonPackage, parsley, twisted, unittestCheckHook }:
+{ fetchPypi
+, buildPythonPackage
+, parsley
+, twisted
+, unittestCheckHook
+}:
 buildPythonPackage rec {
   pname = "txi2p-tahoe";
   version = "0.3.7";

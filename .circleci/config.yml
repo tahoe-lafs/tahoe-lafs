@@ -71,12 +71,8 @@ workflows:
           {}
 
       - "nixos":
-          name: "NixOS 21.11"
-          nixpkgs: "21.11"
-
-      - "nixos":
           name: "NixOS 22.11"
-          nixpkgs: "22.11"
+          nixpkgs: "21.11"
 
       - "nixos":
           name: "NixOS unstable"
