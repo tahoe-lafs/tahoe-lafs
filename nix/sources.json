@@ -1,16 +1,4 @@
 {
-    "mach-nix": {
-        "branch": "switch-to-nix-pypi-fetcher-2",
-        "description": "Create highly reproducible python environments",
-        "homepage": "",
-        "owner": "PrivateStorageio",
-        "repo": "mach-nix",
-        "rev": "f6d1a1841d8778c199326f95d0703c16bee2f8c4",
-        "sha256": "0krc4yhnpbzc4yhja9frnmym2vqm5zyacjnqb3fq9z9gav8vs9ls",
-        "type": "tarball",
-        "url": "https://github.com/PrivateStorageio/mach-nix/archive/f6d1a1841d8778c199326f95d0703c16bee2f8c4.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
     "niv": {
         "branch": "master",
         "description": "Easy dependency management for Nix projects",
@@ -21,18 +9,6 @@
         "sha256": "1d3lsrqvci4qz2hwjrcnd8h5vfkg8aypq3sjd4g3izbc8frwz5sm",
         "type": "tarball",
         "url": "https://github.com/nmattia/niv/archive/5830a4dd348d77e39a0f3c4c762ff2663b602d4c.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
-    "nixpkgs-21.05": {
-        "branch": "nixos-21.05",
-        "description": "Nix Packages collection",
-        "homepage": "",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "0fd9ee1aa36ce865ad273f4f07fdc093adeb5c00",
-        "sha256": "1mr2qgv5r2nmf6s3gqpcjj76zpsca6r61grzmqngwm0xlh958smx",
-        "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/0fd9ee1aa36ce865ad273f4f07fdc093adeb5c00.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs-21.11": {
@@ -47,16 +23,28 @@
         "url": "https://github.com/NixOS/nixpkgs/archive/838eefb4f93f2306d4614aafb9b2375f315d917f.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
-    "pypi-deps-db": {
-        "branch": "master",
-        "description": "Probably the most complete python dependency database",
+    "nixpkgs-22.11": {
+        "branch": "nixos-22.11",
+        "description": "Nix Packages collection",
         "homepage": "",
-        "owner": "DavHau",
-        "repo": "pypi-deps-db",
-        "rev": "5440c9c76f6431f300fb6a1ecae762a5444de5f6",
-        "sha256": "08r3iiaxzw9v2gq15y1m9bwajshyyz9280g6aia7mkgnjs9hnd1n",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "970402e6147c49603f4d06defe44d27fe51884ce",
+        "sha256": "1v0ljy7wqq14ad3gd1871fgvd4psr7dy14q724k0wwgxk7inbbwh",
         "type": "tarball",
-        "url": "https://github.com/DavHau/pypi-deps-db/archive/5440c9c76f6431f300fb6a1ecae762a5444de5f6.tar.gz",
+        "url": "https://github.com/nixos/nixpkgs/archive/970402e6147c49603f4d06defe44d27fe51884ce.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "nixpkgs-unstable": {
+        "branch": "master",
+        "description": "Nix Packages collection",
+        "homepage": "",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "d0c9a536331227ab883b4f6964be638fa436d81f",
+        "sha256": "1gg6v5rk1p26ciygdg262zc5vqws753rvgcma5rim2s6gyfrjaq1",
+        "type": "tarball",
+        "url": "https://github.com/nixos/nixpkgs/archive/d0c9a536331227ab883b4f6964be638fa436d81f.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
