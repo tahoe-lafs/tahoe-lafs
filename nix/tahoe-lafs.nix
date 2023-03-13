@@ -1,65 +1,11 @@
 { lib
+, pythonPackages
 , buildPythonPackage
 , tahoe-lafs-src
 , extrasNames
 
 # control how the test suite is run
-, doCheck ? false
-
-# always dependencies
-, attrs
-, autobahn
-, cbor2
-, click
-, collections-extended
-, cryptography
-, distro
-, eliot
-, filelock
-, foolscap
-, future
-, klein
-, magic-wormhole
-, netifaces
-, psutil
-, pycddl
-, pyrsistent
-, pyutil
-, six
-, treq
-, twisted
-, werkzeug
-, zfec
-, zope_interface
-
-# tor extra dependencies
-, txtorcon
-
-# i2p extra dependencies
-, txi2p
-
-# twisted extra dependencies - if there is overlap with our dependencies we
-# have to skip them since we can't have a name in the argument set twice.
-, appdirs
-, bcrypt
-, idna
-, pyasn1
-, pyopenssl
-, service-identity
-
-# test dependencies
-, beautifulsoup4
-, fixtures
-, hypothesis
-, mock
-, paramiko
-, prometheus-client
-, pytest
-, pytest-timeout
-, pytest-twisted
-, tenacity
-, testtools
-, towncrier
+, doCheck
 }:
 let
   pname = "tahoe-lafs";
@@ -67,12 +13,12 @@ let
 
   pickExtraDependencies = deps: extras: builtins.foldl' (accum: extra: accum  ++ deps.${extra}) [] extras;
 
-  pythonExtraDependencies = {
+  pythonExtraDependencies = with pythonPackages; {
     tor = [ txtorcon ];
     i2p = [ txi2p ];
   };
 
-  pythonPackageDependencies = [
+  pythonPackageDependencies = with pythonPackages; [
     attrs
     autobahn
     cbor2
@@ -102,7 +48,7 @@ let
     zope_interface
   ] ++ pickExtraDependencies pythonExtraDependencies extrasNames;
 
-  pythonCheckDependencies = [
+  pythonCheckDependencies = with pythonPackages; [
     beautifulsoup4
     fixtures
     hypothesis

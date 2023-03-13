@@ -31,7 +31,13 @@ in
                                 # cost of re-building the whole thing to add them.
 
 }:
-with pkgs.${pythonVersion}.pkgs;
+with (pkgs.${pythonVersion}.override {
+  packageOverrides = self: super: {
+    # Some dependencies aren't packaged in nixpkgs so supply our own packages.
+    pycddl = self.callPackage ./nix/pycddl.nix { };
+    txi2p = self.callPackage ./nix/txi2p.nix { };
+  };
+}).pkgs;
 callPackage ./nix/tahoe-lafs.nix {
   # Select whichever package extras were requested.
   inherit extrasNames;
@@ -42,7 +48,5 @@ callPackage ./nix/tahoe-lafs.nix {
   # when files that make no difference to the package have changed.
   tahoe-lafs-src = pkgs.lib.cleanSource ./.;
 
-  # Some dependencies aren't packaged in nixpkgs so supply our own packages.
-  pycddl = callPackage ./nix/pycddl.nix { };
-  txi2p = callPackage ./nix/txi2p.nix { };
+  doCheck = false;
 }
