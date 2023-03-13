@@ -341,6 +341,9 @@ String Encoding
 
 .. _Base32:
 
+Base32
+!!!!!!
+
 Where the specification refers to Base32 the meaning is *unpadded* Base32 encoding as specified by `RFC 4648`_ using a *lowercase variation* of the alphabet from Section 6.
 
 That is, the alphabet is:
