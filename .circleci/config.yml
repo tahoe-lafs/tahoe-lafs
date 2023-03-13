@@ -412,29 +412,13 @@ jobs:
               --run 'python setup.py update_version'
 
       - "run":
-          name: "Build"
+          name: "Test"
           command: |
             # CircleCI build environment looks like it has a zillion and a
             # half cores.  Don't let Nix autodetect this high core count
             # because it blows up memory usage and fails the test run.  Pick a
             # number of cores that suites the build environment we're paying
-            # for (the free one!).
-            #
-            # Also, let it run more than one job at a time because we have to
-            # build a couple simple little dependencies that don't take
-            # advantage of multiple cores and we get a little speedup by doing
-            # them in parallel.
-            source .circleci/lib.sh
-            cache_if_able nix-build \
-              --cores 3 \
-              --max-jobs 2 \
-              --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>"
-
-      - "run":
-          name: "Test"
-          command: |
-            # Let it go somewhat wild for the test suite itself
-            source .circleci/lib.sh
+            # for (the free one!).h
             cache_if_able nix-build \
               --cores 8 \
               --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
