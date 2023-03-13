@@ -347,6 +347,8 @@ A request MAY be submitted using an alternate encoding by declaring this in the 
 A request MAY indicate its preference for an alternate encoding in the response using the ``Accept`` header field.
 A request which includes no ``Accept`` header field MUST be interpreted in the same way as a request including a ``Accept: application/cbor`` header field.
 
+Clients and servers MAY support additional request and response message body encodings.
+
 Clients and servers SHOULD support ``application/json`` request and response message body encoding.
 For HTTP messages carrying binary share data,
 this is expected to be a particularly poor encoding.
@@ -360,7 +362,11 @@ Because of the simple types used throughout
 and the equivalence described in `RFC 7049`_
 these examples should be representative regardless of which of these two encodings is chosen.
 
-One exception to this rule is for sets.
+There are two exceptions to this rule.
+
+1. Sets
+!!!!!!!
+
 For CBOR messages,
 any sequence that is semantically a set (i.e. no repeated values allowed, order doesn't matter, and elements are hashable in Python) should be sent as a set.
 Tag 6.258 is used to indicate sets in CBOR;
@@ -368,11 +374,11 @@ see `the CBOR registry <https://www.iana.org/assignments/cbor-tags/cbor-tags.xht
 The JSON encoding does not support sets.
 Sets MUST be represented as arrays in JSON-encoded messages.
 
-Another exception to this rule is for bytes.
+2. Bytes
+!!!!!!!!
+
 The CBOR encoding natively supports a bytes type while the JSON encoding does not.
 Bytes MUST be represented as strings giving the `Base64`_ representation of the original bytes value.
-
-Clients and servers MAY support additional request and response message body encodings.
 
 HTTP Design
 ~~~~~~~~~~~
