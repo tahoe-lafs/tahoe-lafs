@@ -32,6 +32,8 @@ For example::
 
 from __future__ import annotations
 
+__all__ = ['IWormhole']
+
 from typing import Iterator, Optional, List, Tuple, Any, TextIO
 from inspect import getfullargspec
 from itertools import count
@@ -76,7 +78,7 @@ class MemoryWormholeServer(object):
         stderr: TextIO=stderr,
         _eventual_queue: Optional[Any]=None,
         _enable_dilate: bool=False,
-    ) -> _MemoryWormhole:
+    )-> _MemoryWormhole:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
         by this instance (and constrained by the normal appid/relay_url
