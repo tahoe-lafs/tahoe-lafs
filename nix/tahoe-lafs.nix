@@ -1,6 +1,6 @@
 { buildPythonPackage
 , tahoe-lafs-src
-, extras
+, extrasNames
 
 # control how the test suite is run
 , doCheck ? false
@@ -99,7 +99,7 @@ let
     werkzeug
     zfec
     zope_interface
-  ] ++ pickExtraDependencies pythonExtraDependencies extras;
+  ] ++ pickExtraDependencies pythonExtraDependencies extrasNames;
 
   pythonCheckDependencies = [
     beautifulsoup4

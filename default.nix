@@ -23,18 +23,18 @@ in
 , pythonVersion ? "python310" # a string choosing the python derivation from
                               # nixpkgs to target
 
-, extras ? [ "tor" "i2p" ] # a list of strings identifying tahoe-lafs extras,
-                           # the dependencies of which the resulting package
-                           # will also depend on.  Include all of the runtime
-                           # extras by default because the incremental cost of
-                           # including them is a lot smaller than the cost of
-                           # re-building the whole thing to add them.
+, extrasNames ? [ "tor" "i2p" ] # a list of strings identifying tahoe-lafs extras,
+                                # the dependencies of which the resulting
+                                # package will also depend on.  Include all of the
+                                # runtime extras by default because the incremental
+                                # cost of including them is a lot smaller than the
+                                # cost of re-building the whole thing to add them.
 
 }:
 with pkgs.${pythonVersion}.pkgs;
 callPackage ./nix/tahoe-lafs.nix {
   # Select whichever package extras were requested.
-  inherit extras;
+  inherit extrasNames;
 
   # Define the location of the Tahoe-LAFS source to be packaged.  Clean up as
   # many of the non-source files (eg the `.git` directory, `~` backup files,
