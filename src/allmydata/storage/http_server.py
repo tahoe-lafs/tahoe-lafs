@@ -594,7 +594,7 @@ class HTTPServer(object):
         """Return version information."""
         return self._send_encoded(request, self._get_version())
 
-    def _get_version(self) -> dict[str, Any]:
+    def _get_version(self) -> dict[bytes, Any]:
         """
         Get the HTTP version of the storage server's version response.
 
