@@ -3,7 +3,7 @@ Integration tests for getting and putting files, including reading from stdin
 and stdout.
 """
 
-from subprocess import Popen, PIPE, check_output
+from subprocess import Popen, PIPE, check_output, check_call
 import sys
 
 import pytest
@@ -53,21 +53,36 @@ def test_put_from_stdin(alice, get_put_alias, tmpdir):
 def test_get_to_stdout(alice, get_put_alias, tmpdir):
     """
     It's possible to upload a file, and then download it to stdout.
-
-    We test with large file, this time.
     """
     tempfile = tmpdir.join("file")
-    large_data = DATA * 1_000_000
     with tempfile.open("wb") as f:
-        f.write(large_data)
+        f.write(DATA)
     cli(alice, "put", str(tempfile), "getput:tostdout")
 
     p = Popen(
         ["tahoe", "--node-directory", alice.node_dir, "get", "getput:tostdout", "-"],
         stdout=PIPE
     )
-    assert p.stdout.read() == large_data
+    assert p.stdout.read() == DATA
     assert p.wait() == 0
+
+
+def test_large_file(alice, get_put_alias, tmp_path):
+    """
+    It's possible to upload and download a larger file.
+
+    We avoid stdin/stdout since that's flaky on Windows.
+    """
+    tempfile = tmp_path / "file"
+    with tempfile.open("wb") as f:
+        f.write(DATA * 1_000_000)
+    cli(alice, "put", str(tempfile), "getput:largefile")
+
+    outfile = tmp_path / "out"
+    check_call(
+        ["tahoe", "--node-directory", alice.node_dir, "get", "getput:largefile", str(outfile)],
+    )
+    assert outfile.read_bytes() == tempfile.read_bytes()
 
 
 @pytest.mark.skipif(
