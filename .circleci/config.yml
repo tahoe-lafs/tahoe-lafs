@@ -478,6 +478,15 @@ jobs:
       PYTHON_VERSION: "3.9"
 
 
+  build-image-ubuntu-22-04:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "22.04"
+      PYTHON_VERSION: "3.10"
+
+
   build-image-oraclelinux-8:
     <<: *BUILD_IMAGE
 
