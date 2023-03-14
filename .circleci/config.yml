@@ -95,7 +95,6 @@ workflows:
                 - "python38"
                 - "python39"
                 - "python310"
-                - "python311"
 
       - "nixos":
           name: "<<matrix.pythonVersion>>"
@@ -104,6 +103,24 @@ workflows:
             parameters:
               pythonVersion:
                 - "python311"
+
+      - "nixos-integration":
+          name: "Integration (NixOS)"
+          requires:
+            - "python311"
+          nixpkgs: "unstable"
+          pythonVersion: "python311"
+          forceFoolscap: false
+          runSlow: true
+
+      - "nixos-integration":
+          name: "Integration (Foolscap)"
+          requires:
+            - "python311"
+          nixpkgs: "unstable"
+          pythonVersion: "python311"
+          forceFoolscap: true
+          runSlow: false
 
       # Eventually, test against PyPy 3.8
       #- "pypy27-buster":
@@ -411,6 +428,51 @@ jobs:
                     --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
                     --argstr pythonVersion "<<parameters.pythonVersion>>" \
                     nix/unittests.nix
+
+  nixos-integration:
+    parameters:
+      nixpkgs:
+        description: >-
+          Reference the name of a niv-managed nixpkgs source (see `niv show`
+          and nix/sources.json)
+        type: "string"
+      pythonVersion:
+        description: >-
+          Reference the name of a Python package in nixpkgs to use.
+        type: "string"
+      forceFoolscap:
+        description: >-
+          If true, force nodes to communicate using Foolscap.  Otherwise, let
+          them negotiate a protocol.
+        type: "boolean"
+      runSlow:
+        description: >-
+          Also run integration tests marked as slow.
+        type: "boolean"
+
+    executor: "nix"
+
+    steps:
+      - "nix-build":
+          nixpkgs: "<<parameters.nixpkgs>>"
+          pythonVersion: "<<parameters.pythonVersion>>"
+          buildSteps:
+            - "run":
+                name: "Integration Test"
+                command: |
+                  # CircleCI build environment looks like it has a zillion and
+                  # a half cores.  Don't let Nix autodetect this high core
+                  # count because it blows up memory usage and fails the test
+                  # run.  Pick a number of cores that suits the build
+                  # environment we're paying for (the free one!).
+                  source .circleci/lib.sh
+                  cache_if_able nix-build \
+                    --cores 8 \
+                    --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
+                    --argstr pythonVersion "<<parameters.pythonVersion>>" \
+                    --arg forceFoolscap "<<parameters.forceFoolscap>>" \
+                    --arg runSlow "<<parameters.runSlow>>" \
+                    nix/integrationtests.nix
 
   typechecks:
     docker:
