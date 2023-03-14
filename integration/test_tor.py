@@ -12,6 +12,7 @@ if PY2:
 
 import sys
 from os.path import join
+from os import environ
 
 import pytest
 import pytest_twisted
@@ -65,7 +66,8 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
             sys.executable, '-b', '-m', 'allmydata.scripts.runner',
             '-d', join(temp_dir, 'carol'),
             'put', gold_path,
-        )
+        ),
+        env=environ,
     )
     yield proto.done
     cap = proto.output.getvalue().strip().split()[-1]
