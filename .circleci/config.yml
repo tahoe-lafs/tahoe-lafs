@@ -38,6 +38,8 @@ dockerhub-auth-template: &DOCKERHUB_AUTH
         <<: *DOCKERHUB_CONTEXT
     - "build-image-ubuntu-20-04":
         <<: *DOCKERHUB_CONTEXT
+    - "build-image-ubuntu-22-04":
+        <<: *DOCKERHUB_CONTEXT
     - "build-image-fedora-35":
         <<: *DOCKERHUB_CONTEXT
     - "build-image-oraclelinux-8":
