@@ -92,7 +92,10 @@ workflows:
           matrix:
             parameters:
               pythonVersion:
+                - "python38"
+                - "python39"
                 - "python310"
+                - "python311"
 
       - "nixos":
           name: "<<matrix.pythonVersion>>"
