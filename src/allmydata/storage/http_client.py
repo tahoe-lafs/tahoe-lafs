@@ -311,18 +311,20 @@ class StorageClient(object):
 
     @classmethod
     def from_nurl(
-        cls,
-        nurl: DecodedURL,
-        reactor,
+        cls, nurl: DecodedURL, reactor, persistent=True, retryAutomatically=True
     ) -> StorageClient:
         """
         Create a ``StorageClient`` for the given NURL.
+
+        ``persistent`` and ``retryAutomatically`` arguments are passed to the
+        new HTTPConnectionPool.
         """
         assert nurl.fragment == "v=1"
         assert nurl.scheme == "pb"
         swissnum = nurl.path[0].encode("ascii")
         certificate_hash = nurl.user.encode("ascii")
-        pool = HTTPConnectionPool(reactor)
+        pool = HTTPConnectionPool(reactor, persistent=persistent)
+        pool.retryAutomatically = retryAutomatically
         pool.maxPersistentPerHost = 20
 
         if cls.TEST_MODE_REGISTER_HTTP_POOL is not None:

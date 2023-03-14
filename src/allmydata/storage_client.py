@@ -1203,8 +1203,12 @@ class HTTPNativeStorageServer(service.MultiService):
             # the HTTP server to talk to, we don't have connection status
             # updates... https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3978
             def request(reactor, nurl: DecodedURL):
+                # Since we're just using this one off to check if the NURL
+                # works, no need for persistent pool or other fanciness.
                 return StorageClientGeneral(
-                    StorageClient.from_nurl(nurl, reactor)
+                    StorageClient.from_nurl(
+                        nurl, reactor, persistent=False, retryAutomatically=False
+                    )
                 ).get_version()
 
             # LoopingCall.stop() doesn't cancel Deferreds, unfortunately:
