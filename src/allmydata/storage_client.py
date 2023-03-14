@@ -1239,9 +1239,13 @@ class HTTPNativeStorageServer(service.MultiService):
             self._failed_to_connect
         )
 
-        # TODO Make sure LoopingCall waits for the above timeout for looping again:
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3981
-        #return self._connecting_deferred or maye await it
+        # We don't want to do another iteration of the loop until this
+        # iteration has finished, so wait here:
+        try:
+            if self._connecting_deferred is not None:
+                await self._connecting_deferred
+        except Exception as e:
+            log.msg(f"Failed to connect to a HTTP storage server: {e}", level=log.CURIOUS)
 
     def stopService(self):
         if self._connecting_deferred is not None:
