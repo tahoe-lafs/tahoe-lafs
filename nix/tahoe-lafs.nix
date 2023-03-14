@@ -73,7 +73,7 @@ buildPythonPackage rec {
   src = tahoe-lafs-src;
 
   # Supply all of the build and runtime dependencies.
-  propagatedBuildInputs = pythonPackageDependencies;
+  propagatedNativeBuildInputs = pythonPackageDependencies;
 
   # The source doesn't include version information - so dump some in
   # to it here.
@@ -101,11 +101,10 @@ buildPythonPackage rec {
   # If either kind of check is enabled, run checks.
   doCheck = doUnit || doIntegration;
 
-  # Checks run at build time so check inputs are "native" (they run on
-  # the build host).  Give all of the build and runtime dependencies
-  # as well as all of the additional test-only dependencies (for
-  # whichever test suites are enabled).
-  nativeCheckInputs = propagatedBuildInputs ++ (
+  # Additionally, give the "check" environment all of the build and
+  # runtime dependencies test-only dependencies (for whichever test
+  # suites are enabled).
+  checkInputs = (
     lib.optionals (doUnit || doIntegration) unitTestDependencies ++
     lib.optionals doIntegration integrationTestDependencies
   );
