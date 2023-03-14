@@ -37,6 +37,8 @@ from .util import (
     _create_node,
     _cleanup_tahoe_process,
     _tahoe_runner_optional_coverage,
+    dump_python_output,
+    dump_output,
     await_client_ready,
     TahoeProcess,
     cli,
@@ -274,7 +276,7 @@ def introducer_furl(introducer, temp_dir):
     include_args=["temp_dir", "flog_gatherer"],
     include_result=False,
 )
-def tor_introducer(reactor, temp_dir, flog_gatherer, request):
+def tor_introducer(reactor, temp_dir, flog_gatherer, request, tor_network):
     config = '''
 [node]
 nickname = introducer_tor
@@ -287,7 +289,7 @@ log_gatherer.furl = {log_furl}
 
     if not exists(intro_dir):
         mkdir(intro_dir)
-        done_proto = _ProcessExitedProtocol()
+        done_proto = _DumpOutputProtocol(None)
         _tahoe_runner_optional_coverage(
             done_proto,
             reactor,
@@ -461,33 +463,31 @@ def chutney(reactor, temp_dir):
     # install -e .[dev]" (i.e. in the 'dev' extra)
     #
     # https://trac.torproject.org/projects/tor/ticket/20343
-    proto = _DumpOutputProtocol(None)
-    reactor.spawnProcess(
-        proto,
-        'git',
-        (
+    pytest_twisted.blockon(dump_output(
+        reactor,
+        executable='git',
+        argv=(
             'git', 'clone',
             'https://git.torproject.org/chutney.git',
             chutney_dir,
         ),
         env=environ,
-    )
-    pytest_twisted.blockon(proto.done)
+        path=".",
+    ))
 
     # XXX: Here we reset Chutney to a specific revision known to work,
     # since there are no stability guarantees or releases yet.
-    proto = _DumpOutputProtocol(None)
-    reactor.spawnProcess(
-        proto,
-        'git',
-        (
+    pytest_twisted.blockon(dump_output(
+        reactor,
+        executable='git',
+        argv=(
             'git', '-C', chutney_dir,
             'reset', '--hard',
             'c825cba0bcd813c644c6ac069deeb7347d3200ee'
         ),
         env=environ,
-    )
-    pytest_twisted.blockon(proto.done)
+        path=".",
+    ))
 
     return chutney_dir
 
@@ -507,65 +507,50 @@ def tor_network(reactor, temp_dir, chutney, request):
 
     env = environ.copy()
     env.update({"PYTHONPATH": join(chutney_dir, "lib")})
-    proto = _DumpOutputProtocol(None)
-    reactor.spawnProcess(
-        proto,
-        sys.executable,
-        (
-            sys.executable, '-m', 'chutney.TorNet', 'configure',
+    pytest_twisted.blockon(dump_python_output(
+        reactor,
+        argv=[
+            '-m', 'chutney.TorNet', 'configure',
             join(chutney_dir, 'networks', 'basic'),
-        ),
+        ],
         path=join(chutney_dir),
-        env=env,
-    )
-    pytest_twisted.blockon(proto.done)
+    ))
 
-    proto = _DumpOutputProtocol(None)
-    reactor.spawnProcess(
-        proto,
-        sys.executable,
-        (
-            sys.executable, '-m', 'chutney.TorNet', 'start',
+    pytest_twisted.blockon(dump_python_output(
+        reactor,
+        argv=[
+            '-m', 'chutney.TorNet', 'start',
             join(chutney_dir, 'networks', 'basic'),
-        ),
+        ],
         path=join(chutney_dir),
-        env=env,
-    )
-    pytest_twisted.blockon(proto.done)
+    ))
 
     # print some useful stuff
-    proto = _CollectOutputProtocol()
-    reactor.spawnProcess(
-        proto,
-        sys.executable,
-        (
-            sys.executable, '-m', 'chutney.TorNet', 'status',
+    d = dump_python_output(
+        reactor,
+        argv=[
+            '-m', 'chutney.TorNet', 'status',
             join(chutney_dir, 'networks', 'basic'),
-        ),
+        ],
         path=join(chutney_dir),
-        env=env,
     )
     try:
-        pytest_twisted.blockon(proto.done)
+        pytest_twisted.blockon(d)
     except ProcessTerminated:
-        print("Chutney.TorNet status failed (continuing):")
-        print(proto.output.getvalue())
+        print("Chutney.TorNet status failed (continuing)")
 
     def cleanup():
         print("Tearing down Chutney Tor network")
-        proto = _CollectOutputProtocol()
-        reactor.spawnProcess(
-            proto,
-            sys.executable,
-            (
-                sys.executable, '-m', 'chutney.TorNet', 'stop',
+        d = dump_python_output(
+            reactor,
+            argv=[
+                '-m', 'chutney.TorNet', 'stop',
                 join(chutney_dir, 'networks', 'basic'),
-            ),
+            ],
             path=join(chutney_dir),
-            env=env,
         )
         try:
-            block_with_timeout(proto.done, reactor)
+            block_with_timeout(d, reactor)
         except ProcessTerminated:
             # If this doesn't exit cleanly, that's fine, that shouldn't fail
             # the test suite.
