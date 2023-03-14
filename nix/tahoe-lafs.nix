@@ -87,7 +87,7 @@ buildPythonPackage rec {
         # TODO: We can have more metadata after we switch to flakes.
         # Then the `self` input will have a `sourceInfo` attribute telling us
         # things like git revision, a revision counter, etc.
-        real_version = "${version}.post1"
+        real_version = "${version}"
         full_version = real_version
         branch = "master"
         verstr = real_version
