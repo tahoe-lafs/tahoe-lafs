@@ -5,6 +5,23 @@ To run:
 
 $ pytest benchmarks/upload_download.py -s -v -Wignore
 
+To add latency of e.g. 60ms on Linux:
+
+$ tc qdisc add dev lo root netem delay 30ms
+
+To reset:
+
+$ tc qdisc del dev lo root netem
+
+Frequency scaling can spoil the results.
+To see the range of frequency scaling on a Linux system:
+
+$ cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_available_frequencies
+
+And to pin the CPU frequency to the lower bound found in these files:
+
+$ sudo cpupower frequency-set -f <lowest available frequency>
+
 TODO Parameterization (pytest?)
 
     - Foolscap vs not foolscap
@@ -30,6 +47,7 @@ from tempfile import mkdtemp
 import os
 
 from twisted.trial.unittest import TestCase
+from twisted.internet.defer import gatherResults
 
 from allmydata.util.deferredutil import async_to_deferred
 from allmydata.util.consumer import MemoryConsumer
@@ -55,6 +73,10 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
 
     # To use Foolscap, change to True:
     FORCE_FOOLSCAP_FOR_STORAGE = False
+
+    # Don't reduce HTTP connection timeouts, that messes up the more aggressive
+    # benchmarks:
+    REDUCE_HTTP_CLIENT_TIMEOUT = False
 
     @async_to_deferred
     async def setUp(self):
@@ -104,3 +126,13 @@ class ImmutableBenchmarks(SystemTestMixin, TestCase):
             with timeit("download"):
                 data = await result.download_best_version()
                 self.assertEqual(data, DATA)
+
+    @async_to_deferred
+    async def test_upload_mutable_in_parallel(self):
+        # To test larger files, change this:
+        DATA = b"Some data to upload\n" * 1_000_000
+        with timeit("  upload"):
+            await gatherResults([
+                self.clients[0].create_mutable_file(MutableData(DATA))
+                for _ in range(20)
+            ])

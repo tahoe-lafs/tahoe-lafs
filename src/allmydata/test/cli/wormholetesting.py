@@ -144,7 +144,6 @@ def _verify() -> None:
 
     a = getfullargspec(create)
     b = getfullargspec(MemoryWormholeServer.create)
-
     # I know it has a `self` argument at the beginning.  That's okay.
     b = b._replace(args=b.args[1:])
 

@@ -19,7 +19,7 @@ from foolscap.api import eventually
 from allmydata import uri
 from allmydata.codec import CRSDecoder
 from allmydata.util import base32, log, hashutil, mathutil, observer
-from allmydata.interfaces import DEFAULT_MAX_SEGMENT_SIZE
+from allmydata.interfaces import DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
 from allmydata.hashtree import IncompleteHashTree, BadHashError, \
      NotEnoughHashesError
 
@@ -49,6 +49,8 @@ class DownloadNode(object):
     """Internal class which manages downloads and holds state. External
     callers use CiphertextFileNode instead."""
 
+    default_max_segment_size = DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
+
     # Share._node points to me
     def __init__(self, verifycap, storage_broker, secret_holder,
                  terminator, history, download_status):
@@ -76,7 +78,7 @@ class DownloadNode(object):
         # .guessed_segment_size, .guessed_num_segments, and
         # .ciphertext_hash_tree (with a dummy, to let us guess which hashes
         # we'll need)
-        self._build_guessed_tables(DEFAULT_MAX_SEGMENT_SIZE)
+        self._build_guessed_tables(self.default_max_segment_size)
 
         # filled in when we parse a valid UEB
         self.have_UEB = False
