@@ -44,6 +44,4 @@ callPackage ./nix/tahoe-lafs.nix {
   # symlink, etc) as possible to avoid needing to re-build when files that
   # make no difference to the package have changed.
   tahoe-lafs-src = pkgs.lib.cleanSource ./.;
-
-  doCheck = false;
 }
