@@ -77,6 +77,9 @@ workflows:
       - "ubuntu-20-04":
           {}
 
+      - "ubuntu-22-04":
+          {}
+
       # Equivalent to RHEL 8; CentOS 8 is dead.
       - "oraclelinux-8":
           {}
@@ -331,6 +334,16 @@ jobs:
     environment:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
+
+  ubuntu-22-04:
+    <<: *DEBIAN
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:22.04-py3.10"
+        user: "nobody"
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py310"
 
   oraclelinux-8: &RHEL_DERIV
     docker:
