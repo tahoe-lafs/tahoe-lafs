@@ -1,4 +1,4 @@
 # Build the package with the test suite enabled.
-(import ../../. {}).override {
+args@{...}: (import ../../. args).override {
   doCheck = true;
 }
