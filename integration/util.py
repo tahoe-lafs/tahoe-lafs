@@ -244,7 +244,7 @@ def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
     else:
         args = [sys.executable, '-b', '-m', 'allmydata.scripts.runner']
     args += other_args
-    print(f"Spawning: {args} (PYTHONPATH={environ.get('PYTHONPATH')})")
+    print(f"Spawning: {args}")
     return reactor.spawnProcess(
         proto,
         sys.executable,
