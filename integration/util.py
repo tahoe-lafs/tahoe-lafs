@@ -62,7 +62,7 @@ def dump_python_output(reactor, argv: list[str], path: str) -> Deferred[object]:
 
     :return: A Deferred that fires when the process has ended.
     """
-    return dump_python_output(
+    return dump_output(
         reactor,
         executable=sys.executable,
         argv=["python"] + argv,
