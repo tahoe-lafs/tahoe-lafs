@@ -20,7 +20,7 @@ from testtools.matchers import (
 from twisted.internet import defer
 from allmydata.interfaces import MDMF_VERSION
 from allmydata.mutable.filenode import MutableFileNode
-from allmydata.mutable.publish import MutableData, DEFAULT_MAX_SEGMENT_SIZE
+from allmydata.mutable.publish import MutableData, DEFAULT_MUTABLE_MAX_SEGMENT_SIZE
 from ..no_network import GridTestMixin
 from .. import common_util as testutil
 
@@ -180,7 +180,7 @@ class Update(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin):
         # long -- this is 7 segments in the default segment size. So we
         # need to add 2 segments worth of data to push it over a
         # power-of-two boundary.
-        segment = b"a" * DEFAULT_MAX_SEGMENT_SIZE
+        segment = b"a" * DEFAULT_MUTABLE_MAX_SEGMENT_SIZE
         new_data = self.data + (segment * 2)
         d0 = self.do_upload_mdmf()
         def _run(ign):
@@ -232,9 +232,9 @@ class Update(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin):
         return d0
 
     def test_multiple_segment_replace(self):
-        replace_offset = 2 * DEFAULT_MAX_SEGMENT_SIZE
+        replace_offset = 2 * DEFAULT_MUTABLE_MAX_SEGMENT_SIZE
         new_data = self.data[:replace_offset]
-        new_segment = b"a" * DEFAULT_MAX_SEGMENT_SIZE
+        new_segment = b"a" * DEFAULT_MUTABLE_MAX_SEGMENT_SIZE
         new_data += 2 * new_segment
         new_data += b"replaced"
         rest_offset = len(new_data)
