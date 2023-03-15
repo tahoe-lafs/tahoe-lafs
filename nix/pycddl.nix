@@ -4,7 +4,29 @@
 # https://github.com/NixOS/nixpkgs/pull/221220
 #
 # we should switch to the upstream package when it is available from our
-# minimum version of nixpkgs
+# minimum version of nixpkgs.
+#
+# if you need to update this package to a new pycddl release then
+#
+# 1. change value given to `buildPythonPackage` for `version` to match the new
+#    release
+#
+# 2. change the value given to `fetchPypi` for `sha256` to `lib.fakeHash`
+#
+# 3. run `nix-build`
+#
+# 4. there will be an error about a hash mismatch.  change the value given to
+#    `fetchPypi` for `sha256` to the "actual" hash value report.
+#
+# 5. change the value given to `cargoDeps` for `hash` to lib.fakeHash`.
+#
+# 6. run `nix-build`
+#
+# 7. there will be an error about a hash mismatch.  change the value given to
+#    `cargoDeps` for `hash` to the "actual" hash value report.
+#
+# 8. run `nix-build`.  it should succeed.  if it does not, seek assistance.
+#
 { lib, fetchPypi, buildPythonPackage, rustPlatform }:
 buildPythonPackage rec {
   pname = "pycddl";
