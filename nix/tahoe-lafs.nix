@@ -4,8 +4,21 @@
 , tahoe-lafs-src
 , extrasNames
 
-# control how the test suite is run
+# control which test suites run
+# may contain:
+#
+#   "unit" - run the unit tests
+#
+#   "integration" - run the integration tests
 , checks ? []
+
+# for the integration tests, feature flags to control certain settings
+# may contain:
+#
+#   "forceFoolscap" - Configure nodes to use Foolscap even if GBS is available
+#
+#   "runslow" - Run integration tests even if they are marked slow
+, integrationFeatures ? [ ]
 }:
 let
   pname = "tahoe-lafs";
@@ -122,12 +135,17 @@ buildPythonPackage rec {
 
   # Define how the tests are run.  Include commands for whichever test
   # suites are enabled.  Also be sure to let check hooks run.
-  checkPhase = ''
-    runHook preCheck
-    ${lib.optionalString doUnit "python -m twisted.trial -j $NIX_BUILD_CORES allmydata"}
-    ${lib.optionalString doIntegration "python -m pytest --timeout=1800 -s -v integration"}
-    runHook postCheck
-  '';
+  checkPhase =
+    let
+      feature = name: lib.optionalString (builtins.elem name integrationFeatures);
+      pytestFlags = "${feature "forceFoolscap" "--force-foolscap"} ${feature "runslow" "--runslow"}";
+    in
+      ''
+      runHook preCheck
+      ${lib.optionalString doUnit "python -m twisted.trial -j $NIX_BUILD_CORES allmydata"}
+      ${lib.optionalString doIntegration "python -m pytest --timeout=1800 -s -v ${pytestFlags} integration"}
+      runHook postCheck
+    '';
 
   meta = with lib; {
     homepage = "https://tahoe-lafs.org/";
