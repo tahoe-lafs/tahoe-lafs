@@ -20,6 +20,8 @@ from twisted.logger import (
     Logger,
 )
 
+from typing import Any, Optional, Tuple, Dict, List
+
 """The idiom we use is for the observed object to offer a method named
 'when_something', which returns a deferred.  That deferred will be fired when
 something happens.  The way this is typically implemented is that the observed
@@ -28,47 +30,47 @@ has an ObserverList whose when_fired method is called in the observed's
 
 class OneShotObserverList(object):
     """A one-shot event distributor."""
-    def __init__(self):
-        self._fired = False
+    def __init__(self) -> None:
+        self._fired: bool = False
         self._result = None
-        self._watchers = []
-        self.__repr__ = self._unfired_repr
+        self._watchers: defer.DeferredList = []
+        self.__repr__ = self._unfired_repr() # type: ignore
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """string representation of the OneshotObserverList"""
         if self._fired:
             return self._fired_repr()
         return self._unfired_repr()
 
-    def _unfired_repr(self):
+    def _unfired_repr(self) -> str:
         return "<OneShotObserverList [%s]>" % (self._watchers, )
 
-    def _fired_repr(self):
+    def _fired_repr(self) -> str:
         return "<OneShotObserverList -> %s>" % (self._result, )
 
-    def _get_result(self):
+    def _get_result(self) -> Optional[Any]:
         return self._result
 
-    def when_fired(self):
+    def when_fired(self) -> defer.Deferred:
         if self._fired:
             return defer.succeed(self._get_result())
-        d = defer.Deferred()
+        d: defer.Deferred = defer.Deferred()
         self._watchers.append(d)
         return d
 
-    def fire(self, result):
+    def fire(self, result: Any) -> None:
         assert not self._fired
         self._fired = True
         self._result = result
         self._fire(result)
 
-    def _fire(self, result):
+    def _fire(self, result: Any) -> None:
         for w in self._watchers:
             w.callback(result)
         del self._watchers
-        self.__repr__ = self._fired_repr
+        self.__repr__ = self._fired_repr # type: ignore
 
-    def fire_if_not_fired(self, result):
+    def fire_if_not_fired(self, result: Any) -> None:
         if not self._fired:
             self.fire(result)
 
@@ -78,13 +80,13 @@ class LazyOneShotObserverList(OneShotObserverList):
     the result it handles, but rather retains a callable()
     through which is retrieves the data if and when needed.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         OneShotObserverList.__init__(self)
 
-    def _get_result(self):
+    def _get_result(self) -> Any:
         return self._result_producer()
 
-    def fire(self, result_producer):
+    def fire(self, result_producer: Any) -> None:
         """
         @param result_producer: a no-arg callable which
         returns the data which is to be considered the
@@ -105,16 +107,16 @@ class ObserverList(object):
     """
     _logger = Logger()
 
-    def __init__(self):
-        self._watchers = []
+    def __init__(self) -> None:
+        self._watchers: List[Any] = []
 
-    def subscribe(self, observer):
+    def subscribe(self, observer: Any) -> None:
         self._watchers.append(observer)
 
-    def unsubscribe(self, observer):
+    def unsubscribe(self, observer: Any) -> None:
         self._watchers.remove(observer)
 
-    def notify(self, *args, **kwargs):
+    def notify(self, *args: Any, **kwargs: Any) -> None:
         for o in self._watchers[:]:
             try:
                 o(*args, **kwargs)
@@ -124,12 +126,12 @@ class ObserverList(object):
 class EventStreamObserver(object):
     """A simple class to distribute multiple events to a single subscriber.
     It accepts arbitrary kwargs, but no posargs."""
-    def __init__(self):
-        self._watcher = None
-        self._undelivered_results = []
-        self._canceler = None
+    def __init__(self) -> None:
+        self._watcher: Optional[Tuple[Any, Dict[str, Dict[Any, Any]]]] = None
+        self._undelivered_results: List[Any] = []
+        self._canceler: Optional[Tuple[weakref.ReferenceType[Any], str]] = None
 
-    def set_canceler(self, c, methname):
+    def set_canceler(self, c: Any, methname: str) -> None:
         """I will call c.METHNAME(self) when somebody cancels me."""
         # we use a weakref to avoid creating a cycle between us and the thing
         # we're observing: they'll be holding a reference to us to compare
@@ -142,25 +144,27 @@ class EventStreamObserver(object):
         # alternative.
         self._canceler = (weakref.ref(c), methname)
 
-    def subscribe(self, observer, **watcher_kwargs):
+    def subscribe(self, observer: Any, **watcher_kwargs: Dict[Any, Any]) -> None:
         self._watcher = (observer, watcher_kwargs)
         while self._undelivered_results:
             self._notify(self._undelivered_results.pop(0))
 
-    def notify(self, **result_kwargs):
+    def notify(self, **result_kwargs: Dict[Any, Any]) -> None:
         if self._watcher:
             self._notify(result_kwargs)
         else:
             self._undelivered_results.append(result_kwargs)
 
-    def _notify(self, result_kwargs):
-        o, watcher_kwargs = self._watcher
+    def _notify(self, result_kwargs: Dict[Any, Any]) -> None:
+        if self._watcher is not None:
+            o, watcher_kwargs = self._watcher
         kwargs = dict(result_kwargs)
         kwargs.update(watcher_kwargs)
         eventually(o, **kwargs)
 
-    def cancel(self):
-        wr,methname = self._canceler
+    def cancel(self) -> None:
+        if self._canceler is not None:
+            wr,methname = self._canceler
         o = wr()
         if o:
             getattr(o,methname)(self)
