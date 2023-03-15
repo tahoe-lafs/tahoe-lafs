@@ -42,10 +42,11 @@ callPackage ./nix/tahoe-lafs.nix {
   # Select whichever package extras were requested.
   inherit extrasNames;
 
-  # Define the location of the Tahoe-LAFS source to be packaged.  Clean up as
-  # many of the non-source files (eg the `.git` directory, `~` backup files,
-  # nix's own `result` symlink, etc) as possible to avoid needing to re-build
-  # when files that make no difference to the package have changed.
+  # Define the location of the Tahoe-LAFS source to be packaged (the same
+  # directory as contains this file).  Clean up as many of the non-source
+  # files (eg the `.git` directory, `~` backup files, nix's own `result`
+  # symlink, etc) as possible to avoid needing to re-build when files that
+  # make no difference to the package have changed.
   tahoe-lafs-src = pkgs.lib.cleanSource ./.;
 
   doCheck = false;
