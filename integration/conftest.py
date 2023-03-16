@@ -1,15 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import sys
 import shutil
 from time import sleep
@@ -42,7 +33,6 @@ from .util import (
     _tahoe_runner_optional_coverage,
     await_client_ready,
     cli,
-    _run_node,
     generate_ssh_key,
     block_with_timeout,
 )
@@ -64,6 +54,29 @@ def pytest_addoption(parser):
         "--coverage", action="store_true", dest="coverage",
         help="Collect coverage statistics",
     )
+    parser.addoption(
+        "--force-foolscap", action="store_true", default=False,
+        dest="force_foolscap",
+        help=("If set, force Foolscap only for the storage protocol. " +
+              "Otherwise HTTP will be used.")
+    )
+    parser.addoption(
+        "--runslow", action="store_true", default=False,
+        dest="runslow",
+        help="If set, run tests marked as slow.",
+    )
+
+def pytest_collection_modifyitems(session, config, items):
+    if not config.option.runslow:
+        # The --runslow option was not given; keep only collected items not
+        # marked as slow.
+        items[:] = [
+            item
+            for item
+            in items
+            if item.get_closest_marker("slow") is None
+        ]
+
 
 @pytest.fixture(autouse=True, scope='session')
 def eliot_logging():
@@ -300,10 +313,9 @@ alice-key ssh-rsa {ssh_public_key} {rwcap}
 """.format(rwcap=rwcap, ssh_public_key=ssh_public_key))
 
     # 4. Restart the node with new SFTP config.
-    process.kill()
-    pytest_twisted.blockon(_run_node(reactor, process.node_dir, request, None))
-
+    pytest_twisted.blockon(process.restart_async(reactor, request))
     await_client_ready(process)
+    print(f"Alice pid: {process.transport.pid}")
     return process
 
 

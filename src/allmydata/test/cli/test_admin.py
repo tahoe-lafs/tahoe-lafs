@@ -200,6 +200,8 @@ class AddCertificateCommand(SyncTestCase):
                 "--filename", "-",
             ]
         )
+        self.tahoe.subOptions.subOptions.stdin = self.tahoe.stdin
+        self.tahoe.subOptions.subOptions.stderr = self.tahoe.stderr
         rc = add_grid_manager_cert(self.tahoe.subOptions.subOptions)
 
         self.assertEqual(rc, 0)
@@ -227,6 +229,8 @@ class AddCertificateCommand(SyncTestCase):
                 "--filename", "-",
             ]
         )
+        self.tahoe.subOptions.subOptions.stdin = self.tahoe.stdin
+        self.tahoe.subOptions.subOptions.stderr = self.tahoe.stderr
         rc = add_grid_manager_cert(self.tahoe.subOptions.subOptions)
         self.assertEqual(rc, 0)
 
@@ -239,6 +243,8 @@ class AddCertificateCommand(SyncTestCase):
                 "--filename", "-",
             ]
         )
+        self.tahoe.subOptions.subOptions.stdin = self.tahoe.stdin
+        self.tahoe.subOptions.subOptions.stderr = self.tahoe.stderr
         rc = add_grid_manager_cert(self.tahoe.subOptions.subOptions)
         self.assertEqual(rc, 1)
         self.assertIn(

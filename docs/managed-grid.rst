@@ -45,7 +45,7 @@ the statement: "Grid Manager X suggests you use storage-server Y to
 upload shares to" (X and Y are public-keys). Such a certificate
 consists of:
 
- - a version
+ - the version of the format the certificate conforms to (`1`)
  - the public-key of a storage-server
  - an expiry timestamp
  - a signature of the above
@@ -54,6 +54,10 @@ A client will always use any storage-server for downloads (expired
 certificate, or no certificate) because clients check the ciphertext
 and re-assembled plaintext against the keys in the capability;
 "grid-manager" certificates only control uploads.
+
+Clients make use of this functionality by configuring one or more Grid Manager public keys.
+This tells the client to only upload to storage-servers that have a currently-valid certificate from any of the Grid Managers their client allows.
+In case none are configured, the default behavior (of using any storage server) prevails.
 
 
 Grid Manager Data Storage
@@ -78,7 +82,7 @@ ever available on stdout.
 
 The configuration is a JSON document. It is subject to change as Grid
 Manager evolves. It contains a version number in the
-`grid_manager_config_version` key which should increment whenever the
+`grid_manager_config_version` key which will increment whenever the
 document schema changes.
 
 
@@ -220,7 +224,8 @@ Enrolling a Client: Config
 --------------------------
 
 You may instruct a Tahoe client to use only storage servers from given
-Grid Managers. If there are no such keys, any servers are used. If
+Grid Managers. If there are no such keys, any servers are used
+(but see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3979).  If
 there are one or more keys, the client will only upload to a storage
 server that has a valid certificate (from any of the keys).
 
@@ -333,5 +338,5 @@ uploads should now fail (so ``tahoe put`` will fail) because they
 won't use storage2 and thus can't "achieve happiness".
 
 A proposal to expose more information about Grid Manager and
-certifcate status in the Welcome page is discussed in
+certificate status in the Welcome page is discussed in
 https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3506

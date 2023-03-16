@@ -22,7 +22,6 @@ from allmydata.crypto import (
     ed25519,
 )
 from allmydata.util import (
-    base32,
     jsonbytes as json,
 )
 from allmydata.grid_manager import (
@@ -74,26 +73,33 @@ class GridManagerUtilities(SyncTestCase):
         """
         An error is reported loading invalid certificate version
         """
-        cert_path = self.mktemp()
+        gm_path = FilePath(self.mktemp())
+        gm_path.makedirs()
+        config = {
+            "grid_manager_config_version": 0,
+            "private_key": "priv-v0-ub7knkkmkptqbsax4tznymwzc4nk5lynskwjsiubmnhcpd7lvlqa",
+            "storage_servers": {
+                "radia": {
+                    "public_key": "pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga"
+                }
+            }
+        }
+        with gm_path.child("config.json").open("wb") as f:
+            f.write(json.dumps_bytes(config))
+
         fake_cert = {
             "certificate": "{\"expires\":1601687822,\"public_key\":\"pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga\",\"version\":22}",
             "signature": "fvjd3uvvupf2v6tnvkwjd473u3m3inyqkwiclhp7balmchkmn3px5pei3qyfjnhymq4cjcwvbpqmcwwnwswdtrfkpnlaxuih2zbdmda"
         }
-        with open(cert_path, "wb") as f:
+        with gm_path.child("radia.cert.0").open("wb") as f:
             f.write(json.dumps_bytes(fake_cert))
-        config_data = (
-            "[grid_managers]\n"
-            "fluffy = pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq\n"
-            "[grid_manager_certificates]\n"
-            "ding = {}\n".format(cert_path)
+
+        with self.assertRaises(ValueError) as ctx:
+            load_grid_manager(gm_path)
+        self.assertIn(
+            "22",
+            str(ctx.exception),
         )
-        config = config_from_string("/foo", "portnum", config_data, client_valid_config())
-        self.assertEqual(
-            {"fluffy": "pub-v0-vqimc4s5eflwajttsofisp5st566dbq36xnpp4siz57ufdavpvlq"},
-            config.enumerate_section("grid_managers")
-        )
-        certs = config.get_grid_manager_certificates()
-        self.assertEqual([fake_cert], certs)
 
     def test_load_certificates_unknown_key(self):
         """
@@ -175,7 +181,7 @@ class GridManagerVerifier(SyncTestCase):
         self.assertEqual(
             ed25519.verify_signature(
                 gm_key,
-                base32.a2b(cert0.signature),
+                cert0.signature,
                 cert0.certificate,
             ),
             None
@@ -434,11 +440,14 @@ class GridManagerInvalidVerifier(SyncTestCase):
         An incorrect signature is rejected
         """
         # make signature invalid
-        self.cert0.signature = invalid_signature.encode("ascii")
+        invalid_cert = SignedCertificate(
+            self.cert0.certificate,
+            invalid_signature.encode("ascii"),
+        )
 
         verify = create_grid_manager_verifier(
             [self.gm._public_key],
-            [self.cert0],
+            [invalid_cert],
             ed25519.string_from_verifying_key(self.pub0),
             bad_cert = lambda key, cert: None,
         )

@@ -7,18 +7,9 @@ Most of the tests have cursory asserts and encode 'what the WebAPI did
 at the time of testing' -- not necessarily a cohesive idea of what the
 WebAPI *should* do in every situation. It's not clear the latter
 exists anywhere, however.
-
-Ported to Python 3.
 """
 
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 import time
 from urllib.parse import unquote as url_unquote, quote as url_quote
@@ -32,6 +23,7 @@ import requests
 import html5lib
 from bs4 import BeautifulSoup
 
+from pytest_twisted import ensureDeferred
 
 def test_index(alice):
     """
@@ -252,10 +244,18 @@ def test_status(alice):
     assert found_download, "Failed to find the file we downloaded in the status-page"
 
 
-def test_directory_deep_check(alice):
+@ensureDeferred
+async def test_directory_deep_check(reactor, request, alice):
     """
     use deep-check and confirm the result pages work
     """
+    # Make sure the node is configured compatibly with expectations of this
+    # test.
+    happy = 3
+    required = 2
+    total = 4
+
+    await util.reconfigure(reactor, request, alice, (happy, required, total), convergence=None)
 
     # create a directory
     resp = requests.post(
@@ -313,7 +313,7 @@ def test_directory_deep_check(alice):
     )
 
     def check_repair_data(checkdata):
-        assert checkdata["healthy"] is True
+        assert checkdata["healthy"]
         assert checkdata["count-happiness"] == 4
         assert checkdata["count-good-share-hosts"] == 4
         assert checkdata["count-shares-good"] == 4

@@ -15,8 +15,10 @@ import six
 import os, time, sys
 import yaml
 import json
+from threading import current_thread
 
 from twisted.trial import unittest
+from twisted.internet import reactor
 from foolscap.api import Violation, RemoteException
 
 from allmydata.util import idlib, mathutil
@@ -26,6 +28,7 @@ from allmydata.util import pollmixin
 from allmydata.util import yamlutil
 from allmydata.util import rrefutil
 from allmydata.util.fileutil import EncryptedTemporaryFile
+from allmydata.util.cputhreadpool import defer_to_thread
 from allmydata.test.common_util import ReallyEqualMixin
 from .no_network import fireNow, LocalWrapper
 
@@ -599,3 +602,31 @@ class RrefUtilTests(unittest.TestCase):
             )
             self.assertEqual(result.version, "Default")
             self.assertIdentical(result, rref)
+
+
+class CPUThreadPool(unittest.TestCase):
+    """Tests for cputhreadpool."""
+
+    async def test_runs_in_thread(self):
+        """The given function runs in a thread."""
+        def f(*args, **kwargs):
+            return current_thread(), args, kwargs
+
+        this_thread = current_thread().ident
+        result = defer_to_thread(reactor, f, 1, 3, key=4, value=5)
+
+        # Callbacks run in the correct thread:
+        callback_thread_ident = []
+        def passthrough(result):
+            callback_thread_ident.append(current_thread().ident)
+            return result
+
+        result.addCallback(passthrough)
+
+        # The task ran in a different thread:
+        thread, args, kwargs = await result
+        self.assertEqual(callback_thread_ident[0], this_thread)
+        self.assertNotEqual(thread.ident, this_thread)
+        self.assertEqual(args, (1, 3))
+        self.assertEqual(kwargs, {"key": 4, "value": 5})
+

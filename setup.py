@@ -55,7 +55,9 @@ install_requires = [
     # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
     # * foolscap 0.13.2 drops i2p support completely
     # * foolscap >= 21.7 is necessary for Python 3 with i2p support.
+    # * foolscap >= 23.3 is necessary for Python 3.11.
     "foolscap >= 21.7.0",
+    "foolscap >= 23.3.0; python_version > '3.10'",
 
     # * cryptography 2.6 introduced some ed25519 APIs we rely on.  Note that
     #   Twisted[conch] also depends on cryptography and Twisted[tls]
@@ -96,7 +98,9 @@ install_requires = [
     #   an sftp extra in Tahoe-LAFS, there is no point in having one.
     # * Twisted 19.10 introduces Site.getContentFile which we use to get
     #   temporary upload files placed into a per-node temporary directory.
-    "Twisted[tls,conch] >= 19.10.0",
+    # * Twisted 22.8.0 added support for coroutine-returning functions in many
+    #   places (mainly via `maybeDeferred`)
+    "Twisted[tls,conch] >= 22.8.0",
 
     "PyYAML >= 3.11",
 
@@ -114,7 +118,7 @@ install_requires = [
     "attrs >= 18.2.0",
 
     # WebSocket library for twisted and asyncio
-    "autobahn < 22.4.1",  # remove this when 22.4.3 is released
+    "autobahn",
 
     # Support for Python 3 transition
     "future >= 0.18.2",
@@ -137,10 +141,17 @@ install_requires = [
     "werkzeug != 2.2.0",
     "treq",
     "cbor2",
-    "pycddl",
+
+    # 0.4 adds the ability to pass in mmap() values which greatly reduces the
+    # amount of copying involved.
+    "pycddl >= 0.4",
 
     # Command-line parsing
     "click >= 7.0",
+
+    # for pid-file support
+    "psutil",
+    "filelock",
 ]
 
 setup_requires = [
@@ -220,7 +231,7 @@ def run_command(args, cwd=None):
     use_shell = sys.platform == "win32"
     try:
         p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd, shell=use_shell)
-    except EnvironmentError as e:  # if this gives a SyntaxError, note that Tahoe-LAFS requires Python 3.7+
+    except EnvironmentError as e:  # if this gives a SyntaxError, note that Tahoe-LAFS requires Python 3.8+
         print("Warning: unable to run %r." % (" ".join(args),))
         print(e)
         return None
@@ -371,14 +382,18 @@ setup(name="tahoe-lafs", # also set in __init__.py
       package_dir = {'':'src'},
       packages=find_packages('src') + ['allmydata.test.plugins'],
       classifiers=trove_classifiers,
-      # We support Python 3.7 or later. 3.11 is not supported yet.
-      python_requires=">=3.7, <3.11",
+      # We support Python 3.8 or later, 3.12 is untested for now
+      python_requires=">=3.8, <3.12",
       install_requires=install_requires,
       extras_require={
           # Duplicate the Twisted pywin32 dependency here.  See
           # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2392 for some
           # discussion.
           ':sys_platform=="win32"': ["pywin32 != 226"],
+          "build": [
+              "dulwich",
+              "gpg",
+          ],
           "test": [
               "flake8",
               # Pin a specific pyflakes so we don't have different folks
@@ -388,7 +403,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "pyflakes == 2.2.0",
               "coverage ~= 5.0",
               "mock",
-              "tox",
+              "tox ~= 3.0",
               "pytest",
               "pytest-twisted",
               "hypothesis >= 3.6.1",

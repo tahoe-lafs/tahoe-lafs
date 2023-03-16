@@ -4,7 +4,6 @@ A CLI for configuring a grid manager.
 
 from typing import Optional
 from datetime import (
-    datetime,
     timedelta,
 )
 
@@ -24,6 +23,7 @@ from allmydata.grid_manager import (
     create_grid_manager,
     save_grid_manager,
     load_grid_manager,
+    current_datetime_with_zone,
 )
 from allmydata.util import jsonbytes as json
 
@@ -52,7 +52,7 @@ def grid_manager(ctx, config):
 
     class Config(object):
         """
-        Availble to all sub-commands as Click's context.obj
+        Available to all sub-commands as Click's context.obj
         """
         _grid_manager = None
 
@@ -167,7 +167,7 @@ def list(ctx):
             name,
             str(ctx.obj.grid_manager.storage_servers[name].public_key_string(), "utf-8")))
         for cert in ctx.obj.grid_manager.storage_servers[name].certificates:
-            delta = datetime.utcnow() - cert.expires
+            delta = current_datetime_with_zone() - cert.expires
             click.echo("{}  cert {}: ".format(blank_name, cert.index), nl=False)
             if delta.total_seconds() < 0:
                 click.echo("valid until {} ({})".format(cert.expires, abbreviate_time(delta)))
@@ -196,7 +196,7 @@ def sign(ctx, name, expiry_days):
             "No storage-server called '{}' exists".format(name)
         )
 
-    certificate_data = json.dumps(certificate.asdict(), indent=4)
+    certificate_data = json.dumps(certificate.marshal(), indent=4)
     click.echo(certificate_data)
     if fp is not None:
         next_serial = 0
@@ -205,13 +205,10 @@ def sign(ctx, name, expiry_days):
             fname = "{}.cert.{}".format(name, next_serial)
             try:
                 f = fp.child(fname).create()
+            except FileExistsError:
+                f = None
             except OSError as e:
-                if e.errno == 17:  # file exists
-                    f = None
-                else:
-                    raise click.ClickException(
-                        "{}: {}".format(fname, e)
-                    )
+                raise click.ClickException(f"{fname}: {e}")
             next_serial += 1
         with f:
             f.write(certificate_data.encode("ascii"))

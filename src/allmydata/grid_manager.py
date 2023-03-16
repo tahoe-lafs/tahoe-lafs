@@ -5,8 +5,13 @@ Functions and classes relating to the Grid Manager internal state
 import sys
 from datetime import (
     datetime,
+    timezone,
 )
-from typing import Optional, Union
+from typing import (
+    Optional,
+    Union,
+    List,
+)
 
 from twisted.python.filepath import FilePath
 
@@ -19,10 +24,13 @@ from allmydata.util import (
     dictutil,
 )
 
-from attrs import define, asdict, Factory
+from attrs import (
+    frozen,
+    Factory,
+)
 
 
-@define
+@frozen
 class SignedCertificate(object):
     """
     A signed certificate.
@@ -30,7 +38,8 @@ class SignedCertificate(object):
     # A JSON-encoded, UTF-8-encoded certificate.
     certificate : bytes
 
-    # The signature in base32.
+    # The signature (although the signature is in base32 in "public",
+    # this contains the decoded raw bytes -- not base32)
     signature : bytes
 
     @classmethod
@@ -38,14 +47,20 @@ class SignedCertificate(object):
         data = json.load(file_like)
         return cls(
             certificate=data["certificate"].encode("utf-8"),
-            signature=data["signature"].encode("ascii")
+            signature=base32.a2b(data["signature"].encode("ascii")),
         )
 
-    def asdict(self):
-        return asdict(self)
+    def marshal(self):
+        """
+        :return dict: a json-able dict
+        """
+        return dict(
+            certificate=self.certificate,
+            signature=base32.b2a(self.signature),
+        )
 
 
-@define
+@frozen
 class _GridManagerStorageServer(object):
     """
     A Grid Manager's notion of a storage server
@@ -53,7 +68,7 @@ class _GridManagerStorageServer(object):
 
     name : str
     public_key : ed25519.Ed25519PublicKey
-    certificates : list = Factory(list)
+    certificates : list = Factory(list)  # SignedCertificates
 
     def add_certificate(self, certificate):
         """
@@ -76,7 +91,7 @@ class _GridManagerStorageServer(object):
         }
 
 
-@define
+@frozen
 class _GridManagerCertificate(object):
     """
     Represents a single certificate for a single storage-server
@@ -99,7 +114,15 @@ def create_grid_manager():
     )
 
 
-def _load_certificates_for(config_path: Optional[FilePath], name: str, gm_key=Optional[ed25519.Ed25519PublicKey]):
+def current_datetime_with_zone():
+    """
+    :returns: a timezone-aware datetime object representing the
+        current timestamp in UTC
+    """
+    return datetime.now(timezone.utc)
+
+
+def _load_certificates_for(config_path: FilePath, name: str, gm_key=Optional[ed25519.Ed25519PublicKey]) -> List[_GridManagerCertificate]:
     """
     Load any existing certificates for the given storage-server.
 
@@ -115,8 +138,6 @@ def _load_certificates_for(config_path: Optional[FilePath], name: str, gm_key=Op
 
     :raises: ed25519.BadSignature if any certificate signature fails to verify
     """
-    if config_path is None:
-        return []
     cert_index = 0
     cert_path = config_path.child('{}.cert.{}'.format(name, cert_index))
     certificates = []
@@ -136,7 +157,7 @@ def _load_certificates_for(config_path: Optional[FilePath], name: str, gm_key=Op
             _GridManagerCertificate(
                 filename=cert_path.path,
                 index=cert_index,
-                expires=datetime.utcfromtimestamp(cert_data['expires']),
+                expires=datetime.fromisoformat(cert_data['expires']),
                 public_key=ed25519.verifying_key_from_string(cert_data['public_key'].encode('ascii')),
             )
         )
@@ -195,7 +216,7 @@ def load_grid_manager(config_path: Optional[FilePath]):
         storage_servers[name] = _GridManagerStorageServer(
             name,
             ed25519.verifying_key_from_string(srv_config['public_key'].encode('ascii')),
-            _load_certificates_for(config_path, name, public_key),
+            [] if config_path is None else _load_certificates_for(config_path, name, public_key),
         )
 
     return _GridManager(private_key_bytes, storage_servers)
@@ -243,10 +264,9 @@ class _GridManager(object):
             raise KeyError(
                 "No storage server named '{}'".format(name)
             )
-        expiration = datetime.utcnow() + expiry
-        epoch_offset = (expiration - datetime(1970, 1, 1)).total_seconds()
+        expiration = current_datetime_with_zone() + expiry
         cert_info = {
-            "expires": epoch_offset,
+            "expires": expiration.isoformat(),
             "public_key": srv.public_key_string(),
             "version": 1,
         }
@@ -254,7 +274,7 @@ class _GridManager(object):
         sig = ed25519.sign_data(self._private_key, cert_data)
         certificate = SignedCertificate(
             certificate=cert_data,
-            signature=base32.b2a(sig),
+            signature=sig,
         )
         vk = ed25519.verifying_key_from_signing_key(self._private_key)
         ed25519.verify_signature(vk, sig, cert_data)
@@ -381,7 +401,7 @@ def validate_grid_manager_certificate(gm_key, alleged_cert):
     try:
         ed25519.verify_signature(
             gm_key,
-            base32.a2b(alleged_cert.signature),
+            alleged_cert.signature,
             alleged_cert.certificate,
         )
     except ed25519.BadSignature:
@@ -407,7 +427,7 @@ def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=
         certificates for.
 
     :param callable now_fn: a callable which returns the current UTC
-        timestamp (or datetime.utcnow if None).
+        timestamp (or current_datetime_with_zone() if None).
 
     :param callable bad_cert: a two-argument callable which is invoked
         when a certificate verification fails. The first argument is
@@ -422,7 +442,7 @@ def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=
         expired) in `certs` signed by one of the keys in `keys`.
     """
 
-    now_fn = datetime.utcnow if now_fn is None else now_fn
+    now_fn = current_datetime_with_zone if now_fn is None else now_fn
     valid_certs = []
 
     # if we have zero grid-manager keys then everything is valid
@@ -461,11 +481,11 @@ def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=
 
     def validate():
         """
-        :returns: True if if *any* certificate is still valid for a server
+        :returns: True if *any* certificate is still valid for a server
         """
         now = now_fn()
         for cert in valid_certs:
-            expires = datetime.utcfromtimestamp(cert['expires'])
+            expires = datetime.fromisoformat(cert["expires"])
             pc = cert['public_key'].encode('ascii')
             assert type(pc) == type(public_key), "{} isn't {}".format(type(pc), type(public_key))
             if pc == public_key:

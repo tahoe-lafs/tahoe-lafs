@@ -74,10 +74,7 @@ def write_config(tahoe_cfg, config):
     :return: ``None``
     """
     tmp = tahoe_cfg.temporarySibling()
-    try:
-        tahoe_cfg.parent().makedirs()
-    except OSError:
-        pass
+    tahoe_cfg.parent().makedirs(ignoreExistingDirectory=True)
     # FilePath.open can only open files in binary mode which does not work
     # with ConfigParser.write.
     with open(tmp.path, "wt") as fp:
@@ -87,7 +84,7 @@ def write_config(tahoe_cfg, config):
     if platform.isWindows():
         try:
             tahoe_cfg.remove()
-        except OSError:
+        except FileNotFoundError:
             pass
     tmp.moveTo(tahoe_cfg)
 
@@ -170,14 +167,11 @@ class ValidConfiguration(object):
 
     def is_valid_item(self, section_name, item_name):
         """
-        :return: True if the given section name, ite name pair is valid, False
+        :return: True if the given section name, item_name pair is valid, False
             otherwise.
         """
-        valid_items = self._static_valid_sections.get(section_name, ())
-        if valid_items is None:
-            return True
         return (
-            item_name in valid_items or
+            item_name in self._static_valid_sections.get(section_name, ()) or
             self._is_valid_item(section_name, item_name)
         )
 

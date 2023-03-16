@@ -12,8 +12,6 @@ if PY2:
 
 from six import ensure_binary
 
-from typing import Union
-
 from twisted.python import usage
 from twisted.python.filepath import (
     FilePath,
@@ -113,7 +111,7 @@ class AddGridManagerCertOptions(BaseOptions):
     def getSynopsis(self):
         return "Usage: tahoe [global-options] admin add-grid-manager-cert [options]"
 
-    def postOptions(self):
+    def postOptions(self) -> None:
         if self['name'] is None:
             raise usage.UsageError(
                 "Must provide --name option"
@@ -123,7 +121,7 @@ class AddGridManagerCertOptions(BaseOptions):
                 "Must provide --filename option"
             )
 
-        data : Union [bytes, str]
+        data: str
         if self['filename'] == '-':
             print("reading certificate from stdin", file=self.parent.parent.stderr)
             data = self.parent.parent.stdin.read()
@@ -198,7 +196,7 @@ def add_grid_manager_cert(options):
             options['name'],
             cert_path.path,
         )
-        print(msg, file=options.parent.parent.stderr)
+        print(msg, file=options.stderr)
         return 1
 
     config.set_config("storage", "grid_management", "True")
@@ -210,7 +208,7 @@ def add_grid_manager_cert(options):
 
     cert_count = len(config.enumerate_section("grid_manager_certificates"))
     print("There are now {} certificates".format(cert_count),
-          file=options.parent.parent.stderr)
+          file=options.stderr)
 
     return 0
 

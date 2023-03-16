@@ -48,7 +48,7 @@ from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus, \
      NoServersError, InsufficientVersionError, UploadUnhappinessError, \
-     DEFAULT_MAX_SEGMENT_SIZE, IPeerSelector
+     DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE, IPeerSelector
 from allmydata.immutable import layout
 
 from io import BytesIO
@@ -1692,7 +1692,7 @@ class AssistedUploader(object):
 
 class BaseUploadable(object):
     # this is overridden by max_segment_size
-    default_max_segment_size = DEFAULT_MAX_SEGMENT_SIZE
+    default_max_segment_size = DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
     default_params_set = False
 
     max_segment_size = None
