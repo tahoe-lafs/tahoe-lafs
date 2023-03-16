@@ -7,7 +7,7 @@ from future.utils import PY2
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-from typing import Any
+from typing import Any, Generator, Tuple
 
 class Spans(object):
     """I represent a compressed list of booleans, one per index (an integer).
@@ -149,53 +149,53 @@ class Spans(object):
         self._check()
         return self
 
-    def dump(self):
+    def dump(self) -> str:
         return "len=%d: %s" % (self.len(),
                                ",".join(["[%d-%d]" % (start,start+l-1)
                                          for (start,l) in self._spans]) )
 
-    def each(self):
+    def each(self) -> Generator[int, None, None]:
         for start, length in self._spans:
             for i in range(start, start+length):
                 yield i
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[Any, None, None]:
         for s in self._spans:
             yield s
 
-    def __bool__(self): # this gets us bool()
+    def __bool__(self) -> bool: # this gets us bool()
         return bool(self.len())
 
     #__nonzero__ = __bool__  # Python 2 backwards compatibility
 
-    def len(self):
+    def len(self) -> int:
         # guess what! python doesn't allow __len__ to return a long, only an
         # int. So we stop using len(spans), use spans.len() instead.
         return sum([length for start,length in self._spans])
 
-    def __add__(self, other):
+    def __add__(self, other: 'Spans') -> 'Spans':
         s = self.__class__(self)
         for (start, length) in other:
             s.add(start, length)
         return s
 
-    def __sub__(self, other):
+    def __sub__(self, other: 'Spans') -> 'Spans':
         s = self.__class__(self)
         for (start, length) in other:
             s.remove(start, length)
         return s
 
-    def __iadd__(self, other):
+    def __iadd__(self, other: 'Spans') -> 'Spans':
         for (start, length) in other:
             self.add(start, length)
         return self
 
-    def __isub__(self, other):
+    def __isub__(self, other: 'Spans') -> 'Spans':
         for (start, length) in other:
             self.remove(start, length)
         return self
 
-    def __and__(self, other):
+    def __and__(self, other: 'Spans') -> 'Spans':
         if not self._spans:
             return self.__class__()
         bounds = self.__class__(self._spans[0][0],
@@ -203,7 +203,7 @@ class Spans(object):
         not_other = bounds - other
         return self - not_other
 
-    def __contains__(self, start_and_length):
+    def __contains__(self, start_and_length: Tuple[int, int]) -> bool:
         (start, length) = start_and_length
         for span_start,span_length in self._spans:
             o = overlap(start, length, span_start, span_length)
