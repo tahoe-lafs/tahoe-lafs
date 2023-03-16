@@ -191,7 +191,11 @@ def create_storage_server(reactor, request, temp_dir, introducer, flog_gatherer,
     )
     storage = StorageServer(
         process=node_process,
-        protocol=node_process.transport._protocol,
+        # node_process is a TahoeProcess. its transport is an
+        # IProcessTransport.  in practice, this means it is a
+        # twisted.internet._baseprocess.BaseProcess. BaseProcess records the
+        # process protocol as its proto attribute.
+        protocol=node_process.transport.proto,
     )
     returnValue(storage)
 
