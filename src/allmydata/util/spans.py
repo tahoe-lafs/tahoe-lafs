@@ -7,6 +7,7 @@ from future.utils import PY2
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
+from typing import Any
 
 class Spans(object):
     """I represent a compressed list of booleans, one per index (an integer).
@@ -31,7 +32,7 @@ class Spans(object):
     or received already.
     """
 
-    def __init__(self, _span_or_start=None, length=None):
+    def __init__(self, _span_or_start: Any=None, length: Any=None) -> None:
         self._spans = list()
         if length is not None:
             self._spans.append( (_span_or_start, length) )
@@ -40,7 +41,7 @@ class Spans(object):
                 self.add(start, length)
         self._check()
 
-    def _check(self):
+    def _check(self) -> None:
         assert sorted(self._spans) == self._spans
         prev_end = None
         try:
@@ -52,7 +53,7 @@ class Spans(object):
             print("BAD:", self.dump())
             raise
 
-    def add(self, start, length):
+    def add(self, start: int, length: int) -> 'Spans':
         assert start >= 0
         assert length > 0
         #print(" ADD [%d+%d -%d) to %s" % (start, length, start+length, self.dump()))
@@ -74,7 +75,7 @@ class Spans(object):
             # position.
             self._spans.insert(0, (start,length))
             self._spans.sort()
-        else:
+        elif last_overlap is not None:
             # everything from [first_overlap] to [last_overlap] overlapped
             first_start,first_length = self._spans[first_overlap]
             last_start,last_length = self._spans[last_overlap]
