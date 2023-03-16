@@ -7,7 +7,7 @@ from future.utils import PY2
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-from typing import Any, Generator, Optional, Tuple
+from typing import Any, Generator, List, Optional, Tuple
 
 class Spans(object):
     """I represent a compressed list of booleans, one per index (an integer).
@@ -239,38 +239,38 @@ class DataSpans(object):
     retrieved, some have been requested, and others have not been read.
     """
 
-    def __init__(self, other=None):
-        self.spans = [] # (start, data) tuples, non-overlapping, merged
+    def __init__(self, other: Optional['DataSpans']=None) -> None:
+        self.spans: List[Tuple[int, str]] = [] # (start, data) tuples, non-overlapping, merged
         if other:
             for (start, data) in other.get_chunks():
                 self.add(start, data)
 
-    def __bool__(self): # this gets us bool()
+    def __bool__(self) -> bool: # this gets us bool()
         return bool(self.len())
 
-    def len(self):
+    def len(self) -> int:
         # return number of bytes we're holding
         return sum([len(data) for (start,data) in self.spans])
 
-    def _dump(self):
+    def _dump(self) -> Generator[int, None, None]:
         # return iterator of sorted list of offsets, one per byte
-        for (start,data) in self.spans:
-            for i in range(start, start+len(data)):
+        for (start, data) in self.spans:
+            for i in range(start, start + len(data)):
                 yield i
 
-    def dump(self):
+    def dump(self) -> str:
         return "len=%d: %s" % (self.len(),
                                ",".join(["[%d-%d]" % (start,start+len(data)-1)
                                          for (start,data) in self.spans]) )
 
-    def get_chunks(self):
+    def get_chunks(self) -> List[Tuple[int, str]]:
         return list(self.spans)
 
-    def get_spans(self):
+    def get_spans(self) -> 'Spans':
         """Return a Spans object with a bit set for each byte I hold"""
         return Spans([(start, len(data)) for (start,data) in self.spans])
 
-    def assert_invariants(self):
+    def assert_invariants(self) -> None:
         if not self.spans:
             return
         prev_start = self.spans[0][0]
@@ -281,7 +281,7 @@ class DataSpans(object):
                 print("ASSERTION FAILED", self.spans)
                 raise AssertionError
 
-    def get(self, start, length):
+    def get(self, start: int, length: int) -> Optional[str]:
         # returns a string of LENGTH, or None
         #print("get", start, length, self.spans)
         end = start+length
@@ -305,7 +305,7 @@ class DataSpans(object):
         #print(" None, ran out of spans")
         return None
 
-    def add(self, start, data):
+    def add(self, start: int, data: str) -> None:
         # first: walk through existing spans, find overlap, modify-in-place
         #  create list of new spans
         #  add new spans
@@ -388,7 +388,7 @@ class DataSpans(object):
             continue
         # now merge adjacent spans
         #print(" merging", self.spans)
-        newspans = []
+        newspans: List[Tuple[int, str]] = []
         for (s_start,s_data) in self.spans:
             if newspans and adjacent(newspans[-1][0], len(newspans[-1][1]),
                                      s_start, len(s_data)):
@@ -399,7 +399,7 @@ class DataSpans(object):
         self.assert_invariants()
         #print(" done", self.spans)
 
-    def remove(self, start, length):
+    def remove(self, start: int, length: int) -> None:
         i = 0
         end = start + length
         #print("remove", start, length, self.spans)
@@ -444,7 +444,7 @@ class DataSpans(object):
             break
         #print(" done", self.spans)
 
-    def pop(self, start, length):
+    def pop(self, start: int, length: int) -> Optional[str]:
         data = self.get(start, length)
         if data:
             self.remove(start, length)
