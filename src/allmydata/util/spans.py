@@ -89,7 +89,7 @@ class Spans(object):
 
         return self
 
-    def remove(self, start, length):
+    def remove(self, start: int, length: int) -> 'Spans':
         assert start >= 0
         assert length > 0
         #print(" REMOVE [%d+%d -%d) from %s" % (start, length, start+length, self.dump()))
@@ -143,7 +143,7 @@ class Spans(object):
                     self._spans.append( (right_start, right_length) )
                     self._spans.sort()
                     break
-        if first_complete_overlap is not None:
+        if first_complete_overlap is not None and last_complete_overlap is not None:
             del self._spans[first_complete_overlap:last_complete_overlap+1]
         #print("  REMOVE done: %s" % self.dump())
         self._check()
