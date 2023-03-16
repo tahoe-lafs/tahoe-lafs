@@ -7,7 +7,7 @@ from future.utils import PY2
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-from typing import Any, Generator, Tuple
+from typing import Any, Generator, Optional, Tuple
 
 class Spans(object):
     """I represent a compressed list of booleans, one per index (an integer).
@@ -213,7 +213,7 @@ class Spans(object):
                     return True
         return False
 
-def overlap(start0, length0, start1, length1):
+def overlap(start0: int, length0: int, start1: int, length1: int) -> Optional[Tuple[int, int]]:
     # return start2,length2 of the overlapping region, or None
     #  00      00   000   0000  00  00 000  00   00  00      00
     #     11    11   11    11   111 11 11  1111 111 11    11
@@ -225,7 +225,7 @@ def overlap(start0, length0, start1, length1):
         return (left, right-left)
     return None
 
-def adjacent(start0, length0, start1, length1):
+def adjacent(start0: int, length0: int, start1: int, length1: int) -> bool:
     if (start0 < start1) and start0+length0 == start1:
         return True
     elif (start1 < start0) and start1+length1 == start0:
