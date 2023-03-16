@@ -1,5 +1,8 @@
 import psutil
 
+from twisted.python.filepath import FilePath
+from typing import Tuple
+
 # the docs are a little misleading, but this is either WindowsFileLock
 # or UnixFileLock depending upon the platform we're currently on
 from filelock import FileLock, Timeout
@@ -23,7 +26,7 @@ class CannotRemovePidFile(Exception):
     """
 
 
-def _pidfile_to_lockpath(pidfile):
+def _pidfile_to_lockpath(pidfile: FilePath) -> FilePath:
     """
     internal helper.
     :returns FilePath: a path to use for file-locking the given pidfile
@@ -31,7 +34,7 @@ def _pidfile_to_lockpath(pidfile):
     return pidfile.sibling("{}.lock".format(pidfile.basename()))
 
 
-def parse_pidfile(pidfile):
+def parse_pidfile(pidfile: FilePath) -> Tuple[int, float]:
     """
     :param FilePath pidfile:
     :returns tuple: 2-tuple of pid, creation-time as int, float
@@ -52,7 +55,7 @@ def parse_pidfile(pidfile):
     return pid, starttime
 
 
-def check_pid_process(pidfile):
+def check_pid_process(pidfile: FilePath) -> None:
     """
     If another instance appears to be running already, raise an
     exception.  Otherwise, write our PID + start time to the pidfile
@@ -102,7 +105,7 @@ def check_pid_process(pidfile):
         )
 
 
-def cleanup_pidfile(pidfile):
+def cleanup_pidfile(pidfile: FilePath) -> None:
     """
     Remove the pidfile specified (respecting locks). If anything at
     all goes wrong, `CannotRemovePidFile` is raised.

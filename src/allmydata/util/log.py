@@ -9,6 +9,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from future.utils import PY2
+
+
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_str
@@ -17,7 +19,9 @@ from pyutil import nummedobj
 
 from foolscap.logging import log
 from twisted.python import log as tw_log
+from twisted.python.failure import Failure
 
+from typing import Any, Optional, Dict, Union
 if PY2:
     def bytes_to_unicode(ign, obj):
         return obj
@@ -38,7 +42,7 @@ SCARY = log.SCARY # 35
 BAD = log.BAD # 40
 
 
-def msg(*args, **kwargs):
+def msg(*args: Any, **kwargs: Any) -> Union[int, Any]:
     return log.msg(*args, **bytes_to_unicode(True, kwargs))
 
 # If log.err() happens during a unit test, the unit test should fail. We
@@ -46,7 +50,7 @@ def msg(*args, **kwargs):
 # thing happens that is nevertheless handled, use log.msg(failure=f,
 # level=WEIRD) instead.
 
-def err(failure=None, _why=None, **kwargs):
+def err(failure: Optional[Union[BaseException, Failure]]=None, _why: Optional[Any]=None, **kwargs: Union[bytes, str, int]) -> Union[int, Any]:
     tw_log.err(failure, _why, **kwargs)
     if 'level' not in kwargs:
         kwargs['level'] = log.UNUSUAL
@@ -54,12 +58,12 @@ def err(failure=None, _why=None, **kwargs):
 
 class LogMixin(object):
     """ I remember a msg id and a facility and pass them to log.msg() """
-    def __init__(self, facility=None, grandparentmsgid=None):
+    def __init__(self, facility: Optional[Any]=None, grandparentmsgid: Optional[Any]=None) -> None:
         self._facility = facility
         self._grandparentmsgid = grandparentmsgid
         self._parentmsgid = None
 
-    def log(self, msg, facility=None, parent=None, *args, **kwargs):
+    def log(self, msg: Any, facility: Optional[Any]=None, parent: Optional[Any]=None, *args: tuple, **kwargs: Dict[str, Any]) -> Union[int, Any]:
         if facility is None:
             facility = self._facility
         pmsgid = parent
@@ -77,7 +81,7 @@ class LogMixin(object):
 class PrefixingLogMixin(nummedobj.NummedObj, LogMixin):
     """ I prepend a prefix to each msg, which includes my class and instance number as well as
     a prefix supplied by my subclass. """
-    def __init__(self, facility=None, grandparentmsgid=None, prefix=''):
+    def __init__(self, facility: Optional[Any]=None, grandparentmsgid: Optional[Any]=None, prefix: str='') -> None:
         nummedobj.NummedObj.__init__(self)
         LogMixin.__init__(self, facility, grandparentmsgid)
 
@@ -88,5 +92,5 @@ class PrefixingLogMixin(nummedobj.NummedObj, LogMixin):
         else:
             self._prefix = "%s: " % (self.__repr__(),)
 
-    def log(self, msg="", facility=None, parent=None, *args, **kwargs):
+    def log(self, msg: str="", facility: Optional[Any]=None, parent: Optional[Any]=None, *args: tuple, **kwargs: Any) -> Union[int, Any]:
         return LogMixin.log(self, self._prefix + msg, facility, parent, *args, **kwargs)

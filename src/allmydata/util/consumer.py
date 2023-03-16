@@ -14,17 +14,19 @@ if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from zope.interface import implementer
-from twisted.internet.interfaces import IConsumer
+from twisted.internet.interfaces import IConsumer, IPushProducer
+from typing import Any, Optional
+from twisted.internet.defer import Deferred
 
 
 @implementer(IConsumer)
 class MemoryConsumer(object):
 
-    def __init__(self):
-        self.chunks = []
+    def __init__(self) -> None:
+        self.chunks: list = []
         self.done = False
 
-    def registerProducer(self, p, streaming):
+    def registerProducer(self, p: IPushProducer, streaming: bool) -> None:
         self.producer = p
         if streaming:
             # call resumeProducing once to start things off
@@ -33,17 +35,17 @@ class MemoryConsumer(object):
             while not self.done:
                 p.resumeProducing()
 
-    def write(self, data):
+    def write(self, data: Any) -> None:
         self.chunks.append(data)
 
-    def unregisterProducer(self):
+    def unregisterProducer(self: Any) -> None:
         self.done = True
 
 
-def download_to_data(n, offset=0, size=None):
+def download_to_data(n: Any, offset: int=0, size: Optional[int]=None) -> Any:
     """
     Return Deferred that fires with results of reading from the given filenode.
     """
-    d = n.read(MemoryConsumer(), offset, size)
+    d: Deferred = n.read(MemoryConsumer(), offset, size)
     d.addCallback(lambda mc: b"".join(mc.chunks))
     return d

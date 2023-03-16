@@ -7,6 +7,7 @@ from future.utils import PY2
 if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
+from typing import Any, Generator, List, Optional, Tuple
 
 class Spans(object):
     """I represent a compressed list of booleans, one per index (an integer).
@@ -31,7 +32,7 @@ class Spans(object):
     or received already.
     """
 
-    def __init__(self, _span_or_start=None, length=None):
+    def __init__(self, _span_or_start: Any=None, length: Any=None) -> None:
         self._spans = list()
         if length is not None:
             self._spans.append( (_span_or_start, length) )
@@ -40,7 +41,7 @@ class Spans(object):
                 self.add(start, length)
         self._check()
 
-    def _check(self):
+    def _check(self) -> None:
         assert sorted(self._spans) == self._spans
         prev_end = None
         try:
@@ -52,7 +53,7 @@ class Spans(object):
             print("BAD:", self.dump())
             raise
 
-    def add(self, start, length):
+    def add(self, start: int, length: int) -> 'Spans':
         assert start >= 0
         assert length > 0
         #print(" ADD [%d+%d -%d) to %s" % (start, length, start+length, self.dump()))
@@ -74,7 +75,7 @@ class Spans(object):
             # position.
             self._spans.insert(0, (start,length))
             self._spans.sort()
-        else:
+        elif last_overlap is not None:
             # everything from [first_overlap] to [last_overlap] overlapped
             first_start,first_length = self._spans[first_overlap]
             last_start,last_length = self._spans[last_overlap]
@@ -88,7 +89,7 @@ class Spans(object):
 
         return self
 
-    def remove(self, start, length):
+    def remove(self, start: int, length: int) -> 'Spans':
         assert start >= 0
         assert length > 0
         #print(" REMOVE [%d+%d -%d) from %s" % (start, length, start+length, self.dump()))
@@ -142,59 +143,59 @@ class Spans(object):
                     self._spans.append( (right_start, right_length) )
                     self._spans.sort()
                     break
-        if first_complete_overlap is not None:
+        if first_complete_overlap is not None and last_complete_overlap is not None:
             del self._spans[first_complete_overlap:last_complete_overlap+1]
         #print("  REMOVE done: %s" % self.dump())
         self._check()
         return self
 
-    def dump(self):
+    def dump(self) -> str:
         return "len=%d: %s" % (self.len(),
                                ",".join(["[%d-%d]" % (start,start+l-1)
                                          for (start,l) in self._spans]) )
 
-    def each(self):
+    def each(self) -> Generator[int, None, None]:
         for start, length in self._spans:
             for i in range(start, start+length):
                 yield i
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[Any, None, None]:
         for s in self._spans:
             yield s
 
-    def __bool__(self): # this gets us bool()
+    def __bool__(self) -> bool: # this gets us bool()
         return bool(self.len())
 
     #__nonzero__ = __bool__  # Python 2 backwards compatibility
 
-    def len(self):
+    def len(self) -> int:
         # guess what! python doesn't allow __len__ to return a long, only an
         # int. So we stop using len(spans), use spans.len() instead.
         return sum([length for start,length in self._spans])
 
-    def __add__(self, other):
+    def __add__(self, other: 'Spans') -> 'Spans':
         s = self.__class__(self)
         for (start, length) in other:
             s.add(start, length)
         return s
 
-    def __sub__(self, other):
+    def __sub__(self, other: 'Spans') -> 'Spans':
         s = self.__class__(self)
         for (start, length) in other:
             s.remove(start, length)
         return s
 
-    def __iadd__(self, other):
+    def __iadd__(self, other: 'Spans') -> 'Spans':
         for (start, length) in other:
             self.add(start, length)
         return self
 
-    def __isub__(self, other):
+    def __isub__(self, other: 'Spans') -> 'Spans':
         for (start, length) in other:
             self.remove(start, length)
         return self
 
-    def __and__(self, other):
+    def __and__(self, other: 'Spans') -> 'Spans':
         if not self._spans:
             return self.__class__()
         bounds = self.__class__(self._spans[0][0],
@@ -202,7 +203,7 @@ class Spans(object):
         not_other = bounds - other
         return self - not_other
 
-    def __contains__(self, start_and_length):
+    def __contains__(self, start_and_length: Tuple[int, int]) -> bool:
         (start, length) = start_and_length
         for span_start,span_length in self._spans:
             o = overlap(start, length, span_start, span_length)
@@ -212,7 +213,7 @@ class Spans(object):
                     return True
         return False
 
-def overlap(start0, length0, start1, length1):
+def overlap(start0: int, length0: int, start1: int, length1: int) -> Optional[Tuple[int, int]]:
     # return start2,length2 of the overlapping region, or None
     #  00      00   000   0000  00  00 000  00   00  00      00
     #     11    11   11    11   111 11 11  1111 111 11    11
@@ -224,7 +225,7 @@ def overlap(start0, length0, start1, length1):
         return (left, right-left)
     return None
 
-def adjacent(start0, length0, start1, length1):
+def adjacent(start0: int, length0: int, start1: int, length1: int) -> bool:
     if (start0 < start1) and start0+length0 == start1:
         return True
     elif (start1 < start0) and start1+length1 == start0:
@@ -238,38 +239,38 @@ class DataSpans(object):
     retrieved, some have been requested, and others have not been read.
     """
 
-    def __init__(self, other=None):
-        self.spans = [] # (start, data) tuples, non-overlapping, merged
+    def __init__(self, other: Optional['DataSpans']=None) -> None:
+        self.spans: List[Tuple[int, str]] = [] # (start, data) tuples, non-overlapping, merged
         if other:
             for (start, data) in other.get_chunks():
                 self.add(start, data)
 
-    def __bool__(self): # this gets us bool()
+    def __bool__(self) -> bool: # this gets us bool()
         return bool(self.len())
 
-    def len(self):
+    def len(self) -> int:
         # return number of bytes we're holding
         return sum([len(data) for (start,data) in self.spans])
 
-    def _dump(self):
+    def _dump(self) -> Generator[int, None, None]:
         # return iterator of sorted list of offsets, one per byte
-        for (start,data) in self.spans:
-            for i in range(start, start+len(data)):
+        for (start, data) in self.spans:
+            for i in range(start, start + len(data)):
                 yield i
 
-    def dump(self):
+    def dump(self) -> str:
         return "len=%d: %s" % (self.len(),
                                ",".join(["[%d-%d]" % (start,start+len(data)-1)
                                          for (start,data) in self.spans]) )
 
-    def get_chunks(self):
+    def get_chunks(self) -> List[Tuple[int, str]]:
         return list(self.spans)
 
-    def get_spans(self):
+    def get_spans(self) -> 'Spans':
         """Return a Spans object with a bit set for each byte I hold"""
         return Spans([(start, len(data)) for (start,data) in self.spans])
 
-    def assert_invariants(self):
+    def assert_invariants(self) -> None:
         if not self.spans:
             return
         prev_start = self.spans[0][0]
@@ -280,7 +281,7 @@ class DataSpans(object):
                 print("ASSERTION FAILED", self.spans)
                 raise AssertionError
 
-    def get(self, start, length):
+    def get(self, start: int, length: int) -> Optional[str]:
         # returns a string of LENGTH, or None
         #print("get", start, length, self.spans)
         end = start+length
@@ -304,7 +305,7 @@ class DataSpans(object):
         #print(" None, ran out of spans")
         return None
 
-    def add(self, start, data):
+    def add(self, start: int, data: str) -> None:
         # first: walk through existing spans, find overlap, modify-in-place
         #  create list of new spans
         #  add new spans
@@ -387,7 +388,7 @@ class DataSpans(object):
             continue
         # now merge adjacent spans
         #print(" merging", self.spans)
-        newspans = []
+        newspans: List[Tuple[int, str]] = []
         for (s_start,s_data) in self.spans:
             if newspans and adjacent(newspans[-1][0], len(newspans[-1][1]),
                                      s_start, len(s_data)):
@@ -398,7 +399,7 @@ class DataSpans(object):
         self.assert_invariants()
         #print(" done", self.spans)
 
-    def remove(self, start, length):
+    def remove(self, start: int, length: int) -> None:
         i = 0
         end = start + length
         #print("remove", start, length, self.spans)
@@ -443,7 +444,7 @@ class DataSpans(object):
             break
         #print(" done", self.spans)
 
-    def pop(self, start, length):
+    def pop(self, start: int, length: int) -> Optional[str]:
         data = self.get(start, length)
         if data:
             self.remove(start, length)

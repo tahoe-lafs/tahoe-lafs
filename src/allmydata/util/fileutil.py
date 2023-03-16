@@ -9,6 +9,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import unicode_literals
 
+
 from future.utils import PY2
 if PY2:
     # open is not here because we want to use native strings on Py2
@@ -29,8 +30,10 @@ from twisted.python import log
 from allmydata.crypto import aes
 from allmydata.util.assertutil import _assert
 
+from typing import Any, Dict, Optional, Union
 
-def rename(src, dst, tries=4, basedelay=0.1):
+
+def rename(src: Any, dst: Any, tries: int=4, basedelay: float=0.1) -> None:
     """ Here is a superkludge to workaround the fact that occasionally on
     Windows some other process (e.g. an anti-virus scanner, a local search
     engine, etc.) is looking at your file when you want to delete or move it,
@@ -54,7 +57,7 @@ def rename(src, dst, tries=4, basedelay=0.1):
             basedelay *= 2
     return os.rename(src, dst) # The last try.
 
-def remove(f, tries=4, basedelay=0.1):
+def remove(f: Any, tries: int=4, basedelay: float=0.1) -> None:
     """ Here is a superkludge to workaround the fact that occasionally on
     Windows some other process (e.g. an anti-virus scanner, a local search
     engine, etc.) is looking at your file when you want to delete or move it,
@@ -92,30 +95,30 @@ class ReopenableNamedTemporaryFile(object):
     ReopenableNamedTemporaryFile instance is garbage collected or its shutdown()
     method is called, it deletes the file.
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         fd, self.name = tempfile.mkstemp(*args, **kwargs)
         os.close(fd)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<%s instance at %x %s>" % (self.__class__.__name__, id(self), self.name)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.shutdown()
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         remove(self.name)
 
 class EncryptedTemporaryFile(object):
     # not implemented: next, readline, readlines, xreadlines, writelines
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.file = tempfile.TemporaryFile()
         self.key = os.urandom(16)  # AES-128
 
-    def _crypt(self, offset, data):
+    def _crypt(self, offset: int, data: Any) -> bytes:
         offset_big = offset // 16
         offset_small = offset % 16
         iv = binascii.unhexlify("%032x" % offset_big)
@@ -124,27 +127,27 @@ class EncryptedTemporaryFile(object):
         aes.encrypt_data(cipher, b"\x00" * offset_small)
         return aes.encrypt_data(cipher, data)
 
-    def close(self):
+    def close(self) -> None:
         self.file.close()
 
-    def flush(self):
+    def flush(self) -> None:
         self.file.flush()
 
-    def seek(self, offset, whence=0):  # 0 = SEEK_SET
+    def seek(self, offset: int, whence: int=0) -> None:  # 0 = SEEK_SET
         self.file.seek(offset, whence)
 
-    def tell(self):
+    def tell(self) -> int:
         offset = self.file.tell()
         return offset
 
-    def read(self, size=-1):
+    def read(self, size: int=-1) -> bytes:
         """A read must not follow a write, or vice-versa, without an intervening seek."""
         index = self.file.tell()
         ciphertext = self.file.read(size)
         plaintext = self._crypt(index, ciphertext)
         return plaintext
 
-    def write(self, plaintext):
+    def write(self, plaintext: str) -> None:
         """A read must not follow a write, or vice-versa, without an intervening seek.
         If seeking and then writing causes a 'hole' in the file, the contents of the
         hole are unspecified."""
@@ -152,12 +155,12 @@ class EncryptedTemporaryFile(object):
         ciphertext = self._crypt(index, plaintext)
         self.file.write(ciphertext)
 
-    def truncate(self, newsize):
+    def truncate(self, newsize: int) -> None:
         """Truncate or extend the file to 'newsize'. If it is extended, the contents after the
         old end-of-file are unspecified. The file position after this operation is unspecified."""
         self.file.truncate(newsize)
 
-def make_dirs_with_absolute_mode(parent, dirname, mode):
+def make_dirs_with_absolute_mode(parent: str, dirname: str, mode: int) -> None:
     """
     Make directory `dirname` and chmod it to `mode` afterwards.
     We chmod all parent directories of `dirname` until we reach
@@ -175,7 +178,7 @@ def make_dirs_with_absolute_mode(parent, dirname, mode):
         old_dirname, dirname = dirname, os.path.dirname(dirname)
         _assert(len(dirname) < len(old_dirname), dirname=dirname, old_dirname=old_dirname)
 
-def is_ancestor_path(parent, dirname):
+def is_ancestor_path(parent: str, dirname: str) -> bool:
     while dirname != parent:
         # FIXME: doesn't seem to work on Windows for long paths
         old_dirname, dirname = dirname, os.path.dirname(dirname)
@@ -183,7 +186,7 @@ def is_ancestor_path(parent, dirname):
             return False
     return True
 
-def make_dirs(dirname, mode=0o777):
+def make_dirs(dirname: str, mode: int=0o777) -> None:
     """
     An idempotent version of os.makedirs().  If the dir already exists, do
     nothing and return without raising an exception.  If this call creates the
@@ -202,7 +205,7 @@ def make_dirs(dirname, mode=0o777):
             raise tx
         raise IOError("unknown error prevented creation of directory, or deleted the directory immediately after creation: %s" % dirname) # careful not to construct an IOError with a 2-tuple, as that has a special meaning...
 
-def rm_dir(dirname):
+def rm_dir(dirname: str) -> None:
     """
     A threadsafe and idempotent version of shutil.rmtree().  If the dir is
     already gone, do nothing and return without raising an exception.  If this
@@ -237,13 +240,13 @@ def rm_dir(dirname):
         raise OSError(excs)
 
 
-def remove_if_possible(f):
+def remove_if_possible(f: Any) -> None:
     try:
         remove(f)
     except:
         pass
 
-def du(basedir):
+def du(basedir: str) -> int:
     size = 0
 
     for root, dirs, files in os.walk(basedir):
@@ -253,7 +256,7 @@ def du(basedir):
 
     return size
 
-def move_into_place(source, dest):
+def move_into_place(source: Union[bytes, str], dest: Union[bytes, str]) -> None:
     """Atomically replace a file, or as near to it as the platform allows.
     The dest file may or may not exist."""
     if "win32" in sys.platform.lower() and os.path.exists(source):
@@ -262,7 +265,7 @@ def move_into_place(source, dest):
         remove_if_possible(dest)
     os.rename(source, dest)
 
-def write_atomically(target, contents, mode="b"):
+def write_atomically(target: str, contents: Union[bytes, str], mode: str="b") -> None:
     assert (
         isinstance(contents, bytes) and "b" in mode or
         isinstance(contents, str) and "t" in mode or mode == ""), (type(contents), mode)
@@ -270,17 +273,17 @@ def write_atomically(target, contents, mode="b"):
         f.write(contents)
     move_into_place(target+".tmp", target)
 
-def write(path, data, mode="wb"):
+def write(path: str, data: Union[bytes, str], mode: str="wb") -> None:
     if "b" in mode and isinstance(data, str):
         data = data.encode("utf-8")
     with open(path, mode) as f:
         f.write(data)
 
-def read(path, mode="rb"):
+def read(path: str, mode: str="rb") -> str:
     with open(path, mode) as rf:
         return rf.read()
 
-def put_file(path, inf):
+def put_file(path: str, inf: Any) -> None:
     precondition_abspath(path)
 
     # TODO: create temporary file and move into place?
@@ -291,7 +294,7 @@ def put_file(path, inf):
                 break
             outf.write(data)
 
-def precondition_abspath(path):
+def precondition_abspath(path: str) -> None:
     if not isinstance(path, str):
         raise AssertionError("an abspath must be a Unicode string")
 
@@ -315,7 +318,7 @@ try:
 except ImportError:
     pass
 
-def abspath_expanduser_unicode(path, base=None, long_path=True):
+def abspath_expanduser_unicode(path: str, base: Optional[str]=None, long_path: bool=True) -> str:
     """
     Return the absolute version of a path. If 'base' is given and 'path' is relative,
     the path will be expanded relative to 'base'.
@@ -361,7 +364,7 @@ def abspath_expanduser_unicode(path, base=None, long_path=True):
 
     return path
 
-def to_windows_long_path(path):
+def to_windows_long_path(path: str) -> str:
     # '/' is normally a perfectly valid path component separator in Windows.
     # However, when using the "\\?\" syntax it is not recognized, so we
     # replace it with '\' here.
@@ -401,14 +404,14 @@ if sys.platform == "win32":
         import traceback
         traceback.print_exc()
 
-def expanduser(path):
+def expanduser(path: str) -> str:
     # os.path.expanduser is hopelessly broken for Unicode paths on Windows (ticket #1674).
     if sys.platform == "win32":
         return windows_expanduser(path)
     else:
         return os.path.expanduser(path)
 
-def windows_expanduser(path):
+def windows_expanduser(path: str) -> str:
     if not path.startswith('~'):
         return path
 
@@ -430,40 +433,41 @@ def windows_expanduser(path):
 # <https://msdn.microsoft.com/en-us/library/windows/desktop/ms681382%28v=vs.85%29.aspx>
 ERROR_ENVVAR_NOT_FOUND = 203
 
-def windows_getenv(name):
-    # Based on <http://stackoverflow.com/questions/2608200/problems-with-umlauts-in-python-appdata-environvent-variable/2608368#2608368>,
-    # with improved error handling. Returns None if there is no enivronment variable of the given name.
-    if not isinstance(name, str):
-        raise AssertionError("name must be Unicode")
+def windows_getenv(name: str) -> Any:
+    if sys.platform == "win32":
+        # Based on <http://stackoverflow.com/questions/2608200/problems-with-umlauts-in-python-appdata-environvent-variable/2608368#2608368>,
+        # with improved error handling. Returns None if there is no enivronment variable of the given name.
+        if not isinstance(name, str):
+            raise AssertionError("name must be Unicode")
 
-    n = GetEnvironmentVariableW(name, None, 0)
-    # GetEnvironmentVariableW returns DWORD, so n cannot be negative.
-    if n == 0:
-        err = get_last_error()
-        if err == ERROR_ENVVAR_NOT_FOUND:
-            return None
-        raise OSError("WinError: %s\n attempting to read size of environment variable %r"
-                      % (WinError(err), name))
-    if n == 1:
-        # Avoid an ambiguity between a zero-length string and an error in the return value of the
-        # call to GetEnvironmentVariableW below.
-        return u""
+        n = GetEnvironmentVariableW(name, None, 0)
+        # GetEnvironmentVariableW returns DWORD, so n cannot be negative.
+        if n == 0:
+            err = get_last_error()
+            if err == ERROR_ENVVAR_NOT_FOUND:
+                return None
+            raise OSError("WinError: %s\n attempting to read size of environment variable %r"
+                        % (WinError(err), name))
+        if n == 1:
+            # Avoid an ambiguity between a zero-length string and an error in the return value of the
+            # call to GetEnvironmentVariableW below.
+            return u""
 
-    buf = create_unicode_buffer(u'\0'*n)
-    retval = GetEnvironmentVariableW(name, buf, n)
-    if retval == 0:
-        err = get_last_error()
-        if err == ERROR_ENVVAR_NOT_FOUND:
-            return None
-        raise OSError("WinError: %s\n attempting to read environment variable %r"
-                      % (WinError(err), name))
-    if retval >= n:
-        raise OSError("Unexpected result %d (expected less than %d) from GetEnvironmentVariableW attempting to read environment variable %r"
-                      % (retval, n, name))
+        buf = create_unicode_buffer(u'\0'*n)
+        retval = GetEnvironmentVariableW(name, buf, n)
+        if retval == 0:
+            err = get_last_error()
+            if err == ERROR_ENVVAR_NOT_FOUND:
+                return None
+            raise OSError("WinError: %s\n attempting to read environment variable %r"
+                        % (WinError(err), name))
+        if retval >= n:
+            raise OSError("Unexpected result %d (expected less than %d) from GetEnvironmentVariableW attempting to read environment variable %r"
+                        % (retval, n, name))
 
-    return buf.value
+        return buf.value
 
-def get_disk_stats(whichdir, reserved_space=0):
+def get_disk_stats(whichdir: str, reserved_space: int=0) -> Dict[str, int]:
     """Return disk statistics for the storage disk, in the form of a dict
     with the following fields.
       total:            total bytes on disk
@@ -484,25 +488,25 @@ def get_disk_stats(whichdir, reserved_space=0):
     you can pass how many bytes you would like to leave unused on this
     filesystem as reserved_space.
     """
+    if sys.platform == "win32":
+        if have_GetDiskFreeSpaceExW :
+            # If this is a Windows system and GetDiskFreeSpaceExW is available, use it.
+            # (This might put up an error dialog unless
+            # SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX) has been called,
+            # which we do in allmydata.windows.fixups.initialize().)
 
-    if have_GetDiskFreeSpaceExW:
-        # If this is a Windows system and GetDiskFreeSpaceExW is available, use it.
-        # (This might put up an error dialog unless
-        # SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX) has been called,
-        # which we do in allmydata.windows.fixups.initialize().)
-
-        n_free_for_nonroot = c_ulonglong(0)
-        n_total            = c_ulonglong(0)
-        n_free_for_root    = c_ulonglong(0)
-        retval = GetDiskFreeSpaceExW(whichdir, byref(n_free_for_nonroot),
-                                               byref(n_total),
-                                               byref(n_free_for_root))
-        if retval == 0:
-            raise OSError("WinError: %s\n attempting to get disk statistics for %r"
-                          % (WinError(get_last_error()), whichdir))
-        free_for_nonroot = n_free_for_nonroot.value
-        total            = n_total.value
-        free_for_root    = n_free_for_root.value
+            n_free_for_nonroot = c_ulonglong(0)
+            n_total            = c_ulonglong(0)
+            n_free_for_root    = c_ulonglong(0)
+            retval = GetDiskFreeSpaceExW(whichdir, byref(n_free_for_nonroot),
+                                                byref(n_total),
+                                                byref(n_free_for_root))
+            if retval == 0:
+                raise OSError("WinError: %s\n attempting to get disk statistics for %r"
+                            % (WinError(get_last_error()), whichdir))
+            free_for_nonroot = n_free_for_nonroot.value
+            total            = n_total.value
+            free_for_root    = n_free_for_root.value
     else:
         # For Unix-like systems.
         # <http://docs.python.org/library/os.html#os.statvfs>
@@ -526,7 +530,7 @@ def get_disk_stats(whichdir, reserved_space=0):
 
     # valid for all platforms:
     used = total - free_for_root
-    avail = max(free_for_nonroot - reserved_space, 0)
+    avail: int = max(free_for_nonroot - reserved_space, 0)
 
     return { 'total': total,
              'free_for_root': free_for_root,
@@ -535,7 +539,7 @@ def get_disk_stats(whichdir, reserved_space=0):
              'avail': avail,
            }
 
-def get_available_space(whichdir, reserved_space):
+def get_available_space(whichdir: str, reserved_space: int) -> Optional[int]:
     """Returns available space for share storage in bytes, or None if no
     API to get this information is available.
 
@@ -564,9 +568,13 @@ class UnableToUnlinkReplacementError(Exception):
     pass
 
 
-def reraise(wrapper):
+def reraise(wrapper: type) -> None:
     cls, exc, tb = sys.exc_info()
-    wrapper_exc = wrapper("%s: %s" % (cls.__name__, exc))
+    if cls is not None:
+        clsname = cls.__name__
+    else:
+        clsname = "UnknownException"
+    wrapper_exc = wrapper("%s: %s" % (clsname, exc))
     six.reraise(wrapper, wrapper_exc, tb)
 
 
@@ -605,7 +613,7 @@ if sys.platform == "win32":
             except EnvironmentError:
                 reraise(ConflictError)
 else:
-    def rename_no_overwrite(source_path, dest_path):
+    def rename_no_overwrite(source_path: Union[bytes, str], dest_path: Union[bytes, str]) -> None:
         # link will fail with EEXIST if there is already something at dest_path.
         os.link(source_path, dest_path)
         try:
@@ -613,7 +621,7 @@ else:
         except EnvironmentError:
             reraise(UnableToUnlinkReplacementError)
 
-    def replace_file(replaced_path, replacement_path):
+    def replace_file(replaced_path: str, replacement_path: str) -> None:
         precondition_abspath(replaced_path)
         precondition_abspath(replacement_path)
 
@@ -631,10 +639,10 @@ else:
 
 PathInfo = namedtuple('PathInfo', 'isdir isfile islink exists size mtime_ns ctime_ns')
 
-def seconds_to_ns(t):
+def seconds_to_ns(t: float) -> int:
     return int(t * 1000000000)
 
-def get_pathinfo(path_u, now_ns=None):
+def get_pathinfo(path_u: Union[bytes, str], now_ns: Optional[int]=None) -> PathInfo:
     try:
         statinfo = os.lstat(path_u)
         mode = statinfo.st_mode

@@ -21,6 +21,8 @@ import os
 import hashlib
 from allmydata.util.netstring import netstring
 
+from typing import Optional
+
 # Be very very cautious when modifying this file. Almost any change will
 # cause a compatibility break, invalidating all outstanding URIs and making
 # any previously uploaded files become inaccessible. BE CONSERVATIVE AND TEST
@@ -36,16 +38,16 @@ CRYPTO_VAL_SIZE = 32
 class _SHA256d_Hasher(object):
     # use SHA-256d, as defined by Ferguson and Schneier: hash the output
     # again to prevent length-extension attacks
-    def __init__(self, truncate_to=None):
+    def __init__(self, truncate_to: Optional[int]=None) -> None:
         self.h = hashlib.sha256()
         self.truncate_to = truncate_to
-        self._digest = None
+        self._digest: Optional[bytes] = None
 
-    def update(self, data):
+    def update(self, data: bytes) -> None:
         assert isinstance(data, bytes)  # no unicode
         self.h.update(data)
 
-    def digest(self):
+    def digest(self) -> bytes:
         if self._digest is None:
             h1 = self.h.digest()
             del self.h
@@ -56,20 +58,20 @@ class _SHA256d_Hasher(object):
         return self._digest
 
 
-def tagged_hasher(tag, truncate_to=None):
-    hasher = _SHA256d_Hasher(truncate_to)
+def tagged_hasher(tag: bytes, truncate_to: Optional[int]=None) -> _SHA256d_Hasher:
+    hasher: _SHA256d_Hasher = _SHA256d_Hasher(truncate_to)
     hasher.update(netstring(tag))
     return hasher
 
 
-def tagged_hash(tag, val, truncate_to=None):
-    hasher = tagged_hasher(tag, truncate_to)
+def tagged_hash(tag: bytes, val: bytes, truncate_to: Optional[int]=None) -> bytes:
+    hasher: _SHA256d_Hasher = tagged_hasher(tag, truncate_to)
     hasher.update(val)
     return hasher.digest()
 
 
-def tagged_pair_hash(tag, val1, val2, truncate_to=None):
-    s = _SHA256d_Hasher(truncate_to)
+def tagged_pair_hash(tag: bytes, val1: bytes, val2: bytes, truncate_to: Optional[int]=None) -> bytes:
+    s: _SHA256d_Hasher = _SHA256d_Hasher(truncate_to)
     s.update(netstring(tag))
     s.update(netstring(val1))
     s.update(netstring(val2))
@@ -109,7 +111,7 @@ DIRNODE_CHILD_WRITECAP_TAG = b"allmydata_mutable_writekey_and_salt_to_dirnode_ch
 DIRNODE_CHILD_SALT_TAG = b"allmydata_dirnode_child_rwcap_to_salt_v1"
 
 
-def storage_index_hash(key):
+def storage_index_hash(key: bytes) -> bytes:
     # storage index is truncated to 128 bits (16 bytes). We're only hashing a
     # 16-byte value to get it, so there's no point in using a larger value.  We
     # use this same tagged hash to go from encryption key to storage index for
@@ -118,51 +120,51 @@ def storage_index_hash(key):
     return tagged_hash(STORAGE_INDEX_TAG, key, 16)
 
 
-def block_hash(data):
+def block_hash(data: bytes) -> bytes:
     return tagged_hash(BLOCK_TAG, data)
 
 
-def block_hasher():
+def block_hasher() -> _SHA256d_Hasher:
     return tagged_hasher(BLOCK_TAG)
 
 
-def uri_extension_hash(data):
+def uri_extension_hash(data: bytes) -> bytes:
     return tagged_hash(UEB_TAG, data)
 
 
-def uri_extension_hasher():
+def uri_extension_hasher() -> _SHA256d_Hasher:
     return tagged_hasher(UEB_TAG)
 
 
-def plaintext_hash(data):
+def plaintext_hash(data: bytes) -> bytes:
     return tagged_hash(PLAINTEXT_TAG, data)
 
 
-def plaintext_hasher():
+def plaintext_hasher() -> _SHA256d_Hasher:
     return tagged_hasher(PLAINTEXT_TAG)
 
 
-def crypttext_hash(data):
+def crypttext_hash(data: bytes) -> bytes:
     return tagged_hash(CIPHERTEXT_TAG, data)
 
 
-def crypttext_hasher():
+def crypttext_hasher() -> _SHA256d_Hasher:
     return tagged_hasher(CIPHERTEXT_TAG)
 
 
-def crypttext_segment_hash(data):
+def crypttext_segment_hash(data: bytes) -> bytes:
     return tagged_hash(CIPHERTEXT_SEGMENT_TAG, data)
 
 
-def crypttext_segment_hasher():
+def crypttext_segment_hasher() -> _SHA256d_Hasher:
     return tagged_hasher(CIPHERTEXT_SEGMENT_TAG)
 
 
-def plaintext_segment_hash(data):
+def plaintext_segment_hash(data: bytes) -> bytes:
     return tagged_hash(PLAINTEXT_SEGMENT_TAG, data)
 
 
-def plaintext_segment_hasher():
+def plaintext_segment_hasher() -> _SHA256d_Hasher:
     return tagged_hasher(PLAINTEXT_SEGMENT_TAG)
 
 
@@ -170,13 +172,13 @@ KEYLEN = 16
 IVLEN = 16
 
 
-def convergence_hash(k, n, segsize, data, convergence):
-    h = convergence_hasher(k, n, segsize, convergence)
+def convergence_hash(k: int, n: int, segsize: int, data: bytes, convergence: bytes) -> bytes:
+    h: _SHA256d_Hasher = convergence_hasher(k, n, segsize, convergence)
     h.update(data)
     return h.digest()
 
 
-def _convergence_hasher_tag(k, n, segsize, convergence):
+def _convergence_hasher_tag(k: int, n: int, segsize: int, convergence: bytes) -> bytes:
     """
     Create the convergence hashing tag.
 
@@ -212,48 +214,48 @@ def _convergence_hasher_tag(k, n, segsize, convergence):
     return tag
 
 
-def convergence_hasher(k, n, segsize, convergence):
+def convergence_hasher(k: int, n: int, segsize: int, convergence: bytes) -> _SHA256d_Hasher:
     tag = _convergence_hasher_tag(k, n, segsize, convergence)
     return tagged_hasher(tag, KEYLEN)
 
 
-def random_key():
+def random_key() -> bytes:
     return os.urandom(KEYLEN)
 
 
-def my_renewal_secret_hash(my_secret):
+def my_renewal_secret_hash(my_secret: bytes) -> bytes:
     return tagged_hash(my_secret, CLIENT_RENEWAL_TAG)
 
 
-def my_cancel_secret_hash(my_secret):
+def my_cancel_secret_hash(my_secret: bytes) -> bytes:
     return tagged_hash(my_secret, CLIENT_CANCEL_TAG)
 
 
-def file_renewal_secret_hash(client_renewal_secret, storage_index):
+def file_renewal_secret_hash(client_renewal_secret: bytes, storage_index: bytes) -> bytes:
     return tagged_pair_hash(FILE_RENEWAL_TAG,
                             client_renewal_secret, storage_index)
 
 
-def file_cancel_secret_hash(client_cancel_secret, storage_index):
+def file_cancel_secret_hash(client_cancel_secret: bytes, storage_index: bytes) -> bytes:
     return tagged_pair_hash(FILE_CANCEL_TAG,
                             client_cancel_secret, storage_index)
 
 
-def bucket_renewal_secret_hash(file_renewal_secret, peerid):
+def bucket_renewal_secret_hash(file_renewal_secret: bytes, peerid: bytes) -> bytes:
     assert len(peerid) == 20, "%s: %r" % (len(peerid), peerid)  # binary!
     return tagged_pair_hash(BUCKET_RENEWAL_TAG, file_renewal_secret, peerid)
 
 
-def bucket_cancel_secret_hash(file_cancel_secret, peerid):
+def bucket_cancel_secret_hash(file_cancel_secret: bytes, peerid: bytes) -> bytes:
     assert len(peerid) == 20, "%s: %r" % (len(peerid), peerid)  # binary!
     return tagged_pair_hash(BUCKET_CANCEL_TAG, file_cancel_secret, peerid)
 
 
-def _xor(a, b):
+def _xor(a: bytes, b: int) -> bytes:
     return b"".join([byteschr(c ^ b) for c in future_bytes(a)])
 
 
-def hmac(tag, data):
+def hmac(tag: bytes, data: bytes) -> bytes:
     tag = bytes(tag)  # Make sure it matches Python 3 behavior
     ikey = _xor(tag, 0x36)
     okey = _xor(tag, 0x5c)
@@ -262,45 +264,45 @@ def hmac(tag, data):
     return h2
 
 
-def mutable_rwcap_key_hash(iv, writekey):
+def mutable_rwcap_key_hash(iv: bytes, writekey: bytes) -> bytes:
     return tagged_pair_hash(DIRNODE_CHILD_WRITECAP_TAG, iv, writekey, KEYLEN)
 
 
-def mutable_rwcap_salt_hash(writekey):
+def mutable_rwcap_salt_hash(writekey: bytes) -> bytes:
     return tagged_hash(DIRNODE_CHILD_SALT_TAG, writekey, IVLEN)
 
 
-def ssk_writekey_hash(privkey):
+def ssk_writekey_hash(privkey: bytes) -> bytes:
     return tagged_hash(MUTABLE_WRITEKEY_TAG, privkey, KEYLEN)
 
 
-def ssk_write_enabler_master_hash(writekey):
+def ssk_write_enabler_master_hash(writekey: bytes) -> bytes:
     return tagged_hash(MUTABLE_WRITE_ENABLER_MASTER_TAG, writekey)
 
 
-def ssk_write_enabler_hash(writekey, peerid):
+def ssk_write_enabler_hash(writekey: bytes, peerid: bytes) -> bytes:
     assert len(peerid) == 20, "%s: %r" % (len(peerid), peerid)  # binary!
     wem = ssk_write_enabler_master_hash(writekey)
     return tagged_pair_hash(MUTABLE_WRITE_ENABLER_TAG, wem, peerid)
 
 
-def ssk_pubkey_fingerprint_hash(pubkey):
+def ssk_pubkey_fingerprint_hash(pubkey: bytes) -> bytes:
     return tagged_hash(MUTABLE_PUBKEY_TAG, pubkey)
 
 
-def ssk_readkey_hash(writekey):
+def ssk_readkey_hash(writekey: bytes) -> bytes:
     return tagged_hash(MUTABLE_READKEY_TAG, writekey, KEYLEN)
 
 
-def ssk_readkey_data_hash(IV, readkey):
+def ssk_readkey_data_hash(IV: bytes, readkey: bytes) -> bytes:
     return tagged_pair_hash(MUTABLE_DATAKEY_TAG, IV, readkey, KEYLEN)
 
 
-def ssk_storage_index_hash(readkey):
+def ssk_storage_index_hash(readkey: bytes) -> bytes:
     return tagged_hash(MUTABLE_STORAGEINDEX_TAG, readkey, KEYLEN)
 
 
-def timing_safe_compare(a, b):
+def timing_safe_compare(a: bytes, b: bytes) -> bool:
     n = os.urandom(32)
     return bool(tagged_hash(n, a) == tagged_hash(n, b))
 
@@ -308,9 +310,9 @@ def timing_safe_compare(a, b):
 BACKUPDB_DIRHASH_TAG = b"allmydata_backupdb_dirhash_v1"
 
 
-def backupdb_dirhash(contents):
+def backupdb_dirhash(contents: bytes) -> bytes:
     return tagged_hash(BACKUPDB_DIRHASH_TAG, contents)
 
 
-def permute_server_hash(peer_selection_index, server_permutation_seed):
+def permute_server_hash(peer_selection_index: bytes, server_permutation_seed: bytes) -> bytes:
     return hashlib.sha1(peer_selection_index + server_permutation_seed).digest()

@@ -9,6 +9,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+from __future__ import annotations
 
 from future.utils import PY2
 if PY2:
@@ -23,7 +24,13 @@ import attr
 from twisted.python.runtime import (
     platform,
 )
+from twisted.python.filepath import (
+    FilePath,
+)
 
+from typing import Any, Callable, TypeVar, Type
+
+T = TypeVar('T', bound='ValidConfiguration')
 
 class UnknownConfigError(Exception):
     """
@@ -33,7 +40,7 @@ class UnknownConfigError(Exception):
     """
 
 
-def get_config(tahoe_cfg):
+def get_config(tahoe_cfg: str) -> ConfigParser:
     """Load the config, returning a ConfigParser.
 
     Configuration is returned as Unicode strings.
@@ -46,7 +53,7 @@ def get_config(tahoe_cfg):
     return get_config_from_string(cfg_string)
 
 
-def get_config_from_string(tahoe_cfg_string):
+def get_config_from_string(tahoe_cfg_string: str) -> ConfigParser:
     """Load the config from a string, return the ConfigParser.
 
     Configuration is returned as Unicode strings.
@@ -56,13 +63,13 @@ def get_config_from_string(tahoe_cfg_string):
     return parser
 
 
-def set_config(config, section, option, value):
+def set_config(config: ConfigParser, section: str, option: str, value: Any) -> None:
     if not config.has_section(section):
         config.add_section(section)
     config.set(section, option, value)
     assert config.get(section, option) == value
 
-def write_config(tahoe_cfg, config):
+def write_config(tahoe_cfg: FilePath, config: ConfigParser) -> None:
     """
     Write a configuration to a file.
 
@@ -88,7 +95,7 @@ def write_config(tahoe_cfg, config):
             pass
     tmp.moveTo(tahoe_cfg)
 
-def validate_config(fname, cfg, valid_config):
+def validate_config(fname: str, cfg: ConfigParser, valid_config: ValidConfiguration) -> None:
     """
     :param ValidConfiguration valid_config: The definition of a valid
         configuration.
@@ -128,14 +135,14 @@ class ValidConfiguration(object):
         an item name as bytes and returns True if that section, item pair is
         valid, False otherwise.
     """
-    _static_valid_sections = attr.ib(
+    _static_valid_sections: dict = attr.ib(
         validator=attr.validators.instance_of(dict)
     )
-    _is_valid_section = attr.ib(default=lambda section_name: False)
-    _is_valid_item = attr.ib(default=lambda section_name, item_name: False)
+    _is_valid_section: Callable[[str], bool]= attr.ib(default=lambda section_name: False)
+    _is_valid_item: Callable[[str, str], bool] = attr.ib(default=lambda section_name, item_name: False)
 
     @classmethod
-    def everything(cls):
+    def everything(cls: Type[T]) -> T:
         """
         Create a validator which considers everything valid.
         """
@@ -146,7 +153,7 @@ class ValidConfiguration(object):
         )
 
     @classmethod
-    def nothing(cls):
+    def nothing(cls: Type[T]) -> T:
         """
         Create a validator which considers nothing valid.
         """
@@ -156,7 +163,7 @@ class ValidConfiguration(object):
             lambda section_name, item_name: False,
         )
 
-    def is_valid_section(self, section_name):
+    def is_valid_section(self, section_name: str) -> bool:
         """
         :return: True if the given section name is valid, False otherwise.
         """
@@ -165,7 +172,7 @@ class ValidConfiguration(object):
             self._is_valid_section(section_name)
         )
 
-    def is_valid_item(self, section_name, item_name):
+    def is_valid_item(self, section_name: str, item_name: str) -> bool:
         """
         :return: True if the given section name, item_name pair is valid, False
             otherwise.
@@ -176,7 +183,7 @@ class ValidConfiguration(object):
         )
 
 
-    def update(self, valid_config):
+    def update(self, valid_config: ValidConfiguration) -> ValidConfiguration:
         static_valid_sections = self._static_valid_sections.copy()
         static_valid_sections.update(valid_config._static_valid_sections)
         return ValidConfiguration(
@@ -186,7 +193,7 @@ class ValidConfiguration(object):
         )
 
 
-def copy_config(old):
+def copy_config(old: ConfigParser) -> ConfigParser:
     """
     Return a brand new ``ConfigParser`` containing the same values as
     the given object.
@@ -203,7 +210,7 @@ def copy_config(old):
     return new
 
 
-def _either(f, g):
+def _either(f: Any, g: Any) -> Any:
     """
     :return: A function which returns True if either f or g returns True.
     """

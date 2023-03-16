@@ -16,7 +16,7 @@ if PY2:
 from warnings import catch_warnings
 
 
-def patch():
+def patch() -> None:
     """Path third-party libraries to make Tahoe-LAFS work."""
     # Make sure Foolscap always get native strings passed to method names in callRemote.
     # This can be removed when any one of the following happens:

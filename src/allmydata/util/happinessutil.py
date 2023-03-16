@@ -17,9 +17,11 @@ if PY2:
 from copy import deepcopy
 from allmydata.immutable.happiness_upload import residual_network
 from allmydata.immutable.happiness_upload import augmenting_path_for
+from allmydata.immutable import upload
 
+from typing import Dict, Set, Optional, List, Any, Tuple
 
-def failure_message(peer_count, k, happy, effective_happy):
+def failure_message(peer_count: int, k: int, happy: int, effective_happy: int) -> str:
     # If peer_count < needed_shares, this error message makes more
     # sense than any of the others, so use it.
     if peer_count < k:
@@ -54,21 +56,21 @@ def failure_message(peer_count, k, happy, effective_happy):
     return msg
 
 
-def shares_by_server(servermap):
+def shares_by_server(servermap: Dict[str, Set[str]]) -> Dict[str, Set[str]]:
     """
     I accept a dict of shareid -> set(peerid) mappings, and return a
     dict of peerid -> set(shareid) mappings. My argument is a dictionary
     with sets of peers, indexed by shares, and I transform that into a
     dictionary of sets of shares, indexed by peerids.
     """
-    ret = {}
+    ret: Dict[str, set[str]] = {}
     for shareid, peers in servermap.items():
         assert isinstance(peers, set)
         for peerid in peers:
             ret.setdefault(peerid, set()).add(shareid)
     return ret
 
-def merge_servers(servermap, upload_trackers=None):
+def merge_servers(servermap:  Dict[int, Set[str]], upload_trackers: Optional[Set['upload.ServerTracker']]=None) -> Dict[int, Set[str]]:
     """
     I accept a dict of shareid -> set(serverid) mappings, and optionally a
     set of ServerTrackers. If no set of ServerTrackers is provided, I return
@@ -92,7 +94,7 @@ def merge_servers(servermap, upload_trackers=None):
     return servermap
 
 
-def servers_of_happiness(sharemap):
+def servers_of_happiness(sharemap: Dict[str, Set[str]]) -> int:
     """
     I accept 'sharemap', a dict of shareid -> set(peerid) mappings. I
     return the 'servers_of_happiness' number that sharemap results in.
@@ -182,7 +184,7 @@ def servers_of_happiness(sharemap):
     # matching on the bipartite graph described above.
     return sum([flow_function[0][v] for v in range(1, num_servers+1)])
 
-def _flow_network_for(servermap):
+def _flow_network_for(servermap: Dict[str, Set[str]]) -> List[List[str]]:
     """
     I take my argument, a dict of peerid -> set(shareid) mappings, and
     turn it into a flow network suitable for use with Edmonds-Karp. I
@@ -206,7 +208,7 @@ def _flow_network_for(servermap):
     # can add a source node at index 0.
     servermap, num_shares = _reindex(servermap, base_index=1)
     num_servers = len(servermap)
-    graph = [] # index -> [index], an adjacency list
+    graph: List[Any] = [] # index -> [index], an adjacency list
     # Add an entry at the top (index 0) that has an edge to every server
     # in servermap
     graph.append(list(servermap.keys()))
@@ -224,7 +226,7 @@ def _flow_network_for(servermap):
 
 
 # XXX warning: this is different from happiness_upload's _reindex!
-def _reindex(servermap, base_index):
+def _reindex(servermap: Dict[Any, Any], base_index: int) -> Tuple[Dict[Any, Any], int]:
     """
     Given servermap, I map peerids and shareids to integers that don't
     conflict with each other, so they're useful as indices in a graph. I

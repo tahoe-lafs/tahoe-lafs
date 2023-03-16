@@ -16,7 +16,7 @@ from zope.interface import (
     implementer,
 )
 
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue, DeferredList
 from twisted.internet.endpoints import clientFromString
 from twisted.internet.error import ConnectionRefusedError, ConnectError
 from twisted.application import service
@@ -25,7 +25,9 @@ from ..interfaces import (
     IAddressFamily,
 )
 
-def create(reactor, config):
+from typing import Any, Optional, TextIO, Generator, Union
+
+def create(reactor: Any, config: Any) -> Any:
     """
     Create a new Provider service (this is an IService so must be
     hooked up to a parent or otherwise started).
@@ -40,7 +42,7 @@ def create(reactor, config):
     return provider
 
 
-def _import_i2p():
+def _import_i2p() -> Optional[Any]:
     # this exists to be overridden by unit tests
     try:
         from foolscap.connections import i2p
@@ -48,7 +50,7 @@ def _import_i2p():
     except ImportError: # pragma: no cover
         return None
 
-def _import_txi2p():
+def _import_txi2p() -> Optional[Any]:
     try:
         import txi2p
         return txi2p
@@ -56,11 +58,11 @@ def _import_txi2p():
         return None
 
 
-def _try_to_connect(reactor, endpoint_desc, stdout, txi2p):
+def _try_to_connect(reactor: Any, endpoint_desc: Any, stdout: TextIO, txi2p: Any) -> Optional[Any]:
     # yields True or None
     ep = clientFromString(reactor, endpoint_desc)
     d = txi2p.testAPI(reactor, 'SAM', ep)
-    def _failed(f):
+    def _failed(f: Any) -> Optional[Any]:
         # depending upon what's listening at that endpoint, we might get
         # various errors. If this list is too short, we might expose an
         # exception to the user (causing "tahoe create-node" to fail messily)
@@ -84,7 +86,7 @@ def _try_to_connect(reactor, endpoint_desc, stdout, txi2p):
     return d
 
 @inlineCallbacks
-def _connect_to_i2p(reactor, cli_config, txi2p):
+def _connect_to_i2p(reactor: Any, cli_config: Any, txi2p: Any) -> Generator:
     # we assume i2p is already running
     ports_to_try = ["tcp:127.0.0.1:7656"]
     if cli_config["i2p-sam-port"]:
@@ -98,7 +100,7 @@ def _connect_to_i2p(reactor, cli_config, txi2p):
         raise ValueError("unable to reach any default I2P SAM port")
 
 @inlineCallbacks
-def create_config(reactor, cli_config):
+def create_config(reactor: Any, cli_config: Any) -> Generator:
     txi2p = _import_txi2p()
     if not txi2p:
         raise ValueError("Cannot create I2P Destination without txi2p. "
@@ -154,17 +156,17 @@ def create_config(reactor, cli_config):
 
 @implementer(IAddressFamily)
 class _Provider(service.MultiService):
-    def __init__(self, config, reactor):
+    def __init__(self, config: Any, reactor: Any) -> None:
         service.MultiService.__init__(self)
         self._config = config
         self._i2p = _import_i2p()
         self._txi2p = _import_txi2p()
         self._reactor = reactor
 
-    def _get_i2p_config(self, *args, **kwargs):
+    def _get_i2p_config(self, *args: Optional[Union[str, bool]], **kwargs: bool) -> Any:
         return self._config.get_config("i2p", *args, **kwargs)
 
-    def get_listener(self):
+    def get_listener(self) -> str:
         # this is relative to BASEDIR, and our cwd should be BASEDIR
         privkeyfile = self._get_i2p_config("dest.private_key_file")
         external_port = self._get_i2p_config("dest.port")
@@ -178,7 +180,7 @@ class _Provider(service.MultiService):
                    (privkeyfile, external_port, escaped_sam_port)
         return i2p_port
 
-    def get_client_endpoint(self):
+    def get_client_endpoint(self) -> Optional[Any]:
         """
         Get an ``IStreamClientEndpoint`` which will set up a connection to an I2P
         address.
@@ -216,7 +218,7 @@ class _Provider(service.MultiService):
     # Backwards compatibility alias
     get_i2p_handler = get_client_endpoint
 
-    def check_dest_config(self):
+    def check_dest_config(self) -> None:
         if self._get_i2p_config("dest", False, boolean=True):
             if not self._txi2p:
                 raise ValueError("Cannot create I2P Destination without txi2p. "
@@ -236,19 +238,19 @@ class _Provider(service.MultiService):
             if launch:
                 raise NotImplementedError("[i2p] launch is under development.")
             # check that all the expected Destination-specific keys are present
-            def require(name):
+            def require(name: str) -> None:
                 if not self._get_i2p_config("dest.%s" % name, None):
                     raise ValueError("[i2p] dest = true,"
                                      " but dest.%s= is missing" % name)
             require("port")
             require("private_key_file")
 
-    def startService(self):
+    def startService(self) -> None:
         service.MultiService.startService(self)
         # if we need to start I2P, now is the time
         # TODO: implement i2p launching
 
     @inlineCallbacks
-    def stopService(self):
+    def stopService(self) -> Generator[DeferredList, None, None]:
         # TODO: can we also stop i2p?
         yield service.MultiService.stopService(self)

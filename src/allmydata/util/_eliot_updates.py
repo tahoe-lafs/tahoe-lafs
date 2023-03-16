@@ -41,6 +41,9 @@ from eliot.testing import (
 
 from .jsonbytes import AnyBytesJSONEncoder
 
+from typing import Any, Tuple, Dict, Type
+
+
 # There are currently a number of log messages that include non-UTF-8 bytes.
 # Allow these, at least for now.  Later when the whole test suite has been
 # converted to our SyncTestCase or AsyncTestCase it will be easier to turn
@@ -57,14 +60,14 @@ class _CustomEncoderMemoryLogger(_MemoryLogger):
     This is only necessary on Python 2 where we use an old version of Eliot
     that does not parameterize the encoder.
     """
-    def __init__(self, encoder=eliot_json_encoder):
+    def __init__(self, encoder: Type[AnyBytesJSONEncoder]=eliot_json_encoder) -> None:
         """
         @param encoder: A JSONEncoder subclass to use when encoding JSON.
         """
         self._encoder = encoder
         super(_CustomEncoderMemoryLogger, self).__init__()
 
-    def _validate_message(self, dictionary, serializer):
+    def _validate_message(self, dictionary: Any, serializer: Any) -> None:
         """Validate an individual message.
 
         As a side-effect, the message is replaced with its serialized contents.
@@ -102,8 +105,8 @@ else:
     MemoryLogger = partial(_MemoryLogger, encoder=eliot_json_encoder)
 
 def validateLogging(
-    assertion, *assertionArgs, **assertionKwargs
-):
+    assertion: Any, *assertionArgs: Tuple[Any, Any], **assertionKwargs: Dict[str, Any]
+) -> Any:
     """
     Decorator factory for L{unittest.TestCase} methods to add logging
     validation.
@@ -139,9 +142,9 @@ def validateLogging(
     @param encoder_: C{json.JSONEncoder} subclass to use when validating JSON.
     """
     encoder_ = assertionKwargs.pop("encoder_", eliot_json_encoder)
-    def decorator(function):
+    def decorator(function: Any) -> Any:
         @wraps(function)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self: Any, *args: Tuple[Any, Any], **kwargs: Any) -> Any:
             skipped = False
 
             kwargs["logger"] = logger = MemoryLogger(encoder=encoder_)
@@ -167,24 +170,24 @@ def validateLogging(
 validate_logging = validateLogging
 
 def capture_logging(
-    assertion, *assertionArgs, **assertionKwargs
-):
+    assertion: Any, *assertionArgs: Tuple[Any, Any], **assertionKwargs: Any
+) -> Any:
     """
     Capture and validate all logging that doesn't specify a L{Logger}.
 
     See L{validate_logging} for details on the rest of its behavior.
     """
     encoder_ = assertionKwargs.pop("encoder_", eliot_json_encoder)
-    def decorator(function):
+    def decorator(function: Any) -> Any:
         @validate_logging(
             assertion, *assertionArgs, encoder_=encoder_, **assertionKwargs
         )
         @wraps(function)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self: Any, *args: Tuple[Any, Any], **kwargs: Any) -> Any:
             logger = kwargs["logger"]
             previous_logger = swap_logger(logger)
 
-            def cleanup():
+            def cleanup() -> None:
                 swap_logger(previous_logger)
 
             self.addCleanup(cleanup)

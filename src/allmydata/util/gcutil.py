@@ -39,10 +39,10 @@ class _ResourceTracker(object):
     :ivar int _threshold: The number of excess allocations at which point a
         full collection will be triggered.
     """
-    _counter = attr.ib(default=0)
-    _threshold = attr.ib(default=25)
+    _counter: int = attr.ib(default=0)
+    _threshold: int = attr.ib(default=25)
 
-    def allocate(self):
+    def allocate(self) -> None:
         """
         Register the allocation of an instance of this resource.
         """
@@ -57,7 +57,7 @@ class _ResourceTracker(object):
             self._counter = 0
 
 
-    def release(self):
+    def release(self) -> None:
         """
         Register the release of an instance of this resource.
         """

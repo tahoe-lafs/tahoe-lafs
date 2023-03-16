@@ -24,6 +24,8 @@ from past.builtins import chr as byteschr
 
 from allmydata.util.mathutil import log_ceil, log_floor
 
+from typing import Any, Union, List
+
 chars = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 BASE62CHAR = b'[' + chars + b']'
@@ -33,7 +35,7 @@ c2vtranstable = maketrans(chars, vals)
 v2ctranstable = maketrans(vals, chars)
 identitytranstable = maketrans(chars, chars)
 
-def b2a(os):
+def b2a(os: List[int]) -> Union[Any, bytes]:
     """
     @param os the data to be encoded (as bytes)
 
@@ -43,7 +45,7 @@ def b2a(os):
     assert num_octets_that_encode_to_this_many_chars(len(cs)) == len(os), "%s != %s, numchars: %s" % (num_octets_that_encode_to_this_many_chars(len(cs)), len(os), len(cs))
     return cs
 
-def b2a_l(os, lengthinbits):
+def b2a_l(os: List[int], lengthinbits: int) -> bytes:
     """
     @param os the data to be encoded (as bytes)
     @param lengthinbits the number of bits of data in os to be encoded
@@ -87,19 +89,19 @@ def b2a_l(os, lengthinbits):
 
     return translate(bytes([c for c in reversed(chars)]), v2ctranstable) # make it big-endian
 
-def num_octets_that_encode_to_this_many_chars(numcs):
+def num_octets_that_encode_to_this_many_chars(numcs: int) -> int:
     return log_floor(62**numcs, 256)
 
-def num_chars_that_this_many_octets_encode_to(numos):
+def num_chars_that_this_many_octets_encode_to(numos: int) -> int:
     return log_ceil(256**numos, 62)
 
-def a2b(cs):
+def a2b(cs: bytes) -> bytes:
     """
     @param cs the base-62 encoded data (a string)
     """
     return a2b_l(cs, num_octets_that_encode_to_this_many_chars(len(cs))*8)
 
-def a2b_l(cs, lengthinbits):
+def a2b_l(cs: Any, lengthinbits: int) -> bytes:
     """
     @param lengthinbits the number of bits of data in encoded into cs
 

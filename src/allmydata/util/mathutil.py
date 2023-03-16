@@ -21,7 +21,7 @@ from pyutil.mathutil import div_ceil, next_multiple, pad_size, is_power_of_k, ne
 
 
 # This function is not present in pyutil.mathutil:
-def round_sigfigs(f, n):
+def round_sigfigs(f: float, n: float) -> float:
     fmt = "%." + str(n-1) + "e"
     return float(fmt % f)
 

@@ -24,8 +24,9 @@ from allmydata.util.mathutil import round_sigfigs
 import math
 from functools import reduce
 import sys
+from typing import List, TextIO, Callable, Iterable
 
-def pr_file_loss(p_list, k):
+def pr_file_loss(p_list: List[float], k: int) -> float:
     """
     Probability of single-file loss for shares with reliabilities in
     p_list.
@@ -48,7 +49,7 @@ def pr_file_loss(p_list, k):
     # probability that less than k shares survived.
     return sum(survival_pmf(p_list)[0:k])
 
-def survival_pmf(p_list):
+def survival_pmf(p_list: List[float]) -> List[float]:
     """
     Return the collective PMF of share survival count for a set of
     shares with the individual survival probabilities in p_list.
@@ -77,7 +78,7 @@ def survival_pmf(p_list):
     assert valid_pmf(pmf)
     return pmf
 
-def survival_pmf_via_bd(p_list):
+def survival_pmf_via_bd(p_list: List[float]) -> List[float]:
     """
     Compute share survival PMF using the binomial distribution PMF as
     much as possible.
@@ -95,7 +96,7 @@ def survival_pmf_via_bd(p_list):
                  for p in set(p_list) ]
     return list(reduce(convolve, pmf_list))
 
-def survival_pmf_via_conv(p_list):
+def survival_pmf_via_conv(p_list: List[float]) -> List[float]:
     """
     Compute share survival PMF using iterated convolution of trivial
     PMFs.
@@ -106,7 +107,7 @@ def survival_pmf_via_conv(p_list):
     pmf_list = [ [1 - p, p] for p in p_list ];
     return list(reduce(convolve, pmf_list))
 
-def print_pmf(pmf, n=4, out=sys.stdout):
+def print_pmf(pmf: List[float], n: int=4, out: TextIO=sys.stdout) -> None:
     """
     Print a PMF in a readable form, with values rounded to n
     significant digits.
@@ -114,7 +115,7 @@ def print_pmf(pmf, n=4, out=sys.stdout):
     for k, p in enumerate(pmf):
         print("i=" + str(k) + ":", round_sigfigs(p, n), file=out)
 
-def pr_backup_file_loss(p_list, backup_p, k):
+def pr_backup_file_loss(p_list: List[float], backup_p: float, k: int) -> float:
     """
     Probability of single-file loss in a backup context
 
@@ -130,7 +131,7 @@ def pr_backup_file_loss(p_list, backup_p, k):
     return pr_file_loss(p_list, k) * (1 - backup_p)
 
 
-def find_k(p_list, target_loss_prob):
+def find_k(p_list: List[float], target_loss_prob: float) -> int:
     """
     Find the highest k value that achieves the targeted loss
     probability, given the share reliabilities given in p_list.
@@ -141,7 +142,7 @@ def find_k(p_list, target_loss_prob):
     pmf = survival_pmf(p_list)
     return find_k_from_pmf(pmf, target_loss_prob)
 
-def find_k_from_pmf(pmf, target_loss_prob):
+def find_k_from_pmf(pmf: List[float], target_loss_prob: float) -> int:
     """
     Find the highest k value that achieves the targeted loss
     probability, given the share survival PMF given in pmf.
@@ -159,7 +160,7 @@ def find_k_from_pmf(pmf, target_loss_prob):
     k = len(pmf) - 1
     return k
 
-def repair_count_pmf(survival_pmf, k):
+def repair_count_pmf(survival_pmf: List[float], k: int) -> List[float]:
     """
     Return Pr[D=d], where D represents the number of shares that have
     to be repaired at the end of an interval, starting with a full
@@ -183,10 +184,10 @@ def repair_count_pmf(survival_pmf, k):
     assert(valid_pmf(pmf))
     return pmf
 
-def bandwidth_cost_function(file_size, shares, k, ul_dl_ratio):
+def bandwidth_cost_function(file_size: float, shares: int, k: int, ul_dl_ratio: float) -> float:
     return file_size + float(file_size) / k * shares * ul_dl_ratio
 
-def mean_repair_cost(cost_function, file_size, survival_pmf, k, ul_dl_ratio):
+def mean_repair_cost(cost_function: Callable[[float, int, int, float], float], file_size: float, survival_pmf: List[float], k: int, ul_dl_ratio: float) -> float:
     """
     Return the expected cost for a repair run on a file with the given
     survival_pmf and requiring k shares, in which upload cost is
@@ -198,8 +199,8 @@ def mean_repair_cost(cost_function, file_size, survival_pmf, k, ul_dl_ratio):
                          for new_shares in range(1, len(repair_pmf))])
     return expected_cost
 
-def eternal_repair_cost(cost_function, file_size, survival_pmf, k,
-                        discount_rate=0, ul_dl_ratio=1.0):
+def eternal_repair_cost(cost_function: Callable[[float, int, int, float], float], file_size: float, survival_pmf: List[float], k: int,
+                        discount_rate: float=0, ul_dl_ratio: float=1.0) -> float:
     """
     Calculate the eternal repair cost for a file that is aggressively
     repaired, i.e. the sum of repair costs until the file is dead.
@@ -210,7 +211,7 @@ def eternal_repair_cost(cost_function, file_size, survival_pmf, k,
 
     return (c * (1-r)) / (1 - (1-r) * f)
 
-def valid_pmf(pmf):
+def valid_pmf(pmf: List[float]) -> bool:
     """
     Validate that pmf looks like a proper discrete probability mass
     function in list form.
@@ -219,7 +220,7 @@ def valid_pmf(pmf):
     """
     return round(sum(pmf),5) == 1.0
 
-def valid_probability_list(p_list):
+def valid_probability_list(p_list: List[float]) -> bool:
     """
     Validate that p_list is a list of probibilities
     """
@@ -229,7 +230,7 @@ def valid_probability_list(p_list):
 
     return True
 
-def convolve(list_a, list_b):
+def convolve(list_a: Iterable[float], list_b: Iterable[float]) -> List[float]:
     """
     Returns the discrete convolution of two lists.
 
@@ -237,6 +238,8 @@ def convolve(list_a, list_b):
     probability mass functions Pr(X) and Pr(Y) is equal to the
     Pr(X+Y).
     """
+    list_a = list(list_a)
+    list_b = list(list_b)
     n = len(list_a)
     m = len(list_b)
 
@@ -254,7 +257,7 @@ def convolve(list_a, list_b):
 
     return result
 
-def binomial_distribution_pmf(n, p):
+def binomial_distribution_pmf(n: int, p: float) -> List[float]:
     """
     Returns Pr(K), where K ~ B(n,p), as a list of values.
 
@@ -274,9 +277,9 @@ def binomial_distribution_pmf(n, p):
                       binomial_coeff(n, k))
 
     assert valid_pmf(result)
-    return result;
+    return result
 
-def binomial_coeff(n, k):
+def binomial_coeff(n: int, k: int) -> int:
     """
     Returns the number of ways that k items can be chosen from a set
     of n.

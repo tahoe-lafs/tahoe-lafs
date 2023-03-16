@@ -22,10 +22,10 @@ if PY2:
     import string
     maketrans = string.maketrans
 else:
-    def backwardscompat_bytes(b):
+    def backwardscompat_bytes(b: bytes) -> bytes:
         return b
     maketrans = bytes.maketrans
-    from typing import Optional
+    from typing import Optional, Dict, Any, Tuple, Union, List
 
 import base64
 
@@ -39,7 +39,7 @@ c2vtranstable = maketrans(chars, vals)
 v2ctranstable = maketrans(vals, chars)
 identitytranstable = maketrans(b'', b'')
 
-def _get_trailing_chars_without_lsbs(N, d):
+def _get_trailing_chars_without_lsbs(N :int, d: Dict[int, None]) -> List[bytes]:
     """
     @return: a list of chars that can legitimately appear in the last place when the least significant N bits are ignored.
     """
@@ -54,11 +54,11 @@ def _get_trailing_chars_without_lsbs(N, d):
         i = i + 2**N
     return s
 
-def get_trailing_chars_without_lsbs(N):
+def get_trailing_chars_without_lsbs(N: int) -> bytes:
     precondition((N >= 0) and (N < 5), "N is required to be > 0 and < len(chars).", N=N)
     if N == 0:
         return chars
-    d = {}
+    d: Dict[int, None] = {}
     return b''.join(_get_trailing_chars_without_lsbs(N, d=d))
 
 BASE32CHAR = backwardscompat_bytes(b'['+get_trailing_chars_without_lsbs(0)+b']')
@@ -80,7 +80,7 @@ def b2a(os):  # type: (bytes) -> bytes
     """
     return base64.b32encode(os).rstrip(b"=").lower()
 
-def b2a_or_none(os):  # type: (Optional[bytes]) -> Optional[bytes]
+def b2a_or_none(os: Optional[bytes]) -> Optional[bytes]:
     if os is not None:
         return b2a(os)
     return None
@@ -107,14 +107,14 @@ if PY2:
 # original data had 8K bits for a positive integer K.
 # The boolean value of s8[len(s)%8][ord(s[-1])], where s is the possibly base-32 encoded string
 # tells whether the final character is reasonable.
-def add_check_array(cs, sfmap):
+def add_check_array(cs: bytes, sfmap: List[Tuple[int, ...]]) -> None:
     checka=[0] * 256
     for c in bytes(cs):
         checka[c] = 1
     sfmap.append(tuple(checka))
 
-def init_s8():
-    s8 = []
+def init_s8() -> Tuple[Any, ...]:
+    s8: List[Tuple[int, ...]] = []
     add_check_array(chars, s8)
     for lenmod8 in (1, 2, 3, 4, 5, 6, 7,):
         if NUM_QS_LEGIT[lenmod8]:
@@ -124,7 +124,7 @@ def init_s8():
     return tuple(s8)
 s8 = init_s8()
 
-def could_be_base32_encoded(s, s8=s8, tr=bytes.translate, identitytranstable=identitytranstable, chars=chars):
+def could_be_base32_encoded(s: bytes, s8: Any=s8, tr: Any=bytes.translate, identitytranstable: Union[Any, bytes]=identitytranstable, chars: bytes=chars) -> Any:
     precondition(isinstance(s, bytes), s)
     if s == b'':
         return True

@@ -1,22 +1,23 @@
 """
 Tools to mess with dicts.
 """
+from typing import Any, Dict, Optional
 
 class DictOfSets(dict):
-    def add(self, key, value):
+    def add(self, key: Any, value: Any) -> None:
         if key in self:
             self[key].add(value)
         else:
             self[key] = set([value])
 
-    def update(self, otherdictofsets):
+    def update(self, otherdictofsets): #type: ignore
         for key, values in list(otherdictofsets.items()):
             if key in self:
                 self[key].update(values)
             else:
                 self[key] = set(values)
 
-    def discard(self, key, value):
+    def discard(self, key: Any, value: Any) -> None:
         if not key in self:
             return
         self[key].discard(value)
@@ -37,26 +38,26 @@ class AuxValueDict(dict):
     directories with a complex packing function, this can save considerable
     time."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super(AuxValueDict, self).__init__(*args, **kwargs)
-        self.auxilliary = {}
+        self.auxilliary: Dict[Any, Any] = {}
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: Any, value: Any) -> None:
         super(AuxValueDict, self).__setitem__(key, value)
         self.auxilliary[key] = None # clear the auxvalue
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: Any) -> Any:
         super(AuxValueDict, self).__delitem__(key)
         self.auxilliary.pop(key)
 
-    def get_aux(self, key, default=None):
+    def get_aux(self, key: Any, default: Optional[Any]=None) -> Any:
         """Retrieve the auxilliary value. There is no way to distinguish
         between an auxvalue of 'None' and a key that does not have an
         auxvalue, and get_aux() will not raise KeyError when called with a
         missing key."""
         return self.auxilliary.get(key, default)
 
-    def set_with_aux(self, key, value, auxilliary):
+    def set_with_aux(self, key: Any, value: Any, auxilliary: Any) -> Any:
         """Set both the main value and the auxilliary value. There is no way
         to distinguish between an auxvalue of 'None' and a key that does not
         have an auxvalue."""
@@ -75,7 +76,7 @@ class _TypedKeyDict(dict):
 
     KEY_TYPE = object
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Dict[str, Any]):
         dict.__init__(self, *args, **kwargs)
         for key in self:
             if not isinstance(key, self.KEY_TYPE):
@@ -83,8 +84,8 @@ class _TypedKeyDict(dict):
                     repr(key), self.KEY_TYPE))
 
 
-def _make_enforcing_override(K, method_name):
-    def f(self, key, *args, **kwargs):
+def _make_enforcing_override(K: Any, method_name: str) -> None:
+    def f(self: Any, key: Any, *args: tuple, **kwargs: Dict[str, Any]) -> Any:
         if not isinstance(key, self.KEY_TYPE):
             raise TypeError("{} must be of type {}".format(
                 repr(key), self.KEY_TYPE))

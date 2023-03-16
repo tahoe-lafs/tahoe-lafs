@@ -12,6 +12,7 @@ if PY2:
 
 import yaml
 
+from typing import Union, Optional
 
 if PY2:
     # On Python 2 the way pyyaml deals with Unicode strings is inconsistent.
@@ -30,13 +31,13 @@ if PY2:
     # rather than converting to bytes when possible.
     #
     # Reference: https://yaml.org/type/str.html
-    def construct_unicode(loader, node):
+    def construct_unicode(loader: yaml.Loader, node: yaml.Node) -> str:
         return node.value
     yaml.SafeLoader.add_constructor("tag:yaml.org,2002:str",
                                     construct_unicode)
 
-def safe_load(f):
+def safe_load(f: Union[bytes, str]) -> str:
     return yaml.safe_load(f)
 
-def safe_dump(obj):
+def safe_dump(obj: object) -> Optional[Union[bytes, str]]:
     return yaml.safe_dump(obj)

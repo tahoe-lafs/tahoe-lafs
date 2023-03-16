@@ -11,6 +11,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from _typeshed import ReadableBuffer
 
 from future.utils import PY2, PY3, native_str
 from future.builtins import str as future_str
@@ -31,10 +35,14 @@ from twisted.python.filepath import FilePath
 from allmydata.util import log
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
+from typing import Optional, Union, Any, List
+from re import Match
+
+
 NoneType = type(None)
 
 
-def canonical_encoding(encoding):
+def canonical_encoding(encoding: str) -> str:
     if encoding is None:
         log.msg("Warning: falling back to UTF-8 encoding.", level=log.WEIRD)
         encoding = 'utf-8'
@@ -46,7 +54,7 @@ def canonical_encoding(encoding):
 
     return encoding
 
-def check_encoding(encoding):
+def check_encoding(encoding: str) -> None:
     # sometimes Python returns an encoding name that it doesn't support for conversion
     # fail early if this happens
     try:
@@ -62,11 +70,11 @@ def check_encoding(encoding):
 # On POSIX, we are moving towards a UTF-8-everything and ignore the locale.
 io_encoding = "utf-8"
 
-filesystem_encoding = None
-is_unicode_platform = False
-use_unicode_filepath = False
+filesystem_encoding: Optional[str] = None
+is_unicode_platform: bool = False
+use_unicode_filepath: bool = False
 
-def _reload():
+def _reload() -> None:
     global filesystem_encoding, is_unicode_platform, use_unicode_filepath
 
     filesystem_encoding = canonical_encoding(sys.getfilesystemencoding())
@@ -86,25 +94,25 @@ def _reload():
 _reload()
 
 
-def get_filesystem_encoding():
+def get_filesystem_encoding() -> Optional[str]:
     """
     Returns expected encoding for local filenames.
     """
     return filesystem_encoding
 
-def get_io_encoding():
+def get_io_encoding() -> str:
     """
     Returns expected encoding for writing to stdout or stderr, and for arguments in sys.argv.
     """
     return io_encoding
 
-def argv_to_unicode(s):
+def argv_to_unicode(s: Union[bytes, str]) -> str:
     """
     Decode given argv element to unicode. If this fails, raise a UsageError.
 
     This is the inverse of ``unicode_to_argv``.
     """
-    if isinstance(s, unicode):
+    if isinstance(s, str):
         return s
 
     precondition(isinstance(s, bytes), s)
@@ -112,29 +120,29 @@ def argv_to_unicode(s):
     try:
         return unicode(s, io_encoding)
     except UnicodeDecodeError:
-        raise usage.UsageError("Argument %s cannot be decoded as %s." %
+        raise usage.UsageError("Argument %r cannot be decoded as %r." %
                                (quote_output(s), io_encoding))
 
-def argv_to_abspath(s, **kwargs):
+def argv_to_abspath(s: str, **kwargs: Any) -> str:
     """
     Convenience function to decode an argv element to an absolute path, with ~ expanded.
     If this fails, raise a UsageError.
     """
     decoded = argv_to_unicode(s)
     if decoded.startswith(u'-'):
-        raise usage.UsageError("Path argument %s cannot start with '-'.\nUse %s if you intended to refer to a file."
+        raise usage.UsageError("Path argument %r cannot start with '-'.\nUse %r if you intended to refer to a file."
                                % (quote_output(s), quote_output(os.path.join('.', s))))
     return abspath_expanduser_unicode(decoded, **kwargs)
 
 
-def unicode_to_argv(s):
+def unicode_to_argv(s: str) -> str:
     """
     Make the given unicode string suitable for use in an argv list.
 
     On Python 2 on POSIX, this encodes using UTF-8.  On Python 3 and on
     Windows, this returns the input unmodified.
     """
-    precondition(isinstance(s, unicode), s)
+    precondition(isinstance(s, str), s)
     if PY3:
         warnings.warn("This will be unnecessary once Python 2 is dropped.",
                       DeprecationWarning)
@@ -151,27 +159,28 @@ The expected type for args to a subprocess
 """
 
 
-def unicode_to_url(s):
+def unicode_to_url(s: str) -> Optional[ReadableBuffer]:
     """
     Encode an unicode object used in an URL to bytes.
     """
     # According to RFC 2718, non-ascii characters in URLs must be UTF-8 encoded.
 
     # FIXME
-    return to_bytes(s)
+    if isinstance(s, str):
+        return to_bytes(s)
     #precondition(isinstance(s, unicode), s)
     #return s.encode('utf-8')
 
-def to_bytes(s):
+def to_bytes(s:  str) -> ReadableBuffer:
     """Convert unicode to bytes.
 
     None and bytes are passed through unchanged.
     """
-    if s is None or isinstance(s, bytes):
-        return s
-    return s.encode('utf-8')
+    if isinstance(s, str):
+        return s.encode('utf-8')
+    return s
 
-def from_utf8_or_none(s):
+def from_utf8_or_none(s: Optional[bytes]) -> Optional[str]:
     precondition(isinstance(s, bytes) or s is None, s)
     if s is None:
         return s
@@ -180,17 +189,17 @@ def from_utf8_or_none(s):
 PRINTABLE_ASCII = re.compile(br'^[\n\r\x20-\x7E]*$',          re.DOTALL)
 PRINTABLE_8BIT  = re.compile(br'^[\n\r\x20-\x7E\x80-\xFF]*$', re.DOTALL)
 
-def is_printable_ascii(s):
+def is_printable_ascii(s: bytes) -> bool:
     return PRINTABLE_ASCII.search(s) is not None
 
-def unicode_to_output(s):
+def unicode_to_output(s: str) -> Union[bytes, str]:
     """
     Encode an unicode object for representation on stdout or stderr.
 
     On Python 3 just returns the unicode string unchanged, since encoding is
     the responsibility of stdout/stderr, they expect Unicode by default.
     """
-    precondition(isinstance(s, unicode), s)
+    precondition(isinstance(s, str), s)
     if PY3:
         warnings.warn("This will be unnecessary once Python 2 is dropped.",
                       DeprecationWarning)
@@ -210,7 +219,7 @@ def unicode_to_output(s):
     return out
 
 
-def _unicode_escape(m, quote_newlines):
+def _unicode_escape(m: Match[str], quote_newlines: Optional[bool]) -> str:
     u = m.group(0)
     if u == u'"' or u == u'$' or u == u'`' or u == u'\\':
         return u'\\' + u
@@ -227,7 +236,7 @@ def _unicode_escape(m, quote_newlines):
     else:
         return u'\\x%02x' % (codepoint,)
 
-def _bytes_escape(m, quote_newlines):
+def _bytes_escape(m: Match[bytes], quote_newlines: Optional[bool]) -> bytes:
     """
     Takes a re match on bytes, the result is escaped bytes of group(0).
     """
@@ -249,12 +258,12 @@ ESCAPABLE_UNICODE = re.compile(u'([\uD800-\uDBFF][\uDC00-\uDFFF])|'  # valid sur
 
 ESCAPABLE_8BIT    = re.compile( br'[^ !#\x25-\x5B\x5D-\x5F\x61-\x7E]', re.DOTALL)
 
-def quote_output_u(*args, **kwargs):
+def quote_output_u(*args: Any, **kwargs: Any) -> str:
     """
     Like ``quote_output`` but always return ``unicode``.
     """
     result = quote_output(*args, **kwargs)
-    if isinstance(result, unicode):
+    if isinstance(result, str):
         return result
     # Since we're quoting, the assumption is this will be read by a human, and
     # therefore printed, so stdout's encoding is the plausible one. io_encoding
@@ -263,7 +272,7 @@ def quote_output_u(*args, **kwargs):
                          getattr(sys.stdout, "encoding") or io_encoding)
 
 
-def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
+def quote_output(s: Optional[Union[bytes, str]], quotemarks: bool=True, quote_newlines: Optional[bool]=None, encoding: str="") -> str:
     """
     Encode either a Unicode string or a UTF-8-encoded bytestring for representation
     on stdout or stderr, tolerating errors. If 'quotemarks' is True, the string is
@@ -279,7 +288,7 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
 
     On Python 3, returns Unicode strings.
     """
-    precondition(isinstance(s, (bytes, unicode)), s)
+    precondition(isinstance(s, (bytes, str)), s)
     # Since we're quoting, the assumption is this will be read by a human, and
     # therefore printed, so stdout's encoding is the plausible one. io_encoding
     # is now always utf-8.
@@ -288,7 +297,7 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
     if quote_newlines is None:
         quote_newlines = quotemarks
 
-    def _encode(s):
+    def _encode(s: Any) -> bytes:
         if isinstance(s, bytes):
             try:
                 s = s.decode("utf-8")
@@ -309,7 +318,7 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
         escaped = ESCAPABLE_UNICODE.sub(lambda m: _unicode_escape(m, quote_newlines), s)
         return b'"%s"' % (escaped.encode(encoding, 'backslashreplace'),)
 
-    result = _encode(s)
+    result: Union[bytes, str] = _encode(s)
     if PY3:
         # On Python 3 half of what this function does is unnecessary, since
         # sys.stdout typically expects Unicode. To ensure no encode errors, one
@@ -323,15 +332,16 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
         #
         # Now that Python 3.7 is the minimum, this can in theory be done:
         # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3866
-        result = result.decode(encoding)
+        if isinstance(result, bytes):
+            result = result.decode(encoding)
     return result
 
 
-def quote_path(path, quotemarks=True):
+def quote_path(path: str, quotemarks: bool=True) -> Union[bytes, str]:
     return quote_output(b"/".join(map(to_bytes, path)), quotemarks=quotemarks, quote_newlines=True)
 
-def quote_local_unicode_path(path, quotemarks=True):
-    precondition(isinstance(path, unicode), path)
+def quote_local_unicode_path(path: Optional[Union[bytes, str]], quotemarks: bool=True) ->  str:
+    precondition(isinstance(path, str), path)
 
     if sys.platform == "win32" and path.startswith(u"\\\\?\\"):
         path = path[4 :]
@@ -340,10 +350,10 @@ def quote_local_unicode_path(path, quotemarks=True):
 
     return quote_output(path, quotemarks=quotemarks, quote_newlines=True)
 
-def quote_filepath(path, quotemarks=True):
+def quote_filepath(path: str, quotemarks: bool=True) -> Union[bytes, str]:
     return quote_local_unicode_path(unicode_from_filepath(path), quotemarks=quotemarks)
 
-def extend_filepath(fp, segments):
+def extend_filepath(fp: FilePath, segments: str) -> FilePath:
     # We cannot use FilePath.preauthChild, because
     # * it has the security flaw described in <https://twistedmatrix.com/trac/ticket/6527>;
     # * it may return a FilePath in the wrong mode.
@@ -351,16 +361,16 @@ def extend_filepath(fp, segments):
     for segment in segments:
         fp = fp.child(segment)
 
-    if isinstance(fp.path, unicode) and not use_unicode_filepath:
+    if isinstance(fp.path, str) and not use_unicode_filepath and filesystem_encoding is not None:
         return FilePath(fp.path.encode(filesystem_encoding))
     else:
         return fp
 
-def to_filepath(path):
-    precondition(isinstance(path, unicode if use_unicode_filepath else (bytes, unicode)),
+def to_filepath(path: Union[bytes, str]) -> FilePath:
+    precondition(isinstance(path, str if use_unicode_filepath else (bytes, str)),
                  path=path)
 
-    if isinstance(path, unicode) and not use_unicode_filepath:
+    if isinstance(path, str) and not use_unicode_filepath and path is not None and filesystem_encoding is not None:
         path = path.encode(filesystem_encoding)
 
     if sys.platform == "win32":
@@ -371,25 +381,25 @@ def to_filepath(path):
 
     return FilePath(path)
 
-def _decode(s):
-    precondition(isinstance(s, (bytes, unicode)), s=s)
+def _decode(s: Union[bytes, str]) -> Union[bytes, str]:
+    precondition(isinstance(s, (bytes, str)), s=s)
 
-    if isinstance(s, bytes):
+    if isinstance(s, bytes) and filesystem_encoding is not None:
         return s.decode(filesystem_encoding)
     else:
         return s
 
-def unicode_from_filepath(fp):
+def unicode_from_filepath(fp: FilePath) -> Union[bytes, str]:
     precondition(isinstance(fp, FilePath), fp=fp)
     return _decode(fp.path)
 
-def unicode_segments_from(base_fp, ancestor_fp):
+def unicode_segments_from(base_fp: FilePath, ancestor_fp: FilePath) -> List[str]:
     precondition(isinstance(base_fp, FilePath), base_fp=base_fp)
     precondition(isinstance(ancestor_fp, FilePath), ancestor_fp=ancestor_fp)
 
     return base_fp.asTextMode().segmentsFrom(ancestor_fp.asTextMode())
 
-def unicode_platform():
+def unicode_platform() -> bool:
     """
     Does the current platform handle Unicode filenames natively?
     """
@@ -402,17 +412,18 @@ class FilenameEncodingError(Exception):
     """
     pass
 
-def listdir_unicode_fallback(path):
+def listdir_unicode_fallback(path: str) -> List[str]:
     """
     This function emulates a fallback Unicode API similar to one available
     under Windows or MacOS X.
 
     If badly encoded filenames are encountered, an exception is raised.
     """
-    precondition(isinstance(path, unicode), path)
+    precondition(isinstance(path, str), path)
 
     try:
-        byte_path = path.encode(filesystem_encoding)
+        if filesystem_encoding is not None:
+            byte_path = path.encode(filesystem_encoding)
     except (UnicodeEncodeError, UnicodeDecodeError):
         raise FilenameEncodingError(path)
 
@@ -421,12 +432,15 @@ def listdir_unicode_fallback(path):
     except UnicodeDecodeError as e:
         raise FilenameEncodingError(e.object)
 
-def listdir_unicode(path):
+def listdir_unicode(path: Union[bytes, str]) -> List[str]:
     """
     Wrapper around listdir() which provides safe access to the convenient
     Unicode API even under platforms that don't provide one natively.
     """
-    precondition(isinstance(path, unicode), path)
+    precondition(isinstance(path, str), path)
+
+    if isinstance(path, bytes):
+        path = path.decode()
 
     # On Windows and MacOS X, the Unicode API is used
     # On other platforms (ie. Unix systems), the byte-level API is used
@@ -436,11 +450,11 @@ def listdir_unicode(path):
     else:
         return listdir_unicode_fallback(path)
 
-def listdir_filepath(fp):
+def listdir_filepath(fp: FilePath) -> List[str]:
     return listdir_unicode(unicode_from_filepath(fp))
 
 
 # 'x' at the end of a variable name indicates that it holds a Unicode string that may not
 # be NFC-normalized.
-def normalize(namex):
+def normalize(namex: str) -> str:
     return unicodedata.normalize('NFC', namex)

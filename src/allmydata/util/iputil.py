@@ -31,7 +31,10 @@ from twisted.internet.endpoints import AdoptedStreamServerEndpoint
 from twisted.internet.interfaces import (
     IReactorSocket,
     IStreamServerEndpoint,
+    IProtocolFactory,
+    IListeningPort,
 )
+from twisted.internet.defer import Deferred
 
 from .gcutil import (
     fileDescriptorResource,
@@ -40,10 +43,13 @@ from .gcutil import (
 fcntl = requireModule("fcntl")
 
 from foolscap.util import allocate_tcp_port # re-exported
+from foolscap.pb import Tub
+
+from typing import Any, List, Tuple, Optional
 
 try:
     import resource
-    def increase_rlimits():
+    def increase_rlimits() -> None:
         # We'd like to raise our soft resource.RLIMIT_NOFILE, since certain
         # systems (OS-X, probably solaris) start with a relatively low limit
         # (256), and some unit tests want to open up more sockets than this.
@@ -92,7 +98,7 @@ try:
             # who knows what. It isn't very important, so log it and continue
             log.err()
 except ImportError:
-    def _increase_rlimits():
+    def _increase_rlimits() -> None:
         # TODO: implement this for Windows.  Although I suspect the
         # solution might be "be running under the iocp reactor and
         # make this function be a no-op".
@@ -102,7 +108,7 @@ except ImportError:
     increase_rlimits = _increase_rlimits
 
 
-def get_local_addresses_sync():
+def get_local_addresses_sync() -> List[str]:
     """
     Get locally assigned addresses as dotted-quad native strings.
 
@@ -118,7 +124,7 @@ def get_local_addresses_sync():
     )
 
 
-def _foolscapEndpointForPortNumber(portnum):
+def _foolscapEndpointForPortNumber(portnum: int) -> Tuple[Any, Any]:
     """
     Create an endpoint that can be passed to ``Tub.listen``.
 
@@ -186,15 +192,15 @@ class CleanupEndpoint(object):
     :ivar bool _listened: A flag recording whether or not ``listen`` has been
         called.
     """
-    _wrapped = attr.ib()
-    _fd = attr.ib()
-    _listened = attr.ib(default=False)
+    _wrapped: IStreamServerEndpoint = attr.ib()
+    _fd: int = attr.ib()
+    _listened: bool = attr.ib(default=False)
 
-    def listen(self, protocolFactory):
+    def listen(self, protocolFactory: IProtocolFactory) -> Deferred[IListeningPort]:
         self._listened = True
         return self._wrapped.listen(protocolFactory)
 
-    def __del__(self):
+    def __del__(self) -> None:
         """
         If ``listen`` was never called then close the file descriptor.
         """
@@ -203,7 +209,7 @@ class CleanupEndpoint(object):
             fileDescriptorResource.release()
 
 
-def listenOnUnused(tub, portnum=None):
+def listenOnUnused(tub: Tub, portnum: Optional[int]=None) -> Optional[int]:
     """
     Start listening on an unused TCP port number with the given tub.
 
@@ -214,9 +220,9 @@ def listenOnUnused(tub, portnum=None):
     :return: An integer indicating the TCP port number on which the tub is now
         listening.
     """
-    portnum, endpoint = _foolscapEndpointForPortNumber(portnum)
+    portnum, endpoint = _foolscapEndpointForPortNumber(portnum) #type: ignore
     tub.listenOn(endpoint)
-    tub.setLocation(native_str("localhost:%d" % (portnum,)))
+    tub.setLocation(native_str("localhost:%d" % (portnum,)))  #type: ignore
     return portnum
 
 
