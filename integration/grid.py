@@ -231,7 +231,7 @@ class Client(object):
             reactor, self.process.node_dir, request, None,
         )
         self.process = process
-        self.protocol = self.process.transport._protocol
+        self.protocol = self.process.transport.proto
         yield await_client_ready(self.process, minimum_number_of_servers=servers)
 
 
@@ -253,7 +253,7 @@ def create_client(reactor, request, temp_dir, introducer, flog_gatherer, name, w
     returnValue(
         Client(
             process=node_process,
-            protocol=node_process.transport._protocol,
+            protocol=node_process.transport.proto,
         )
     )
 
