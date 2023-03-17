@@ -4,18 +4,14 @@ Tests for allmydata.util.iputil.
 Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2, native_str
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 import os, socket
 import gc
+from functools import wraps
 
+from typing import TypeVar, Callable
+from typing_extensions import TypeAlias
 from testtools.matchers import (
     MatchesAll,
     IsInstance,
@@ -24,8 +20,6 @@ from testtools.matchers import (
 )
 
 from twisted.trial import unittest
-
-from tenacity import retry, stop_after_attempt
 
 from foolscap.api import Tub
 
@@ -38,6 +32,45 @@ from ..util.iputil import (
 from .common import (
     SyncTestCase,
 )
+
+T = TypeVar("T")
+
+TestFunction: TypeAlias = Callable[[], T]
+Decorator: TypeAlias = Callable[[TestFunction[T]], TestFunction[T]]
+
+def retry(stop: Callable[[], bool]) -> Decorator[T]:
+    """
+    Call a function until the predicate says to stop or the function stops
+    raising an exception.
+
+    :param stop: A callable to call after the decorated function raises an
+        exception.  The decorated function will be called again if ``stop``
+        returns ``False``.
+
+    :return: A decorator function.
+    """
+    def decorate(f: TestFunction[T]) -> TestFunction[T]:
+        @wraps(f)
+        def decorator(self) -> T:
+            while True:
+                try:
+                    return f(self)
+                except Exception:
+                    if stop():
+                        raise
+        return decorator
+    return decorate
+
+def stop_after_attempt(limit: int) -> Callable[[], bool]:
+    """
+    Stop after ``limit`` calls.
+    """
+    counter = 0
+    def check():
+        nonlocal counter
+        counter += 1
+        return counter < limit
+    return check
 
 class ListenOnUsed(unittest.TestCase):
     """Tests for listenOnUnused."""
@@ -127,7 +160,7 @@ class GetLocalAddressesSyncTests(SyncTestCase):
                 IsInstance(list),
                 AllMatch(
                     MatchesAll(
-                        IsInstance(native_str),
+                        IsInstance(str),
                         MatchesPredicate(
                             lambda addr: socket.inet_pton(socket.AF_INET, addr),
                             "%r is not an IPv4 address.",
