@@ -11,7 +11,6 @@ import gc
 from functools import wraps
 
 from typing import TypeVar, Callable
-from typing_extensions import TypeAlias
 from testtools.matchers import (
     MatchesAll,
     IsInstance,
@@ -33,12 +32,10 @@ from .common import (
     SyncTestCase,
 )
 
-T = TypeVar("T")
+T = TypeVar("T", contravariant=True)
+U = TypeVar("U", covariant=True)
 
-TestFunction: TypeAlias = Callable[[], T]
-Decorator: TypeAlias = Callable[[TestFunction[T]], TestFunction[T]]
-
-def retry(stop: Callable[[], bool]) -> Decorator[T]:
+def retry(stop: Callable[[], bool]) -> Callable[[Callable[[T], U]], Callable[[T], U]]:
     """
     Call a function until the predicate says to stop or the function stops
     raising an exception.
@@ -49,9 +46,9 @@ def retry(stop: Callable[[], bool]) -> Decorator[T]:
 
     :return: A decorator function.
     """
-    def decorate(f: TestFunction[T]) -> TestFunction[T]:
+    def decorate(f: Callable[[T], U]) -> Callable[[T], U]:
         @wraps(f)
-        def decorator(self) -> T:
+        def decorator(self: T) -> U:
             while True:
                 try:
                     return f(self)
