@@ -94,12 +94,15 @@ workflows:
                 - "python310"
 
       - "nixos":
+          # At the moment the CPython 3.11 and PyPy packages are working
+          # better in nixpkgs unstable than in the 22.11 release.
           name: "<<matrix.pythonVersion>>"
           nixpkgs: "unstable"
           matrix:
             parameters:
               pythonVersion:
                 - "python311"
+                - "pypy39"
 
       - "nixos-integration":
           name: "Integration (NixOS)"
