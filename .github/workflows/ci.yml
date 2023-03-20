@@ -57,11 +57,6 @@ jobs:
             python-version: "3.9"
           - os: macos-latest
             python-version: "3.11"
-          # We only support PyPy on Linux at the moment.
-          - os: ubuntu-latest
-            python-version: "pypy-3.8"
-          - os: ubuntu-latest
-            python-version: "pypy-3.9"
 
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
