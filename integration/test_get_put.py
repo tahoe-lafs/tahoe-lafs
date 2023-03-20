@@ -85,10 +85,6 @@ def test_large_file(alice, get_put_alias, tmp_path):
     assert outfile.read_bytes() == tempfile.read_bytes()
 
 
-@pytest.mark.skipif(
-    sys.platform.startswith("win"),
-    reason="reconfigure() has issues on Windows"
-)
 @ensureDeferred
 async def test_upload_download_immutable_different_default_max_segment_size(alice, get_put_alias, tmpdir, request):
     """

@@ -570,6 +570,10 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_serve
     We will try for up to `timeout` seconds for the above conditions
     to be true. Otherwise, an exception is raised
     """
+    return deferToThread(_await_client_ready_blocking, tahoe, timeout, liveness, minimum_number_of_servers)
+
+
+def _await_client_ready_blocking(tahoe, timeout, liveness, minimum_number_of_servers):
     start = time.time()
     while (time.time() - start) < float(timeout):
         try:
@@ -792,16 +796,11 @@ async def reconfigure(reactor, request, node: TahoeProcess,
             )
 
     if changed:
-        # TODO reconfigure() seems to have issues on Windows. If you need to
-        # use it there, delete this assert and try to figure out what's going
-        # on...
-        assert not sys.platform.startswith("win")
-
         # restart the node
         print(f"Restarting {node.node_dir} for ZFEC reconfiguration")
         await node.restart_async(reactor, request)
         print("Restarted.  Waiting for ready state.")
-        await_client_ready(node)
+        await await_client_ready(node)
         print("Ready.")
     else:
         print("Config unchanged, not restarting.")
