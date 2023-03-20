@@ -4,7 +4,6 @@ and stdout.
 """
 
 from subprocess import Popen, PIPE, check_output, check_call
-import sys
 
 import pytest
 from pytest_twisted import ensureDeferred
