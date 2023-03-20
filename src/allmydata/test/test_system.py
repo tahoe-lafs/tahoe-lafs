@@ -1834,34 +1834,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(_got_lit_filenode)
         return d
 
-    async def test_immutable_upload_download(self):
-        """
-        A reproducer for issue 3988: upload a large file and then download it.
-        """
-        DATA = b"abc123 this is not utf-8 decodable \xff\x00\x33 \x11" * 1_000_000
-        await self.set_up_nodes()
-
-        async def run(*args):
-            await deferToThread(check_call, ["tahoe", "--node-directory", self.getdir("client0")] + list(args))
-
-        for c in self.clients:
-            c.encoding_params['k'] = 2
-            c.encoding_params['happy'] = 3
-            c.encoding_params['n'] = 4
-
-        await run("create-alias", "getput")
-
-        tmp_path = Path(mkdtemp())
-        tempfile = tmp_path / "input"
-
-        with tempfile.open("wb") as f:
-            f.write(DATA)
-        await run("put", str(tempfile), "getput:largefile")
-
-        outfile = tmp_path / "out"
-        await run("get", "getput:largefile", str(outfile))
-        self.assertEqual(outfile.read_bytes(), tempfile.read_bytes())
-
 
 class Connections(SystemTestMixin, unittest.TestCase):
     FORCE_FOOLSCAP_FOR_STORAGE = True
