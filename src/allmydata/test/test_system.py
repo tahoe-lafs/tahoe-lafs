@@ -33,6 +33,7 @@ from allmydata.util import log, base32
 from allmydata.util.encodingutil import quote_output, unicode_to_argv
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
+from allmydata.util.deferredutil import async_to_deferred
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
      NoSuchChildError, NoSharesError, SDMF_VERSION, MDMF_VERSION
 from allmydata.monitor import Monitor
@@ -657,7 +658,25 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             self.failUnlessEqual(res, NEWERDATA)
         d.addCallback(_check_download_5)
 
-        def _corrupt_shares(res):
+        # The previous checks upload a complete replacement. This uses a
+        # different API that is supposed to do a partial write at an offset.
+        @async_to_deferred
+        async def _check_write_at_offset(newnode):
+            log.msg("writing at offset")
+            start = b"abcdef"
+            expected = b"abXYef"
+            uri = self._mutable_node_1.get_uri()
+            newnode = self.clients[0].create_node_from_uri(uri)
+            await newnode.overwrite(MutableData(start))
+            version = await newnode.get_mutable_version()
+            await version.update(MutableData(b"XY"), 2)
+            result = await newnode.download_best_version()
+            self.assertEqual(result, expected)
+            # Revert to previous version
+            await newnode.overwrite(MutableData(NEWERDATA))
+        d.addCallback(_check_write_at_offset)
+
+        def _corrupt_shares(_res):
             # run around and flip bits in all but k of the shares, to test
             # the hash checks
             shares = self._find_all_shares(self.basedir)

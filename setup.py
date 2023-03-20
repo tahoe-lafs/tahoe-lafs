@@ -118,7 +118,7 @@ install_requires = [
     "attrs >= 18.2.0",
 
     # WebSocket library for twisted and asyncio
-    "autobahn < 22.4.1",  # remove this when 22.4.3 is released
+    "autobahn",
 
     # Support for Python 3 transition
     "future >= 0.18.2",
@@ -413,7 +413,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "beautifulsoup4",
               "html5lib",
               "junitxml",
-              "tenacity",
               # Pin old version until
               # https://github.com/paramiko/paramiko/issues/1961 is fixed.
               "paramiko < 2.9",
