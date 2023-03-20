@@ -15,15 +15,11 @@ from past.builtins import chr as byteschr, long
 from six import ensure_text
 
 import os, re, sys, time, json
-from subprocess import check_call
-from pathlib import Path
-from tempfile import mkdtemp
 
 from bs4 import BeautifulSoup
 
 from twisted.trial import unittest
 from twisted.internet import defer
-from twisted.internet.threads import deferToThread
 
 from allmydata import uri
 from allmydata.storage.mutable import MutableShareFile
