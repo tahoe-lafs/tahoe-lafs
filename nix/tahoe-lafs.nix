@@ -1,4 +1,5 @@
 { lib
+, python
 , pythonPackages
 , buildPythonPackage
 , tahoe-lafs-src
@@ -80,6 +81,10 @@ let
 
   doUnit = builtins.elem "unit" checks;
   doIntegration = builtins.elem "integration" checks;
+
+  # "python" is on $PATH for the cpython case but not for the PyPy case.
+  # python.executable is on $PATH for both cases.
+  py = python.executable;
 in
 buildPythonPackage rec {
   inherit pname version;
@@ -142,8 +147,8 @@ buildPythonPackage rec {
     in
       ''
       runHook preCheck
-      ${lib.optionalString doUnit "python -m twisted.trial -j $NIX_BUILD_CORES allmydata"}
-      ${lib.optionalString doIntegration "python -m pytest --timeout=1800 -s -v ${pytestFlags} integration"}
+      ${lib.optionalString doUnit "${py} -m twisted.trial -j $NIX_BUILD_CORES allmydata"}
+      ${lib.optionalString doIntegration "${py} -m pytest --timeout=1800 -s -v ${pytestFlags} integration"}
       runHook postCheck
     '';
 
