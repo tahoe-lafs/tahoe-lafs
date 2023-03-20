@@ -44,9 +44,6 @@ dockerhub-auth-template: &DOCKERHUB_AUTH
         <<: *DOCKERHUB_CONTEXT
     - "build-image-oraclelinux-8":
         <<: *DOCKERHUB_CONTEXT
-    # Restore later as PyPy38
-    #- "build-image-pypy27-buster":
-    #    <<: *DOCKERHUB_CONTEXT
 
 parameters:
   # Control whether the image-building workflow runs as part of this pipeline.
@@ -121,10 +118,6 @@ workflows:
           pythonVersion: "python311"
           forceFoolscap: true
           runSlow: false
-
-      # Eventually, test against PyPy 3.8
-      #- "pypy27-buster":
-      #    {}
 
       # Other assorted tasks and configurations
       - "codechecks":
@@ -285,20 +278,6 @@ jobs:
         image: "tahoelafsci/debian:11-py3.9"
         user: "nobody"
 
-
-  # Restore later using PyPy3.8
-  # pypy27-buster:
-  #   <<: *DEBIAN
-  #   docker:
-  #     - <<: *DOCKERHUB_AUTH
-  #       image: "tahoelafsci/pypy:buster-py2"
-  #       user: "nobody"
-  #   environment:
-  #     <<: *UTF_8_ENVIRONMENT
-  #     # We don't do coverage since it makes PyPy far too slow:
-  #     TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27"
-  #     # Since we didn't collect it, don't upload it.
-  #     UPLOAD_COVERAGE: ""
 
   c-locale:
     <<: *DEBIAN
@@ -582,16 +561,6 @@ jobs:
       DISTRO: "fedora"
       TAG: "35"
       PYTHON_VERSION: "3"
-
-  # build-image-pypy27-buster:
-  #   <<: *BUILD_IMAGE
-  #   environment:
-  #     DISTRO: "pypy"
-  #     TAG: "buster"
-  #     # We only have Python 2 for PyPy right now so there's no support for
-  #     # setting up PyPy 3 in the image building toolchain.  This value is just
-  #     # for constructing the right Docker image tag.
-  #     PYTHON_VERSION: "2"
 
 executors:
   nix:
