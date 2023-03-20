@@ -58,7 +58,6 @@ let
     pytest
     pytest-timeout
     pytest-twisted
-    tenacity
     testtools
     towncrier
   ];
