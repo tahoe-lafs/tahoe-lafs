@@ -413,7 +413,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "beautifulsoup4",
               "html5lib",
               "junitxml",
-              "tenacity",
               # Pin old version until
               # https://github.com/paramiko/paramiko/issues/1961 is fixed.
               "paramiko < 2.9",
