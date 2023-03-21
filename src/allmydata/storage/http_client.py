@@ -311,9 +311,7 @@ class StorageClient(object):
 
     @classmethod
     def from_nurl(
-        cls,
-        nurl: DecodedURL,
-        reactor,
+        cls, nurl: DecodedURL, reactor, pool: Optional[HTTPConnectionPool] = None
     ) -> StorageClient:
         """
         Create a ``StorageClient`` for the given NURL.
@@ -322,8 +320,9 @@ class StorageClient(object):
         assert nurl.scheme == "pb"
         swissnum = nurl.path[0].encode("ascii")
         certificate_hash = nurl.user.encode("ascii")
-        pool = HTTPConnectionPool(reactor)
-        pool.maxPersistentPerHost = 20
+        if pool is None:
+            pool = HTTPConnectionPool(reactor)
+            pool.maxPersistentPerHost = 20
 
         if cls.TEST_MODE_REGISTER_HTTP_POOL is not None:
             cls.TEST_MODE_REGISTER_HTTP_POOL(pool)
