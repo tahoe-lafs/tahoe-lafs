@@ -1019,11 +1019,12 @@ class NativeStorageServer(service.MultiService):
         self._reconnector.reset()
 
 
-def _pick_a_http_server(
+@async_to_deferred
+async def _pick_a_http_server(
         reactor,
         nurls: list[DecodedURL],
         request: Callable[[Any, DecodedURL], defer.Deferred[Any]]
-) -> defer.Deferred[Optional[DecodedURL]]:
+) -> Optional[DecodedURL]:
     """Pick the first server we successfully send a request to.
 
     Fires with ``None`` if no server was found, or with the ``DecodedURL`` of
@@ -1034,21 +1035,18 @@ def _pick_a_http_server(
         for nurl in nurls
     ])
 
-    def failed(failure: Failure):
+    try:
+        _, nurl = await queries
+        return nurl
+    except Exception as e:
         # Logging errors breaks a bunch of tests, and it's not a _bug_ to
         # have a failed connection, it's often expected and transient. More
         # of a warning, really?
         log.msg(
             "Failed to connect to a storage server advertised by NURL: {}".format(
-                failure)
+                e)
         )
         return None
-
-    def succeeded(result: tuple[int, DecodedURL]):
-        _, nurl = result
-        return nurl
-
-    return queries.addCallbacks(succeeded, failed)
 
 
 @implementer(IServer)
