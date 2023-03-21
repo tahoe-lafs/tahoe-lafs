@@ -1,4 +1,5 @@
 { lib
+, isPyPy
 , python
 , pythonPackages
 , buildPythonPackage
@@ -144,10 +145,13 @@ buildPythonPackage rec {
     let
       feature = name: lib.optionalString (builtins.elem name integrationFeatures);
       pytestFlags = "${feature "forceFoolscap" "--force-foolscap"} ${feature "runslow" "--runslow"}";
+      # The test suite encounters hundreds of errors and then hangs, if run
+      # with -jN on PyPy.
+      jobs = if isPyPy then "" else "-j $NIX_BUILD_CORES";
     in
       ''
       runHook preCheck
-      ${lib.optionalString doUnit "${py} -m twisted.trial -j $NIX_BUILD_CORES allmydata"}
+      ${lib.optionalString doUnit "${py} -m twisted.trial ${jobs} allmydata"}
       ${lib.optionalString doIntegration "${py} -m pytest --timeout=1800 -s -v ${pytestFlags} integration"}
       runHook postCheck
     '';
