@@ -43,6 +43,7 @@ from configparser import NoSectionError
 
 import attr
 from hyperlink import DecodedURL
+from twisted.web.client import HTTPConnectionPool
 from zope.interface import (
     Attribute,
     Interface,
@@ -1205,10 +1206,10 @@ class HTTPNativeStorageServer(service.MultiService):
             def request(reactor, nurl: DecodedURL):
                 # Since we're just using this one off to check if the NURL
                 # works, no need for persistent pool or other fanciness.
+                pool = HTTPConnectionPool(reactor, persistent=False)
+                pool.retryAutomatically = False
                 return StorageClientGeneral(
-                    StorageClient.from_nurl(
-                        nurl, reactor, persistent=False, retryAutomatically=False
-                    )
+                    StorageClient.from_nurl(nurl, reactor, pool)
                 ).get_version()
 
             # LoopingCall.stop() doesn't cancel Deferreds, unfortunately:
