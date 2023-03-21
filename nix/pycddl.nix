@@ -27,7 +27,7 @@
 #
 # 8. run `nix-build`.  it should succeed.  if it does not, seek assistance.
 #
-{ lib, fetchPypi, buildPythonPackage, rustPlatform }:
+{ lib, fetchPypi, python, buildPythonPackage, rustPlatform }:
 buildPythonPackage rec {
   pname = "pycddl";
   version = "0.4.0";
@@ -37,6 +37,12 @@ buildPythonPackage rec {
     inherit pname version;
     sha256 = "sha256-w0CGbPeiXyS74HqZXyiXhvaAMUaIj5onwjl9gWKAjqY=";
   };
+
+  # Without this, when building for PyPy, `maturin build` seems to fail to
+  # find the interpreter at all and then fails early in the build process with
+  # an error saying "unsupported Python interpreter".  We can easily point
+  # directly at the relevant interpreter, so do that.
+  maturinBuildFlags = [ "--interpreter" python.executable ];
 
   nativeBuildInputs = with rustPlatform; [
     maturinBuildHook
