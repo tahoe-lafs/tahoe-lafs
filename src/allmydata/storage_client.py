@@ -1038,7 +1038,10 @@ def _pick_a_http_server(
         # Logging errors breaks a bunch of tests, and it's not a _bug_ to
         # have a failed connection, it's often expected and transient. More
         # of a warning, really?
-        log.msg("Failed to connect to NURL: {}".format(failure))
+        log.msg(
+            "Failed to connect to a storage server advertised by NURL: {}".format(
+                failure)
+        )
         return None
 
     def succeeded(result: tuple[int, DecodedURL]):
