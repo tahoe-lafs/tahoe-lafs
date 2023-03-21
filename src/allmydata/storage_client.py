@@ -1201,7 +1201,11 @@ class HTTPNativeStorageServer(service.MultiService):
         if self._istorage_server is None:
             # We haven't selected a server yet, so let's do so.
 
-            # TODO The problem with this scheme is that while picking
+            # TODO This is somewhat inefficient on startup: it takes two successful
+            # version() calls before we are live talking to a server, it could only
+            # be one. See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3992
+
+            # TODO Another problem with this scheme is that while picking
             # the HTTP server to talk to, we don't have connection status
             # updates... https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3978
             def request(reactor, nurl: DecodedURL):
