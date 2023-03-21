@@ -4,7 +4,6 @@ and stdout.
 """
 
 from subprocess import Popen, PIPE, check_output, check_call
-import sys
 
 import pytest
 from pytest_twisted import ensureDeferred
@@ -50,6 +49,7 @@ def test_put_from_stdin(alice, get_put_alias, tmpdir):
     assert read_bytes(tempfile) == DATA
 
 
+@run_in_thread
 def test_get_to_stdout(alice, get_put_alias, tmpdir):
     """
     It's possible to upload a file, and then download it to stdout.
@@ -67,6 +67,7 @@ def test_get_to_stdout(alice, get_put_alias, tmpdir):
     assert p.wait() == 0
 
 
+@run_in_thread
 def test_large_file(alice, get_put_alias, tmp_path):
     """
     It's possible to upload and download a larger file.
@@ -85,10 +86,6 @@ def test_large_file(alice, get_put_alias, tmp_path):
     assert outfile.read_bytes() == tempfile.read_bytes()
 
 
-@pytest.mark.skipif(
-    sys.platform.startswith("win"),
-    reason="reconfigure() has issues on Windows"
-)
 @ensureDeferred
 async def test_upload_download_immutable_different_default_max_segment_size(alice, get_put_alias, tmpdir, request):
     """

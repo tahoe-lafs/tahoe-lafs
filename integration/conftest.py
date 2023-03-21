@@ -393,7 +393,7 @@ def alice(
             finalize=False,
         )
     )
-    await_client_ready(process)
+    pytest_twisted.blockon(await_client_ready(process))
 
     # 1. Create a new RW directory cap:
     cli(process, "create-alias", "test")
@@ -424,7 +424,7 @@ alice-key ssh-rsa {ssh_public_key} {rwcap}
 
     # 4. Restart the node with new SFTP config.
     pytest_twisted.blockon(process.restart_async(reactor, request))
-    await_client_ready(process)
+    pytest_twisted.blockon(await_client_ready(process))
     print(f"Alice pid: {process.transport.pid}")
     return process
 
@@ -439,7 +439,7 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
             storage=False,
         )
     )
-    await_client_ready(process)
+    pytest_twisted.blockon(await_client_ready(process))
     return process
 
 

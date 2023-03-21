@@ -430,6 +430,31 @@ class FileShouldVanishException(Exception):
         )
 
 
+def run_in_thread(f):
+    """Decorator for integration tests that runs code in a thread.
+
+    Because we're using pytest_twisted, tests that rely on the reactor are
+    expected to return a Deferred and use async APIs so the reactor can run.
+
+    In the case of the integration test suite, it launches nodes in the
+    background using Twisted APIs.  The nodes stdout and stderr is read via
+    Twisted code.  If the reactor doesn't run, reads don't happen, and
+    eventually the buffers fill up, and the nodes block when they try to flush
+    logs.
+
+    We can switch to Twisted APIs (treq instead of requests etc.), but
+    sometimes it's easier or expedient to just have a blocking test.  So this
+    decorator allows you to run the test in a thread, and the reactor can keep
+    running in the main thread.
+
+    See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3597 for tracking bug.
+    """
+    @wraps(f)
+    def test(*args, **kwargs):
+        return deferToThread(lambda: f(*args, **kwargs))
+    return test
+
+
 def await_file_contents(path, contents, timeout=15, error_if=None):
     """
     wait up to `timeout` seconds for the file at `path` (any path-like
@@ -555,6 +580,7 @@ def web_post(tahoe, uri_fragment, **kwargs):
     return resp.content
 
 
+@run_in_thread
 def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_servers=1):
     """
     Uses the status API to wait for a client-type node (in `tahoe`, a
@@ -621,30 +647,6 @@ def generate_ssh_key(path):
         s = "%s %s" % (key.get_name(), key.get_base64())
         f.write(s.encode("ascii"))
 
-
-def run_in_thread(f):
-    """Decorator for integration tests that runs code in a thread.
-
-    Because we're using pytest_twisted, tests that rely on the reactor are
-    expected to return a Deferred and use async APIs so the reactor can run.
-
-    In the case of the integration test suite, it launches nodes in the
-    background using Twisted APIs.  The nodes stdout and stderr is read via
-    Twisted code.  If the reactor doesn't run, reads don't happen, and
-    eventually the buffers fill up, and the nodes block when they try to flush
-    logs.
-
-    We can switch to Twisted APIs (treq instead of requests etc.), but
-    sometimes it's easier or expedient to just have a blocking test.  So this
-    decorator allows you to run the test in a thread, and the reactor can keep
-    running in the main thread.
-
-    See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3597 for tracking bug.
-    """
-    @wraps(f)
-    def test(*args, **kwargs):
-        return deferToThread(lambda: f(*args, **kwargs))
-    return test
 
 @frozen
 class CHK:
@@ -792,16 +794,11 @@ async def reconfigure(reactor, request, node: TahoeProcess,
             )
 
     if changed:
-        # TODO reconfigure() seems to have issues on Windows. If you need to
-        # use it there, delete this assert and try to figure out what's going
-        # on...
-        assert not sys.platform.startswith("win")
-
         # restart the node
         print(f"Restarting {node.node_dir} for ZFEC reconfiguration")
         await node.restart_async(reactor, request)
         print("Restarted.  Waiting for ready state.")
-        await_client_ready(node)
+        await await_client_ready(node)
         print("Ready.")
     else:
         print("Config unchanged, not restarting.")
