@@ -819,7 +819,7 @@ class PickHTTPServerTests(unittest.SynchronousTestCase):
         })
         self.assertEqual(result, earliest_url)
 
-    def test_failures_are_retried(self):
+    def test_failures_are_turned_into_none(self):
         """
         If the requests all fail, ``_pick_a_http_server`` returns ``None``.
         """
