@@ -392,10 +392,7 @@ jobs:
                     --cores 8 \
                     --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
                     --argstr pythonVersion "<<parameters.pythonVersion>>" \
-                    nix/unittests.nix
-
-
-
+                    nix/tests.nix
 
   typechecks:
     docker:
