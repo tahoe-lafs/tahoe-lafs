@@ -1,22 +1,16 @@
 """
-Ported from Python 3.
+Tests for allmydata.storage_client.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-from six import ensure_text
+from __future__ import annotations
 
 from json import (
     loads,
 )
-
 import hashlib
+from typing import Union, Any, Optional
+
+from hyperlink import DecodedURL
 from fixtures import (
     TempDir,
 )
@@ -60,6 +54,7 @@ from twisted.internet.defer import (
 from twisted.python.filepath import (
     FilePath,
 )
+from twisted.internet.task import Clock
 
 from foolscap.api import (
     Tub,
@@ -94,7 +89,8 @@ from allmydata.storage_client import (
     StorageFarmBroker,
     _FoolscapStorage,
     _NullStorage,
-    ANONYMOUS_STORAGE_NURLS
+    _pick_a_http_server,
+    ANONYMOUS_STORAGE_NURLS,
 )
 from ..storage.server import (
     StorageServer,
@@ -478,7 +474,7 @@ class StoragePluginWebPresence(AsyncTestCase):
                 # config validation policy).
                 "tub.port": tubport_endpoint,
                 "tub.location": tubport_location,
-                "web.port": ensure_text(webport_endpoint),
+                "web.port": str(webport_endpoint),
             },
             storage_plugin=self.storage_plugin,
             basedir=self.basedir,
@@ -781,3 +777,56 @@ storage:
                 StorageFarmBroker._should_we_use_http(node_config, announcement),
                 expected_http_usage
             )
+
+
+class PickHTTPServerTests(unittest.SynchronousTestCase):
+    """Tests for ``_pick_a_http_server``."""
+
+    def pick_result(self, url_to_results: dict[DecodedURL, tuple[float, Union[Exception, Any]]]) -> Optional[DecodedURL]:
+        """
+        Given mapping of URLs to (delay, result), return the URL of the
+        first selected server, or None.
+        """
+        clock = Clock()
+
+        def request(reactor, url):
+            delay, value = url_to_results[url]
+            result = Deferred()
+            def add_result_value():
+                if isinstance(value, Exception):
+                    result.errback(value)
+                else:
+                    result.callback(value)
+            reactor.callLater(delay, add_result_value)
+            return result
+
+        d = _pick_a_http_server(clock, list(url_to_results.keys()), request)
+        for i in range(100):
+            clock.advance(0.1)
+        return self.successResultOf(d)
+
+    def test_first_successful_connect_is_picked(self):
+        """
+        Given multiple good URLs, the first one that connects is chosen.
+        """
+        earliest_url = DecodedURL.from_text("http://a")
+        latest_url = DecodedURL.from_text("http://b")
+        bad_url = DecodedURL.from_text("http://bad")
+        result = self.pick_result({
+            latest_url: (2, None),
+            earliest_url: (1, None),
+            bad_url: (0.5, RuntimeError()),
+        })
+        self.assertEqual(result, earliest_url)
+
+    def test_failures_are_turned_into_none(self):
+        """
+        If the requests all fail, ``_pick_a_http_server`` returns ``None``.
+        """
+        eventually_good_url = DecodedURL.from_text("http://good")
+        bad_url = DecodedURL.from_text("http://bad")
+        result = self.pick_result({
+            eventually_good_url: (1, ZeroDivisionError()),
+            bad_url: (0.1, RuntimeError())
+        })
+        self.assertEqual(result, None)

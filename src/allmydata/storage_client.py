@@ -33,8 +33,7 @@ Ported to Python 3.
 from __future__ import annotations
 
 from six import ensure_text
-
-from typing import Union, Any
+from typing import Union, Callable, Any, Optional
 from os import urandom
 import re
 import time
@@ -44,6 +43,7 @@ from configparser import NoSectionError
 
 import attr
 from hyperlink import DecodedURL
+from twisted.web.client import HTTPConnectionPool
 from zope.interface import (
     Attribute,
     Interface,
@@ -83,7 +83,7 @@ from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
-from allmydata.util.deferredutil import async_to_deferred
+from allmydata.util.deferredutil import async_to_deferred, race
 from allmydata.storage.http_client import (
     StorageClient, StorageClientImmutables, StorageClientGeneral,
     ClientException as HTTPClientException, StorageClientMutables,
@@ -1019,6 +1019,36 @@ class NativeStorageServer(service.MultiService):
         self._reconnector.reset()
 
 
+@async_to_deferred
+async def _pick_a_http_server(
+        reactor,
+        nurls: list[DecodedURL],
+        request: Callable[[Any, DecodedURL], defer.Deferred[Any]]
+) -> Optional[DecodedURL]:
+    """Pick the first server we successfully send a request to.
+
+    Fires with ``None`` if no server was found, or with the ``DecodedURL`` of
+    the first successfully-connected server.
+    """
+    queries = race([
+        request(reactor, nurl).addCallback(lambda _, nurl=nurl: nurl)
+        for nurl in nurls
+    ])
+
+    try:
+        _, nurl = await queries
+        return nurl
+    except Exception as e:
+        # Logging errors breaks a bunch of tests, and it's not a _bug_ to
+        # have a failed connection, it's often expected and transient. More
+        # of a warning, really?
+        log.msg(
+            "Failed to connect to a storage server advertised by NURL: {}".format(
+                e)
+        )
+        return None
+
+
 @implementer(IServer)
 class HTTPNativeStorageServer(service.MultiService):
     """
@@ -1045,12 +1075,11 @@ class HTTPNativeStorageServer(service.MultiService):
             self._short_description,
             self._long_description
         ) = _parse_announcement(server_id, furl, announcement)
-        # TODO need some way to do equivalent of Happy Eyeballs for multiple NURLs?
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3935
-        nurl = DecodedURL.from_text(announcement[ANONYMOUS_STORAGE_NURLS][0])
-        self._istorage_server = _HTTPStorageServer.from_http_client(
-            StorageClient.from_nurl(nurl, reactor)
-        )
+        self._nurls = [
+            DecodedURL.from_text(u)
+            for u in announcement[ANONYMOUS_STORAGE_NURLS]
+        ]
+        self._istorage_server = None
 
         self._connection_status = connection_status.ConnectionStatus.unstarted()
         self._version = None
@@ -1167,7 +1196,46 @@ class HTTPNativeStorageServer(service.MultiService):
     def try_to_connect(self):
         self._connect()
 
-    def _connect(self):
+    @async_to_deferred
+    async def _connect(self):
+        if self._istorage_server is None:
+            # We haven't selected a server yet, so let's do so.
+
+            # TODO This is somewhat inefficient on startup: it takes two successful
+            # version() calls before we are live talking to a server, it could only
+            # be one. See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3992
+
+            # TODO Another problem with this scheme is that while picking
+            # the HTTP server to talk to, we don't have connection status
+            # updates... https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3978
+            def request(reactor, nurl: DecodedURL):
+                # Since we're just using this one off to check if the NURL
+                # works, no need for persistent pool or other fanciness.
+                pool = HTTPConnectionPool(reactor, persistent=False)
+                pool.retryAutomatically = False
+                return StorageClientGeneral(
+                    StorageClient.from_nurl(nurl, reactor, pool)
+                ).get_version()
+
+            # LoopingCall.stop() doesn't cancel Deferreds, unfortunately:
+            # https://github.com/twisted/twisted/issues/11814 Thus we want
+            # store the Deferred so it gets cancelled.
+            picking = _pick_a_http_server(reactor, self._nurls, request)
+            self._connecting_deferred = picking
+            try:
+                nurl = await picking
+            finally:
+                self._connecting_deferred = None
+
+            if nurl is None:
+                # We failed to find a server to connect to. Perhaps the next
+                # iteration of the loop will succeed.
+                return
+            else:
+                self._istorage_server = _HTTPStorageServer.from_http_client(
+                    StorageClient.from_nurl(nurl, reactor)
+                )
+
         result = self._istorage_server.get_version()
 
         def remove_connecting_deferred(result):
@@ -1180,6 +1248,14 @@ class HTTPNativeStorageServer(service.MultiService):
             self._got_version,
             self._failed_to_connect
         )
+
+        # We don't want to do another iteration of the loop until this
+        # iteration has finished, so wait here:
+        try:
+            if self._connecting_deferred is not None:
+                await self._connecting_deferred
+        except Exception as e:
+            log.msg(f"Failed to connect to a HTTP storage server: {e}", level=log.CURIOUS)
 
     def stopService(self):
         if self._connecting_deferred is not None:
@@ -1354,7 +1430,7 @@ class _HTTPBucketWriter(object):
         return self.finished
 
 
-def _ignore_404(failure: Failure) -> Union[Failure, None]:
+def _ignore_404(failure: Failure) -> Optional[Failure]:
     """
     Useful for advise_corrupt_share(), since it swallows unknown share numbers
     in Foolscap.
