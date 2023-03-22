@@ -560,6 +560,7 @@ For fields that are more general than a single API the semantics are as follows:
 
 * available-space:
   The server SHOULD use this field to advertise the amount of space that it currently considers unused and is willing to allocate for client requests.
+  The value is a number of bytes.
 
 
 ``PUT /storage/v1/lease/:storage_index``
