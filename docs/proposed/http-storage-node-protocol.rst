@@ -244,7 +244,7 @@ When Bob's client issues HTTP requests to Alice's storage node it includes the *
 .. note::
 
    Foolscap TubIDs are 20 bytes (SHA1 digest of the certificate).
-   They are encoded with `Base32_` for a length of 32 bytes.
+   They are encoded with `Base32`_ for a length of 32 bytes.
    SPKI information discussed here is 32 bytes (SHA256 digest).
    They would be encoded in `Base32`_ for a length of 52 bytes.
    `unpadded base64url`_ provides a more compact encoding of the information while remaining URL-compatible.
