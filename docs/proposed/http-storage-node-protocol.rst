@@ -950,8 +950,17 @@ For example::
       }
   }
 
-A server MUST return nothing for any bytes beyond the end of existing data for a test vector or read vector that reads tries to read such data.
-As a result, if there is no data at all, an empty bytestring is returned no matter what the offset or length.
+A client MAY send a test vector or read vector to bytes beyond the end of existing data.
+In this case a server MUST behave as if the test or read vector referred to exactly as much data exists.
+
+For example,
+consider the case where the server has 5 bytes of data for a particular share.
+If a client sends a read vector with an ``offset`` of 1 and a ``size`` of 4 then the server MUST respond with all of the data except the first byte.
+If a client sends a read vector with the same ``offset`` and a ``size`` of 5 (or any larger value) then the server MUST respond in the same way.
+
+Similarly,
+if there is no data at all,
+an empty byte string is returned no matter what the offset or length.
 
 Reading
 ~~~~~~~
