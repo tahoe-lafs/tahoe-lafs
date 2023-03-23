@@ -4,8 +4,6 @@
 , pythonPackages
 , buildPythonPackage
 , tahoe-lafs-src
-, extrasNames
-
 # control which test suites run
 # may contain:
 #
@@ -26,13 +24,24 @@ let
   pname = "tahoe-lafs";
   version = "1.18.0.post1";
 
-  pickExtraDependencies = deps: extras: builtins.foldl' (accum: extra: accum  ++ deps.${extra}) [] extras;
+  # [] -> [] -> []
+  #
+  # concatenate one list with another.
+  concat = a: b: a ++ b;
 
-  pythonExtraDependencies = with pythonPackages; {
-    tor = [ txtorcon ];
-    i2p = [ txi2p ];
-  };
+  # derivation -> string -> [derivation]
+  #
+  # get a list of derivations representing the dependencies of a Python
+  # package "extra".
+  extraDeps = drv: extra: drv.passthru.optional-dependencies.${extra};
 
+  # derivation -> [string] -> [derivation]
+  #
+  # get a list of derivations representing the dependencies of a list of
+  # Python package "extras".
+  extrasDeps = drv: extras: builtins.concatLists (map (extras drv) extras);
+
+  # The direct Python package dependencies of Tahoe-LAFS.
   pythonPackageDependencies = with pythonPackages; [
     attrs
     autobahn
@@ -55,14 +64,15 @@ let
     six
     treq
     twisted
-    # Get the dependencies for the Twisted extras we depend on, too.
-    twisted.passthru.optional-dependencies.tls
-    twisted.passthru.optional-dependencies.conch
     werkzeug
     zfec
     zope_interface
-  ] ++ pickExtraDependencies pythonExtraDependencies extrasNames;
+  ] ++ (
+    # Get the dependencies for the Twisted extras we depend on, too.
+    extrasDeps twisted [ "tls" "conch" ]
+  );
 
+  # The additional direct dependencies of the Tahoe-LAFS unit tests.
   unitTestDependencies = with pythonPackages; [
     beautifulsoup4
     fixtures
@@ -72,6 +82,7 @@ let
     testtools
   ];
 
+  # The additional direct dependencies of the Tahoe-LAFS integration tests.
   integrationTestDependencies = with pythonPackages; [
     html5lib
     paramiko
@@ -80,6 +91,7 @@ let
     pytest-twisted
   ];
 
+  # Determine which test suites to run.
   doUnit = builtins.elem "unit" checks;
   doIntegration = builtins.elem "integration" checks;
 
@@ -155,6 +167,16 @@ buildPythonPackage rec {
       ${lib.optionalString doIntegration "${py} -m pytest --timeout=1800 -s -v ${pytestFlags} integration"}
       runHook postCheck
     '';
+
+  passthru = {
+    # Represent the dependencies of the Python package "extras" here.  We
+    # record and expose them here but whoever depends on us needs to ask for
+    # them on their own.
+    optional-dependencies = with pythonPackages; {
+      tor = [ txtorcon ];
+      i2p = [ txi2p ];
+    };
+  };
 
   meta = with lib; {
     homepage = "https://tahoe-lafs.org/";
