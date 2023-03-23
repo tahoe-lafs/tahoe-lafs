@@ -22,7 +22,6 @@
 , buildPythonPackage
 , parsley
 , twisted
-, unittestCheckHook
 }:
 buildPythonPackage rec {
   pname = "txi2p-tahoe";
@@ -34,6 +33,10 @@ buildPythonPackage rec {
   };
 
   propagatedBuildInputs = [ twisted parsley ];
-  checkInputs = [ unittestCheckHook ];
-  pythonImportsCheck = [ "parsley" "ometa"];
+
+  pythonImportsCheck = [ "parsley" "ometa" "txi2p" ];
+
+  checkPhase = ''
+    python -m twisted.trial txi2p
+  '';
 }
