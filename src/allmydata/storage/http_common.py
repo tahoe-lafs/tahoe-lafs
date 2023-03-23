@@ -28,7 +28,7 @@ def get_content_type(headers: Headers) -> Optional[str]:
 
 
 def swissnum_auth_header(swissnum: bytes) -> bytes:
-    """Return value for ``Authentication`` header."""
+    """Return value for ``Authorization`` header."""
     return b"Tahoe-LAFS " + b64encode(swissnum).strip()
 
 
