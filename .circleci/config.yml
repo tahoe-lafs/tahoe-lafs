@@ -102,6 +102,7 @@ workflows:
             parameters:
               pythonVersion:
                 - "python311"
+                - "pypy38"
                 - "pypy39"
 
       - "nixos-integration":
