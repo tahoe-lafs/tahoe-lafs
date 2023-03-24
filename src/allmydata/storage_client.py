@@ -1069,7 +1069,7 @@ class HTTPNativeStorageServer(service.MultiService):
             DecodedURL.from_text(u)
             for u in announcement[ANONYMOUS_STORAGE_NURLS]
         ]
-        self._istorage_server = None
+        self._istorage_server : Optional[_HTTPStorageServer] = None
 
         self._connection_status = connection_status.ConnectionStatus.unstarted()
         self._version = None
@@ -1456,7 +1456,7 @@ class _HTTPStorageServer(object):
     _http_client = attr.ib(type=StorageClient)
 
     @staticmethod
-    def from_http_client(http_client):  # type: (StorageClient) -> _HTTPStorageServer
+    def from_http_client(http_client: StorageClient) -> _HTTPStorageServer:
         """
         Create an ``IStorageServer`` from a HTTP ``StorageClient``.
         """
