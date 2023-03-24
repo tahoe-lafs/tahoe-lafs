@@ -622,10 +622,10 @@ commands:
               --file $NIXPKGS \
               --install \
               -A cachix bash jp
-              # Activate it for "binary substitution".  This sets up
-              # configuration tht lets Nix download something from the cache
-              # instead of building it locally, if possible.
-              cachix use "${CACHIX_NAME}"
+            # Activate it for "binary substitution".  This sets up
+            # configuration tht lets Nix download something from the cache
+            # instead of building it locally, if possible.
+            cachix use "${CACHIX_NAME}"
 
       - "checkout"
 
