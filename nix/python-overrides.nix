@@ -63,7 +63,7 @@ in {
   pyopenssl = onPyPy (drv: overrideIfPresent "sphinx-rtd-theme" null (dontBuildDocs drv)) super.pyopenssl;
 
   # Likewise for beautifulsoup4.
-  beautifulsoup4 = onPyPy (dontBuildDocs {}) super.beautifulsoup4;
+  beautifulsoup4 = onPyPy dontBuildDocs super.beautifulsoup4;
 
   # The autobahn test suite pulls in a vast number of dependencies for
   # functionality we don't care about.  It might be nice to *selectively*
