@@ -35,9 +35,6 @@ with (pkgs.${pythonVersion}.override {
   packageOverrides = import ./nix/python-overrides.nix;
 }).pkgs;
 callPackage ./nix/tahoe-lafs.nix {
-  # Select whichever package extras were requested.
-  inherit extrasNames;
-
   # Define the location of the Tahoe-LAFS source to be packaged (the same
   # directory as contains this file).  Clean up as many of the non-source
   # files (eg the `.git` directory, `~` backup files, nix's own `result`

@@ -2,6 +2,14 @@
 # Tahoe-LAFS on CPython and PyPy.
 self: super:
 let
+  # string -> any -> derivation -> derivation
+  #
+  # If the overrideable function for the given derivation accepts an argument
+  # with the given name, override it with the given value.
+  overrideIfPresent = name: value: drv:
+    if (drv.override.__functionArgs ? ${name})
+    then drv.override { "${name}" = value; }
+    else drv;
 
   # Run a function on a derivation if and only if we're building for PyPy.
   onPyPy = f: drv: if super.isPyPy then f drv else drv;
@@ -10,9 +18,9 @@ let
   dontCheck = drv: drv.overrideAttrs (old: { doInstallCheck = false; });
 
   # Disable building a Python package's documentation.
-  dontBuildDocs = alsoDisable: drv: (drv.override ({
-    sphinxHook = null;
-  } // alsoDisable)).overrideAttrs ({ outputs, ... }: {
+  dontBuildDocs = drv: (
+    overrideIfPresent "sphinxHook" null drv
+  ).overrideAttrs ({ outputs, ... }: {
     outputs = builtins.filter (x: "doc" != x) outputs;
   });
 
@@ -35,14 +43,10 @@ in {
   # care about, also tkinter doesn't work on PyPy.
   matplotlib = super.matplotlib.override { tornado = null; enableTk = false; };
 
-  tqdm = super.tqdm.override {
-    # ibid.
-    tkinter = null;
-    # pandas is only required by the part of the test suite covering
-    # integration with pandas that we don't care about.  pandas is a huge
-    # dependency.
-    pandas = null;
-  };
+  # tqdm test suite requires Tkinter (unsupported on PyPy), pandas (huge
+  # dependency, slow to build and test), and transitively matplotlib (huge,
+  # slow to build) and kiwisolver (fails to build on PyPy).
+  tqdm = dontCheck super.tqdm;
 
   # The treq test suite depends on httpbin.  httpbin pulls in babel (flask ->
   # jinja2 -> babel) and arrow (brotlipy -> construct -> arrow).  babel fails
@@ -56,7 +60,7 @@ in {
 
   # Building the docs requires sphinx which brings in a dependency on babel,
   # the test suite of which fails.
-  pyopenssl = onPyPy (dontBuildDocs { sphinx-rtd-theme = null; }) super.pyopenssl;
+  pyopenssl = onPyPy (drv: overrideIfPresent "sphinx-rtd-theme" null (dontBuildDocs drv)) super.pyopenssl;
 
   # Likewise for beautifulsoup4.
   beautifulsoup4 = onPyPy (dontBuildDocs {}) super.beautifulsoup4;
@@ -73,19 +77,17 @@ in {
   # Upstream package unaccountably includes a sqlalchemy dependency ... but
   # the project has no such dependency.  Fixed in nixpkgs in
   # da10e809fff70fbe1d86303b133b779f09f56503.
-  aiocontextvars = super.aiocontextvars.override { sqlalchemy = null; };
+  aiocontextvars = overrideIfPresent "sqlalchemy" null super.aiocontextvars;
 
   # By default, the sphinx docs are built, which pulls in a lot of
   # dependencies - including jedi, which does not work on PyPy.
   hypothesis =
-    (let h = super.hypothesis;
-     in
-       if (h.override.__functionArgs.enableDocumentation or false)
-       then h.override { enableDocumentation = false; }
-       else h).overrideAttrs ({ nativeBuildInputs, ... }: {
-         # The nixpkgs expression is missing the tzdata check input.
-         nativeBuildInputs = nativeBuildInputs ++ [ super.tzdata ];
-       });
+    (
+      overrideIfPresent "enableDocumentation" false super.hypothesis
+    ).overrideAttrs ({ nativeBuildInputs, ... }: {
+      # The nixpkgs expression is missing the tzdata check input.
+      nativeBuildInputs = nativeBuildInputs ++ [ super.tzdata ];
+    });
 
   # flaky's test suite depends on nose and nose appears to have Python 3
   # incompatibilities (it includes `print` statements, for example).
@@ -95,9 +97,9 @@ in {
   # This also drops a bunch of unnecessary build-time dependencies, some of
   # which are broken on PyPy.  Fixed in nixpkgs in
   # 5feb5054bb08ba779bd2560a44cf7d18ddf37fea.
-  zfec = (super.zfec.override {
-    setuptoolsTrial = null;
-  }).overrideAttrs (old: {
+  zfec = (
+    overrideIfPresent "setuptoolsTrial" null super.zfec
+  ).overrideAttrs (old: {
     checkPhase = "trial zfec";
   });
 
@@ -130,4 +132,10 @@ in {
 
   # CircleCI build systems don't have enough memory to run this test suite.
   lz4 = dontCheck super.lz4;
+
+  # werkzeug has an optional runtime dependency on watchdog which it uses to
+  # implement code reloading.  We certainly do not depend on that.  watchdog
+  # drags in a lot of unnecessary dependencies and at least one of them,
+  # eventlet, fails its test suite on PyPy.
+  werkzeug = super.werkzeug.override { watchdog = null; };
 }

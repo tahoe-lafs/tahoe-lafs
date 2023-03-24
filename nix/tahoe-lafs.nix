@@ -4,45 +4,17 @@
 , pythonPackages
 , buildPythonPackage
 , tahoe-lafs-src
-# control which test suites run
-# may contain:
-#
-#   "unit" - run the unit tests
-#
-#   "integration" - run the integration tests
-, checks ? []
-
-# for the integration tests, feature flags to control certain settings
-# may contain:
-#
-#   "forceFoolscap" - Configure nodes to use Foolscap even if GBS is available
-#
-#   "runslow" - Run integration tests even if they are marked slow
-, integrationFeatures ? [ ]
 }:
 let
+  inherit (import ./lib.nix) extrasDeps;
+in
+buildPythonPackage rec {
   pname = "tahoe-lafs";
   version = "1.18.0.post1";
-
-  # [] -> [] -> []
-  #
-  # concatenate one list with another.
-  concat = a: b: a ++ b;
-
-  # derivation -> string -> [derivation]
-  #
-  # get a list of derivations representing the dependencies of a Python
-  # package "extra".
-  extraDeps = drv: extra: drv.passthru.optional-dependencies.${extra};
-
-  # derivation -> [string] -> [derivation]
-  #
-  # get a list of derivations representing the dependencies of a list of
-  # Python package "extras".
-  extrasDeps = drv: extras: builtins.concatLists (map (extras drv) extras);
+  src = tahoe-lafs-src;
 
   # The direct Python package dependencies of Tahoe-LAFS.
-  pythonPackageDependencies = with pythonPackages; [
+  propagatedBuildInputs = with pythonPackages; [
     attrs
     autobahn
     cbor2
@@ -58,6 +30,7 @@ let
     magic-wormhole
     netifaces
     psutil
+    pyyaml
     pycddl
     pyrsistent
     pyutil
@@ -72,39 +45,9 @@ let
     extrasDeps twisted [ "tls" "conch" ]
   );
 
-  # The additional direct dependencies of the Tahoe-LAFS unit tests.
-  unitTestDependencies = with pythonPackages; [
-    beautifulsoup4
-    fixtures
-    hypothesis
-    mock
-    prometheus-client
-    testtools
-  ];
-
-  # The additional direct dependencies of the Tahoe-LAFS integration tests.
-  integrationTestDependencies = with pythonPackages; [
-    html5lib
-    paramiko
-    pytest
-    pytest-timeout
-    pytest-twisted
-  ];
-
-  # Determine which test suites to run.
-  doUnit = builtins.elem "unit" checks;
-  doIntegration = builtins.elem "integration" checks;
-
-  # "python" is on $PATH for the cpython case but not for the PyPy case.
-  # python.executable is on $PATH for both cases.
-  py = python.executable;
-in
-buildPythonPackage rec {
-  inherit pname version;
-  src = tahoe-lafs-src;
-
-  # Supply all of the build and runtime dependencies.
-  propagatedNativeBuildInputs = pythonPackageDependencies;
+  # # The test suite has a dependency on a command-line tool from Foolscap and
+  # # we don't seem to get it unless Foolscap is _also_ this kind of dependency.
+  # propagatedNativeBuildInputs = with pythonPackages; [ foolscap ];
 
   # The source doesn't include version information - so dump some in
   # to it here.
@@ -129,52 +72,39 @@ buildPythonPackage rec {
         cp ${versionContent} src/allmydata/_version.py
       '';
 
-  # If either kind of check is enabled, run checks.
-  doCheck = doUnit || doIntegration;
-
-  # Additionally, give the "check" environment all of the build and
-  # runtime dependencies test-only dependencies (for whichever test
-  # suites are enabled).
-  checkInputs = (
-    lib.optionals (doUnit || doIntegration) unitTestDependencies ++
-    lib.optionals doIntegration integrationTestDependencies
-  );
-
-  # Our own command line tool, tahoe, will not be on PATH yet but the
-  # test suite may try to use it - so put it there.  We can also do
-  # other general test environment setup here.
-  preCheck = ''
-    PATH=$out/bin:$PATH
-    type -p flogtool || (echo "flogtool missing" && exit 1)
-    type -p tahoe || (echo "tahoe missing" && exit 1)
-    export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
-    echo "PATH: $PATH"
-  '';
-
-  # Define how the tests are run.  Include commands for whichever test
-  # suites are enabled.  Also be sure to let check hooks run.
-  checkPhase =
-    let
-      feature = name: lib.optionalString (builtins.elem name integrationFeatures);
-      pytestFlags = "${feature "forceFoolscap" "--force-foolscap"} ${feature "runslow" "--runslow"}";
-      # The test suite encounters hundreds of errors and then hangs, if run
-      # with -jN on PyPy.
-      jobs = if isPyPy then "" else "-j $NIX_BUILD_CORES";
-    in
-      ''
-      runHook preCheck
-      ${lib.optionalString doUnit "${py} -m twisted.trial ${jobs} allmydata"}
-      ${lib.optionalString doIntegration "${py} -m pytest --timeout=1800 -s -v ${pytestFlags} integration"}
-      runHook postCheck
-    '';
+  # Don't run checks.  The flake provides apps for running the test suite.
+  # Use those.
+  doCheck = false;
 
   passthru = {
     # Represent the dependencies of the Python package "extras" here.  We
     # record and expose them here but whoever depends on us needs to ask for
     # them on their own.
-    optional-dependencies = with pythonPackages; {
+    optional-dependencies = with pythonPackages; rec {
       tor = [ txtorcon ];
       i2p = [ txi2p ];
+
+      # The additional direct dependencies of our own unit tests.
+      unit-test = [
+        beautifulsoup4
+        fixtures
+        hypothesis
+        mock
+        prometheus-client
+        testtools
+        # The tests exercise Tor and I2P support so also include those.
+      ] ++ tor ++ i2p;
+
+      # The additional direct dependencies of our own integration tests.
+      # Since the integration tests import from the unit test suite, they also
+      # have all of the unit test dependencies.
+      integration-test = [
+        html5lib
+        paramiko
+        pytest
+        pytest-timeout
+        pytest-twisted
+      ] ++ unit-test;
     };
   };
 
