@@ -910,7 +910,7 @@ class _Accum(object):
 
     def extend(self,
                size,           # type: int
-               ciphertext,     # type: List[bytes]
+               ciphertext,     # type: list[bytes]
     ):
         """
         Accumulate some more ciphertext.
