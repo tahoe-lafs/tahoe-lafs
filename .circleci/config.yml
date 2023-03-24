@@ -615,7 +615,8 @@ commands:
     steps:
       - "run":
           name: "Can we run anything at all?"
-          command: ""
+          command: |
+            # No, really, nothing, please.
 
       - "run":
           # Get cachix for Nix-friendly caching.
