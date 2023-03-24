@@ -581,9 +581,6 @@ executors:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
         image: "nixos/nix:2.10.3"
-        # Avoid running as root since parts of the test suite assume you won't
-        # do that and break if you do.
-        user: "nixbld1"
 
     environment:
       # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
