@@ -617,6 +617,7 @@ commands:
           # Get cachix for Nix-friendly caching.
           name: "Install Basic Dependencies"
           command: |
+            set -x
             NIXPKGS="https://github.com/nixos/nixpkgs/archive/nixos-22.11.tar.gz"
             nix-env \
               --file $NIXPKGS \
