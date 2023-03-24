@@ -117,3 +117,39 @@ function describe_build() {
 	echo "Cache not writeable."
     fi
 }
+
+# Inspect the flake input metadata for an input of a given name and return the
+# revision at which that input is pinned.  If the input does not exist then
+# return garbage (probably "null").
+read_input_revision() {
+    input_name=$1
+    shift
+
+    nix flake metadata --json | jp --unquoted 'locks.nodes."'"$input_name"'".locked.rev'
+}
+
+# Return a flake reference that refers to a certain revision of nixpkgs.  The
+# certain revision is the revision to which the specified input is pinned.
+nixpkgs_flake_reference() {
+    input_name=$1
+    shift
+
+    echo "github:NixOS/nixpkgs?rev=$(read_input_revision $input_name)"
+}
+
+# Compute the arguments to pass to pytest based on certain other
+# configuration.
+pytest_args() {
+    force_foolscap=$1
+    shift
+
+    run_slow=$1
+    shift
+
+    if [ "$force_foolscap" = "true" ]; then
+        echo -n "--force-foolscap "
+    fi
+    if [ "$run_slow" = "true" ]; then
+        echo -n "--runslow "
+    fi
+}
