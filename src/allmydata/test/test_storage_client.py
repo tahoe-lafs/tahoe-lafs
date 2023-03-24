@@ -8,7 +8,7 @@ from json import (
     loads,
 )
 import hashlib
-from typing import Union, Any, Optional
+from typing import Union, Any
 
 from hyperlink import DecodedURL
 from fixtures import (
