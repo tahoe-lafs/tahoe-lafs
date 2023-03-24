@@ -412,7 +412,7 @@ jobs:
                   NIXPKGS=$(nixpkgs_flake_reference nixpkgs-<<parameters.nixpkgs>>)
 
                   # Run the tests.
-                  cache_if_able nix run \
+                  cache_if_able nix run -v \
                     --cores 8 \
                     --override-input nixpkgs "$NIXPKGS" \
                     .#<<parameters.pythonVersion>>-unit -- -j8 allmydata
@@ -459,7 +459,7 @@ jobs:
                   # can use to override the default nixpkgs input.
                   NIXPKGS=$(nixpkgs_flake_reference nixpkgs-<<parameters.nixpkgs>>)
 
-                  cache_if_able nix run \
+                  cache_if_able nix run -v \
                     --cores 8 \
                     --override-input nixpkgs "$NIXPKGS" \
                     .#<<parameters.pythonVersion>>-integration -- \
@@ -640,7 +640,7 @@ commands:
 
             # `nix develop` will build all of the dependencies of the target
             # but not the target itself.
-            cache_if_able nix develop \
+            cache_if_able nix develop -v \
               --cores 3 \
               --override-input nixpkgs "$NIXPKGS" \
               .#<<parameters.pythonVersion>>-tahoe-lafs \
@@ -655,7 +655,7 @@ commands:
             # can use to override the default nixpkgs input.
             NIXPKGS=$(nixpkgs_flake_reference nixpkgs-<<parameters.nixpkgs>>)
 
-            cache_if_able nix build \
+            cache_if_able nix build -v \
               --cores 4 \
               --override-input nixpkgs "$NIXPKGS" \
               .#<<parameters.pythonVersion>>-tahoe-lafs
