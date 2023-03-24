@@ -1188,16 +1188,16 @@ class HTTPNativeStorageServer(service.MultiService):
 
     @async_to_deferred
     async def _connect(self):
-        if self._istorage_server is None:
+        async def get_istorage_server() -> _HTTPStorageServer:
+            if self._istorage_server is not None:
+                return self._istorage_server
+
             # We haven't selected a server yet, so let's do so.
 
             # TODO This is somewhat inefficient on startup: it takes two successful
             # version() calls before we are live talking to a server, it could only
             # be one. See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3992
 
-            # TODO Another problem with this scheme is that while picking
-            # the HTTP server to talk to, we don't have connection status
-            # updates... https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3978
             def request(reactor, nurl: DecodedURL):
                 # Since we're just using this one off to check if the NURL
                 # works, no need for persistent pool or other fanciness.
@@ -1213,51 +1213,33 @@ class HTTPNativeStorageServer(service.MultiService):
             picking = _pick_a_http_server(reactor, self._nurls, request)
             self._connecting_deferred = picking
             try:
-                try:
-                    nurl = await picking
-                finally:
-                    self._connecting_deferred = None
-            except Exception as e:
-                # Logging errors breaks a bunch of tests, and it's not a _bug_ to
-                # have a failed connection, it's often expected and transient. More
-                # of a warning, really?
-                log.msg(
-                    "Failed to connect to a storage server advertised by NURL: {}".format(e)
-                )
+                nurl = await picking
+            finally:
+                self._connecting_deferred = None
 
-                # Update the connection status:
-                self._failed_to_connect(Failure(e))
-
-                # Since we failed to find a server to connect to, give up
-                # for now. Perhaps the next iteration of the loop will
-                # succeed.
-                return
-
-            # iF we've gotten this far, we've found a working NURL.
+            # If we've gotten this far, we've found a working NURL.
             self._istorage_server = _HTTPStorageServer.from_http_client(
                 StorageClient.from_nurl(nurl, reactor)
             )
+            return self._istorage_server
 
-        result = self._istorage_server.get_version()
-
-        def remove_connecting_deferred(result):
-            self._connecting_deferred = None
-            return result
-
-        # Set a short timeout since we're relying on this for server liveness.
-        self._connecting_deferred = result.addTimeout(5, self._reactor).addBoth(
-                remove_connecting_deferred).addCallbacks(
-            self._got_version,
-            self._failed_to_connect
-        )
-
-        # We don't want to do another iteration of the loop until this
-        # iteration has finished, so wait here:
         try:
-            if self._connecting_deferred is not None:
-                await self._connecting_deferred
-        except Exception as e:
-            log.msg(f"Failed to connect to a HTTP storage server: {e}", level=log.CURIOUS)
+            try:
+                storage_server = await get_istorage_server()
+
+                # Get the version from the remote server. Set a short timeout since
+                # we're relying on this for server liveness.
+                self._connecting_deferred = storage_server.get_version().addTimeout(
+                    5, self._reactor)
+                # We don't want to do another iteration of the loop until this
+                # iteration has finished, so wait here:
+                version = await self._connecting_deferred
+                self._got_version(version)
+            except Exception as e:
+                log.msg(f"Failed to connect to a HTTP storage server: {e}", level=log.CURIOUS)
+                self._failed_to_connect(Failure(e))
+        finally:
+            self._connecting_deferred = None
 
     def stopService(self):
         if self._connecting_deferred is not None:
