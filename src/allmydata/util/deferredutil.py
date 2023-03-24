@@ -14,6 +14,7 @@ from typing import (
     TypeVar,
     Optional,
 )
+from typing_extensions import Awaitable, ParamSpec
 
 from foolscap.api import eventually
 from eliot.twisted import (
@@ -226,7 +227,11 @@ def until(
             break
 
 
-def async_to_deferred(f):
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def async_to_deferred(f: Callable[P, Awaitable[R]]) -> Callable[P, Deferred[R]]:
     """
     Wrap an async function to return a Deferred instead.
 
@@ -234,8 +239,8 @@ def async_to_deferred(f):
     """
 
     @wraps(f)
-    def not_async(*args, **kwargs):
-        return defer.Deferred.fromCoroutine(f(*args, **kwargs))
+    def not_async(*args: P.args, **kwargs: P.kwargs) -> Deferred[R]:
+        return defer.Deferred.fromCoroutine(f(*args, **kwargs))  # type: ignore
 
     return not_async
 
