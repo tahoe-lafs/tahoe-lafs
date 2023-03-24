@@ -618,7 +618,7 @@ class GridTestMixin(object):
                 with open(i_sharefile, "wb") as f:
                     f.write(corruptdata)
 
-    def corrupt_all_shares(self, uri: Callable, corruptor: Callable[[bytes, bool], bytes], debug: bool=False):
+    def corrupt_all_shares(self, uri: bytes, corruptor: Callable[[bytes, bool], bytes], debug: bool=False):
         """
         Apply ``corruptor`` to the contents of all share files associated with a
         given capability and replace the share file contents with its result.
