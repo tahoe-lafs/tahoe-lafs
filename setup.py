@@ -400,7 +400,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # disagreeing on what is or is not a lint issue.  We can bump
               # this version from time to time, but we will do it
               # intentionally.
-              "pyflakes == 2.2.0",
+              "pyflakes == 3.0.1",
               "coverage ~= 5.0",
               "mock",
               "tox ~= 3.0",
