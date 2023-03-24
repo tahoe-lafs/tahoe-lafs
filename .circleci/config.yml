@@ -580,9 +580,13 @@ executors:
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
-        image: "nixos/nix:2.10.3"
+        image: "nixos/nix:2.12.1"
+        user: "nobody"
 
     environment:
+      # The image-set HOME is not writeable by nobody but /tmp is, so ...
+      HOME: "/tmp/nobody"
+
       # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
       # allows us to push to CACHIX_NAME.  We only need this set for
       # `cachix use` in this step.
