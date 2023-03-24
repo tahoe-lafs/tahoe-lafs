@@ -586,6 +586,7 @@ executors:
     environment:
       # The image-set HOME is not writeable by nobody but /tmp is, so ...
       HOME: "/tmp/nobody"
+      CIRCLE_WORKING_DIRECTORY: "/tmp/nobody/project"
 
       # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
       # allows us to push to CACHIX_NAME.  We only need this set for
