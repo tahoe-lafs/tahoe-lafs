@@ -32,11 +32,7 @@ in
 
 }:
 with (pkgs.${pythonVersion}.override {
-  packageOverrides = self: super: {
-    # Some dependencies aren't packaged in nixpkgs so supply our own packages.
-    pycddl = self.callPackage ./nix/pycddl.nix { };
-    txi2p = self.callPackage ./nix/txi2p.nix { };
-  };
+  packageOverrides = import ./nix/python-overrides.nix;
 }).pkgs;
 callPackage ./nix/tahoe-lafs.nix {
   # Select whichever package extras were requested.
