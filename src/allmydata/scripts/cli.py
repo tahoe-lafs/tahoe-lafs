@@ -1,22 +1,10 @@
 """
 Ported to Python 3.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 
 import os.path, re, fnmatch
 
-try:
-    from allmydata.scripts.types_ import SubCommands, Parameters
-except ImportError:
-    pass
+from allmydata.scripts.types_ import SubCommands, Parameters
 
 from twisted.python import usage
 from allmydata.scripts.common import get_aliases, get_default_nodedir, \
@@ -29,14 +17,14 @@ NODEURL_RE=re.compile("http(s?)://([^:]*)(:([1-9][0-9]*))?")
 _default_nodedir = get_default_nodedir()
 
 class FileStoreOptions(BaseOptions):
-    optParameters = [
+    optParameters : Parameters = [
         ["node-url", "u", None,
          "Specify the URL of the Tahoe gateway node, such as "
          "'http://127.0.0.1:3456'. "
          "This overrides the URL found in the --node-directory ."],
         ["dir-cap", None, None,
          "Specify which dirnode URI should be used as the 'tahoe' alias."]
-        ]  # type: Parameters
+        ]
 
     def postOptions(self):
         self["quiet"] = self.parent["quiet"]
@@ -484,7 +472,7 @@ class DeepCheckOptions(FileStoreOptions):
     (which must be a directory), like 'tahoe check' but for multiple files.
     Optionally repair any problems found."""
 
-subCommands = [
+subCommands : SubCommands = [
     ("mkdir", None, MakeDirectoryOptions, "Create a new directory."),
     ("add-alias", None, AddAliasOptions, "Add a new alias cap."),
     ("create-alias", None, CreateAliasOptions, "Create a new alias cap."),
@@ -503,7 +491,7 @@ subCommands = [
     ("check", None, CheckOptions, "Check a single file or directory."),
     ("deep-check", None, DeepCheckOptions, "Check all files/directories reachable from a starting point."),
     ("status", None, TahoeStatusCommand, "Various status information."),
-    ]  # type: SubCommands
+    ]
 
 def mkdir(options):
     from allmydata.scripts import tahoe_mkdir

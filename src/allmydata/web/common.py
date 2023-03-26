@@ -117,7 +117,7 @@ def boolean_of_arg(arg):  # type: (bytes) -> bool
     return arg.lower() in (b"true", b"t", b"1", b"on")
 
 
-def parse_replace_arg(replace):  # type: (bytes) -> Union[bool,_OnlyFiles]
+def parse_replace_arg(replace: bytes) -> Union[bool,_OnlyFiles]:
     assert isinstance(replace, bytes)
     if replace.lower() == b"only-files":
         return ONLY_FILES

@@ -4,7 +4,7 @@ HTTP server for storage.
 
 from __future__ import annotations
 
-from typing import Dict, List, Set, Tuple, Any, Callable, Union, cast
+from typing import Any, Callable, Union, cast
 from functools import wraps
 from base64 import b64decode
 import binascii
@@ -67,8 +67,8 @@ class ClientSecretsException(Exception):
 
 
 def _extract_secrets(
-    header_values, required_secrets
-):  # type: (List[str], Set[Secrets]) -> Dict[Secrets, bytes]
+    header_values: list[str], required_secrets: set[Secrets]
+) -> dict[Secrets, bytes]:
     """
     Given list of values of ``X-Tahoe-Authorization`` headers, and required
     secrets, return dictionary mapping secrets to decoded values.
@@ -173,7 +173,7 @@ class UploadsInProgress(object):
     _uploads: dict[bytes, StorageIndexUploads] = Factory(dict)
 
     # Map BucketWriter to (storage index, share number)
-    _bucketwriters: dict[BucketWriter, Tuple[bytes, int]] = Factory(dict)
+    _bucketwriters: dict[BucketWriter, tuple[bytes, int]] = Factory(dict)
 
     def add_write_bucket(
         self,
@@ -273,7 +273,7 @@ _SCHEMAS = {
     "advise_corrupt_share": Schema(
         """
     request = {
-      reason: tstr
+      reason: tstr .size (1..32765)
     }
     """
     ),
@@ -592,7 +592,26 @@ class HTTPServer(object):
     @_authorized_route(_app, set(), "/storage/v1/version", methods=["GET"])
     def version(self, request, authorization):
         """Return version information."""
-        return self._send_encoded(request, self._storage_server.get_version())
+        return self._send_encoded(request, self._get_version())
+
+    def _get_version(self) -> dict[bytes, Any]:
+        """
+        Get the HTTP version of the storage server's version response.
+
+        This differs from the Foolscap version by omitting certain obsolete
+        fields.
+        """
+        v = self._storage_server.get_version()
+        v1_identifier = b"http://allmydata.org/tahoe/protocols/storage/v1"
+        v1 = v[v1_identifier]
+        return {
+            v1_identifier: {
+                b"maximum-immutable-share-size": v1[b"maximum-immutable-share-size"],
+                b"maximum-mutable-share-size": v1[b"maximum-mutable-share-size"],
+                b"available-space": v1[b"available-space"],
+            },
+            b"application-version": v[b"application-version"],
+        }
 
     ##### Immutable APIs #####
 
@@ -779,7 +798,9 @@ class HTTPServer(object):
         # The reason can be a string with explanation, so in theory it could be
         # longish?
         info = await self._read_encoded(
-            request, _SCHEMAS["advise_corrupt_share"], max_size=32768,
+            request,
+            _SCHEMAS["advise_corrupt_share"],
+            max_size=32768,
         )
         bucket.advise_corrupt_share(info["reason"].encode("utf-8"))
         return b""
@@ -954,7 +975,7 @@ def listen_tls(
     endpoint: IStreamServerEndpoint,
     private_key_path: FilePath,
     cert_path: FilePath,
-) -> Deferred[Tuple[DecodedURL, IListeningPort]]:
+) -> Deferred[tuple[DecodedURL, IListeningPort]]:
     """
     Start a HTTPS storage server on the given port, return the NURL and the
     listening port.
