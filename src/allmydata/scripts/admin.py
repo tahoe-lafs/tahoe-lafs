@@ -255,9 +255,9 @@ def do_admin(options):
     return f(so)
 
 
-subCommands = [
+subCommands : SubCommands = [
     ("admin", None, AdminCommand, "admin subcommands: use 'tahoe admin' for a list"),
-    ]  # type: SubCommands
+    ]
 
 dispatch = {
     "admin": do_admin,
