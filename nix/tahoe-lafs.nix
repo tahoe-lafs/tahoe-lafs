@@ -137,7 +137,11 @@ buildPythonPackage rec {
   # runtime dependencies test-only dependencies (for whichever test
   # suites are enabled).
   checkInputs = (
-    lib.optionals (doUnit || doIntegration) unitTestDependencies ++
+    lib.optionals (doUnit || doIntegration) (
+      unitTestDependencies ++
+      passthru.optional-dependencies.tor ++
+      passthru.optional-dependencies.i2p
+    ) ++
     lib.optionals doIntegration integrationTestDependencies
   );
 
