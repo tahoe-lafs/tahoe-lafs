@@ -93,7 +93,7 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
     web_port = "tcp:{}:interface=localhost".format(control_port + 2000)
 
     if True:
-        print("creating", node_dir.path)
+        print(f"creating {node_dir.path} with introducer {introducer_furl}")
         node_dir.makedirs()
         proto = util._DumpOutputProtocol(None)
         reactor.spawnProcess(

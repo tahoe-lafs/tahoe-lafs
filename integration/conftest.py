@@ -321,7 +321,9 @@ def tor_introducer(reactor, temp_dir, flog_gatherer, request):
             pass
     request.addfinalizer(cleanup)
 
+    print("Waiting for introducer to be ready...")
     pytest_twisted.blockon(protocol.magic_seen)
+    print("Introducer ready.")
     return transport
 
 
@@ -332,6 +334,7 @@ def tor_introducer_furl(tor_introducer, temp_dir):
         print("Don't see {} yet".format(furl_fname))
         sleep(.1)
     furl = open(furl_fname, 'r').read()
+    print(f"Found Tor introducer furl: {furl}")
     return furl
 
 

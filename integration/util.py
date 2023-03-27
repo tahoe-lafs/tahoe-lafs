@@ -607,7 +607,7 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_serve
             continue
 
         if len(js['servers']) < minimum_number_of_servers:
-            print("waiting because insufficient servers")
+            print(f"waiting because {js['servers']} is fewer than required ({minimum_number_of_servers})")
             time.sleep(1)
             continue
         server_times = [
