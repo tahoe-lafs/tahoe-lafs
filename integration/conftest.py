@@ -146,7 +146,8 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
             '--location', 'tcp:localhost:3117',
             '--port', '3117',
             gather_dir,
-        )
+        ),
+        env=environ,
     )
     pytest_twisted.blockon(out_protocol.done)
 
@@ -159,6 +160,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
             join(gather_dir, 'gatherer.tac'),
         ),
         path=gather_dir,
+        env=environ,
     )
     pytest_twisted.blockon(twistd_protocol.magic_seen)
 
@@ -177,6 +179,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
             (
                 'flogtool', 'dump', join(temp_dir, 'flog_gather', flogs[0])
             ),
+            env=environ,
         )
         print("Waiting for flogtool to complete")
         try:
