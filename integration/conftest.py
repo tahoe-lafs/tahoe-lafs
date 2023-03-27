@@ -551,7 +551,7 @@ def tor_network(reactor, temp_dir, chutney, request):
     # print some useful stuff
     try:
         pytest_twisted.blockon(chutney(("status", basic_network)))
-    except ProcessTerminated as e:
+    except ProcessTerminated:
         print("Chutney.TorNet status failed (continuing)")
 
     def cleanup():
