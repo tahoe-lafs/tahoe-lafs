@@ -12,7 +12,8 @@
 version: 2.1
 
 # Every job that pushes a Docker image from Docker Hub must authenticate to
-# it.  Define a couple yaml anchors that can be used to supply a the necessary credentials.
+# it.  Define a couple yaml anchors that can be used to supply the necessary
+# credentials.
 
 # First is a CircleCI job context which makes Docker Hub credentials available
 # in the environment.
