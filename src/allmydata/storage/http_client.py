@@ -355,7 +355,6 @@ class StorageClient(object):
         )
         return headers
 
-    @inlineCallbacks
     def request(
         self,
         method,
@@ -378,26 +377,35 @@ class StorageClient(object):
 
         Default timeout is 60 seconds.
         """
-        with start_action(
-            action_type="allmydata:storage:http-client:request",
-            method=method,
-            url=str(url),
-        ) as ctx:
-            headers = self._get_headers(headers)
+        headers = self._get_headers(headers)
 
-            # Add secrets:
-            for secret, value in [
-                (Secrets.LEASE_RENEW, lease_renew_secret),
-                (Secrets.LEASE_CANCEL, lease_cancel_secret),
-                (Secrets.UPLOAD, upload_secret),
-                (Secrets.WRITE_ENABLER, write_enabler_secret),
-            ]:
-                if value is None:
-                    continue
-                headers.addRawHeader(
-                    "X-Tahoe-Authorization",
-                    b"%s %s" % (secret.value.encode("ascii"), b64encode(value).strip()),
+        # Add secrets:
+        for secret, value in [
+            (Secrets.LEASE_RENEW, lease_renew_secret),
+            (Secrets.LEASE_CANCEL, lease_cancel_secret),
+            (Secrets.UPLOAD, upload_secret),
+            (Secrets.WRITE_ENABLER, write_enabler_secret),
+        ]:
+            if value is None:
+                continue
+            headers.addRawHeader(
+                "X-Tahoe-Authorization",
+                b"%s %s" % (secret.value.encode("ascii"), b64encode(value).strip()),
+            )
+
+        # Note we can accept CBOR:
+        headers.addRawHeader("Accept", CBOR_MIME_TYPE)
+
+        # If there's a request message, serialize it and set the Content-Type
+        # header:
+        if message_to_serialize is not None:
+            if "data" in kwargs:
+                raise TypeError(
+                    "Can't use both `message_to_serialize` and `data` "
+                    "as keyword arguments at the same time"
                 )
+            kwargs["data"] = dumps(message_to_serialize)
+            headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
         return self._treq.request(
             method, url, headers=headers, timeout=timeout, **kwargs
