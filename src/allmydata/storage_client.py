@@ -1224,20 +1224,19 @@ class HTTPNativeStorageServer(service.MultiService):
             return self._istorage_server
 
         try:
-            try:
-                storage_server = await get_istorage_server()
+            storage_server = await get_istorage_server()
 
-                # Get the version from the remote server. Set a short timeout since
-                # we're relying on this for server liveness.
-                self._connecting_deferred = storage_server.get_version().addTimeout(
-                    5, self._reactor)
-                # We don't want to do another iteration of the loop until this
-                # iteration has finished, so wait here:
-                version = await self._connecting_deferred
-                self._got_version(version)
-            except Exception as e:
-                log.msg(f"Failed to connect to a HTTP storage server: {e}", level=log.CURIOUS)
-                self._failed_to_connect(Failure(e))
+            # Get the version from the remote server. Set a short timeout since
+            # we're relying on this for server liveness.
+            self._connecting_deferred = storage_server.get_version().addTimeout(
+                5, self._reactor)
+            # We don't want to do another iteration of the loop until this
+            # iteration has finished, so wait here:
+            version = await self._connecting_deferred
+            self._got_version(version)
+        except Exception as e:
+            log.msg(f"Failed to connect to a HTTP storage server: {e}", level=log.CURIOUS)
+            self._failed_to_connect(Failure(e))
         finally:
             self._connecting_deferred = None
 
