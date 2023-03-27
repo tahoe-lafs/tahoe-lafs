@@ -239,6 +239,11 @@ def async_to_deferred(f: Callable[P, Awaitable[R]]) -> Callable[P, Deferred[R]]:
 
     @wraps(f)
     def not_async(*args: P.args, **kwargs: P.kwargs) -> Deferred[R]:
+        # Twisted documents fromCoroutine as accepting either a Generator or a
+        # Coroutine. However, the standard for type annotations of async
+        # functions is to return an Awaitable:
+        # https://github.com/twisted/twisted/issues/11832
+        # So, we ignore the type warning.
         return defer.Deferred.fromCoroutine(f(*args, **kwargs))  # type: ignore
 
     return not_async
