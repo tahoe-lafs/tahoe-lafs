@@ -451,10 +451,9 @@ def chutney(reactor, temp_dir):
     chutney_dir = join(temp_dir, 'chutney')
     mkdir(chutney_dir)
 
-    # TODO:
-
-    # check for 'tor' binary explicitly and emit a "skip" if we can't
-    # find it
+    missing = [exe for exe in ["tor", "tor-gencert"] if not which(exe)]
+    if missing:
+        pytest.skip(f"Some command-line tools not found: {missing}")
 
     # XXX yuck! should add a setup.py to chutney so we can at least
     # "pip install <path to tarball>" and/or depend on chutney in "pip
