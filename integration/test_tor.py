@@ -25,6 +25,7 @@ from twisted.python.filepath import (
 from allmydata.test.common import (
     write_introducer,
 )
+from allmydata.client import read_config
 
 # see "conftest.py" for the fixtures (e.g. "tor_network")
 
@@ -103,10 +104,14 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
                 sys.executable, '-b', '-m', 'allmydata.scripts.runner',
                 'create-node',
                 '--nickname', name,
+                '--webport', web_port,
                 '--introducer', introducer_furl,
                 '--hide-ip',
                 '--tor-control-port', 'tcp:localhost:{}'.format(control_port),
                 '--listen', 'tor',
+                '--shares-needed', '1',
+                '--shares-happy', '1',
+                '--shares-total', '2',
                 node_dir.path,
             )
         )
@@ -115,35 +120,13 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
 
     # Which services should this client connect to?
     write_introducer(node_dir, "default", introducer_furl)
-    with node_dir.child('tahoe.cfg').open('w') as f:
-        node_config = '''
-[node]
-nickname = %(name)s
-web.port = %(web_port)s
-web.static = public_html
-log_gatherer.furl = %(log_furl)s
 
-[tor]
-control.port = tcp:localhost:%(control_port)d
-onion.external_port = 3457
-onion.local_port = %(local_port)d
-onion = true
-onion.private_key_file = private/tor_onion.privkey
-
-[client]
-shares.needed = 1
-shares.happy = 1
-shares.total = 2
-
-''' % {
-    'name': name,
-    'web_port': web_port,
-    'log_furl': flog_gatherer,
-    'control_port': control_port,
-    'local_port': control_port + 1000,
-}
-        node_config = node_config.encode("utf-8")
-        f.write(node_config)
+    config = read_config(node_dir.path, "tub.port")
+    config.set_config("node", "log_gatherer.furl", flog_gatherer)
+    config.set_config("tor", "onion", "true")
+    config.set_config("tor", "onion.external_port", "3457")
+    config.set_config("tor", "onion.local_port", str(control_port + 1000))
+    config.set_config("tor", "onion.private_key_file", "private/tor_onion.privkey")
 
     print("running")
     result = yield util._run_node(reactor, node_dir.path, request, None)
