@@ -39,7 +39,7 @@ let
   #
   # get a list of derivations representing the dependencies of a list of
   # Python package "extras".
-  extrasDeps = drv: extras: builtins.concatLists (map (extras drv) extras);
+  extrasDeps = drv: extras: builtins.concatLists (map (extraDeps drv) extras);
 
   # The direct Python package dependencies of Tahoe-LAFS.
   pythonPackageDependencies = with pythonPackages; [
