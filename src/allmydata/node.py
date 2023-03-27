@@ -4,14 +4,8 @@ a node for Tahoe-LAFS.
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_str, ensure_text
 
 import json
@@ -23,11 +17,7 @@ import errno
 from base64 import b32decode, b32encode
 from errno import ENOENT, EPERM
 from warnings import warn
-
-try:
-    from typing import Union
-except ImportError:
-    pass
+from typing import Union
 
 import attr
 
@@ -281,8 +271,7 @@ def _error_about_old_config_files(basedir, generated_files):
         raise e
 
 
-def ensure_text_and_abspath_expanduser_unicode(basedir):
-    # type: (Union[bytes, str]) -> str
+def ensure_text_and_abspath_expanduser_unicode(basedir: Union[bytes, str]) -> str:
     return abspath_expanduser_unicode(ensure_text(basedir))
 
 

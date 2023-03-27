@@ -209,10 +209,9 @@ class WaitForDelayedCallsMixin(PollMixin):
 
 @inline_callbacks
 def until(
-        action,     # type: Callable[[], defer.Deferred[Any]]
-        condition,  # type: Callable[[], bool]
-):
-    # type: (...) -> defer.Deferred[None]
+        action: Callable[[], defer.Deferred[Any]],
+        condition: Callable[[], bool],
+) -> defer.Deferred[None]:
     """
     Run a Deferred-returning function until a condition is true.
 

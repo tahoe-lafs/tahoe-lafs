@@ -267,7 +267,7 @@ How well does this design meet the goals?
    value, so there are no opportunities for staleness
 9. monotonicity: VERY: the single point of access also protects against
    retrograde motion
-     
+
 
 
 Confidentiality leaks in the storage servers
@@ -332,8 +332,9 @@ MDMF design rules allow for efficient random-access reads from the middle of
 the file, which would give the index something useful to point at.
 
 The current SDMF design generates a new RSA public/private keypair for each
-directory. This takes considerable time and CPU effort, generally one or two
-seconds per directory. We have designed (but not yet built) a DSA-based
+directory. This takes some time and CPU effort (around 100 milliseconds on a
+relatively high-end 2021 laptop) per directory.
+We have designed (but not yet built) a DSA-based
 mutable file scheme which will use shared parameters to reduce the
 directory-creation effort to a bare minimum (picking a random number instead
 of generating two random primes).
@@ -363,7 +364,7 @@ single child, looking up a single child) would require pulling or pushing a
 lot of unrelated data, increasing network overhead (and necessitating
 test-and-set semantics for the modification side, which increases the chances
 that a user operation will fail, making it more challenging to provide
-promises of atomicity to the user). 
+promises of atomicity to the user).
 
 It would also make it much more difficult to enable the delegation
 ("sharing") of specific directories. Since each aggregate "realm" provides
@@ -469,4 +470,3 @@ Preventing delegation between communication parties is just as pointless as
 asking Bob to forget previously accessed files. However, there may be value
 to configuring the UI to ask Carol to not share files with Bob, or to
 removing all files from Bob's view at the same time his access is revoked.
-

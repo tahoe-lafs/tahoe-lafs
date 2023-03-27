@@ -1,23 +1,14 @@
 """
 Ported to Python 3.
 """
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
 
-from future.utils import PY2, bchr
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from future.utils import bchr
 
 # system-level upload+download roundtrip test, but using shares created from
 # a previous run. This asserts that the current code is capable of decoding
 # shares from a previous version.
 
-try:
-    from typing import Any
-except ImportError:
-    pass
+from typing import Any
 
 import six
 import os
@@ -1197,8 +1188,7 @@ class Corruption(_Base, unittest.TestCase):
 
         return d
 
-    def _corrupt_flip_all(self, ign, imm_uri, which):
-        # type: (Any, bytes, int) -> None
+    def _corrupt_flip_all(self, ign: Any, imm_uri: bytes, which: int) -> None:
         """
         Flip the least significant bit at a given byte position in all share files
         for the given capability.

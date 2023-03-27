@@ -34,6 +34,7 @@ let
     magic-wormhole
     netifaces
     psutil
+    pyyaml
     pycddl
     pyrsistent
     pyutil
@@ -48,19 +49,15 @@ let
     zope_interface
   ] ++ pickExtraDependencies pythonExtraDependencies extrasNames;
 
-  pythonCheckDependencies = with pythonPackages; [
+  unitTestDependencies = with pythonPackages; [
     beautifulsoup4
     fixtures
     hypothesis
     mock
-    paramiko
     prometheus-client
-    pytest
-    pytest-timeout
-    pytest-twisted
     testtools
-    towncrier
   ];
+
 in
 buildPythonPackage {
   inherit pname version;
@@ -68,7 +65,7 @@ buildPythonPackage {
   propagatedBuildInputs = pythonPackageDependencies;
 
   inherit doCheck;
-  checkInputs = pythonCheckDependencies;
+  checkInputs = unitTestDependencies;
   checkPhase = ''
     export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
     python -m twisted.trial -j $NIX_BUILD_CORES allmydata

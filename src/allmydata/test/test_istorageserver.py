@@ -8,9 +8,9 @@ reused across tests, so each test should be careful to generate unique storage
 indexes.
 """
 
-from future.utils import bchr
+from __future__ import annotations
 
-from typing import Set
+from future.utils import bchr
 
 from random import Random
 from unittest import SkipTest
@@ -1041,7 +1041,7 @@ class IStorageServerMutableAPIsTestsMixin(object):
 class _SharedMixin(SystemTestMixin):
     """Base class for Foolscap and HTTP mixins."""
 
-    SKIP_TESTS = set()  # type: Set[str]
+    SKIP_TESTS : set[str] = set()
 
     def _get_istorage_server(self):
         native_server = next(iter(self.clients[0].storage_broker.get_known_servers()))
