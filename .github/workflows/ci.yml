@@ -46,7 +46,6 @@ jobs:
       matrix:
         os:
           - windows-latest
-          - ubuntu-latest
         python-version:
           - "3.8"
           - "3.9"
@@ -58,11 +57,6 @@ jobs:
             python-version: "3.9"
           - os: macos-latest
             python-version: "3.11"
-          # We only support PyPy on Linux at the moment.
-          - os: ubuntu-latest
-            python-version: "pypy-3.8"
-          - os: ubuntu-latest
-            python-version: "pypy-3.9"
 
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
@@ -172,17 +166,7 @@ jobs:
           - os: windows-latest
             python-version: "3.9"
             force-foolscap: false
-          # 22.04 has some issue with Tor at the moment:
-          # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3943
-          - os: ubuntu-20.04
-            python-version: "3.11"
-            force-foolscap: false
     steps:
-
-      - name: Install Tor [Ubuntu]
-        if: ${{ contains(matrix.os, 'ubuntu') }}
-        run: sudo apt install tor
-
       # TODO: See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3744.
       # We have to use an older version of Tor for running integration
       # tests on macOS.

@@ -12,6 +12,7 @@ if PY2:
 
 import sys
 from os.path import join
+from os import environ
 
 from twisted.internet.error import ProcessTerminated
 
@@ -45,7 +46,8 @@ def test_upload_immutable(reactor, temp_dir, introducer_furl, flog_gatherer, sto
             sys.executable, '-b', '-m', 'allmydata.scripts.runner',
             '-d', node_dir,
             'put', __file__,
-        ]
+        ],
+        env=environ,
     )
     try:
         yield proto.done

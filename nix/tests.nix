@@ -1,4 +1,5 @@
-# Build the package with the test suite enabled.
-args@{...}: (import ../. args).override {
-  doCheck = true;
+# Build the package with the whole test suite enabled.
+args@{ checks ? [ "unit" "integration" ], ...}:
+(import ../. (builtins.removeAttrs args [ "checks" ])).override {
+  inherit checks;
 }

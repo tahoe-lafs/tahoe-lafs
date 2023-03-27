@@ -39,13 +39,12 @@ dockerhub-auth-template: &DOCKERHUB_AUTH
         <<: *DOCKERHUB_CONTEXT
     - "build-image-ubuntu-20-04":
         <<: *DOCKERHUB_CONTEXT
+    - "build-image-ubuntu-22-04":
+        <<: *DOCKERHUB_CONTEXT
     - "build-image-fedora-35":
         <<: *DOCKERHUB_CONTEXT
     - "build-image-oraclelinux-8":
         <<: *DOCKERHUB_CONTEXT
-    # Restore later as PyPy38
-    #- "build-image-pypy27-buster":
-    #    <<: *DOCKERHUB_CONTEXT
 
 parameters:
   # Control whether the image-building workflow runs as part of this pipeline.
@@ -78,6 +77,9 @@ workflows:
       - "ubuntu-20-04":
           {}
 
+      - "ubuntu-22-04":
+          {}
+
       # Equivalent to RHEL 8; CentOS 8 is dead.
       - "oraclelinux-8":
           {}
@@ -88,19 +90,39 @@ workflows:
           matrix:
             parameters:
               pythonVersion:
+                - "python38"
+                - "python39"
                 - "python310"
 
       - "nixos":
+          # At the moment the CPython 3.11 and PyPy packages are working
+          # better in nixpkgs unstable than in the 22.11 release.
           name: "<<matrix.pythonVersion>>"
           nixpkgs: "unstable"
           matrix:
             parameters:
               pythonVersion:
                 - "python311"
+                - "pypy38"
+                - "pypy39"
 
-      # Eventually, test against PyPy 3.8
-      #- "pypy27-buster":
-      #    {}
+      - "nixos-integration":
+          name: "Integration (NixOS)"
+          requires:
+            - "python311"
+          nixpkgs: "unstable"
+          pythonVersion: "python311"
+          forceFoolscap: false
+          runSlow: true
+
+      - "nixos-integration":
+          name: "Integration (Foolscap)"
+          requires:
+            - "python311"
+          nixpkgs: "unstable"
+          pythonVersion: "python311"
+          forceFoolscap: true
+          runSlow: false
 
       # Other assorted tasks and configurations
       - "codechecks":
@@ -262,20 +284,6 @@ jobs:
         user: "nobody"
 
 
-  # Restore later using PyPy3.8
-  # pypy27-buster:
-  #   <<: *DEBIAN
-  #   docker:
-  #     - <<: *DOCKERHUB_AUTH
-  #       image: "tahoelafsci/pypy:buster-py2"
-  #       user: "nobody"
-  #   environment:
-  #     <<: *UTF_8_ENVIRONMENT
-  #     # We don't do coverage since it makes PyPy far too slow:
-  #     TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27"
-  #     # Since we didn't collect it, don't upload it.
-  #     UPLOAD_COVERAGE: ""
-
   c-locale:
     <<: *DEBIAN
 
@@ -332,6 +340,16 @@ jobs:
     environment:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
+
+  ubuntu-22-04:
+    <<: *DEBIAN
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:22.04-py3.10"
+        user: "nobody"
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py310"
 
   oraclelinux-8: &RHEL_DERIV
     docker:
@@ -393,7 +411,52 @@ jobs:
                     --cores 8 \
                     --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
                     --argstr pythonVersion "<<parameters.pythonVersion>>" \
-                    nix/tests.nix
+                    nix/unittests.nix
+
+  nixos-integration:
+    parameters:
+      nixpkgs:
+        description: >-
+          Reference the name of a niv-managed nixpkgs source (see `niv show`
+          and nix/sources.json)
+        type: "string"
+      pythonVersion:
+        description: >-
+          Reference the name of a Python package in nixpkgs to use.
+        type: "string"
+      forceFoolscap:
+        description: >-
+          If true, force nodes to communicate using Foolscap.  Otherwise, let
+          them negotiate a protocol.
+        type: "boolean"
+      runSlow:
+        description: >-
+          Also run integration tests marked as slow.
+        type: "boolean"
+
+    executor: "nix"
+
+    steps:
+      - "nix-build":
+          nixpkgs: "<<parameters.nixpkgs>>"
+          pythonVersion: "<<parameters.pythonVersion>>"
+          buildSteps:
+            - "run":
+                name: "Integration Test"
+                command: |
+                  # CircleCI build environment looks like it has a zillion and
+                  # a half cores.  Don't let Nix autodetect this high core
+                  # count because it blows up memory usage and fails the test
+                  # run.  Pick a number of cores that suits the build
+                  # environment we're paying for (the free one!).
+                  source .circleci/lib.sh
+                  cache_if_able nix-build \
+                    --cores 8 \
+                    --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
+                    --argstr pythonVersion "<<parameters.pythonVersion>>" \
+                    --arg forceFoolscap "<<parameters.forceFoolscap>>" \
+                    --arg runSlow "<<parameters.runSlow>>" \
+                    nix/integrationtests.nix
 
   typechecks:
     docker:
@@ -479,6 +542,15 @@ jobs:
       PYTHON_VERSION: "3.9"
 
 
+  build-image-ubuntu-22-04:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "22.04"
+      PYTHON_VERSION: "3.10"
+
+
   build-image-oraclelinux-8:
     <<: *BUILD_IMAGE
 
@@ -494,16 +566,6 @@ jobs:
       DISTRO: "fedora"
       TAG: "35"
       PYTHON_VERSION: "3"
-
-  # build-image-pypy27-buster:
-  #   <<: *BUILD_IMAGE
-  #   environment:
-  #     DISTRO: "pypy"
-  #     TAG: "buster"
-  #     # We only have Python 2 for PyPy right now so there's no support for
-  #     # setting up PyPy 3 in the image building toolchain.  This value is just
-  #     # for constructing the right Docker image tag.
-  #     PYTHON_VERSION: "2"
 
 executors:
   nix:
