@@ -43,7 +43,7 @@ from .util import (
     generate_ssh_key,
     block_with_timeout,
 )
-
+from allmydata.node import read_config
 
 # pytest customization hooks
 
@@ -275,13 +275,6 @@ def introducer_furl(introducer, temp_dir):
     include_result=False,
 )
 def tor_introducer(reactor, temp_dir, flog_gatherer, request):
-    config = '''
-[node]
-nickname = introducer_tor
-web.port = 4561
-log_gatherer.furl = {log_furl}
-'''.format(log_furl=flog_gatherer)
-
     intro_dir = join(temp_dir, 'introducer_tor')
     print("making introducer", intro_dir)
 
@@ -301,9 +294,11 @@ log_gatherer.furl = {log_furl}
         )
         pytest_twisted.blockon(done_proto.done)
 
-    # over-write the config file with our stuff
-    with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
-        f.write(config)
+    # adjust a few settings
+    config = read_config(intro_dir, "tub.port")
+    config.set_config("node", "nickname", "introducer-tor")
+    config.set_config("node", "web.port", "4561")
+    config.set_config("node", "log_gatherer.furl", flog_gatherer)
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
