@@ -564,5 +564,3 @@ def tor_network(reactor, temp_dir, chutney, request):
             pass
 
     request.addfinalizer(cleanup)
-
-    return chut
