@@ -58,6 +58,7 @@ let
     magic-wormhole
     netifaces
     psutil
+    pyyaml
     pycddl
     pyrsistent
     pyutil

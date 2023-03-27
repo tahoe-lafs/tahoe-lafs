@@ -1,21 +1,11 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 import os
 
-try:
-    from typing import Any, List, Tuple
-except ImportError:
-    pass
+from typing import Any
 
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
@@ -356,8 +346,7 @@ class Config(unittest.TestCase):
         self.assertIn("is not empty", err)
         self.assertIn("To avoid clobbering anything, I am going to quit now", err)
 
-def fake_config(testcase, module, result):
-    # type: (unittest.TestCase, Any, Any) -> List[Tuple]
+def fake_config(testcase: unittest.TestCase, module: Any, result: Any) -> list[tuple]:
     """
     Monkey-patch a fake configuration function into the given module.
 

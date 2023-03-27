@@ -63,7 +63,11 @@ install_requires = [
     #   Twisted[conch] also depends on cryptography and Twisted[tls]
     #   transitively depends on cryptography.  So it's anyone's guess what
     #   version of cryptography will *really* be installed.
-    "cryptography >= 2.6",
+
+    # * cryptography 40 broke constants we need; should really be using them
+    # * via pyOpenSSL; will be fixed in
+    # * https://github.com/pyca/pyopenssl/issues/1201
+    "cryptography >= 2.6, < 40",
 
     # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
     #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
@@ -400,7 +404,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # disagreeing on what is or is not a lint issue.  We can bump
               # this version from time to time, but we will do it
               # intentionally.
-              "pyflakes == 2.2.0",
+              "pyflakes == 3.0.1",
               "coverage ~= 5.0",
               "mock",
               "tox ~= 3.0",

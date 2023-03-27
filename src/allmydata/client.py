@@ -175,8 +175,6 @@ class KeyGenerator(object):
         """I return a Deferred that fires with a (verifyingkey, signingkey)
         pair. The returned key will be 2048 bit"""
         keysize = 2048
-        # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
-        # secs
         signer, verifier = rsa.create_signing_keypair(keysize)
         return defer.succeed( (verifier, signer) )
 

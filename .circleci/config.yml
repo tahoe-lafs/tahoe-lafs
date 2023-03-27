@@ -12,7 +12,8 @@
 version: 2.1
 
 # Every job that pushes a Docker image from Docker Hub must authenticate to
-# it.  Define a couple yaml anchors that can be used to supply a the necessary credentials.
+# it.  Define a couple yaml anchors that can be used to supply the necessary
+# credentials.
 
 # First is a CircleCI job context which makes Docker Hub credentials available
 # in the environment.
@@ -573,9 +574,9 @@ executors:
       - <<: *DOCKERHUB_AUTH
         image: "nixos/nix:2.10.3"
     environment:
-      # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
-      # allows us to push to CACHIX_NAME.  We only need this set for
-      # `cachix use` in this step.
+      # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and allows us
+      # to push to CACHIX_NAME.  CACHIX_NAME tells cachix which cache to push
+      # to.
       CACHIX_NAME: "tahoe-lafs-opensource"
 
 commands:

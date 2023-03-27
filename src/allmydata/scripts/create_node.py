@@ -1,25 +1,11 @@
-# Ported to Python 3
-
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import io
 import os
 
-try:
-    from allmydata.scripts.types_ import (
-        SubCommands,
-        Parameters,
-        Flags,
-    )
-except ImportError:
-    pass
+from allmydata.scripts.types_ import (
+    SubCommands,
+    Parameters,
+    Flags,
+)
 
 from twisted.internet import reactor, defer
 from twisted.python.usage import UsageError
@@ -48,7 +34,7 @@ def write_tac(basedir, nodetype):
     fileutil.write(os.path.join(basedir, "tahoe-%s.tac" % (nodetype,)), dummy_tac)
 
 
-WHERE_OPTS = [
+WHERE_OPTS : Parameters = [
     ("location", None, None,
      "Server location to advertise (e.g. tcp:example.org:12345)"),
     ("port", None, None,
@@ -57,29 +43,29 @@ WHERE_OPTS = [
      "Hostname to automatically set --location/--port when --listen=tcp"),
     ("listen", None, "tcp",
      "Comma-separated list of listener types (tcp,tor,i2p,none)."),
-] # type: Parameters
+]
 
-TOR_OPTS = [
+TOR_OPTS : Parameters = [
     ("tor-control-port", None, None,
      "Tor's control port endpoint descriptor string (e.g. tcp:127.0.0.1:9051 or unix:/var/run/tor/control)"),
     ("tor-executable", None, None,
      "The 'tor' executable to run (default is to search $PATH)."),
-] # type: Parameters
+]
 
-TOR_FLAGS = [
+TOR_FLAGS : Flags = [
     ("tor-launch", None, "Launch a tor instead of connecting to a tor control port."),
-] # type: Flags
+]
 
-I2P_OPTS = [
+I2P_OPTS : Parameters = [
     ("i2p-sam-port", None, None,
      "I2P's SAM API port endpoint descriptor string (e.g. tcp:127.0.0.1:7656)"),
     ("i2p-executable", None, None,
      "(future) The 'i2prouter' executable to run (default is to search $PATH)."),
-] # type: Parameters
+]
 
-I2P_FLAGS = [
+I2P_FLAGS : Flags = [
     ("i2p-launch", None, "(future) Launch an I2P router instead of connecting to a SAM API port."),
-] # type: Flags
+]
 
 def validate_where_options(o):
     if o['listen'] == "none":
@@ -508,11 +494,11 @@ def create_introducer(config):
     defer.returnValue(0)
 
 
-subCommands = [
+subCommands : SubCommands = [
     ("create-node", None, CreateNodeOptions, "Create a node that acts as a client, server or both."),
     ("create-client", None, CreateClientOptions, "Create a client node (with storage initially disabled)."),
     ("create-introducer", None, CreateIntroducerOptions, "Create an introducer node."),
-]  # type: SubCommands
+]
 
 dispatch = {
     "create-node": create_node,
