@@ -1,23 +1,21 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 import struct
+from io import BytesIO
+
+from attrs import define, field
 from zope.interface import implementer
 from twisted.internet import defer
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
      FileTooLargeError, HASH_SIZE
-from allmydata.util import mathutil, observer, pipeline, log
+from allmydata.util import mathutil, observer, log
 from allmydata.util.assertutil import precondition
 from allmydata.storage.server import si_b2a
+
 
 class LayoutInvalid(Exception):
     """ There is something wrong with these bytes so they can't be
@@ -90,7 +88,7 @@ FORCE_V2 = False # set briefly by unit tests to make small-sized V2 shares
 
 def make_write_bucket_proxy(rref, server,
                             data_size, block_size, num_segments,
-                            num_share_hashes, uri_extension_size_max):
+                            num_share_hashes, uri_extension_size):
     # Use layout v1 for small files, so they'll be readable by older versions
     # (<tahoe-1.3.0). Use layout v2 for large files; they'll only be readable
     # by tahoe-1.3.0 or later.
@@ -99,20 +97,60 @@ def make_write_bucket_proxy(rref, server,
             raise FileTooLargeError
         wbp = WriteBucketProxy(rref, server,
                                data_size, block_size, num_segments,
-                               num_share_hashes, uri_extension_size_max)
+                               num_share_hashes, uri_extension_size)
     except FileTooLargeError:
         wbp = WriteBucketProxy_v2(rref, server,
                                   data_size, block_size, num_segments,
-                                  num_share_hashes, uri_extension_size_max)
+                                  num_share_hashes, uri_extension_size)
     return wbp
+
+
+@define
+class _WriteBuffer:
+    """
+    Queue up small writes to be written in a single batched larger write.
+    """
+    _batch_size: int
+    _to_write : BytesIO = field(factory=BytesIO)
+    _written_bytes : int = field(default=0)
+
+    def queue_write(self, data: bytes) -> bool:
+        """
+        Queue a write.  If the result is ``False``, no further action is needed
+        for now.  If the result is some ``True``, it's time to call ``flush()``
+        and do a real write.
+        """
+        self._to_write.write(data)
+        return self.get_queued_bytes() >= self._batch_size
+
+    def flush(self) -> tuple[int, bytes]:
+        """Return offset and data to be written."""
+        offset = self._written_bytes
+        data = self._to_write.getvalue()
+        self._written_bytes += len(data)
+        self._to_write = BytesIO()
+        return (offset, data)
+
+    def get_queued_bytes(self) -> int:
+        """Return number of queued, unwritten bytes."""
+        return self._to_write.tell()
+
+    def get_total_bytes(self) -> int:
+        """Return how many bytes were written or queued in total."""
+        return self._written_bytes + self.get_queued_bytes()
+
 
 @implementer(IStorageBucketWriter)
 class WriteBucketProxy(object):
+    """
+    Note: The various ``put_`` methods need to be called in the order in which the
+    bytes will get written.
+    """
     fieldsize = 4
     fieldstruct = ">L"
 
     def __init__(self, rref, server, data_size, block_size, num_segments,
-                 num_share_hashes, uri_extension_size_max, pipeline_size=50000):
+                 num_share_hashes, uri_extension_size, batch_size=1_000_000):
         self._rref = rref
         self._server = server
         self._data_size = data_size
@@ -124,20 +162,21 @@ class WriteBucketProxy(object):
         # how many share hashes are included in each share? This will be
         # about ln2(num_shares).
         self._share_hashtree_size = num_share_hashes * (2+HASH_SIZE)
-        # we commit to not sending a uri extension larger than this
-        self._uri_extension_size_max = uri_extension_size_max
+        self._uri_extension_size = uri_extension_size
 
         self._create_offsets(block_size, data_size)
 
-        # k=3, max_segment_size=128KiB gives us a typical segment of 43691
-        # bytes. Setting the default pipeline_size to 50KB lets us get two
-        # segments onto the wire but not a third, which would keep the pipe
-        # filled.
-        self._pipeline = pipeline.Pipeline(pipeline_size)
+        # With a ~1MB batch size, max upload speed is 1MB/(round-trip latency)
+        # assuming the writing code waits for writes to finish, so 20MB/sec if
+        # latency is 50ms. In the US many people only have 1MB/sec upload speed
+        # as of 2022 (standard Comcast). For further discussion of how one
+        # might set batch sizes see
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3787#comment:1.
+        self._write_buffer = _WriteBuffer(batch_size)
 
     def get_allocated_size(self):
         return (self._offsets['uri_extension'] + self.fieldsize +
-                self._uri_extension_size_max)
+                self._uri_extension_size)
 
     def _create_offsets(self, block_size, data_size):
         if block_size >= 2**32 or data_size >= 2**32:
@@ -178,7 +217,7 @@ class WriteBucketProxy(object):
         return "<WriteBucketProxy for node %r>" % self._server.get_name()
 
     def put_header(self):
-        return self._write(0, self._offset_data)
+        return self._queue_write(0, self._offset_data)
 
     def put_block(self, segmentnum, data):
         offset = self._offsets['data'] + segmentnum * self._block_size
@@ -192,9 +231,17 @@ class WriteBucketProxy(object):
                                        (self._block_size *
                                         (self._num_segments - 1))),
                          len(data), self._block_size)
-        return self._write(offset, data)
+        return self._queue_write(offset, data)
 
     def put_crypttext_hashes(self, hashes):
+        # plaintext_hash_tree precedes crypttext_hash_tree. It is not used, and
+        # so is not explicitly written, but we need to write everything, so
+        # fill it in with nulls.
+        d = self._queue_write(self._offsets['plaintext_hash_tree'], b"\x00" * self._segment_hash_size)
+        d.addCallback(lambda _: self._really_put_crypttext_hashes(hashes))
+        return d
+
+    def _really_put_crypttext_hashes(self, hashes):
         offset = self._offsets['crypttext_hash_tree']
         assert isinstance(hashes, list)
         data = b"".join(hashes)
@@ -203,7 +250,7 @@ class WriteBucketProxy(object):
         precondition(offset + len(data) <= self._offsets['block_hashes'],
                      offset, len(data), offset+len(data),
                      self._offsets['block_hashes'])
-        return self._write(offset, data)
+        return self._queue_write(offset, data)
 
     def put_block_hashes(self, blockhashes):
         offset = self._offsets['block_hashes']
@@ -214,7 +261,7 @@ class WriteBucketProxy(object):
         precondition(offset + len(data) <= self._offsets['share_hashes'],
                      offset, len(data), offset+len(data),
                      self._offsets['share_hashes'])
-        return self._write(offset, data)
+        return self._queue_write(offset, data)
 
     def put_share_hashes(self, sharehashes):
         # sharehashes is a list of (index, hash) tuples, so they get stored
@@ -228,29 +275,45 @@ class WriteBucketProxy(object):
         precondition(offset + len(data) <= self._offsets['uri_extension'],
                      offset, len(data), offset+len(data),
                      self._offsets['uri_extension'])
-        return self._write(offset, data)
+        return self._queue_write(offset, data)
 
     def put_uri_extension(self, data):
         offset = self._offsets['uri_extension']
         assert isinstance(data, bytes)
-        precondition(len(data) <= self._uri_extension_size_max,
-                     len(data), self._uri_extension_size_max)
+        precondition(len(data) == self._uri_extension_size)
         length = struct.pack(self.fieldstruct, len(data))
-        return self._write(offset, length+data)
+        return self._queue_write(offset, length+data)
 
-    def _write(self, offset, data):
-        # use a Pipeline to pipeline several writes together. TODO: another
-        # speedup would be to coalesce small writes into a single call: this
-        # would reduce the foolscap CPU overhead per share, but wouldn't
-        # reduce the number of round trips, so it might not be worth the
-        # effort.
+    def _queue_write(self, offset, data):
+        """
+        This queues up small writes to be written in a single batched larger
+        write.
 
-        return self._pipeline.add(len(data),
-                                  self._rref.callRemote, "write", offset, data)
+        Callers of this function are expected to queue the data in order, with
+        no holes.  As such, the offset is technically unnecessary, but is used
+        to check the inputs.  Possibly we should get rid of it.
+        """
+        assert offset == self._write_buffer.get_total_bytes()
+        if self._write_buffer.queue_write(data):
+            return self._actually_write()
+        else:
+            return defer.succeed(False)
+
+    def _actually_write(self):
+        """Write data to the server."""
+        offset, data = self._write_buffer.flush()
+        return self._rref.callRemote("write", offset, data)
 
     def close(self):
-        d = self._pipeline.add(0, self._rref.callRemote, "close")
-        d.addCallback(lambda ign: self._pipeline.flush())
+        assert self._write_buffer.get_total_bytes() == self.get_allocated_size(), (
+            f"{self._written_buffer.get_total_bytes_queued()} != {self.get_allocated_size()}"
+        )
+        if self._write_buffer.get_queued_bytes() > 0:
+            d = self._actually_write()
+        else:
+            # No data queued, don't send empty string write.
+            d = defer.succeed(True)
+        d.addCallback(lambda _: self._rref.callRemote("close"))
         return d
 
     def abort(self):
@@ -303,8 +366,6 @@ class WriteBucketProxy_v2(WriteBucketProxy):
 @implementer(IStorageBucketReader)
 class ReadBucketProxy(object):
 
-    MAX_UEB_SIZE = 2000 # actual size is closer to 419, but varies by a few bytes
-
     def __init__(self, rref, server, storage_index):
         self._rref = rref
         self._server = server
@@ -332,11 +393,6 @@ class ReadBucketProxy(object):
         # TODO: for small shares, read the whole bucket in _start()
         d = self._fetch_header()
         d.addCallback(self._parse_offsets)
-        # XXX The following two callbacks implement a slightly faster/nicer
-        # way to get the ueb and sharehashtree, but it requires that the
-        # storage server be >= v1.3.0.
-        # d.addCallback(self._fetch_sharehashtree_and_ueb)
-        # d.addCallback(self._parse_sharehashtree_and_ueb)
         def _fail_waiters(f):
             self._ready.fire(f)
         def _notify_waiters(result):
@@ -369,40 +425,17 @@ class ReadBucketProxy(object):
         self._fieldsize = fieldsize
         self._fieldstruct = fieldstruct
 
-        for field in ( 'data',
-                       'plaintext_hash_tree', # UNUSED
-                       'crypttext_hash_tree',
-                       'block_hashes',
-                       'share_hashes',
-                       'uri_extension',
-                       ):
+        for field_name in ( 'data',
+                            'plaintext_hash_tree', # UNUSED
+                            'crypttext_hash_tree',
+                            'block_hashes',
+                            'share_hashes',
+                            'uri_extension',
+                           ):
             offset = struct.unpack(fieldstruct, data[x:x+fieldsize])[0]
             x += fieldsize
-            self._offsets[field] = offset
+            self._offsets[field_name] = offset
         return self._offsets
-
-    def _fetch_sharehashtree_and_ueb(self, offsets):
-        sharehashtree_size = offsets['uri_extension'] - offsets['share_hashes']
-        return self._read(offsets['share_hashes'],
-                          self.MAX_UEB_SIZE+sharehashtree_size)
-
-    def _parse_sharehashtree_and_ueb(self, data):
-        sharehashtree_size = self._offsets['uri_extension'] - self._offsets['share_hashes']
-        if len(data) < sharehashtree_size:
-            raise LayoutInvalid("share hash tree truncated -- should have at least %d bytes -- not %d" % (sharehashtree_size, len(data)))
-        if sharehashtree_size % (2+HASH_SIZE) != 0:
-            raise LayoutInvalid("share hash tree malformed -- should have an even multiple of %d bytes -- not %d" % (2+HASH_SIZE, sharehashtree_size))
-        self._share_hashes = []
-        for i in range(0, sharehashtree_size, 2+HASH_SIZE):
-            hashnum = struct.unpack(">H", data[i:i+2])[0]
-            hashvalue = data[i+2:i+2+HASH_SIZE]
-            self._share_hashes.append( (hashnum, hashvalue) )
-
-        i = self._offsets['uri_extension']-self._offsets['share_hashes']
-        if len(data) < i+self._fieldsize:
-            raise LayoutInvalid("not enough bytes to encode URI length -- should be at least %d bytes long, not %d " % (i+self._fieldsize, len(data),))
-        length = struct.unpack(self._fieldstruct, data[i:i+self._fieldsize])[0]
-        self._ueb_data = data[i+self._fieldsize:i+self._fieldsize+length]
 
     def _get_block_data(self, unused, blocknum, blocksize, thisblocksize):
         offset = self._offsets['data'] + blocknum * blocksize
@@ -446,20 +479,18 @@ class ReadBucketProxy(object):
         else:
             return defer.succeed([])
 
-    def _get_share_hashes(self, unused=None):
-        if hasattr(self, '_share_hashes'):
-            return self._share_hashes
-        return self._get_share_hashes_the_old_way()
-
     def get_share_hashes(self):
         d = self._start_if_needed()
         d.addCallback(self._get_share_hashes)
         return d
 
-    def _get_share_hashes_the_old_way(self):
+    def _get_share_hashes(self, _ignore):
         """ Tahoe storage servers < v1.3.0 would return an error if you tried
         to read past the end of the share, so we need to use the offset and
-        read just that much."""
+        read just that much.
+
+        HTTP-based storage protocol also doesn't like reading past the end.
+        """
         offset = self._offsets['share_hashes']
         size = self._offsets['uri_extension'] - offset
         if size % (2+HASH_SIZE) != 0:
@@ -477,31 +508,28 @@ class ReadBucketProxy(object):
         d.addCallback(_unpack_share_hashes)
         return d
 
-    def _get_uri_extension_the_old_way(self, unused=None):
+    def _get_uri_extension(self, unused=None):
         """ Tahoe storage servers < v1.3.0 would return an error if you tried
         to read past the end of the share, so we need to fetch the UEB size
-        and then read just that much."""
+        and then read just that much.
+
+        HTTP-based storage protocol also doesn't like reading past the end.
+        """
         offset = self._offsets['uri_extension']
         d = self._read(offset, self._fieldsize)
         def _got_length(data):
             if len(data) != self._fieldsize:
                 raise LayoutInvalid("not enough bytes to encode URI length -- should be %d bytes long, not %d " % (self._fieldsize, len(data),))
             length = struct.unpack(self._fieldstruct, data)[0]
-            if length >= 2**31:
-                # URI extension blocks are around 419 bytes long, so this
-                # must be corrupted. Anyway, the foolscap interface schema
-                # for "read" will not allow >= 2**31 bytes length.
+            if length >= 2000:
+                # URI extension blocks are around 419 bytes long; in previous
+                # versions of the code 1000 was used as a default catchall. So
+                # 2000 or more must be corrupted.
                 raise RidiculouslyLargeURIExtensionBlock(length)
 
             return self._read(offset+self._fieldsize, length)
         d.addCallback(_got_length)
         return d
-
-    def _get_uri_extension(self, unused=None):
-        if hasattr(self, '_ueb_data'):
-            return self._ueb_data
-        else:
-            return self._get_uri_extension_the_old_way()
 
     def get_uri_extension(self):
         d = self._start_if_needed()

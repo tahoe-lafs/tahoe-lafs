@@ -82,8 +82,9 @@ network: A
 
 memory footprint: N/K*A
 
-notes: Tahoe-LAFS generates a new RSA keypair for each mutable file that it
-publishes to a grid. This takes up to 1 or 2 seconds on a typical desktop PC.
+notes:
+Tahoe-LAFS generates a new RSA keypair for each mutable file that it publishes to a grid.
+This takes around 100 milliseconds on a relatively high-end laptop from 2021.
 
 Part of the process of encrypting, encoding, and uploading a mutable file to a
 Tahoe-LAFS grid requires that the entire file be in memory at once. For larger

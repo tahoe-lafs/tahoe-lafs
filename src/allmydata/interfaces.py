@@ -41,7 +41,8 @@ URI = StringConstraint(300) # kind of arbitrary
 
 MAX_BUCKETS = 256  # per peer -- zfec offers at most 256 shares per file
 
-DEFAULT_MAX_SEGMENT_SIZE = 128*1024
+# The default size for segments of new CHK ("immutable") uploads.
+DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE = 1024*1024
 
 ShareData = StringConstraint(None)
 URIExtensionData = StringConstraint(1000)
@@ -560,6 +561,12 @@ class IServer(IDisplayableServer):
         once the connection is lost.
         """
 
+    def upload_permitted():
+        """
+        :return: True if we should use this server for uploads, False
+            otherwise.
+        """
+
     def get_storage_server():
         """
         Once a server is connected, I return an ``IStorageServer``.
@@ -568,8 +575,6 @@ class IServer(IDisplayableServer):
         Note that the ``IStorageServer`` I return will start producing
         DeadReferenceErrors once the connection is lost.
         """
-
-
 
 
 class IMutableSlotWriter(Interface):

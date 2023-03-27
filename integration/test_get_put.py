@@ -3,11 +3,13 @@ Integration tests for getting and putting files, including reading from stdin
 and stdout.
 """
 
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, check_output, check_call
 
 import pytest
+from pytest_twisted import ensureDeferred
+from twisted.internet import reactor
 
-from .util import run_in_thread, cli
+from .util import run_in_thread, cli, reconfigure
 
 DATA = b"abc123 this is not utf-8 decodable \xff\x00\x33 \x11"
 try:
@@ -47,6 +49,7 @@ def test_put_from_stdin(alice, get_put_alias, tmpdir):
     assert read_bytes(tempfile) == DATA
 
 
+@run_in_thread
 def test_get_to_stdout(alice, get_put_alias, tmpdir):
     """
     It's possible to upload a file, and then download it to stdout.
@@ -62,3 +65,66 @@ def test_get_to_stdout(alice, get_put_alias, tmpdir):
     )
     assert p.stdout.read() == DATA
     assert p.wait() == 0
+
+
+@run_in_thread
+def test_large_file(alice, get_put_alias, tmp_path):
+    """
+    It's possible to upload and download a larger file.
+
+    We avoid stdin/stdout since that's flaky on Windows.
+    """
+    tempfile = tmp_path / "file"
+    with tempfile.open("wb") as f:
+        f.write(DATA * 1_000_000)
+    cli(alice, "put", str(tempfile), "getput:largefile")
+
+    outfile = tmp_path / "out"
+    check_call(
+        ["tahoe", "--node-directory", alice.node_dir, "get", "getput:largefile", str(outfile)],
+    )
+    assert outfile.read_bytes() == tempfile.read_bytes()
+
+
+@ensureDeferred
+async def test_upload_download_immutable_different_default_max_segment_size(alice, get_put_alias, tmpdir, request):
+    """
+    Tahoe-LAFS used to have a default max segment size of 128KB, and is now
+    1MB.  Test that an upload created when 128KB was the default can be
+    downloaded with 1MB as the default (i.e. old uploader, new downloader), and
+    vice versa, (new uploader, old downloader).
+    """
+    tempfile = tmpdir.join("file")
+    large_data = DATA * 100_000
+    assert len(large_data) > 2 * 1024 * 1024
+    with tempfile.open("wb") as f:
+        f.write(large_data)
+
+    async def set_segment_size(segment_size):
+        await reconfigure(
+            reactor,
+            request,
+            alice,
+            (1, 1, 1),
+            None,
+            max_segment_size=segment_size
+    )
+
+    # 1. Upload file 1 with default segment size set to 1MB
+    await set_segment_size(1024 * 1024)
+    cli(alice, "put", str(tempfile), "getput:seg1024kb")
+
+    # 2. Download file 1 with default segment size set to 128KB
+    await set_segment_size(128 * 1024)
+    assert large_data == check_output(
+        ["tahoe", "--node-directory", alice.node_dir, "get", "getput:seg1024kb", "-"]
+    )
+
+    # 3. Upload file 2 with default segment size set to 128KB
+    cli(alice, "put", str(tempfile), "getput:seg128kb")
+
+    # 4. Download file 2 with default segment size set to 1MB
+    await set_segment_size(1024 * 1024)
+    assert large_data == check_output(
+        ["tahoe", "--node-directory", alice.node_dir, "get", "getput:seg128kb", "-"]
+    )

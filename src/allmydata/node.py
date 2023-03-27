@@ -4,16 +4,11 @@ a node for Tahoe-LAFS.
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_str, ensure_text
 
+import json
 import datetime
 import os.path
 import re
@@ -22,11 +17,7 @@ import errno
 from base64 import b32decode, b32encode
 from errno import ENOENT, EPERM
 from warnings import warn
-
-try:
-    from typing import Union
-except ImportError:
-    pass
+from typing import Union
 
 import attr
 
@@ -55,6 +46,8 @@ from allmydata.util.yamlutil import (
 from . import (
     __full_version__,
 )
+from .protocol_switch import create_tub_with_https_support
+
 
 def _common_valid_config():
     return configutil.ValidConfiguration({
@@ -278,8 +271,7 @@ def _error_about_old_config_files(basedir, generated_files):
         raise e
 
 
-def ensure_text_and_abspath_expanduser_unicode(basedir):
-    # type: (Union[bytes, str]) -> str
+def ensure_text_and_abspath_expanduser_unicode(basedir: Union[bytes, str]) -> str:
     return abspath_expanduser_unicode(ensure_text(basedir))
 
 
@@ -347,6 +339,19 @@ class _Config(object):
                 Failure(),
                 "Unable to write config file '{}'".format(fn),
             )
+
+    def enumerate_section(self, section):
+        """
+        returns a dict containing all items in a configuration section. an
+        empty dict is returned if the section doesn't exist.
+        """
+        answer = dict()
+        try:
+            for k in self.config.options(section):
+                answer[k] = self.config.get(section, k)
+        except configparser.NoSectionError:
+            pass
+        return answer
 
     def items(self, section, default=_None):
         try:
@@ -482,6 +487,12 @@ class _Config(object):
         """
         returns an absolute path inside the 'private' directory with any
         extra args join()-ed
+
+        This exists for historical reasons. New code should ideally
+        not call this because it makes it harder for e.g. a SQL-based
+        _Config object to exist. Code that needs to call this method
+        should probably be a _Config method itself. See
+        e.g. get_grid_manager_certificates()
         """
         return os.path.join(self._basedir, "private", *args)
 
@@ -489,6 +500,12 @@ class _Config(object):
         """
         returns an absolute path inside the config directory with any
         extra args join()-ed
+
+        This exists for historical reasons. New code should ideally
+        not call this because it makes it harder for e.g. a SQL-based
+        _Config object to exist. Code that needs to call this method
+        should probably be a _Config method itself. See
+        e.g. get_grid_manager_certificates()
         """
         # note: we re-expand here (_basedir already went through this
         # expanduser function) in case the path we're being asked for
@@ -496,6 +513,35 @@ class _Config(object):
         return abspath_expanduser_unicode(
             os.path.join(self._basedir, *args)
         )
+
+    def get_grid_manager_certificates(self):
+        """
+        Load all Grid Manager certificates in the config.
+
+        :returns: A list of all certificates. An empty list is
+            returned if there are none.
+        """
+        grid_manager_certificates = []
+
+        cert_fnames = list(self.enumerate_section("grid_manager_certificates").values())
+        for fname in cert_fnames:
+            fname = self.get_config_path(fname)
+            if not os.path.exists(fname):
+                raise ValueError(
+                    "Grid Manager certificate file '{}' doesn't exist".format(
+                        fname
+                    )
+                )
+            with open(fname, 'r') as f:
+                cert = json.load(f)
+            if set(cert.keys()) != {"certificate", "signature"}:
+                raise ValueError(
+                    "Unknown key in Grid Manager certificate '{}'".format(
+                        fname
+                    )
+                )
+            grid_manager_certificates.append(cert)
+        return grid_manager_certificates
 
     def get_introducer_configuration(self):
         """
@@ -695,7 +741,7 @@ def create_connection_handlers(config, i2p_provider, tor_provider):
 
 
 def create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
-               handler_overrides={}, **kwargs):
+               handler_overrides={}, force_foolscap=False, **kwargs):
     """
     Create a Tub with the right options and handlers. It will be
     ephemeral unless the caller provides certFile= in kwargs
@@ -705,8 +751,17 @@ def create_tub(tub_options, default_connection_handlers, foolscap_connection_han
 
     :param dict tub_options: every key-value pair in here will be set in
         the new Tub via `Tub.setOption`
+
+    :param bool force_foolscap: If True, only allow Foolscap, not just HTTPS
+        storage protocol.
     """
-    tub = Tub(**kwargs)
+    # We listen simultaneously for both Foolscap and HTTPS on the same port,
+    # so we have to create a special Foolscap Tub for that to work:
+    if force_foolscap:
+        tub = Tub(**kwargs)
+    else:
+        tub = create_tub_with_https_support(**kwargs)
+
     for (name, value) in list(tub_options.items()):
         tub.setOption(name, value)
     handlers = default_connection_handlers.copy()
@@ -896,14 +951,20 @@ def create_main_tub(config, tub_options,
 
     # FIXME? "node.pem" was the CERTFILE option/thing
     certfile = config.get_private_path("node.pem")
-
     tub = create_tub(
         tub_options,
         default_connection_handlers,
         foolscap_connection_handlers,
+        # TODO eventually we will want the default to be False, but for now we
+        # don't want to enable HTTP by default.
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3934
+        force_foolscap=config.get_config(
+            "storage", "force_foolscap", default=True, boolean=True
+        ),
         handler_overrides=handler_overrides,
         certFile=certfile,
     )
+
     if portlocation is None:
         log.msg("Tub is not listening")
     else:

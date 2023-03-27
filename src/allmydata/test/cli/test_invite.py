@@ -19,7 +19,8 @@ from ...util.jsonbytes import dumps_bytes
 from ..common_util import run_cli
 from ..no_network import GridTestMixin
 from .common import CLITestMixin
-from .wormholetesting import IWormhole, MemoryWormholeServer, TestingHelper, memory_server
+from .wormholetesting import MemoryWormholeServer, TestingHelper, memory_server, IWormhole
+
 
 # Logically:
 #   JSONable = dict[str, Union[JSONable, None, int, float, str, list[JSONable]]]

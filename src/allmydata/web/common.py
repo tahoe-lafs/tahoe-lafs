@@ -1,26 +1,17 @@
 """
 Ported to Python 3.
 """
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
-    from past.builtins import unicode as str  # prevent leaking newbytes/newstr into code that can't handle it
+from __future__ import annotations
 
 from six import ensure_str
 
-try:
-    from typing import Optional, Union, Tuple, Any
-except ImportError:
-    pass
+from typing import Optional, Union, TypeVar, overload
+from typing_extensions import Literal
 
 import time
 import json
 from functools import wraps
+from base64 import urlsafe_b64decode
 
 from hyperlink import (
     DecodedURL,
@@ -94,7 +85,7 @@ from allmydata.util.encodingutil import (
     to_bytes,
 )
 from allmydata.util import abbreviate
-
+from allmydata.crypto.rsa import PrivateKey, PublicKey, create_signing_keypair_from_string
 
 class WebError(Exception):
     def __init__(self, text, code=http.BAD_REQUEST):
@@ -126,7 +117,7 @@ def boolean_of_arg(arg):  # type: (bytes) -> bool
     return arg.lower() in (b"true", b"t", b"1", b"on")
 
 
-def parse_replace_arg(replace):  # type: (bytes) -> Union[bool,_OnlyFiles]
+def parse_replace_arg(replace: bytes) -> Union[bool,_OnlyFiles]:
     assert isinstance(replace, bytes)
     if replace.lower() == b"only-files":
         return ONLY_FILES
@@ -713,8 +704,15 @@ def url_for_string(req, url_string):
         )
     return url
 
+T = TypeVar("T")
 
-def get_arg(req, argname, default=None, multiple=False):  # type: (IRequest, Union[bytes,str], Any, bool) -> Union[bytes,Tuple[bytes],Any]
+@overload
+def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *, multiple: Literal[False] = False) -> T | bytes: ...
+
+@overload
+def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *, multiple: Literal[True]) -> T | tuple[bytes, ...]: ...
+
+def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *, multiple: bool = False) -> None | T | bytes | tuple[bytes, ...]:
     """Extract an argument from either the query args (req.args) or the form
     body fields (req.fields). If multiple=False, this returns a single value
     (or the default, which defaults to None), and the query args take
@@ -726,13 +724,14 @@ def get_arg(req, argname, default=None, multiple=False):  # type: (IRequest, Uni
     :return: Either bytes or tuple of bytes.
     """
     if isinstance(argname, str):
-        argname = argname.encode("utf-8")
-    if isinstance(default, str):
-        default = default.encode("utf-8")
+        argname_bytes = argname.encode("utf-8")
+    else:
+        argname_bytes = argname
+
     results = []
-    if argname in req.args:
-        results.extend(req.args[argname])
-    argname_unicode = str(argname, "utf-8")
+    if argname_bytes in req.args:
+        results.extend(req.args[argname_bytes])
+    argname_unicode = str(argname_bytes, "utf-8")
     if req.fields and argname_unicode in req.fields:
         value = req.fields[argname_unicode].value
         if isinstance(value, str):
@@ -742,6 +741,9 @@ def get_arg(req, argname, default=None, multiple=False):  # type: (IRequest, Uni
         return tuple(results)
     if results:
         return results[0]
+
+    if isinstance(default, str):
+        return default.encode("utf-8")
     return default
 
 
@@ -833,3 +835,14 @@ def abbreviate_time(data):
     if s >= 0.001:
         return u"%.1fms" % (1000*s)
     return u"%.0fus" % (1000000*s)
+
+def get_keypair(request: IRequest) -> tuple[PublicKey, PrivateKey] | None:
+    """
+    Load a keypair from a urlsafe-base64-encoded RSA private key in the
+    **private-key** argument of the given request, if there is one.
+    """
+    privkey_der = get_arg(request, "private-key", default=None, multiple=False)
+    if privkey_der is None:
+        return None
+    privkey, pubkey = create_signing_keypair_from_string(urlsafe_b64decode(privkey_der))
+    return pubkey, privkey

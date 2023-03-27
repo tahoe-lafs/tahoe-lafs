@@ -10,7 +10,8 @@ from future.utils import PY2
 if PY2:
     from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
-import os, sys
+import os
+import sys
 from functools import (
     partial,
 )
@@ -46,6 +47,7 @@ from testtools.matchers import (
     AfterPreprocessing,
     MatchesListwise,
     MatchesDict,
+    ContainsDict,
     Always,
     Is,
     raises,
@@ -72,6 +74,7 @@ from allmydata.util import (
     fileutil,
     encodingutil,
     configutil,
+    jsonbytes as json,
 )
 from allmydata.util.eliotutil import capture_logging
 from allmydata.util.fileutil import abspath_expanduser_unicode
@@ -1507,4 +1510,46 @@ enabled = {storage_enabled}
                     Equals(configutil.UnknownConfigError),
                 ),
             ),
+        )
+
+    def test_announcement_includes_grid_manager(self):
+        """
+        When Grid Manager is enabled certificates are included in the
+        announcement
+        """
+        fake_cert = {
+            "certificate": "{\"expires\":1601687822,\"public_key\":\"pub-v0-cbq6hcf3pxcz6ouoafrbktmkixkeuywpcpbcomzd3lqbkq4nmfga\",\"version\":1}",
+            "signature": "fvjd3uvvupf2v6tnvkwjd473u3m3inyqkwiclhp7balmchkmn3px5pei3qyfjnhymq4cjcwvbpqmcwwnwswdtrfkpnlaxuih2zbdmda",
+        }
+        with self.basedir.child("zero.cert").open("w") as f:
+            f.write(json.dumps_bytes(fake_cert))
+        with self.basedir.child("gm0.cert").open("w") as f:
+            f.write(json.dumps_bytes(fake_cert))
+
+        config = client.config_from_string(
+            self.basedir.path,
+            "tub.port",
+            self.get_config(
+                storage_enabled=True,
+                more_storage="grid_management = True",
+                more_sections=(
+                    "[grid_managers]\n"
+                    "gm0 = pub-v0-ibpbsexcjfbv3ni7gwlclgn6mldaqnqd5mrtan2fnq2b27xnovca\n"
+                    "[grid_manager_certificates]\n"
+                    "foo = zero.cert\n"
+                )
+            ),
+        )
+
+        self.assertThat(
+            client.create_client_from_config(
+                config,
+                _introducer_factory=MemoryIntroducerClient,
+            ),
+            succeeded(AfterPreprocessing(
+                lambda client: get_published_announcements(client)[0].ann,
+                ContainsDict({
+                    "grid-manager-certificates": Equals([fake_cert]),
+                }),
+            )),
         )

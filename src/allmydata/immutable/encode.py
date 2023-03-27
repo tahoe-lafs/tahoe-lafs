@@ -262,6 +262,8 @@ class Encoder(object):
 
         d.addCallback(lambda res: self.finish_hashing())
 
+        # These calls have to happen in order; layout.py now requires writes to
+        # be appended to the data written so far.
         d.addCallback(lambda res:
                       self.send_crypttext_hash_tree_to_all_shareholders())
         d.addCallback(lambda res: self.send_all_block_hash_trees())
@@ -694,3 +696,24 @@ class Encoder(object):
         return self.uri_extension_data
     def get_uri_extension_hash(self):
         return self.uri_extension_hash
+
+    def get_uri_extension_size(self):
+        """
+        Calculate the size of the URI extension that gets written at the end of
+        immutables.
+
+        This may be done earlier than actual encoding, so e.g. we might not
+        know the crypttext hashes, but that's fine for our purposes since we
+        only care about the length.
+        """
+        params = self.uri_extension_data.copy()
+        params["crypttext_hash"] = b"\x00" * hashutil.CRYPTO_VAL_SIZE
+        params["crypttext_root_hash"] = b"\x00" * hashutil.CRYPTO_VAL_SIZE
+        params["share_root_hash"] = b"\x00" * hashutil.CRYPTO_VAL_SIZE
+        assert params.keys() == {
+            "codec_name", "codec_params", "size", "segment_size", "num_segments",
+            "needed_shares", "total_shares", "tail_codec_params",
+            "crypttext_hash", "crypttext_root_hash", "share_root_hash"
+        }, params.keys()
+        uri_extension = uri.pack_extension(params)
+        return len(uri_extension)

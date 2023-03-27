@@ -134,6 +134,7 @@ def run_cli_native(verb, *args, **kwargs):
         stdin = TextIOWrapper(BytesIO(stdin), encoding)
         stdout = TextIOWrapper(BytesIO(), encoding)
         stderr = TextIOWrapper(BytesIO(), encoding)
+    options.stdin = stdin
     d = defer.succeed(argv)
     d.addCallback(
         partial(
@@ -145,6 +146,7 @@ def run_cli_native(verb, *args, **kwargs):
     )
     d.addCallback(
         runner.dispatch,
+        reactor,
         stdin=stdin,
         stdout=stdout,
         stderr=stderr,

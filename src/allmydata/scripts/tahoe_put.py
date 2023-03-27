@@ -1,22 +1,31 @@
 """
-Ported to Python 3.
+Implement the ``tahoe put`` command.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 from io import BytesIO
 from urllib.parse import quote as url_quote
+from base64 import urlsafe_b64encode
 
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
+from twisted.python.filepath import FilePath
+
+from allmydata.crypto.rsa import PrivateKey, der_string_from_signing_key
 from allmydata.scripts.common_http import do_http, format_http_success, format_http_error
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.util.encodingutil import quote_output
+
+def load_private_key(path: str) -> str:
+    """
+    Load a private key from a file and return it in a format appropriate
+    to include in the HTTP request.
+    """
+    privkey = load_pem_private_key(FilePath(path).getContent(), password=None)
+    assert isinstance(privkey, PrivateKey)
+    derbytes = der_string_from_signing_key(privkey)
+    return urlsafe_b64encode(derbytes).decode("ascii")
 
 def put(options):
     """
@@ -29,6 +38,10 @@ def put(options):
     from_file = options.from_file
     to_file = options.to_file
     mutable = options['mutable']
+    if options["private-key-path"] is None:
+        private_key = None
+    else:
+        private_key = load_private_key(options["private-key-path"])
     format = options['format']
     if options['quiet']:
         verbosity = 0
@@ -79,6 +92,12 @@ def put(options):
     queryargs = []
     if mutable:
         queryargs.append("mutable=true")
+        if private_key is not None:
+            queryargs.append(f"private-key={private_key}")
+    else:
+        if private_key is not None:
+            raise Exception("Can only supply a private key for mutables.")
+
     if format:
         queryargs.append("format=%s" % format)
     if queryargs:
@@ -92,10 +111,7 @@ def put(options):
         if verbosity > 0:
             print("waiting for file data on stdin..", file=stderr)
         # We're uploading arbitrary files, so this had better be bytes:
-        if PY2:
-            stdinb = stdin
-        else:
-            stdinb = stdin.buffer
+        stdinb = stdin.buffer
         data = stdinb.read()
         infileobj = BytesIO(data)
 

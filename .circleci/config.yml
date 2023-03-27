@@ -11,32 +11,92 @@
 #
 version: 2.1
 
+# Every job that pushes a Docker image from Docker Hub must authenticate to
+# it.  Define a couple yaml anchors that can be used to supply the necessary
+# credentials.
+
+# First is a CircleCI job context which makes Docker Hub credentials available
+# in the environment.
+#
+# Contexts are managed in the CircleCI web interface:
+#
+#  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
+dockerhub-context-template: &DOCKERHUB_CONTEXT
+  context: "dockerhub-auth"
+
+# Next is a Docker executor template that gets the credentials from the
+# environment and supplies them to the executor.
+dockerhub-auth-template: &DOCKERHUB_AUTH
+  - auth:
+      username: $DOCKERHUB_USERNAME
+      password: $DOCKERHUB_PASSWORD
+
+  # A template that can be shared between the two different image-building
+# workflows.
+.images: &IMAGES
+  jobs:
+    - "build-image-debian-11":
+        <<: *DOCKERHUB_CONTEXT
+    - "build-image-ubuntu-20-04":
+        <<: *DOCKERHUB_CONTEXT
+    - "build-image-fedora-35":
+        <<: *DOCKERHUB_CONTEXT
+    - "build-image-oraclelinux-8":
+        <<: *DOCKERHUB_CONTEXT
+    # Restore later as PyPy38
+    #- "build-image-pypy27-buster":
+    #    <<: *DOCKERHUB_CONTEXT
+
+parameters:
+  # Control whether the image-building workflow runs as part of this pipeline.
+  # Generally we do not want this to run because we don't need our
+  # dependencies to move around all the time and because building the image
+  # takes a couple minutes.
+  #
+  # An easy way to trigger a pipeline with this set to true is with the
+  # rebuild-images.sh tool in this directory.  You can also do so via the
+  # CircleCI web UI.
+  build-images:
+    default: false
+    type: "boolean"
+
+  # Control whether the test-running workflow runs as part of this pipeline.
+  # Generally we do want this to run because running the tests is the primary
+  # purpose of this pipeline.
+  run-tests:
+    default: true
+    type: "boolean"
+
 workflows:
   ci:
+    when: "<< pipeline.parameters.run-tests >>"
     jobs:
       # Start with jobs testing various platforms.
-      - "debian-10":
-          {}
       - "debian-11":
           {}
 
       - "ubuntu-20-04":
           {}
-      - "ubuntu-18-04":
-          requires:
-            - "ubuntu-20-04"
 
       # Equivalent to RHEL 8; CentOS 8 is dead.
       - "oraclelinux-8":
           {}
 
       - "nixos":
-          name: "NixOS 21.05"
-          nixpkgs: "21.05"
+          name: "<<matrix.pythonVersion>>"
+          nixpkgs: "22.11"
+          matrix:
+            parameters:
+              pythonVersion:
+                - "python310"
 
       - "nixos":
-          name: "NixOS 21.11"
-          nixpkgs: "21.11"
+          name: "<<matrix.pythonVersion>>"
+          nixpkgs: "unstable"
+          matrix:
+            parameters:
+              pythonVersion:
+                - "python311"
 
       # Eventually, test against PyPy 3.8
       #- "pypy27-buster":
@@ -54,6 +114,9 @@ workflows:
           {}
 
       - "integration":
+          # Run even the slow integration tests here.  We need the `--` to
+          # sneak past tox and get to pytest.
+          tox-args: "-- --runslow integration"
           requires:
             # If the unit test suite doesn't pass, don't bother running the
             # integration tests.
@@ -65,66 +128,12 @@ workflows:
           {}
 
   images:
-    # Build the Docker images used by the ci jobs.  This makes the ci jobs
-    # faster and takes various spurious failures out of the critical path.
-    triggers:
-      # Build once a day
-      - schedule:
-          cron: "0 0 * * *"
-          filters:
-            branches:
-              only:
-                - "master"
+    <<: *IMAGES
 
-    jobs:
-      # Every job that pushes a Docker image from Docker Hub needs to provide
-      # credentials.  Use this first job to define a yaml anchor that can be
-      # used to supply a CircleCI job context which makes Docker Hub
-      # credentials available in the environment.
-      #
-      # Contexts are managed in the CircleCI web interface:
-      #
-      #  https://app.circleci.com/settings/organization/github/tahoe-lafs/contexts
-      - "build-image-debian-10": &DOCKERHUB_CONTEXT
-          context: "dockerhub-auth"
-      - "build-image-debian-11":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-ubuntu-18-04":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-ubuntu-20-04":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-fedora-35":
-          <<: *DOCKERHUB_CONTEXT
-      - "build-image-oraclelinux-8":
-          <<: *DOCKERHUB_CONTEXT
-      # Restore later as PyPy38
-      #- "build-image-pypy27-buster":
-      #    <<: *DOCKERHUB_CONTEXT
-
+    # Build as part of the workflow but only if requested.
+    when: "<< pipeline.parameters.build-images >>"
 
 jobs:
-  dockerhub-auth-template:
-    # This isn't a real job.  It doesn't get scheduled as part of any
-    # workflow.  Instead, it's just a place we can hang a yaml anchor to
-    # finish the Docker Hub authentication configuration.  Workflow jobs using
-    # the DOCKERHUB_CONTEXT anchor will have access to the environment
-    # variables used here.  These variables will allow the Docker Hub image
-    # pull to be authenticated and hopefully avoid hitting and rate limits.
-    docker: &DOCKERHUB_AUTH
-      - image: "null"
-        auth:
-          username: $DOCKERHUB_USERNAME
-          password: $DOCKERHUB_PASSWORD
-
-    steps:
-      - run:
-          name: "CircleCI YAML schema conformity"
-          command: |
-            # This isn't a real command.  We have to have something in this
-            # space, though, or the CircleCI yaml schema validator gets angry.
-            # Since this job is never scheduled this step is never run so the
-            # actual value here is irrelevant.
-
   codechecks:
     docker:
       - <<: *DOCKERHUB_AUTH
@@ -133,10 +142,10 @@ jobs:
     steps:
       - "checkout"
 
-      - run:
+      - run: &INSTALL_TOX
           name: "Install tox"
           command: |
-            pip install --user tox
+            pip install --user 'tox~=3.0'
 
       - run:
           name: "Static-ish code checks"
@@ -152,9 +161,7 @@ jobs:
       - "checkout"
 
       - run:
-          name: "Install tox"
-          command: |
-            pip install --user tox
+          <<: *INSTALL_TOX
 
       - run:
           name: "Make PyInstaller executable"
@@ -169,12 +176,7 @@ jobs:
           command: |
             dist/Tahoe-LAFS/tahoe --version
 
-  debian-10: &DEBIAN
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/debian:10-py3.7"
-        user: "nobody"
-
+  debian-11: &DEBIAN
     environment: &UTF_8_ENVIRONMENT
       # In general, the test suite is not allowed to fail while the job
       # succeeds.  But you can set this to "yes" if you want it to be
@@ -186,7 +188,7 @@ jobs:
       # filenames and argv).
       LANG: "en_US.UTF-8"
       # Select a tox environment to run for this job.
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py37"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
       # Additional arguments to pass to tox.
       TAHOE_LAFS_TOX_ARGS: ""
       # The path in which test artifacts will be placed.
@@ -254,15 +256,11 @@ jobs:
               /tmp/venv/bin/codecov
             fi
 
-  debian-11:
-    <<: *DEBIAN
     docker:
       - <<: *DOCKERHUB_AUTH
         image: "tahoelafsci/debian:11-py3.9"
         user: "nobody"
-    environment:
-      <<: *UTF_8_ENVIRONMENT
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
+
 
   # Restore later using PyPy3.8
   # pypy27-buster:
@@ -296,6 +294,14 @@ jobs:
 
   integration:
     <<: *DEBIAN
+
+    parameters:
+      tox-args:
+        description: >-
+          Additional arguments to pass to the tox command.
+        type: "string"
+        default: ""
+
     docker:
       - <<: *DOCKERHUB_AUTH
         image: "tahoelafsci/debian:11-py3.9"
@@ -308,27 +314,14 @@ jobs:
       # Disable artifact collection because py.test can't produce any.
       ARTIFACTS_OUTPUT_PATH: ""
 
+      # Pass on anything we got in our parameters.
+      TAHOE_LAFS_TOX_ARGS: "<< parameters.tox-args >>"
+
     steps:
       - "checkout"
       # DRY, YAML-style.  See the debian-9 steps.
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
-
-  ubuntu-18-04: &UBUNTU_18_04
-    <<: *DEBIAN
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3.7"
-        user: "nobody"
-
-    environment:
-      <<: *UTF_8_ENVIRONMENT
-      # The default trial args include --rterrors which is incompatible with
-      # this reporter on Python 3.  So drop that and just specify the
-      # reporter.
-      TAHOE_LAFS_TRIAL_ARGS: "--reporter=subunitv2-file"
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py37"
-
 
   ubuntu-20-04:
     <<: *DEBIAN
@@ -378,111 +371,34 @@ jobs:
           Reference the name of a niv-managed nixpkgs source (see `niv show`
           and nix/sources.json)
         type: "string"
+      pythonVersion:
+        description: >-
+          Reference the name of a Python package in nixpkgs to use.
+        type: "string"
 
-    docker:
-      # Run in a highly Nix-capable environment.
-      - <<: *DOCKERHUB_AUTH
-        image: "nixos/nix:2.3.16"
-
-    environment:
-      # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and
-      # allows us to push to CACHIX_NAME.  We only need this set for
-      # `cachix use` in this step.
-      CACHIX_NAME: "tahoe-lafs-opensource"
+    executor: "nix"
 
     steps:
-      - "run":
-          # The nixos/nix image does not include ssh.  Install it so the
-          # `checkout` step will succeed.  We also want cachix for
-          # Nix-friendly caching.
-          name: "Install Basic Dependencies"
-          command: |
-            nix-env \
-              --file https://github.com/nixos/nixpkgs/archive/nixos-<<parameters.nixpkgs>>.tar.gz \
-              --install \
-              -A openssh cachix bash
-
-      - "checkout"
-
-      - run:
-          name: "Cachix setup"
-          # Record the store paths that exist before we did much.  There's no
-          # reason to cache these, they're either in the image or have to be
-          # retrieved before we can use cachix to restore from cache.
-          command: |
-            cachix use "${CACHIX_NAME}"
-            nix path-info --all > /tmp/store-path-pre-build
-
-      - "run":
-          # The Nix package doesn't know how to do this part, unfortunately.
-          name: "Generate version"
-          command: |
-            nix-shell \
-              -p 'python3.withPackages (ps: [ ps.setuptools ])' \
-              --run 'python setup.py update_version'
-
-      - "run":
-          name: "Build"
-          command: |
-            # CircleCI build environment looks like it has a zillion and a
-            # half cores.  Don't let Nix autodetect this high core count
-            # because it blows up memory usage and fails the test run.  Pick a
-            # number of cores that suites the build environment we're paying
-            # for (the free one!).
-            #
-            # Also, let it run more than one job at a time because we have to
-            # build a couple simple little dependencies that don't take
-            # advantage of multiple cores and we get a little speedup by doing
-            # them in parallel.
-            nix-build --cores 3 --max-jobs 2 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>"
-
-      - "run":
-          name: "Test"
-          command: |
-            # Let it go somewhat wild for the test suite itself
-            nix-build --cores 8 --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" tests.nix
-
-      - run:
-          # Send any new store objects to cachix.
-          name: "Push to Cachix"
-          when: "always"
-          command: |
-            # Cribbed from
-            # https://circleci.com/blog/managing-secrets-when-you-have-pull-requests-from-outside-contributors/
-            if [ -n "$CIRCLE_PR_NUMBER" ]; then
-              # I'm sure you're thinking "CIRCLE_PR_NUMBER must just be the
-              # number of the PR being built".  Sorry, dear reader, you have
-              # guessed poorly.  It is also conditionally set based on whether
-              # this is a PR from a fork or not.
-              #
-              # https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
-              echo "Skipping Cachix push for forked PR."
-            else
-              # If this *isn't* a build from a fork then we have the Cachix
-              # write key in our environment and we can push any new objects
-              # to Cachix.
-              #
-              # To decide what to push, we inspect the list of store objects
-              # that existed before and after we did most of our work.  Any
-              # that are new after the work is probably a useful thing to have
-              # around so push it to the cache.  We exclude all derivation
-              # objects (.drv files) because they're cheap to reconstruct and
-              # by the time you know their cache key you've already done all
-              # the work anyway.
-              #
-              # This shell expression for finding the objects and pushing them
-              # was from the Cachix docs:
-              #
-              # https://docs.cachix.org/continuous-integration-setup/circleci.html
-              #
-              # but they seem to have removed it now.
-              bash -c "comm -13 <(sort /tmp/store-path-pre-build | grep -v '\.drv$') <(nix path-info --all | grep -v '\.drv$' | sort) | cachix push $CACHIX_NAME"
-            fi
+      - "nix-build":
+          nixpkgs: "<<parameters.nixpkgs>>"
+          pythonVersion: "<<parameters.pythonVersion>>"
+          buildSteps:
+            - "run":
+                name: "Unit Test"
+                command: |
+                  # The dependencies are all built so we can allow more
+                  # parallelism here.
+                  source .circleci/lib.sh
+                  cache_if_able nix-build \
+                    --cores 8 \
+                    --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
+                    --argstr pythonVersion "<<parameters.pythonVersion>>" \
+                    nix/tests.nix
 
   typechecks:
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3.7"
+        image: "tahoelafsci/ubuntu:20.04-py3.9"
 
     steps:
       - "checkout"
@@ -494,7 +410,7 @@ jobs:
   docs:
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/ubuntu:18.04-py3.7"
+        image: "tahoelafsci/ubuntu:20.04-py3.9"
 
     steps:
       - "checkout"
@@ -545,15 +461,6 @@ jobs:
             docker push tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION}
 
 
-  build-image-debian-10:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "debian"
-      TAG: "10"
-      PYTHON_VERSION: "3.7"
-
-
   build-image-debian-11:
     <<: *BUILD_IMAGE
 
@@ -561,14 +468,6 @@ jobs:
       DISTRO: "debian"
       TAG: "11"
       PYTHON_VERSION: "3.9"
-
-  build-image-ubuntu-18-04:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "ubuntu"
-      TAG: "18.04"
-      PYTHON_VERSION: "3.7"
 
 
   build-image-ubuntu-20-04:
@@ -598,7 +497,6 @@ jobs:
 
   # build-image-pypy27-buster:
   #   <<: *BUILD_IMAGE
-
   #   environment:
   #     DISTRO: "pypy"
   #     TAG: "buster"
@@ -606,3 +504,87 @@ jobs:
   #     # setting up PyPy 3 in the image building toolchain.  This value is just
   #     # for constructing the right Docker image tag.
   #     PYTHON_VERSION: "2"
+
+executors:
+  nix:
+    docker:
+      # Run in a highly Nix-capable environment.
+      - <<: *DOCKERHUB_AUTH
+        image: "nixos/nix:2.10.3"
+    environment:
+      # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and allows us
+      # to push to CACHIX_NAME.  CACHIX_NAME tells cachix which cache to push
+      # to.
+      CACHIX_NAME: "tahoe-lafs-opensource"
+
+commands:
+  nix-build:
+    parameters:
+      nixpkgs:
+        description: >-
+          Reference the name of a niv-managed nixpkgs source (see `niv show`
+          and nix/sources.json)
+        type: "string"
+      pythonVersion:
+        description: >-
+          Reference the name of a Python package in nixpkgs to use.
+        type: "string"
+      buildSteps:
+        description: >-
+          The build steps to execute after setting up the build environment.
+        type: "steps"
+
+    steps:
+      - "run":
+          # Get cachix for Nix-friendly caching.
+          name: "Install Basic Dependencies"
+          command: |
+            NIXPKGS="https://github.com/nixos/nixpkgs/archive/nixos-<<parameters.nixpkgs>>.tar.gz"
+            nix-env \
+              --file $NIXPKGS \
+              --install \
+              -A cachix bash
+              # Activate it for "binary substitution".  This sets up
+              # configuration tht lets Nix download something from the cache
+              # instead of building it locally, if possible.
+              cachix use "${CACHIX_NAME}"
+
+      - "checkout"
+
+      - "run":
+          # The Nix package doesn't know how to do this part, unfortunately.
+          name: "Generate version"
+          command: |
+            nix-shell \
+              -p 'python3.withPackages (ps: [ ps.setuptools ])' \
+              --run 'python setup.py update_version'
+
+      - "run":
+          name: "Build Dependencies"
+          command: |
+            # CircleCI build environment looks like it has a zillion and a
+            # half cores.  Don't let Nix autodetect this high core count
+            # because it blows up memory usage and fails the test run.  Pick a
+            # number of cores that suits the build environment we're paying
+            # for (the free one!).
+            source .circleci/lib.sh
+            # nix-shell will build all of the dependencies of the target but
+            # not the target itself.
+            cache_if_able nix-shell \
+              --run "" \
+              --cores 3 \
+              --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
+              --argstr pythonVersion "<<parameters.pythonVersion>>" \
+              ./default.nix
+
+      - "run":
+          name: "Build Package"
+          command: |
+            source .circleci/lib.sh
+            cache_if_able nix-build \
+              --cores 4 \
+              --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
+              --argstr pythonVersion "<<parameters.pythonVersion>>" \
+              ./default.nix
+
+      - steps: "<<parameters.buildSteps>>"

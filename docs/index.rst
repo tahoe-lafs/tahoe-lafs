@@ -32,6 +32,7 @@ Contents:
    gpg-setup
 
    servers
+   managed-grid
    helper
    convergence-secret
    garbage-collection

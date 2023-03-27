@@ -8,33 +8,23 @@ reused across tests, so each test should be careful to generate unique storage
 indexes.
 """
 
-from future.utils import bchr
+from __future__ import annotations
 
-from typing import Set
+from future.utils import bchr
 
 from random import Random
 from unittest import SkipTest
 
-from twisted.internet.defer import inlineCallbacks, returnValue, succeed
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import Clock
-from twisted.internet import reactor
-from twisted.internet.endpoints import serverFromString
-from twisted.python.filepath import FilePath
 from foolscap.api import Referenceable, RemoteException
 
-from allmydata.interfaces import IStorageServer  # really, IStorageClient
+# A better name for this would be IStorageClient...
+from allmydata.interfaces import IStorageServer
+
 from .common_system import SystemTestMixin
-from .common import AsyncTestCase, SameProcessStreamEndpointAssigner
-from .certs import (
-    generate_certificate,
-    generate_private_key,
-    private_key_to_file,
-    cert_to_file,
-)
+from .common import AsyncTestCase
 from allmydata.storage.server import StorageServer  # not a IStorageServer!!
-from allmydata.storage.http_server import HTTPServer, listen_tls
-from allmydata.storage.http_client import StorageClient
-from allmydata.storage_client import _HTTPStorageServer
 
 
 # Use random generator with known seed, so results are reproducible if tests
@@ -444,6 +434,17 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         storage_index, _, _ = yield self.create_share()
         yield self.storage_client.advise_corrupt_share(
             b"immutable", storage_index, 0, b"ono"
+        )
+
+    @inlineCallbacks
+    def test_advise_corrupt_share_unknown_share_number(self):
+        """
+        Calling ``advise_corrupt_share()`` on an immutable share, with an
+        unknown share number, does not result in error.
+        """
+        storage_index, _, _ = yield self.create_share()
+        yield self.storage_client.advise_corrupt_share(
+            b"immutable", storage_index, 999, b"ono"
         )
 
     @inlineCallbacks
@@ -916,6 +917,19 @@ class IStorageServerMutableAPIsTestsMixin(object):
         )
 
     @inlineCallbacks
+    def test_advise_corrupt_share_unknown_share_number(self):
+        """
+        Calling ``advise_corrupt_share()`` on a mutable share with an unknown
+        share number does not result in error (other behavior is opaque at this
+        level of abstraction).
+        """
+        secrets, storage_index = yield self.create_slot()
+
+        yield self.storage_client.advise_corrupt_share(
+            b"mutable", storage_index, 999, b"ono"
+        )
+
+    @inlineCallbacks
     def test_STARAW_create_lease(self):
         """
         When STARAW creates a new slot, it also creates a lease.
@@ -1027,10 +1041,13 @@ class IStorageServerMutableAPIsTestsMixin(object):
 class _SharedMixin(SystemTestMixin):
     """Base class for Foolscap and HTTP mixins."""
 
-    SKIP_TESTS = set()  # type: Set[str]
+    SKIP_TESTS : set[str] = set()
 
     def _get_istorage_server(self):
-        raise NotImplementedError("implement in subclass")
+        native_server = next(iter(self.clients[0].storage_broker.get_known_servers()))
+        client = native_server.get_storage_server()
+        self.assertTrue(IStorageServer.providedBy(client))
+        return client
 
     @inlineCallbacks
     def setUp(self):
@@ -1053,7 +1070,7 @@ class _SharedMixin(SystemTestMixin):
         self._clock = Clock()
         self._clock.advance(123456)
         self.server._clock = self._clock
-        self.storage_client = yield self._get_istorage_server()
+        self.storage_client = self._get_istorage_server()
 
     def fake_time(self):
         """Return the current fake, test-controlled, time."""
@@ -1069,73 +1086,28 @@ class _SharedMixin(SystemTestMixin):
         yield SystemTestMixin.tearDown(self)
 
 
-class _FoolscapMixin(_SharedMixin):
-    """Run tests on Foolscap version of ``IStorageServer``."""
-
-    def _get_native_server(self):
-        return next(iter(self.clients[0].storage_broker.get_known_servers()))
-
-    def _get_istorage_server(self):
-        client = self._get_native_server().get_storage_server()
-        self.assertTrue(IStorageServer.providedBy(client))
-        return succeed(client)
-
-
-class _HTTPMixin(_SharedMixin):
-    """Run tests on the HTTP version of ``IStorageServer``."""
-
-    def setUp(self):
-        self._port_assigner = SameProcessStreamEndpointAssigner()
-        self._port_assigner.setUp()
-        self.addCleanup(self._port_assigner.tearDown)
-        return _SharedMixin.setUp(self)
-
-    @inlineCallbacks
-    def _get_istorage_server(self):
-        swissnum = b"1234"
-        http_storage_server = HTTPServer(self.server, swissnum)
-
-        # Listen on randomly assigned port, using self-signed cert:
-        private_key = generate_private_key()
-        certificate = generate_certificate(private_key)
-        _, endpoint_string = self._port_assigner.assign(reactor)
-        nurl, listening_port = yield listen_tls(
-            http_storage_server,
-            "127.0.0.1",
-            serverFromString(reactor, endpoint_string),
-            private_key_to_file(FilePath(self.mktemp()), private_key),
-            cert_to_file(FilePath(self.mktemp()), certificate),
-        )
-        self.addCleanup(listening_port.stopListening)
-
-        # Create HTTP client with non-persistent connections, so we don't leak
-        # state across tests:
-        returnValue(
-            _HTTPStorageServer.from_http_client(
-                StorageClient.from_nurl(nurl, reactor, persistent=False)
-            )
-        )
-
-        # Eventually should also:
-        #  self.assertTrue(IStorageServer.providedBy(client))
-
-
 class FoolscapSharedAPIsTests(
-    _FoolscapMixin, IStorageServerSharedAPIsTestsMixin, AsyncTestCase
+    _SharedMixin, IStorageServerSharedAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for shared ``IStorageServer`` APIs."""
 
+    FORCE_FOOLSCAP_FOR_STORAGE = True
+
 
 class HTTPSharedAPIsTests(
-    _HTTPMixin, IStorageServerSharedAPIsTestsMixin, AsyncTestCase
+    _SharedMixin, IStorageServerSharedAPIsTestsMixin, AsyncTestCase
 ):
     """HTTP-specific tests for shared ``IStorageServer`` APIs."""
 
+    FORCE_FOOLSCAP_FOR_STORAGE = False
+
 
 class FoolscapImmutableAPIsTests(
-    _FoolscapMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
+    _SharedMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for immutable ``IStorageServer`` APIs."""
+
+    FORCE_FOOLSCAP_FOR_STORAGE = True
 
     def test_disconnection(self):
         """
@@ -1159,23 +1131,29 @@ class FoolscapImmutableAPIsTests(
         """
         current = self.storage_client
         yield self.bounce_client(0)
-        self.storage_client = self._get_native_server().get_storage_server()
+        self.storage_client = self._get_istorage_server()
         assert self.storage_client is not current
 
 
 class HTTPImmutableAPIsTests(
-    _HTTPMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
+    _SharedMixin, IStorageServerImmutableAPIsTestsMixin, AsyncTestCase
 ):
     """HTTP-specific tests for immutable ``IStorageServer`` APIs."""
 
+    FORCE_FOOLSCAP_FOR_STORAGE = False
+
 
 class FoolscapMutableAPIsTests(
-    _FoolscapMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
+    _SharedMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
 ):
     """Foolscap-specific tests for mutable ``IStorageServer`` APIs."""
 
+    FORCE_FOOLSCAP_FOR_STORAGE = True
+
 
 class HTTPMutableAPIsTests(
-    _HTTPMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
+    _SharedMixin, IStorageServerMutableAPIsTestsMixin, AsyncTestCase
 ):
     """HTTP-specific tests for mutable ``IStorageServer`` APIs."""
+
+    FORCE_FOOLSCAP_FOR_STORAGE = False

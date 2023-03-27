@@ -1,15 +1,7 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    # Don't import bytes and str, to prevent API leakage
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min  # noqa: F401
+from __future__ import annotations
 
 import time
 
@@ -32,7 +24,7 @@ from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
 
 from allmydata.mutable.common import CorruptShareError, BadShareError, \
-     UncoordinatedWriteError
+     UncoordinatedWriteError, decrypt_privkey
 from allmydata.mutable.layout import MDMFSlotReadProxy
 
 @implementer(IRetrieveStatus)
@@ -931,9 +923,10 @@ class Retrieve(object):
 
 
     def _try_to_validate_privkey(self, enc_privkey, reader, server):
-        alleged_privkey_s = self._node._decrypt_privkey(enc_privkey)
+        node_writekey = self._node.get_writekey()
+        alleged_privkey_s = decrypt_privkey(node_writekey, enc_privkey)
         alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
-        if alleged_writekey != self._node.get_writekey():
+        if alleged_writekey != node_writekey:
             self.log("invalid privkey from %s shnum %d" %
                      (reader, reader.shnum),
                      level=log.WEIRD, umid="YIw4tA")

@@ -161,7 +161,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             html = renderSynchronously(w)
             s = remove_tags(html)
             self.failUnlessIn(b"Total buckets: 0 (the number of", s)
-            self.failUnless(b"Next crawl in 59 minutes" in s or "Next crawl in 60 minutes" in s, s)
+            self.failUnless(b"Next crawl in 59 minutes" in s or b"Next crawl in 60 minutes" in s, s)
         d.addCallback(_check2)
         return d
 

@@ -32,14 +32,15 @@ For example::
 
 from __future__ import annotations
 
-from typing import Iterator, Optional, List, Tuple
-from collections.abc import Awaitable
-from inspect import getargspec
+__all__ = ['MemoryWormholeServer', 'TestingHelper', 'memory_server', 'IWormhole']
+
+from typing import Iterator, Optional, List, Tuple, Any, TextIO
+from inspect import getfullargspec
 from itertools import count
 from sys import stderr
 
 from attrs import frozen, define, field, Factory
-from twisted.internet.defer import Deferred, DeferredQueue, succeed
+from twisted.internet.defer import Deferred, DeferredQueue, succeed, Awaitable
 from wormhole._interfaces import IWormhole
 from wormhole.wormhole import create
 from zope.interface import implementer
@@ -66,18 +67,18 @@ class MemoryWormholeServer(object):
 
     def create(
         self,
-        appid,
-        relay_url,
-        reactor,
-        versions={},
-        delegate=None,
-        journal=None,
-        tor=None,
-        timing=None,
-        stderr=stderr,
-        _eventual_queue=None,
-        _enable_dilate=False,
-    ):
+        appid: str,
+        relay_url: str,
+        reactor: Any,
+        versions: Any={},
+        delegate: Optional[Any]=None,
+        journal: Optional[Any]=None,
+        tor: Optional[Any]=None,
+        timing: Optional[Any]=None,
+        stderr: TextIO=stderr,
+        _eventual_queue: Optional[Any]=None,
+        _enable_dilate: bool=False,
+    ) -> _MemoryWormhole:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
         by this instance (and constrained by the normal appid/relay_url
@@ -134,18 +135,24 @@ class TestingHelper(object):
         return wormhole
 
 
-def _verify():
+def _verify() -> None:
     """
     Roughly confirm that the in-memory wormhole creation function matches the
     interface of the real implementation.
     """
     # Poor man's interface verification.
 
-    a = getargspec(create)
-    b = getargspec(MemoryWormholeServer.create)
+    a = getfullargspec(create)
+    b = getfullargspec(MemoryWormholeServer.create)
     # I know it has a `self` argument at the beginning.  That's okay.
     b = b._replace(args=b.args[1:])
-    assert a == b, "{} != {}".format(a, b)
+
+    # Just compare the same information to check function signature
+    assert a.varkw == b.varkw
+    assert a.args == b.args
+    assert a.varargs == b.varargs
+    assert a.kwonlydefaults == b.kwonlydefaults
+    assert a.defaults == b.defaults
 
 
 _verify()
@@ -262,7 +269,7 @@ class _MemoryWormhole(object):
             return d
         return succeed(self._code)
 
-    def get_welcome(self):
+    def get_welcome(self) -> Deferred[str]:
         return succeed("welcome")
 
     def send_message(self, payload: WormholeMessage) -> None:
@@ -276,8 +283,8 @@ class _MemoryWormhole(object):
             )
         d = self._view.wormhole_by_code(self._code, exclude=self)
 
-        def got_wormhole(wormhole):
-            msg = wormhole._payload.get()
+        def got_wormhole(wormhole: _MemoryWormhole) -> Deferred[WormholeMessage]:
+            msg: Deferred[WormholeMessage] = wormhole._payload.get()
             return msg
 
         d.addCallback(got_wormhole)

@@ -12,11 +12,6 @@ if PY2:
 
 from six import ensure_binary
 
-try:
-    from allmydata.scripts.types_ import SubCommands
-except ImportError:
-    pass
-
 from twisted.python import usage
 from twisted.python.filepath import (
     FilePath,
@@ -29,6 +24,14 @@ from allmydata.storage import (
     crawler,
     expirer,
 )
+from allmydata.scripts.types_ import SubCommands
+from allmydata.client import read_config
+from allmydata.grid_manager import (
+    parse_grid_manager_certificate,
+)
+from allmydata.scripts.cli import _default_nodedir
+from allmydata.util.encodingutil import argv_to_abspath
+from allmydata.util import jsonbytes
 
 class GenerateKeypairOptions(BaseOptions):
 
@@ -75,6 +78,7 @@ def derive_pubkey(options):
     print("public:", str(ed25519.string_from_verifying_key(public_key), "ascii"), file=out)
     return 0
 
+
 class MigrateCrawlerOptions(BasedirOptions):
 
     def getSynopsis(self):
@@ -90,6 +94,61 @@ class MigrateCrawlerOptions(BasedirOptions):
             " command to upgrade them to JSON.\n\nThe files are:"
             " lease_checker.history, lease_checker.state, and"
             " bucket_counter.state"
+        )
+        return t
+
+
+class AddGridManagerCertOptions(BaseOptions):
+    """
+    Options for add-grid-manager-cert
+    """
+
+    optParameters = [
+        ['filename', 'f', None, "Filename of the certificate ('-', a dash, for stdin)"],
+        ['name', 'n', None, "Name to give this certificate"],
+    ]
+
+    def getSynopsis(self):
+        return "Usage: tahoe [global-options] admin add-grid-manager-cert [options]"
+
+    def postOptions(self) -> None:
+        if self['name'] is None:
+            raise usage.UsageError(
+                "Must provide --name option"
+            )
+        if self['filename'] is None:
+            raise usage.UsageError(
+                "Must provide --filename option"
+            )
+
+        data: str
+        if self['filename'] == '-':
+            print("reading certificate from stdin", file=self.parent.parent.stderr)
+            data = self.parent.parent.stdin.read()
+            if len(data) == 0:
+                raise usage.UsageError(
+                    "Reading certificate from stdin failed"
+                )
+        else:
+            with open(self['filename'], 'r') as f:
+                data = f.read()
+
+        try:
+            self.certificate_data = parse_grid_manager_certificate(data)
+        except ValueError as e:
+            raise usage.UsageError(
+                "Error parsing certificate: {}".format(e)
+            )
+
+    def getUsage(self, width=None):
+        t = BaseOptions.getUsage(self, width)
+        t += (
+            "Adds a Grid Manager certificate to a Storage Server.\n\n"
+            "The certificate will be copied into the base-dir and config\n"
+            "will be added to 'tahoe.cfg', which will be re-written. A\n"
+            "restart is required for changes to take effect.\n\n"
+            "The human who operates a Grid Manager would produce such a\n"
+            "certificate and communicate it securely to you.\n"
         )
         return t
 
@@ -116,6 +175,44 @@ def migrate_crawler(options):
                 print("Not found: '{}'".format(fp.path), file=out)
 
 
+def add_grid_manager_cert(options):
+    """
+    Add a new Grid Manager certificate to our config
+    """
+    # XXX is there really not already a function for this?
+    if options.parent.parent['node-directory']:
+        nd = argv_to_abspath(options.parent.parent['node-directory'])
+    else:
+        nd = _default_nodedir
+
+    config = read_config(nd, "portnum")
+    cert_fname = "{}.cert".format(options['name'])
+    cert_path = FilePath(config.get_config_path(cert_fname))
+    cert_bytes = jsonbytes.dumps_bytes(options.certificate_data, indent=4) + b'\n'
+    cert_name = options['name']
+
+    if cert_path.exists():
+        msg = "Already have certificate for '{}' (at {})".format(
+            options['name'],
+            cert_path.path,
+        )
+        print(msg, file=options.stderr)
+        return 1
+
+    config.set_config("storage", "grid_management", "True")
+    config.set_config("grid_manager_certificates", cert_name, cert_fname)
+
+    # write all the data out
+    with cert_path.open("wb") as f:
+        f.write(cert_bytes)
+
+    cert_count = len(config.enumerate_section("grid_manager_certificates"))
+    print("There are now {} certificates".format(cert_count),
+          file=options.stderr)
+
+    return 0
+
+
 class AdminCommand(BaseOptions):
     subCommands = [
         ("generate-keypair", None, GenerateKeypairOptions,
@@ -124,6 +221,9 @@ class AdminCommand(BaseOptions):
          "Derive a public key from a private key."),
         ("migrate-crawler", None, MigrateCrawlerOptions,
          "Write the crawler-history data as JSON."),
+        ("add-grid-manager-cert", None, AddGridManagerCertOptions,
+         "Add a Grid Manager-provided certificate to a storage "
+         "server's config."),
         ]
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
@@ -138,11 +238,14 @@ each subcommand.
 """
         return t
 
+
 subDispatch = {
     "generate-keypair": print_keypair,
     "derive-pubkey": derive_pubkey,
     "migrate-crawler": migrate_crawler,
-    }
+    "add-grid-manager-cert": add_grid_manager_cert,
+}
+
 
 def do_admin(options):
     so = options.subOptions
@@ -152,10 +255,10 @@ def do_admin(options):
     return f(so)
 
 
-subCommands = [
+subCommands : SubCommands = [
     ("admin", None, AdminCommand, "admin subcommands: use 'tahoe admin' for a list"),
-    ]  # type: SubCommands
+    ]
 
 dispatch = {
     "admin": do_admin,
-    }
+}

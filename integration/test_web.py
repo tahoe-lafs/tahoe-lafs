@@ -7,18 +7,9 @@ Most of the tests have cursory asserts and encode 'what the WebAPI did
 at the time of testing' -- not necessarily a cohesive idea of what the
 WebAPI *should* do in every situation. It's not clear the latter
 exists anywhere, however.
-
-Ported to Python 3.
 """
 
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 import time
 from urllib.parse import unquote as url_unquote, quote as url_quote
@@ -27,12 +18,15 @@ import allmydata.uri
 from allmydata.util import jsonbytes as json
 
 from . import util
+from .util import run_in_thread
 
 import requests
 import html5lib
 from bs4 import BeautifulSoup
 
+from pytest_twisted import ensureDeferred
 
+@run_in_thread
 def test_index(alice):
     """
     we can download the index file
@@ -40,6 +34,7 @@ def test_index(alice):
     util.web_get(alice, u"")
 
 
+@run_in_thread
 def test_index_json(alice):
     """
     we can download the index file as json
@@ -49,6 +44,7 @@ def test_index_json(alice):
     json.loads(data)
 
 
+@run_in_thread
 def test_upload_download(alice):
     """
     upload a file, then download it via readcap
@@ -78,6 +74,7 @@ def test_upload_download(alice):
     assert str(data, "utf-8") == FILE_CONTENTS
 
 
+@run_in_thread
 def test_put(alice):
     """
     use PUT to create a file
@@ -97,6 +94,7 @@ def test_put(alice):
     assert cap.needed_shares == int(cfg.get_config("client", "shares.needed"))
 
 
+@run_in_thread
 def test_helper_status(storage_nodes):
     """
     successfully GET the /helper_status page
@@ -109,6 +107,7 @@ def test_helper_status(storage_nodes):
     assert str(dom.h1.string) == u"Helper Status"
 
 
+@run_in_thread
 def test_deep_stats(alice):
     """
     create a directory, do deep-stats on it and prove the /operations/
@@ -252,10 +251,18 @@ def test_status(alice):
     assert found_download, "Failed to find the file we downloaded in the status-page"
 
 
-def test_directory_deep_check(alice):
+@ensureDeferred
+async def test_directory_deep_check(reactor, request, alice):
     """
     use deep-check and confirm the result pages work
     """
+    # Make sure the node is configured compatibly with expectations of this
+    # test.
+    happy = 3
+    required = 2
+    total = 4
+
+    await util.reconfigure(reactor, request, alice, (happy, required, total), convergence=None)
 
     # create a directory
     resp = requests.post(
@@ -313,7 +320,7 @@ def test_directory_deep_check(alice):
     )
 
     def check_repair_data(checkdata):
-        assert checkdata["healthy"] is True
+        assert checkdata["healthy"]
         assert checkdata["count-happiness"] == 4
         assert checkdata["count-good-share-hosts"] == 4
         assert checkdata["count-shares-good"] == 4
@@ -417,6 +424,7 @@ def test_directory_deep_check(alice):
     assert dom is not None, "Operation never completed"
 
 
+@run_in_thread
 def test_storage_info(storage_nodes):
     """
     retrieve and confirm /storage URI for one storage node
@@ -428,6 +436,7 @@ def test_storage_info(storage_nodes):
     )
 
 
+@run_in_thread
 def test_storage_info_json(storage_nodes):
     """
     retrieve and confirm /storage?t=json URI for one storage node
@@ -442,6 +451,7 @@ def test_storage_info_json(storage_nodes):
     assert data[u"stats"][u"storage_server.reserved_space"] == 1000000000
 
 
+@run_in_thread
 def test_introducer_info(introducer):
     """
     retrieve and confirm /introducer URI for the introducer
@@ -460,6 +470,7 @@ def test_introducer_info(introducer):
     assert "subscription_summary" in data
 
 
+@run_in_thread
 def test_mkdir_with_children(alice):
     """
     create a directory using ?t=mkdir-with-children

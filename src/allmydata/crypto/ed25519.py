@@ -13,20 +13,7 @@ cut-and-pasteability. The base62 encoding is shorter than the base32 form,
 but the minor usability improvement is not worth the documentation and
 specification confusion of using a non-standard encoding. So we stick with
 base32.
-
-Ported to Python 3.
 '''
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-import six
 
 from cryptography.exceptions import (
     InvalidSignature,
@@ -72,7 +59,7 @@ def verifying_key_from_signing_key(private_key):
     return private_key.public_key()
 
 
-def sign_data(private_key, data):
+def sign_data(private_key, data: bytes) -> bytes:
     """
     Sign the given data using the given private key
 
@@ -86,7 +73,7 @@ def sign_data(private_key, data):
     """
 
     _validate_private_key(private_key)
-    if not isinstance(data, six.binary_type):
+    if not isinstance(data, bytes):
         raise ValueError('data must be bytes')
     return private_key.sign(data)
 
@@ -110,7 +97,7 @@ def string_from_signing_key(private_key):
     return PRIVATE_KEY_PREFIX + b2a(raw_key_bytes)
 
 
-def signing_keypair_from_string(private_key_bytes):
+def signing_keypair_from_string(private_key_bytes: bytes):
     """
     Load a signing keypair from a string of bytes (which includes the
     PRIVATE_KEY_PREFIX)
@@ -118,7 +105,7 @@ def signing_keypair_from_string(private_key_bytes):
     :returns: a 2-tuple of (private_key, public_key)
     """
 
-    if not isinstance(private_key_bytes, six.binary_type):
+    if not isinstance(private_key_bytes, bytes):
         raise ValueError('private_key_bytes must be bytes')
 
     private_key = Ed25519PrivateKey.from_private_bytes(
@@ -127,7 +114,7 @@ def signing_keypair_from_string(private_key_bytes):
     return private_key, private_key.public_key()
 
 
-def verify_signature(public_key, alleged_signature, data):
+def verify_signature(public_key, alleged_signature: bytes, data: bytes):
     """
     :param public_key: a verifying key
 
@@ -139,10 +126,10 @@ def verify_signature(public_key, alleged_signature, data):
     :returns: None (or raises an exception).
     """
 
-    if not isinstance(alleged_signature, six.binary_type):
+    if not isinstance(alleged_signature, bytes):
         raise ValueError('alleged_signature must be bytes')
 
-    if not isinstance(data, six.binary_type):
+    if not isinstance(data, bytes):
         raise ValueError('data must be bytes')
 
     _validate_public_key(public_key)
@@ -159,7 +146,7 @@ def verifying_key_from_string(public_key_bytes):
 
     :returns: a public_key
     """
-    if not isinstance(public_key_bytes, six.binary_type):
+    if not isinstance(public_key_bytes, bytes):
         raise ValueError('public_key_bytes must be bytes')
 
     return Ed25519PublicKey.from_public_bytes(
@@ -167,7 +154,7 @@ def verifying_key_from_string(public_key_bytes):
     )
 
 
-def string_from_verifying_key(public_key):
+def string_from_verifying_key(public_key) -> bytes:
     """
     Encode a public key to a string of bytes
 
@@ -183,7 +170,7 @@ def string_from_verifying_key(public_key):
     return PUBLIC_KEY_PREFIX + b2a(raw_key_bytes)
 
 
-def _validate_public_key(public_key):
+def _validate_public_key(public_key: Ed25519PublicKey):
     """
     Internal helper. Verify that `public_key` is an appropriate object
     """
@@ -192,7 +179,7 @@ def _validate_public_key(public_key):
     return None
 
 
-def _validate_private_key(private_key):
+def _validate_private_key(private_key: Ed25519PrivateKey):
     """
     Internal helper. Verify that `private_key` is an appropriate object
     """
