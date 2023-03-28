@@ -2,8 +2,6 @@
 Tests for allmydata.util.connection_status.
 """
 
-import mock
-
 from twisted.trial import unittest
 
 from foolscap.reconnector import ReconnectionInfo, Reconnector
