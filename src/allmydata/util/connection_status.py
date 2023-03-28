@@ -16,6 +16,7 @@ if PY2:
 import time
 from zope.interface import implementer
 from ..interfaces import IConnectionStatus
+from foolscap.reconnector import Reconnector
 
 @implementer(IConnectionStatus)
 class ConnectionStatus(object):
@@ -50,7 +51,7 @@ def _hint_statuses(which, handlers, statuses):
         non_connected_statuses["%s%s" % (hint, handler_dsc)] = dsc
     return non_connected_statuses
 
-def from_foolscap_reconnector(rc, last_received):
+def from_foolscap_reconnector(rc: Reconnector, last_received: int, time=time.time) -> ConnectionStatus:
     ri = rc.getReconnectionInfo()
     # See foolscap/reconnector.py, ReconnectionInfo, for details about possible
     # states. The returned result is a native string, it seems, so convert to
@@ -80,7 +81,7 @@ def from_foolscap_reconnector(rc, last_received):
         # ci describes the current in-progress attempt
         summary = "Trying to connect"
     elif state == "waiting":
-        now = time.time()
+        now = time()
         elapsed = now - ri.lastAttempt
         delay = ri.nextAttempt - now
         summary = "Reconnecting in %d seconds (last attempt %ds ago)" % \

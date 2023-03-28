@@ -105,8 +105,7 @@ class Status(unittest.TestCase):
         ri.nextAttempt = 20
         ri.connectionInfo = ci
         rc = reconnector(ri)
-        with mock.patch("time.time", return_value=12):
-            cs = connection_status.from_foolscap_reconnector(rc, 5)
+        cs = connection_status.from_foolscap_reconnector(rc, 5, time=lambda: 12)
         self.assertEqual(cs.connected, False)
         self.assertEqual(cs.summary,
                          "Reconnecting in 8 seconds (last attempt 2s ago)")
