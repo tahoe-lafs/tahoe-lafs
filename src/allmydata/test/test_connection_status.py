@@ -1,20 +1,12 @@
 """
 Tests for allmydata.util.connection_status.
-
-Port to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import mock
 
 from twisted.trial import unittest
+
+from foolscap.reconnector import ReconnectionInfo
 
 from ..util import connection_status
 
@@ -33,7 +25,7 @@ class Status(unittest.TestCase):
         ci.connectionHandlers = {"h1": "hand1"}
         ci.winningHint = "h1"
         ci.establishedAt = 120
-        ri = mock.Mock()
+        ri = ReconnectionInfo()
         ri.state = "connected"
         ri.connectionInfo = ci
         rc = mock.Mock
@@ -51,7 +43,7 @@ class Status(unittest.TestCase):
         ci.connectionHandlers = {"h1": "hand1"}
         ci.winningHint = "h1"
         ci.establishedAt = 120
-        ri = mock.Mock()
+        ri = ReconnectionInfo()
         ri.state = "connected"
         ri.connectionInfo = ci
         rc = mock.Mock
@@ -70,7 +62,7 @@ class Status(unittest.TestCase):
         ci.listenerStatus = ("listener1", "successful")
         ci.winningHint = None
         ci.establishedAt = 120
-        ri = mock.Mock()
+        ri = ReconnectionInfo()
         ri.state = "connected"
         ri.connectionInfo = ci
         rc = mock.Mock
@@ -87,7 +79,7 @@ class Status(unittest.TestCase):
         ci = mock.Mock()
         ci.connectorStatuses = {"h1": "st1", "h2": "st2"}
         ci.connectionHandlers = {"h1": "hand1"}
-        ri = mock.Mock()
+        ri = ReconnectionInfo()
         ri.state = "connecting"
         ri.connectionInfo = ci
         rc = mock.Mock
@@ -104,7 +96,7 @@ class Status(unittest.TestCase):
         ci = mock.Mock()
         ci.connectorStatuses = {"h1": "st1", "h2": "st2"}
         ci.connectionHandlers = {"h1": "hand1"}
-        ri = mock.Mock()
+        ri = ReconnectionInfo()
         ri.state = "waiting"
         ri.lastAttempt = 10
         ri.nextAttempt = 20
