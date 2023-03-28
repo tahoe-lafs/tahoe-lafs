@@ -31,7 +31,7 @@ class ConnectionStatus(object):
             last_received_time=None,
         )
 
-def _hint_statuses(which, handlers, statuses):
+def _hint_statuses(which, handlers, statuses) -> dict[str, str]:
     non_connected_statuses = {}
     for hint in which:
         handler = handlers.get(hint)
