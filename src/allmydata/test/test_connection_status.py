@@ -2,6 +2,8 @@
 Tests for allmydata.util.connection_status.
 """
 
+from __future__ import annotations
+
 from typing import Optional
 
 from foolscap.reconnector import ReconnectionInfo, Reconnector
