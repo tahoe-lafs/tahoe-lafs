@@ -2,6 +2,8 @@
 Parse connection status from Foolscap.
 """
 
+from __future__ import annotations
+
 import time
 from zope.interface import implementer
 from ..interfaces import IConnectionStatus
