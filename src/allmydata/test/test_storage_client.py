@@ -8,7 +8,7 @@ from json import (
     loads,
 )
 import hashlib
-from typing import Union, Any, Optional
+from typing import Union, Any
 
 from hyperlink import DecodedURL
 from fixtures import (
@@ -62,6 +62,8 @@ from foolscap.api import (
 from foolscap.ipb import (
     IConnectionHintHandler,
 )
+
+from allmydata.util.deferredutil import MultiFailure
 
 from .no_network import LocalWrapper
 from .common import (
@@ -782,7 +784,7 @@ storage:
 class PickHTTPServerTests(unittest.SynchronousTestCase):
     """Tests for ``_pick_a_http_server``."""
 
-    def pick_result(self, url_to_results: dict[DecodedURL, tuple[float, Union[Exception, Any]]]) -> Optional[DecodedURL]:
+    def pick_result(self, url_to_results: dict[DecodedURL, tuple[float, Union[Exception, Any]]]) -> Deferred[DecodedURL]:
         """
         Given mapping of URLs to (delay, result), return the URL of the
         first selected server, or None.
@@ -803,7 +805,7 @@ class PickHTTPServerTests(unittest.SynchronousTestCase):
         d = _pick_a_http_server(clock, list(url_to_results.keys()), request)
         for i in range(100):
             clock.advance(0.1)
-        return self.successResultOf(d)
+        return d
 
     def test_first_successful_connect_is_picked(self):
         """
@@ -817,16 +819,21 @@ class PickHTTPServerTests(unittest.SynchronousTestCase):
             earliest_url: (1, None),
             bad_url: (0.5, RuntimeError()),
         })
-        self.assertEqual(result, earliest_url)
+        self.assertEqual(self.successResultOf(result), earliest_url)
 
-    def test_failures_are_turned_into_none(self):
+    def test_failures_include_all_reasons(self):
         """
-        If the requests all fail, ``_pick_a_http_server`` returns ``None``.
+        If all the requests fail, ``_pick_a_http_server`` raises a
+        ``allmydata.util.deferredutil.MultiFailure``.
         """
         eventually_good_url = DecodedURL.from_text("http://good")
         bad_url = DecodedURL.from_text("http://bad")
+        exception1 = RuntimeError()
+        exception2 = ZeroDivisionError()
         result = self.pick_result({
-            eventually_good_url: (1, ZeroDivisionError()),
-            bad_url: (0.1, RuntimeError())
+            eventually_good_url: (1, exception1),
+            bad_url: (0.1, exception2),
         })
-        self.assertEqual(result, None)
+        exc = self.failureResultOf(result).value
+        self.assertIsInstance(exc, MultiFailure)
+        self.assertEqual({f.value for f in exc.failures}, {exception2, exception1})
