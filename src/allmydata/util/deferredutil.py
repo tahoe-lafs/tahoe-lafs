@@ -13,8 +13,9 @@ from typing import (
     Sequence,
     TypeVar,
     Optional,
+    Coroutine,
 )
-from typing_extensions import Awaitable, ParamSpec
+from typing_extensions import ParamSpec
 
 from foolscap.api import eventually
 from eliot.twisted import (
@@ -230,7 +231,7 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-def async_to_deferred(f: Callable[P, Awaitable[R]]) -> Callable[P, Deferred[R]]:
+def async_to_deferred(f: Callable[P, Coroutine[defer.Deferred[R], None, R]]) -> Callable[P, Deferred[R]]:
     """
     Wrap an async function to return a Deferred instead.
 
@@ -239,12 +240,7 @@ def async_to_deferred(f: Callable[P, Awaitable[R]]) -> Callable[P, Deferred[R]]:
 
     @wraps(f)
     def not_async(*args: P.args, **kwargs: P.kwargs) -> Deferred[R]:
-        # Twisted documents fromCoroutine as accepting either a Generator or a
-        # Coroutine. However, the standard for type annotations of async
-        # functions is to return an Awaitable:
-        # https://github.com/twisted/twisted/issues/11832
-        # So, we ignore the type warning.
-        return defer.Deferred.fromCoroutine(f(*args, **kwargs))  # type: ignore
+        return defer.Deferred.fromCoroutine(f(*args, **kwargs))
 
     return not_async
 
