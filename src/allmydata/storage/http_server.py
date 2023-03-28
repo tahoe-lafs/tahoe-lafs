@@ -106,28 +106,31 @@ def _authorization_decorator(required_secrets):
     def decorator(f):
         @wraps(f)
         def route(self, request, *args, **kwargs):
-            if not timing_safe_compare(
-                request.requestHeaders.getRawHeaders("Authorization", [""])[0].encode(
-                    "utf-8"
-                ),
-                swissnum_auth_header(self._swissnum),
-            ):
-                request.setResponseCode(http.UNAUTHORIZED)
-                return b""
-            authorization = request.requestHeaders.getRawHeaders(
-                "X-Tahoe-Authorization", []
-            )
-            try:
-                secrets = _extract_secrets(authorization, required_secrets)
-            except ClientSecretsException:
-                request.setResponseCode(http.BAD_REQUEST)
-                return b"Missing required secrets"
             with start_action(
-                action_type="allmydata:storage:http-server:request",
+                action_type="allmydata:storage:http-server:handle_request",
                 method=request.method,
                 path=request.path,
             ) as ctx:
                 try:
+                    # Check Authorization header:
+                    if not timing_safe_compare(
+                        request.requestHeaders.getRawHeaders("Authorization", [""])[0].encode(
+                            "utf-8"
+                        ),
+                        swissnum_auth_header(self._swissnum),
+                    ):
+                        raise _HTTPError(http.UNAUTHORIZED)
+
+                    # Check secrets:
+                    authorization = request.requestHeaders.getRawHeaders(
+                        "X-Tahoe-Authorization", []
+                    )
+                    try:
+                        secrets = _extract_secrets(authorization, required_secrets)
+                    except ClientSecretsException:
+                        raise _HTTPError(http.BAD_REQUEST)
+
+                    # Run the business logic:
                     result = f(self, request, secrets, *args, **kwargs)
                 except _HTTPError as e:
                     # This isn't an error necessarily for logging purposes,
@@ -136,8 +139,9 @@ def _authorization_decorator(required_secrets):
                     ctx.add_success_fields(response_code=e.code)
                     ctx.finish()
                     raise
-                ctx.add_success_fields(response_code=request.code)
-                return result
+                else:
+                    ctx.add_success_fields(response_code=request.code)
+                    return result
 
         return route
 
