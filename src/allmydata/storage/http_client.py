@@ -746,22 +746,18 @@ class StorageClientImmutables(object):
         """
         Return the set of shares for a given storage index.
         """
-        with start_action(
-            action_type="allmydata:storage:http-client:immutable:list-shares",
-            storage_index=storage_index,
-        ) as ctx:
-            url = self._client.relative_url(
-                "/storage/v1/immutable/{}/shares".format(_encode_si(storage_index))
-            )
-            response = yield self._client.request(
-                "GET",
-                url,
-            )
-            if response.code == http.OK:
-                body = yield self._client.decode_cbor(response, _SCHEMAS["list_shares"])
-                returnValue(set(body))
-            else:
-                raise ClientException(response.code)
+        url = self._client.relative_url(
+            "/storage/v1/immutable/{}/shares".format(_encode_si(storage_index))
+        )
+        response = yield self._client.request(
+            "GET",
+            url,
+        )
+        if response.code == http.OK:
+            body = yield self._client.decode_cbor(response, _SCHEMAS["list_shares"])
+            returnValue(set(body))
+        else:
+            raise ClientException(response.code)
 
     def advise_corrupt_share(
         self,
