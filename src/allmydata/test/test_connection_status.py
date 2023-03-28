@@ -7,6 +7,7 @@ import mock
 from twisted.trial import unittest
 
 from foolscap.reconnector import ReconnectionInfo
+from foolscap.info import ConnectionInfo
 
 from ..util import connection_status
 
@@ -20,7 +21,7 @@ class Status(unittest.TestCase):
                                "h2": "st2"})
 
     def test_reconnector_connected(self):
-        ci = mock.Mock()
+        ci = ConnectionInfo()
         ci.connectorStatuses = {"h1": "st1"}
         ci.connectionHandlers = {"h1": "hand1"}
         ci.winningHint = "h1"
@@ -38,7 +39,7 @@ class Status(unittest.TestCase):
         self.assertEqual(cs.last_received_time, 123)
 
     def test_reconnector_connected_others(self):
-        ci = mock.Mock()
+        ci = ConnectionInfo()
         ci.connectorStatuses = {"h1": "st1", "h2": "st2"}
         ci.connectionHandlers = {"h1": "hand1"}
         ci.winningHint = "h1"
@@ -56,7 +57,7 @@ class Status(unittest.TestCase):
         self.assertEqual(cs.last_received_time, 123)
 
     def test_reconnector_connected_listener(self):
-        ci = mock.Mock()
+        ci = ConnectionInfo()
         ci.connectorStatuses = {"h1": "st1", "h2": "st2"}
         ci.connectionHandlers = {"h1": "hand1"}
         ci.listenerStatus = ("listener1", "successful")
@@ -76,7 +77,7 @@ class Status(unittest.TestCase):
         self.assertEqual(cs.last_received_time, 123)
 
     def test_reconnector_connecting(self):
-        ci = mock.Mock()
+        ci = ConnectionInfo()
         ci.connectorStatuses = {"h1": "st1", "h2": "st2"}
         ci.connectionHandlers = {"h1": "hand1"}
         ri = ReconnectionInfo()
@@ -93,7 +94,7 @@ class Status(unittest.TestCase):
         self.assertEqual(cs.last_received_time, 123)
 
     def test_reconnector_waiting(self):
-        ci = mock.Mock()
+        ci = ConnectionInfo()
         ci.connectorStatuses = {"h1": "st1", "h2": "st2"}
         ci.connectionHandlers = {"h1": "hand1"}
         ri = ReconnectionInfo()
