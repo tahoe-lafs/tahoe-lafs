@@ -6,7 +6,7 @@ detect when it is possible to use it, etc.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Sequence, Mapping, Optional
+from typing import Any, Protocol, Sequence, Mapping, Optional, Union, Awaitable
 from typing_extensions import Literal
 
 from attrs import frozen, define
@@ -101,7 +101,7 @@ class StaticProvider:
     """
     _available: bool
     _hide_ip: bool
-    _config: Any
+    _config: Union[Awaitable[ListenerConfig], ListenerConfig]
     _address: IAddressFamily
 
     def is_available(self) -> bool:
@@ -110,7 +110,9 @@ class StaticProvider:
     def can_hide_ip(self) -> bool:
         return self._hide_ip
 
-    async def create_config(self, reactor: Any, cli_config: Any) -> None:
+    async def create_config(self, reactor: Any, cli_config: Any) -> ListenerConfig:
+        if isinstance(self._config, ListenerConfig):
+            return self._config
         return await self._config
 
     def create(self, reactor: Any, config: Any) -> IAddressFamily:
