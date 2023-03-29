@@ -17,6 +17,7 @@ from ..common import (
     disable_modules,
 )
 from ...scripts import create_node
+from ...listeners import ListenerConfig, StaticProvider
 from ... import client
 
 def read_config(basedir):
@@ -45,7 +46,7 @@ class Config(unittest.TestCase):
             e = self.assertRaises(usage.UsageError, parse_cli, verb, *args)
             self.assertIn("option %s not recognized" % (option,), str(e))
 
-    def test_create_client_config(self):
+    async def test_create_client_config(self):
         d = self.mktemp()
         os.mkdir(d)
         fname = os.path.join(d, 'tahoe.cfg')
@@ -59,7 +60,7 @@ class Config(unittest.TestCase):
                     "shares-happy": "1",
                     "shares-total": "1",
                     }
-            create_node.write_node_config(f, opts)
+            await create_node.write_node_config(f, opts)
             create_node.write_client_config(f, opts)
 
         # should succeed, no exceptions
@@ -245,7 +246,7 @@ class Config(unittest.TestCase):
                               parse_cli,
                               "create-node", "--listen=tcp,none",
                               basedir)
-        self.assertEqual(str(e), "--listen= must be none, or one/some of: tcp, tor, i2p")
+        self.assertEqual(str(e), "--listen=tcp requires --hostname=")
 
     def test_node_listen_bad(self):
         basedir = self.mktemp()
@@ -253,7 +254,7 @@ class Config(unittest.TestCase):
                               parse_cli,
                               "create-node", "--listen=XYZZY,tcp",
                               basedir)
-        self.assertEqual(str(e), "--listen= must be none, or one/some of: tcp, tor, i2p")
+        self.assertEqual(str(e), "--listen= must be one/some of: i2p, none, tcp, tor")
 
     def test_node_listen_tor_hostname(self):
         e = self.assertRaises(usage.UsageError,
@@ -287,24 +288,15 @@ class Config(unittest.TestCase):
         self.assertIn("To avoid clobbering anything, I am going to quit now", err)
 
     @defer.inlineCallbacks
-    def test_node_slow_tor(self):
-        basedir = self.mktemp()
+    def test_node_slow(self):
         d = defer.Deferred()
-        self.patch(tor_provider, "create_config", lambda *a, **kw: d)
-        d2 = run_cli("create-node", "--listen=tor", basedir)
-        d.callback(({}, "port", "location"))
-        rc, out, err = yield d2
-        self.assertEqual(rc, 0)
-        self.assertIn("Node created", out)
-        self.assertEqual(err, "")
+        slow = StaticProvider(True, False, d, None)
+        create_node._LISTENERS["xxyzy"] = slow
+        self.addCleanup(lambda: create_node._LISTENERS.pop("xxyzy"))
 
-    @defer.inlineCallbacks
-    def test_node_slow_i2p(self):
         basedir = self.mktemp()
-        d = defer.Deferred()
-        self.patch(i2p_provider, "create_config", lambda *a, **kw: d)
-        d2 = run_cli("create-node", "--listen=i2p", basedir)
-        d.callback(({}, "port", "location"))
+        d2 = run_cli("create-node", "--listen=xxyzy", basedir)
+        d.callback(None)
         rc, out, err = yield d2
         self.assertEqual(rc, 0)
         self.assertIn("Node created", out)
@@ -369,10 +361,12 @@ def fake_config(testcase: unittest.TestCase, module: Any, result: Any) -> list[t
 class Tor(unittest.TestCase):
     def test_default(self):
         basedir = self.mktemp()
-        tor_config = {"abc": "def"}
+        tor_config = {"tor": [("abc", "def")]}
         tor_port = "ghi"
         tor_location = "jkl"
-        config_d = defer.succeed( (tor_config, tor_port, tor_location) )
+        config_d = defer.succeed(
+            ListenerConfig([tor_port], [tor_location], tor_config)
+        )
 
         calls = fake_config(self, tor_provider, config_d)
         rc, out, err = self.successResultOf(
@@ -391,10 +385,7 @@ class Tor(unittest.TestCase):
 
     def test_launch(self):
         basedir = self.mktemp()
-        tor_config = {"abc": "def"}
-        tor_port = "ghi"
-        tor_location = "jkl"
-        config_d = defer.succeed( (tor_config, tor_port, tor_location) )
+        config_d = defer.succeed(None)
 
         calls = fake_config(self, tor_provider, config_d)
         rc, out, err = self.successResultOf(
@@ -410,10 +401,7 @@ class Tor(unittest.TestCase):
 
     def test_control_port(self):
         basedir = self.mktemp()
-        tor_config = {"abc": "def"}
-        tor_port = "ghi"
-        tor_location = "jkl"
-        config_d = defer.succeed( (tor_config, tor_port, tor_location) )
+        config_d = defer.succeed(None)
 
         calls = fake_config(self, tor_provider, config_d)
         rc, out, err = self.successResultOf(
@@ -451,10 +439,10 @@ class Tor(unittest.TestCase):
 class I2P(unittest.TestCase):
     def test_default(self):
         basedir = self.mktemp()
-        i2p_config = {"abc": "def"}
+        i2p_config = {"i2p": [("abc", "def")]}
         i2p_port = "ghi"
         i2p_location = "jkl"
-        dest_d = defer.succeed( (i2p_config, i2p_port, i2p_location) )
+        dest_d = defer.succeed(ListenerConfig([i2p_port], [i2p_location], i2p_config))
 
         calls = fake_config(self, i2p_provider, dest_d)
         rc, out, err = self.successResultOf(
@@ -479,10 +467,7 @@ class I2P(unittest.TestCase):
 
     def test_sam_port(self):
         basedir = self.mktemp()
-        i2p_config = {"abc": "def"}
-        i2p_port = "ghi"
-        i2p_location = "jkl"
-        dest_d = defer.succeed( (i2p_config, i2p_port, i2p_location) )
+        dest_d = defer.succeed(None)
 
         calls = fake_config(self, i2p_provider, dest_d)
         rc, out, err = self.successResultOf(
