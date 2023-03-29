@@ -64,3 +64,54 @@ class Listener(Protocol):
         :return: A handle on the listener which can be used to integrate it
             into the Tahoe-LAFS node.
         """
+
+class TCPProvider:
+    """
+    Support plain TCP connections.
+    """
+    def is_available(self) -> Literal[True]:
+        return True
+
+    def can_hide_ip(self) -> Literal[False]:
+        return False
+
+    async def create_config(self, reactor: Any, cli_config: Any) -> ListenerConfig:
+        tub_ports = []
+        tub_locations = []
+        if cli_config["port"]: # --port/--location are a pair
+            tub_ports.append(cli_config["port"])
+            tub_locations.append(cli_config["location"])
+        else:
+            assert "hostname" in cli_config
+            hostname = cli_config["hostname"]
+            new_port = allocate_tcp_port()
+            tub_ports.append(f"tcp:{new_port}")
+            tub_locations.append(f"tcp:{hostname}:{new_port}")
+
+        return ListenerConfig(tub_ports, tub_locations, {})
+
+    def create(self, reactor: Any, config: Any) -> IAddressFamily:
+        raise NotImplementedError()
+
+
+@define
+class StaticProvider:
+    """
+    A provider that uses all pre-computed values.
+    """
+    _available: bool
+    _hide_ip: bool
+    _config: Any
+    _address: IAddressFamily
+
+    def is_available(self) -> bool:
+        return self._available
+
+    def can_hide_ip(self) -> bool:
+        return self._hide_ip
+
+    async def create_config(self, reactor: Any, cli_config: Any) -> None:
+        return await self._config
+
+    def create(self, reactor: Any, config: Any) -> IAddressFamily:
+        return self._address
