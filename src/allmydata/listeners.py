@@ -6,7 +6,7 @@ detect when it is possible to use it, etc.
 
 from __future__ import annotations
 
-from typing import Any, Awaitable, Protocol, Sequence, Mapping, Optional
+from typing import Any, Protocol, Sequence, Mapping, Optional
 from typing_extensions import Literal
 
 from attrs import frozen, define
