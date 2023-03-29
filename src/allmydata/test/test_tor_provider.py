@@ -199,7 +199,7 @@ class CreateOnion(unittest.TestCase):
                 with mock.patch("allmydata.util.tor_provider.allocate_tcp_port",
                                 return_value=999999):
                     d = tor_provider.create_config(reactor, cli_config)
-        tahoe_config_tor, tor_port, tor_location = self.successResultOf(d)
+                    tor_config = self.successResultOf(d)
 
         launch_tor.assert_called_with(reactor, executable,
                                       os.path.abspath(private_dir), txtorcon)
@@ -216,10 +216,10 @@ class CreateOnion(unittest.TestCase):
                     }
         if executable:
             expected["tor.executable"] = executable
-        self.assertEqual(tahoe_config_tor, expected)
-        self.assertEqual(tor_port, "tcp:999999:interface=127.0.0.1")
-        self.assertEqual(tor_location, "tor:ONION.onion:3457")
-        fn = os.path.join(basedir, tahoe_config_tor["onion.private_key_file"])
+        self.assertEqual(dict(tor_config.node_config["tor"]), expected)
+        self.assertEqual(tor_config.tub_ports, ["tcp:999999:interface=127.0.0.1"])
+        self.assertEqual(tor_config.tub_locations, ["tor:ONION.onion:3457"])
+        fn = os.path.join(basedir, dict(tor_config.node_config["tor"])["onion.private_key_file"])
         with open(fn, "rb") as f:
             privkey = f.read()
         self.assertEqual(privkey, b"privkey")
@@ -253,7 +253,7 @@ class CreateOnion(unittest.TestCase):
                 with mock.patch("allmydata.util.tor_provider.allocate_tcp_port",
                                 return_value=999999):
                     d = tor_provider.create_config(reactor, cli_config)
-        tahoe_config_tor, tor_port, tor_location = self.successResultOf(d)
+                    tor_config = self.successResultOf(d)
 
         connect_to_tor.assert_called_with(reactor, cli_config, txtorcon)
         txtorcon.EphemeralHiddenService.assert_called_with("3457 127.0.0.1:999999")
@@ -267,10 +267,10 @@ class CreateOnion(unittest.TestCase):
                     "onion.private_key_file": os.path.join("private",
                                                            "tor_onion.privkey"),
                     }
-        self.assertEqual(tahoe_config_tor, expected)
-        self.assertEqual(tor_port, "tcp:999999:interface=127.0.0.1")
-        self.assertEqual(tor_location, "tor:ONION.onion:3457")
-        fn = os.path.join(basedir, tahoe_config_tor["onion.private_key_file"])
+        self.assertEqual(dict(tor_config.node_config["tor"]), expected)
+        self.assertEqual(tor_config.tub_ports, ["tcp:999999:interface=127.0.0.1"])
+        self.assertEqual(tor_config.tub_locations, ["tor:ONION.onion:3457"])
+        fn = os.path.join(basedir, dict(tor_config.node_config["tor"])["onion.private_key_file"])
         with open(fn, "rb") as f:
             privkey = f.read()
         self.assertEqual(privkey, b"privkey")

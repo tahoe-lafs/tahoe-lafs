@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+from typing_extensions import Literal
+
 import os
 
 from zope.interface import (
@@ -18,6 +21,7 @@ from .iputil import allocate_tcp_port
 from ..interfaces import (
     IAddressFamily,
 )
+from ..listeners import ListenerConfig
 
 def _import_tor():
     try:
@@ -33,7 +37,13 @@ def _import_txtorcon():
     except ImportError: # pragma: no cover
         return None
 
-def create(reactor, config, import_tor=None, import_txtorcon=None):
+def can_hide_ip() -> Literal[True]:
+    return True
+
+def is_available() -> bool:
+    return not (_import_tor() is None or _import_txtorcon() is None)
+
+def create(reactor: Any, config: Any, import_tor=None, import_txtorcon=None) -> IAddressFamily:
     """
     Create a new _Provider service (this is an IService so must be
     hooked up to a parent or otherwise started).
@@ -146,30 +156,29 @@ def _connect_to_tor(reactor, cli_config, txtorcon):
     else:
         raise ValueError("unable to reach any default Tor control port")
 
-@inlineCallbacks
-def create_config(reactor, cli_config):
+async def create_config(reactor: Any, cli_config: Any) -> ListenerConfig:
     txtorcon = _import_txtorcon()
     if not txtorcon:
         raise ValueError("Cannot create onion without txtorcon. "
                          "Please 'pip install tahoe-lafs[tor]' to fix this.")
-    tahoe_config_tor = {} # written into tahoe.cfg:[tor]
+    tahoe_config_tor = [] # written into tahoe.cfg:[tor]
     private_dir = os.path.abspath(os.path.join(cli_config["basedir"], "private"))
     stdout = cli_config.stdout
     if cli_config["tor-launch"]:
-        tahoe_config_tor["launch"] = "true"
+        tahoe_config_tor.append(("launch", "true"))
         tor_executable = cli_config["tor-executable"]
         if tor_executable:
-            tahoe_config_tor["tor.executable"] = tor_executable
+            tahoe_config_tor.append(("tor.executable", tor_executable))
         print("launching Tor (to allocate .onion address)..", file=stdout)
-        (_, tor_control_proto) = yield _launch_tor(
+        (_, tor_control_proto) = await _launch_tor(
             reactor, tor_executable, private_dir, txtorcon)
         print("Tor launched", file=stdout)
     else:
         print("connecting to Tor (to allocate .onion address)..", file=stdout)
-        (port, tor_control_proto) = yield _connect_to_tor(
+        (port, tor_control_proto) = await _connect_to_tor(
             reactor, cli_config, txtorcon)
         print("Tor connection established", file=stdout)
-        tahoe_config_tor["control.port"] = port
+        tahoe_config_tor.append(("control.port", port))
 
     external_port = 3457 # TODO: pick this randomly? there's no contention.
 
@@ -178,12 +187,12 @@ def create_config(reactor, cli_config):
         "%d 127.0.0.1:%d" % (external_port, local_port)
     )
     print("allocating .onion address (takes ~40s)..", file=stdout)
-    yield ehs.add_to_tor(tor_control_proto)
+    await ehs.add_to_tor(tor_control_proto)
     print(".onion address allocated", file=stdout)
     tor_port = "tcp:%d:interface=127.0.0.1" % local_port
     tor_location = "tor:%s:%d" % (ehs.hostname, external_port)
     privkey = ehs.private_key
-    yield ehs.remove_from_tor(tor_control_proto)
+    await ehs.remove_from_tor(tor_control_proto)
 
     # in addition to the "how to launch/connect-to tor" keys above, we also
     # record information about the onion service into tahoe.cfg.
@@ -195,12 +204,12 @@ def create_config(reactor, cli_config):
     # * "private_key_file" points to the on-disk copy of the private key
     #   material (although we always write it to the same place)
 
-    tahoe_config_tor["onion"] = "true"
-    tahoe_config_tor["onion.local_port"] = str(local_port)
-    tahoe_config_tor["onion.external_port"] = str(external_port)
-    assert privkey
-    tahoe_config_tor["onion.private_key_file"] = os.path.join("private",
-                                                              "tor_onion.privkey")
+    tahoe_config_tor.extend([
+        ("onion", "true"),
+        ("onion.local_port", str(local_port)),
+        ("onion.external_port", str(external_port)),
+        ("onion.private_key_file", os.path.join("private", "tor_onion.privkey")),
+    ])
     privkeyfile = os.path.join(private_dir, "tor_onion.privkey")
     with open(privkeyfile, "wb") as f:
         if isinstance(privkey, str):
@@ -219,7 +228,11 @@ def create_config(reactor, cli_config):
     # at both create-node and startup time. The data directory is not
     # recorded in tahoe.cfg
 
-    returnValue((tahoe_config_tor, tor_port, tor_location))
+    return ListenerConfig(
+        [tor_port],
+        [tor_location],
+        {"tor": tahoe_config_tor},
+    )
 
 
 @implementer(IAddressFamily)
