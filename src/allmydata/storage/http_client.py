@@ -19,7 +19,7 @@ from collections_extended import RangeMap
 from werkzeug.datastructures import Range, ContentRange
 from twisted.web.http_headers import Headers
 from twisted.web import http
-from twisted.web.iweb import IPolicyForHTTPS
+from twisted.web.iweb import IPolicyForHTTPS, IResponse
 from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred, succeed
 from twisted.internet.interfaces import (
     IOpenSSLClientConnectionCreator,
@@ -355,19 +355,20 @@ class StorageClient(object):
         )
         return headers
 
-    def request(
+    @async_to_deferred
+    async def request(
         self,
         method: str,
-        url: DecodedURL,
-        lease_renew_secret: Optional[bytes]=None,
-        lease_cancel_secret: Optional[bytes]=None,
-        upload_secret: Optional[bytes]=None,
-        write_enabler_secret: Optional[bytes]=None,
-        headers: Optional[Headers]=None,
-        message_to_serialize: object=None,
+        url: str,
+        lease_renew_secret: Optional[bytes] = None,
+        lease_cancel_secret: Optional[bytes] = None,
+        upload_secret: Optional[bytes] = None,
+        write_enabler_secret: Optional[bytes] = None,
+        headers: Optional[Headers] = None,
+        message_to_serialize: object = None,
         timeout: float = 60,
         **kwargs,
-    ):
+    ) -> Deferred[IResponse]:
         """
         Like ``treq.request()``, but with optional secrets that get translated
         into corresponding HTTP headers.
@@ -377,6 +378,41 @@ class StorageClient(object):
 
         Default timeout is 60 seconds.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:request",
+            method=method,
+            url=url.to_text(),
+            timeout=timeout,
+        ) as ctx:
+            response = await self._request(
+                method,
+                url,
+                lease_renew_secret,
+                lease_cancel_secret,
+                upload_secret,
+                write_enabler_secret,
+                headers,
+                message_to_serialize,
+                timeout,
+                **kwargs,
+            )
+            ctx.add_success_fields(response_code=response.code)
+            return response
+
+    async def _request(
+        self,
+        method: str,
+        url: str,
+        lease_renew_secret: Optional[bytes] = None,
+        lease_cancel_secret: Optional[bytes] = None,
+        upload_secret: Optional[bytes] = None,
+        write_enabler_secret: Optional[bytes] = None,
+        headers: Optional[Headers] = None,
+        message_to_serialize: object = None,
+        timeout: float = 60,
+        **kwargs,
+    ) -> IResponse:
+        """The implementation of request()."""
         headers = self._get_headers(headers)
 
         # Add secrets:
@@ -407,7 +443,7 @@ class StorageClient(object):
             kwargs["data"] = dumps(message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
-        return self._treq.request(
+        return await self._treq.request(
             method, url, headers=headers, timeout=timeout, **kwargs
         )
 
