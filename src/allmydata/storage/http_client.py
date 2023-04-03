@@ -488,12 +488,14 @@ class StorageClientGeneral(object):
         # Add some features we know are true because the HTTP API
         # specification requires them and because other parts of the storage
         # client implementation assumes they will be present.
-        decoded_response[b"http://allmydata.org/tahoe/protocols/storage/v1"].update({
-            b'tolerates-immutable-read-overrun': True,
-            b'delete-mutable-shares-with-zero-length-writev': True,
-            b'fills-holes-with-zero-bytes': True,
-            b'prevents-read-past-end-of-share-data': True,
-        })
+        decoded_response[b"http://allmydata.org/tahoe/protocols/storage/v1"].update(
+            {
+                b"tolerates-immutable-read-overrun": True,
+                b"delete-mutable-shares-with-zero-length-writev": True,
+                b"fills-holes-with-zero-bytes": True,
+                b"prevents-read-past-end-of-share-data": True,
+            }
+        )
         returnValue(decoded_response)
 
     @inlineCallbacks
