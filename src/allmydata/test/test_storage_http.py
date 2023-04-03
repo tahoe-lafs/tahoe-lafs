@@ -54,6 +54,7 @@ from ..storage.http_server import (
     ClientSecretsException,
     _authorized_route,
     StorageIndexConverter,
+    _add_error_handling
 )
 from ..storage.http_client import (
     StorageClient,
@@ -253,6 +254,7 @@ class TestApp(object):
 
     clock: IReactorTime
     _app = Klein()
+    _add_error_handling(_app)
     _swissnum = SWISSNUM_FOR_TEST  # Match what the test client is using
 
     @_authorized_route(_app, {Secrets.UPLOAD}, "/upload_secret", methods=["GET"])

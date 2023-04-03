@@ -489,6 +489,21 @@ def read_range(
     return d
 
 
+def _add_error_handling(app: Klein):
+    """Add exception handlers to a Klein app."""
+    @app.handle_errors(_HTTPError)
+    def _http_error(_, request, failure):
+        """Handle ``_HTTPError`` exceptions."""
+        request.setResponseCode(failure.value.code)
+        return b""
+
+    @app.handle_errors(CDDLValidationError)
+    def _cddl_validation_error(_, request, failure):
+        """Handle CDDL validation errors."""
+        request.setResponseCode(http.BAD_REQUEST)
+        return str(failure.value).encode("utf-8")
+
+
 class HTTPServer(object):
     """
     A HTTP interface to the storage server.
@@ -496,18 +511,7 @@ class HTTPServer(object):
 
     _app = Klein()
     _app.url_map.converters["storage_index"] = StorageIndexConverter
-
-    @_app.handle_errors(_HTTPError)
-    def _http_error(self, request, failure):
-        """Handle ``_HTTPError`` exceptions."""
-        request.setResponseCode(failure.value.code)
-        return b""
-
-    @_app.handle_errors(CDDLValidationError)
-    def _cddl_validation_error(self, request, failure):
-        """Handle CDDL validation errors."""
-        request.setResponseCode(http.BAD_REQUEST)
-        return str(failure.value).encode("utf-8")
+    _add_error_handling(_app)
 
     def __init__(
         self,
