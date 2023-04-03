@@ -359,7 +359,7 @@ class StorageClient(object):
     async def request(
         self,
         method: str,
-        url: str,
+        url: DecodedURL,
         lease_renew_secret: Optional[bytes] = None,
         lease_cancel_secret: Optional[bytes] = None,
         upload_secret: Optional[bytes] = None,
@@ -402,7 +402,7 @@ class StorageClient(object):
     async def _request(
         self,
         method: str,
-        url: str,
+        url: DecodedURL,
         lease_renew_secret: Optional[bytes] = None,
         lease_cancel_secret: Optional[bytes] = None,
         upload_secret: Optional[bytes] = None,
