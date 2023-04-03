@@ -54,7 +54,7 @@ from ..storage.http_server import (
     ClientSecretsException,
     _authorized_route,
     StorageIndexConverter,
-    _add_error_handling
+    _add_error_handling,
 )
 from ..storage.http_client import (
     StorageClient,
@@ -348,7 +348,7 @@ class CustomHTTPServerTests(SyncTestCase):
         response = result_of(
             self.client.request(
                 "GET",
-                "http://127.0.0.1/upload_secret",
+                DecodedURL.from_text("http://127.0.0.1/upload_secret"),
             )
         )
         self.assertEqual(response.code, 400)
@@ -356,7 +356,9 @@ class CustomHTTPServerTests(SyncTestCase):
         # With secret, we're good.
         response = result_of(
             self.client.request(
-                "GET", "http://127.0.0.1/upload_secret", upload_secret=b"MAGIC"
+                "GET",
+                DecodedURL.from_text("http://127.0.0.1/upload_secret"),
+                upload_secret=b"MAGIC",
             )
         )
         self.assertEqual(response.code, 200)
@@ -380,7 +382,7 @@ class CustomHTTPServerTests(SyncTestCase):
             response = result_of(
                 self.client.request(
                     "GET",
-                    f"http://127.0.0.1/bytes/{length}",
+                    DecodedURL.from_text(f"http://127.0.0.1/bytes/{length}"),
                 )
             )
 
@@ -401,7 +403,7 @@ class CustomHTTPServerTests(SyncTestCase):
             response = result_of(
                 self.client.request(
                     "GET",
-                    f"http://127.0.0.1/bytes/{length}",
+                    DecodedURL.from_text(f"http://127.0.0.1/bytes/{length}"),
                 )
             )
 
@@ -416,7 +418,7 @@ class CustomHTTPServerTests(SyncTestCase):
         response = result_of(
             self.client.request(
                 "GET",
-                "http://127.0.0.1/slowly_never_finish_result",
+                DecodedURL.from_text("http://127.0.0.1/slowly_never_finish_result"),
             )
         )
 
@@ -444,7 +446,7 @@ class CustomHTTPServerTests(SyncTestCase):
         response = result_of(
             self.client.request(
                 "GET",
-                "http://127.0.0.1/die",
+                DecodedURL.from_text("http://127.0.0.1/die"),
             )
         )
 
@@ -461,6 +463,7 @@ class Reactor(Clock):
 
     Advancing the clock also runs any callbacks scheduled via callFromThread.
     """
+
     def __init__(self):
         Clock.__init__(self)
         self._queue = Queue()
@@ -501,7 +504,9 @@ class HttpTestFixture(Fixture):
         self.storage_server = StorageServer(
             self.tempdir.path, b"\x00" * 20, clock=self.clock
         )
-        self.http_server = HTTPServer(self.clock, self.storage_server, SWISSNUM_FOR_TEST)
+        self.http_server = HTTPServer(
+            self.clock, self.storage_server, SWISSNUM_FOR_TEST
+        )
         self.treq = StubTreq(self.http_server.get_resource())
         self.client = StorageClient(
             DecodedURL.from_text("http://127.0.0.1"),
