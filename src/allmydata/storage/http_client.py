@@ -341,7 +341,7 @@ class StorageClient(object):
         https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
         return cls(https_url, swissnum, treq_client, reactor)
 
-    def relative_url(self, path):
+    def relative_url(self, path: str) -> DecodedURL:
         """Get a URL relative to the base URL."""
         return self._base_url.click(path)
 
@@ -357,14 +357,14 @@ class StorageClient(object):
 
     def request(
         self,
-        method,
-        url,
-        lease_renew_secret=None,
-        lease_cancel_secret=None,
-        upload_secret=None,
-        write_enabler_secret=None,
-        headers=None,
-        message_to_serialize=None,
+        method: str,
+        url: DecodedURL,
+        lease_renew_secret: Optional[bytes]=None,
+        lease_cancel_secret: Optional[bytes]=None,
+        upload_secret: Optional[bytes]=None,
+        write_enabler_secret: Optional[bytes]=None,
+        headers: Optional[Headers]=None,
+        message_to_serialize: object=None,
         timeout: float = 60,
         **kwargs,
     ):
