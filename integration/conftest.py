@@ -465,7 +465,7 @@ def chutney(reactor, temp_dir):
         'git',
         (
             'git', 'clone',
-            'https://git.torproject.org/chutney.git',
+            'https://gitlab.torproject.org/tpo/core/chutney.git',
             chutney_dir,
         ),
         env=environ,
@@ -481,7 +481,7 @@ def chutney(reactor, temp_dir):
         (
             'git', '-C', chutney_dir,
             'reset', '--hard',
-            'c825cba0bcd813c644c6ac069deeb7347d3200ee'
+            'c4f6789ad2558dcbfeb7d024c6481d8112bfb6c2'
         ),
         env=environ,
     )
