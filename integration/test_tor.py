@@ -43,8 +43,8 @@ if PY2:
 def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):
     carol = yield _create_anonymous_node(reactor, 'carol', 8008, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
     dave = yield _create_anonymous_node(reactor, 'dave', 8009, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
-    yield util.await_client_ready(carol, minimum_number_of_servers=2)
-    yield util.await_client_ready(dave, minimum_number_of_servers=2)
+    yield util.await_client_ready(carol, minimum_number_of_servers=2, timeout=60)
+    yield util.await_client_ready(dave, minimum_number_of_servers=2, timeout=60)
 
     # ensure both nodes are connected to "a grid" by uploading
     # something via carol, and retrieve it using dave.
@@ -125,6 +125,8 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
     config.set_config("node", "log_gatherer.furl", flog_gatherer)
     config.set_config("tor", "onion", "true")
     config.set_config("tor", "onion.external_port", "3457")
+    config.set_config("tor", "control.port", f"tcp:port={control_port}:host=127.0.0.1")
+    #config.set_config("tor", "launch", "True")
     config.set_config("tor", "onion.local_port", str(control_port + 1000))
     config.set_config("tor", "onion.private_key_file", "private/tor_onion.privkey")
 
