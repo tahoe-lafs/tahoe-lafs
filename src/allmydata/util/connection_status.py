@@ -1,21 +1,13 @@
 """
 Parse connection status from Foolscap.
-
-Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 import time
 from zope.interface import implementer
 from ..interfaces import IConnectionStatus
+from foolscap.reconnector import Reconnector
 
 @implementer(IConnectionStatus)
 class ConnectionStatus(object):
@@ -41,7 +33,7 @@ class ConnectionStatus(object):
             last_received_time=None,
         )
 
-def _hint_statuses(which, handlers, statuses):
+def _hint_statuses(which, handlers, statuses) -> dict[str, str]:
     non_connected_statuses = {}
     for hint in which:
         handler = handlers.get(hint)
@@ -50,7 +42,7 @@ def _hint_statuses(which, handlers, statuses):
         non_connected_statuses["%s%s" % (hint, handler_dsc)] = dsc
     return non_connected_statuses
 
-def from_foolscap_reconnector(rc, last_received):
+def from_foolscap_reconnector(rc: Reconnector, last_received: int, time=time.time) -> ConnectionStatus:
     ri = rc.getReconnectionInfo()
     # See foolscap/reconnector.py, ReconnectionInfo, for details about possible
     # states. The returned result is a native string, it seems, so convert to
@@ -80,7 +72,7 @@ def from_foolscap_reconnector(rc, last_received):
         # ci describes the current in-progress attempt
         summary = "Trying to connect"
     elif state == "waiting":
-        now = time.time()
+        now = time()
         elapsed = now - ri.lastAttempt
         delay = ri.nextAttempt - now
         summary = "Reconnecting in %d seconds (last attempt %ds ago)" % \

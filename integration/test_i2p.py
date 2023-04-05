@@ -2,26 +2,11 @@
 Integration tests for I2P support.
 """
 
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import sys
 from os.path import join, exists
-from os import mkdir
+from os import mkdir, environ
 from time import sleep
-
-if PY2:
-    def which(path):
-        # This will result in skipping I2P tests on Python 2. Oh well.
-        return None
-else:
-    from shutil import which
+from shutil import which
 
 from eliot import log_call
 
@@ -62,6 +47,7 @@ def i2p_network(reactor, temp_dir, request):
             "--log=stdout",
             "--loglevel=info"
         ),
+        env=environ,
     )
 
     def cleanup():
@@ -170,7 +156,8 @@ def test_i2p_service_storage(reactor, request, temp_dir, flog_gatherer, i2p_netw
             sys.executable, '-b', '-m', 'allmydata.scripts.runner',
             '-d', join(temp_dir, 'carol_i2p'),
             'put', gold_path,
-        )
+        ),
+        env=environ,
     )
     yield proto.done
     cap = proto.output.getvalue().strip().split()[-1]
@@ -184,7 +171,8 @@ def test_i2p_service_storage(reactor, request, temp_dir, flog_gatherer, i2p_netw
             sys.executable, '-b', '-m', 'allmydata.scripts.runner',
             '-d', join(temp_dir, 'dave_i2p'),
             'get', cap,
-        )
+        ),
+        env=environ,
     )
     yield proto.done
 
@@ -211,7 +199,8 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
             '--hide-ip',
             '--listen', 'i2p',
             node_dir.path,
-        )
+        ),
+        env=environ,
     )
     yield proto.done
 
