@@ -1,25 +1,46 @@
 """
 Tests for allmydata.util.connection_status.
-
-Port to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
-import mock
+from typing import Optional
 
-from twisted.trial import unittest
+from foolscap.reconnector import ReconnectionInfo, Reconnector
+from foolscap.info import ConnectionInfo
 
 from ..util import connection_status
+from .common import SyncTestCase
 
-class Status(unittest.TestCase):
-    def test_hint_statuses(self):
+def reconnector(info: ReconnectionInfo) -> Reconnector:
+    rc = Reconnector(None, None, (), {}) # type: ignore[no-untyped-call]
+    rc._reconnectionInfo = info
+    return rc
+
+def connection_info(
+        statuses: dict[str, str],
+        handlers: dict[str, str],
+        winningHint: Optional[str],
+        establishedAt: Optional[int],
+) -> ConnectionInfo:
+    ci = ConnectionInfo() # type: ignore[no-untyped-call]
+    ci.connectorStatuses = statuses
+    ci.connectionHandlers = handlers
+    ci.winningHint = winningHint
+    ci.establishedAt = establishedAt
+    return ci
+
+def reconnection_info(
+        state: str,
+        connection_info: ConnectionInfo,
+) -> ReconnectionInfo:
+    ri = ReconnectionInfo() # type: ignore[no-untyped-call]
+    ri.state = state
+    ri.connectionInfo = connection_info
+    return ri
+
+class Status(SyncTestCase):
+    def test_hint_statuses(self) -> None:
         ncs = connection_status._hint_statuses(["h2","h1"],
                                                {"h1": "hand1", "h4": "hand4"},
                                                {"h1": "st1", "h2": "st2",
@@ -27,17 +48,10 @@ class Status(unittest.TestCase):
         self.assertEqual(ncs, {"h1 via hand1": "st1",
                                "h2": "st2"})
 
-    def test_reconnector_connected(self):
-        ci = mock.Mock()
-        ci.connectorStatuses = {"h1": "st1"}
-        ci.connectionHandlers = {"h1": "hand1"}
-        ci.winningHint = "h1"
-        ci.establishedAt = 120
-        ri = mock.Mock()
-        ri.state = "connected"
-        ri.connectionInfo = ci
-        rc = mock.Mock
-        rc.getReconnectionInfo = mock.Mock(return_value=ri)
+    def test_reconnector_connected(self) -> None:
+        ci = connection_info({"h1": "st1"}, {"h1": "hand1"}, "h1", 120)
+        ri = reconnection_info("connected", ci)
+        rc = reconnector(ri)
         cs = connection_status.from_foolscap_reconnector(rc, 123)
         self.assertEqual(cs.connected, True)
         self.assertEqual(cs.summary, "Connected to h1 via hand1")
@@ -45,17 +59,10 @@ class Status(unittest.TestCase):
         self.assertEqual(cs.last_connection_time, 120)
         self.assertEqual(cs.last_received_time, 123)
 
-    def test_reconnector_connected_others(self):
-        ci = mock.Mock()
-        ci.connectorStatuses = {"h1": "st1", "h2": "st2"}
-        ci.connectionHandlers = {"h1": "hand1"}
-        ci.winningHint = "h1"
-        ci.establishedAt = 120
-        ri = mock.Mock()
-        ri.state = "connected"
-        ri.connectionInfo = ci
-        rc = mock.Mock
-        rc.getReconnectionInfo = mock.Mock(return_value=ri)
+    def test_reconnector_connected_others(self) -> None:
+        ci = connection_info({"h1": "st1", "h2": "st2"}, {"h1": "hand1"}, "h1", 120)
+        ri = reconnection_info("connected", ci)
+        rc = reconnector(ri)
         cs = connection_status.from_foolscap_reconnector(rc, 123)
         self.assertEqual(cs.connected, True)
         self.assertEqual(cs.summary, "Connected to h1 via hand1")
@@ -63,18 +70,11 @@ class Status(unittest.TestCase):
         self.assertEqual(cs.last_connection_time, 120)
         self.assertEqual(cs.last_received_time, 123)
 
-    def test_reconnector_connected_listener(self):
-        ci = mock.Mock()
-        ci.connectorStatuses = {"h1": "st1", "h2": "st2"}
-        ci.connectionHandlers = {"h1": "hand1"}
+    def test_reconnector_connected_listener(self) -> None:
+        ci = connection_info({"h1": "st1", "h2": "st2"}, {"h1": "hand1"}, None, 120)
         ci.listenerStatus = ("listener1", "successful")
-        ci.winningHint = None
-        ci.establishedAt = 120
-        ri = mock.Mock()
-        ri.state = "connected"
-        ri.connectionInfo = ci
-        rc = mock.Mock
-        rc.getReconnectionInfo = mock.Mock(return_value=ri)
+        ri = reconnection_info("connected", ci)
+        rc = reconnector(ri)
         cs = connection_status.from_foolscap_reconnector(rc, 123)
         self.assertEqual(cs.connected, True)
         self.assertEqual(cs.summary, "Connected via listener (listener1)")
@@ -83,15 +83,10 @@ class Status(unittest.TestCase):
         self.assertEqual(cs.last_connection_time, 120)
         self.assertEqual(cs.last_received_time, 123)
 
-    def test_reconnector_connecting(self):
-        ci = mock.Mock()
-        ci.connectorStatuses = {"h1": "st1", "h2": "st2"}
-        ci.connectionHandlers = {"h1": "hand1"}
-        ri = mock.Mock()
-        ri.state = "connecting"
-        ri.connectionInfo = ci
-        rc = mock.Mock
-        rc.getReconnectionInfo = mock.Mock(return_value=ri)
+    def test_reconnector_connecting(self) -> None:
+        ci = connection_info({"h1": "st1", "h2": "st2"}, {"h1": "hand1"}, None, None)
+        ri = reconnection_info("connecting", ci)
+        rc = reconnector(ri)
         cs = connection_status.from_foolscap_reconnector(rc, 123)
         self.assertEqual(cs.connected, False)
         self.assertEqual(cs.summary, "Trying to connect")
@@ -100,19 +95,13 @@ class Status(unittest.TestCase):
         self.assertEqual(cs.last_connection_time, None)
         self.assertEqual(cs.last_received_time, 123)
 
-    def test_reconnector_waiting(self):
-        ci = mock.Mock()
-        ci.connectorStatuses = {"h1": "st1", "h2": "st2"}
-        ci.connectionHandlers = {"h1": "hand1"}
-        ri = mock.Mock()
-        ri.state = "waiting"
+    def test_reconnector_waiting(self) -> None:
+        ci = connection_info({"h1": "st1", "h2": "st2"}, {"h1": "hand1"}, None, None)
+        ri = reconnection_info("waiting", ci)
         ri.lastAttempt = 10
         ri.nextAttempt = 20
-        ri.connectionInfo = ci
-        rc = mock.Mock
-        rc.getReconnectionInfo = mock.Mock(return_value=ri)
-        with mock.patch("time.time", return_value=12):
-            cs = connection_status.from_foolscap_reconnector(rc, 5)
+        rc = reconnector(ri)
+        cs = connection_status.from_foolscap_reconnector(rc, 5, time=lambda: 12)
         self.assertEqual(cs.connected, False)
         self.assertEqual(cs.summary,
                          "Reconnecting in 8 seconds (last attempt 2s ago)")

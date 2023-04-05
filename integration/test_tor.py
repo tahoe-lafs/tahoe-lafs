@@ -1,17 +1,10 @@
 """
 Ported to Python 3.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import sys
 from os.path import join
+from os import environ
 
 import pytest
 import pytest_twisted
@@ -34,9 +27,6 @@ from allmydata.test.common import (
 # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3347
 if sys.platform.startswith('win'):
     pytest.skip('Skipping Tor tests on Windows', allow_module_level=True)
-
-if PY2:
-    pytest.skip('Skipping Tor tests on Python 2 because dependencies are hard to come by', allow_module_level=True)
 
 @pytest_twisted.inlineCallbacks
 def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):
@@ -65,7 +55,8 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
             sys.executable, '-b', '-m', 'allmydata.scripts.runner',
             '-d', join(temp_dir, 'carol'),
             'put', gold_path,
-        )
+        ),
+        env=environ,
     )
     yield proto.done
     cap = proto.output.getvalue().strip().split()[-1]
@@ -79,7 +70,8 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
             sys.executable, '-b', '-m', 'allmydata.scripts.runner',
             '-d', join(temp_dir, 'dave'),
             'get', cap,
-        )
+        ),
+        env=environ,
     )
     yield proto.done
 
@@ -108,7 +100,8 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
                 '--tor-control-port', 'tcp:localhost:{}'.format(control_port),
                 '--listen', 'tor',
                 node_dir.path,
-            )
+            ),
+            env=environ,
         )
         yield proto.done
 
