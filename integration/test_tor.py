@@ -126,8 +126,6 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
     config.set_config("tor", "onion", "true")
     config.set_config("tor", "onion.external_port", "3457")
     config.set_config("tor", "control.port", f"tcp:port={control_port}:host=127.0.0.1")
-    #config.set_config("tor", "launch", "True")
-    config.set_config("tor", "onion.local_port", str(control_port + 1000))
     config.set_config("tor", "onion.private_key_file", "private/tor_onion.privkey")
 
     print("running")
