@@ -294,7 +294,8 @@ def tor_introducer(reactor, temp_dir, flog_gatherer, request):
             request,
             (
                 'create-introducer',
-                '--tor-control-port', 'tcp:localhost:8010',
+                '--tor-control-port', 'tcp:localhost:8007',
+                '--hide-ip',
                 '--listen=tor',
                 intro_dir,
             ),
