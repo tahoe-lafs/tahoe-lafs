@@ -12,6 +12,7 @@ from tempfile import TemporaryFile
 from os import SEEK_END, SEEK_SET
 import mmap
 
+from eliot import start_action
 from cryptography.x509 import Certificate as CryptoCertificate
 from zope.interface import implementer
 from klein import Klein
@@ -97,30 +98,50 @@ def _extract_secrets(
 
 def _authorization_decorator(required_secrets):
     """
-    Check the ``Authorization`` header, and extract ``X-Tahoe-Authorization``
-    headers and pass them in.
+    1. Check the ``Authorization`` header matches server swissnum.
+    2. Extract ``X-Tahoe-Authorization`` headers and pass them in.
+    3. Log the request and response.
     """
 
     def decorator(f):
         @wraps(f)
         def route(self, request, *args, **kwargs):
-            if not timing_safe_compare(
-                request.requestHeaders.getRawHeaders("Authorization", [""])[0].encode(
-                    "utf-8"
-                ),
-                swissnum_auth_header(self._swissnum),
-            ):
-                request.setResponseCode(http.UNAUTHORIZED)
-                return b""
-            authorization = request.requestHeaders.getRawHeaders(
-                "X-Tahoe-Authorization", []
-            )
-            try:
-                secrets = _extract_secrets(authorization, required_secrets)
-            except ClientSecretsException:
-                request.setResponseCode(http.BAD_REQUEST)
-                return b"Missing required secrets"
-            return f(self, request, secrets, *args, **kwargs)
+            with start_action(
+                action_type="allmydata:storage:http-server:handle-request",
+                method=request.method,
+                path=request.path,
+            ) as ctx:
+                try:
+                    # Check Authorization header:
+                    if not timing_safe_compare(
+                        request.requestHeaders.getRawHeaders("Authorization", [""])[0].encode(
+                            "utf-8"
+                        ),
+                        swissnum_auth_header(self._swissnum),
+                    ):
+                        raise _HTTPError(http.UNAUTHORIZED)
+
+                    # Check secrets:
+                    authorization = request.requestHeaders.getRawHeaders(
+                        "X-Tahoe-Authorization", []
+                    )
+                    try:
+                        secrets = _extract_secrets(authorization, required_secrets)
+                    except ClientSecretsException:
+                        raise _HTTPError(http.BAD_REQUEST)
+
+                    # Run the business logic:
+                    result = f(self, request, secrets, *args, **kwargs)
+                except _HTTPError as e:
+                    # This isn't an error necessarily for logging purposes,
+                    # it's an implementation detail, an easier way to set
+                    # response codes.
+                    ctx.add_success_fields(response_code=e.code)
+                    ctx.finish()
+                    raise
+                else:
+                    ctx.add_success_fields(response_code=request.code)
+                    return result
 
         return route
 
@@ -468,6 +489,21 @@ def read_range(
     return d
 
 
+def _add_error_handling(app: Klein):
+    """Add exception handlers to a Klein app."""
+    @app.handle_errors(_HTTPError)
+    def _http_error(_, request, failure):
+        """Handle ``_HTTPError`` exceptions."""
+        request.setResponseCode(failure.value.code)
+        return b""
+
+    @app.handle_errors(CDDLValidationError)
+    def _cddl_validation_error(_, request, failure):
+        """Handle CDDL validation errors."""
+        request.setResponseCode(http.BAD_REQUEST)
+        return str(failure.value).encode("utf-8")
+
+
 class HTTPServer(object):
     """
     A HTTP interface to the storage server.
@@ -475,18 +511,7 @@ class HTTPServer(object):
 
     _app = Klein()
     _app.url_map.converters["storage_index"] = StorageIndexConverter
-
-    @_app.handle_errors(_HTTPError)
-    def _http_error(self, request, failure):
-        """Handle ``_HTTPError`` exceptions."""
-        request.setResponseCode(failure.value.code)
-        return b""
-
-    @_app.handle_errors(CDDLValidationError)
-    def _cddl_validation_error(self, request, failure):
-        """Handle CDDL validation errors."""
-        request.setResponseCode(http.BAD_REQUEST)
-        return str(failure.value).encode("utf-8")
+    _add_error_handling(_app)
 
     def __init__(
         self,
