@@ -368,7 +368,7 @@ class StorageClient(object):
         message_to_serialize: object = None,
         timeout: float = 60,
         **kwargs,
-    ) -> Deferred[IResponse]:
+    ) -> IResponse:
         """
         Like ``treq.request()``, but with optional secrets that get translated
         into corresponding HTTP headers.

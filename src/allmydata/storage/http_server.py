@@ -107,7 +107,7 @@ def _authorization_decorator(required_secrets):
         @wraps(f)
         def route(self, request, *args, **kwargs):
             with start_action(
-                action_type="allmydata:storage:http-server:handle_request",
+                action_type="allmydata:storage:http-server:handle-request",
                 method=request.method,
                 path=request.path,
             ) as ctx:
