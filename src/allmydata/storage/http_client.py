@@ -447,24 +447,28 @@ class StorageClient(object):
             method, url, headers=headers, timeout=timeout, **kwargs
         )
 
-    def decode_cbor(self, response, schema: Schema):
+    async def decode_cbor(self, response, schema: Schema) -> object:
         """Given HTTP response, return decoded CBOR body."""
-
-        def got_content(f: BinaryIO):
-            data = f.read()
-            schema.validate_cbor(data)
-            return loads(data)
-
-        if response.code > 199 and response.code < 300:
-            content_type = get_content_type(response.headers)
-            if content_type == CBOR_MIME_TYPE:
-                return limited_content(response, self._clock).addCallback(got_content)
+        with start_action(action_type="allmydata:storage:http-client:decode-cbor"):
+            if response.code > 199 and response.code < 300:
+                content_type = get_content_type(response.headers)
+                if content_type == CBOR_MIME_TYPE:
+                    f = await limited_content(response, self._clock)
+                    data = f.read()
+                    schema.validate_cbor(data)
+                    return loads(data)
+                else:
+                    raise ClientException(
+                        -1,
+                        "Server didn't send CBOR, content type is {}".format(
+                            content_type
+                        ),
+                    )
             else:
-                raise ClientException(-1, "Server didn't send CBOR")
-        else:
-            return treq.content(response).addCallback(
-                lambda data: fail(ClientException(response.code, response.phrase, data))
-            )
+                data = (
+                    await limited_content(response, self._clock, max_length=10_000)
+                ).read()
+                raise ClientException(response.code, response.phrase, data)
 
 
 @define(hash=True)
@@ -475,14 +479,14 @@ class StorageClientGeneral(object):
 
     _client: StorageClient
 
-    @inlineCallbacks
-    def get_version(self):
+    @async_to_deferred
+    async def get_version(self):
         """
         Return the version metadata for the server.
         """
         url = self._client.relative_url("/storage/v1/version")
-        response = yield self._client.request("GET", url)
-        decoded_response = yield self._client.decode_cbor(
+        response = await self._client.request("GET", url)
+        decoded_response = await self._client.decode_cbor(
             response, _SCHEMAS["get_version"]
         )
         # Add some features we know are true because the HTTP API
@@ -496,7 +500,7 @@ class StorageClientGeneral(object):
                 b"prevents-read-past-end-of-share-data": True,
             }
         )
-        returnValue(decoded_response)
+        return decoded_response
 
     @inlineCallbacks
     def add_or_renew_lease(
