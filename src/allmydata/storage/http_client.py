@@ -20,7 +20,7 @@ from werkzeug.datastructures import Range, ContentRange
 from twisted.web.http_headers import Headers
 from twisted.web import http
 from twisted.web.iweb import IPolicyForHTTPS, IResponse
-from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred, succeed
+from twisted.internet.defer import inlineCallbacks, Deferred, succeed
 from twisted.internet.interfaces import (
     IOpenSSLClientConnectionCreator,
     IReactorTime,
