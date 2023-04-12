@@ -651,8 +651,8 @@ class StorageClientImmutables(object):
 
     _client: StorageClient
 
-    @inlineCallbacks
-    def create(
+    @async_to_deferred
+    async def create(
         self,
         storage_index,
         share_numbers,
@@ -679,7 +679,7 @@ class StorageClientImmutables(object):
         )
         message = {"share-numbers": share_numbers, "allocated-size": allocated_size}
 
-        response = yield self._client.request(
+        response = await self._client.request(
             "POST",
             url,
             lease_renew_secret=lease_renew_secret,
@@ -687,14 +687,12 @@ class StorageClientImmutables(object):
             upload_secret=upload_secret,
             message_to_serialize=message,
         )
-        decoded_response = yield self._client.decode_cbor(
+        decoded_response = await self._client.decode_cbor(
             response, _SCHEMAS["allocate_buckets"]
         )
-        returnValue(
-            ImmutableCreateResult(
-                already_have=decoded_response["already-have"],
-                allocated=decoded_response["allocated"],
-            )
+        return ImmutableCreateResult(
+            already_have=decoded_response["already-have"],
+            allocated=decoded_response["allocated"],
         )
 
     @inlineCallbacks
@@ -720,8 +718,8 @@ class StorageClientImmutables(object):
                 response.code,
             )
 
-    @inlineCallbacks
-    def write_share_chunk(
+    @async_to_deferred
+    async def write_share_chunk(
         self, storage_index, share_number, upload_secret, offset, data
     ):  # type: (bytes, int, bytes, int, bytes) -> Deferred[UploadProgress]
         """
@@ -741,7 +739,7 @@ class StorageClientImmutables(object):
                 _encode_si(storage_index), share_number
             )
         )
-        response = yield self._client.request(
+        response = await self._client.request(
             "PATCH",
             url,
             upload_secret=upload_secret,
@@ -765,13 +763,13 @@ class StorageClientImmutables(object):
             raise ClientException(
                 response.code,
             )
-        body = yield self._client.decode_cbor(
+        body = await self._client.decode_cbor(
             response, _SCHEMAS["immutable_write_share_chunk"]
         )
         remaining = RangeMap()
         for chunk in body["required"]:
             remaining.set(True, chunk["begin"], chunk["end"])
-        returnValue(UploadProgress(finished=finished, required=remaining))
+        return UploadProgress(finished=finished, required=remaining)
 
     def read_share_chunk(
         self, storage_index, share_number, offset, length
@@ -783,21 +781,21 @@ class StorageClientImmutables(object):
             self._client, "immutable", storage_index, share_number, offset, length
         )
 
-    @inlineCallbacks
-    def list_shares(self, storage_index: bytes) -> Deferred[set[int]]:
+    @async_to_deferred
+    async def list_shares(self, storage_index: bytes) -> Deferred[set[int]]:
         """
         Return the set of shares for a given storage index.
         """
         url = self._client.relative_url(
             "/storage/v1/immutable/{}/shares".format(_encode_si(storage_index))
         )
-        response = yield self._client.request(
+        response = await self._client.request(
             "GET",
             url,
         )
         if response.code == http.OK:
-            body = yield self._client.decode_cbor(response, _SCHEMAS["list_shares"])
-            returnValue(set(body))
+            body = await self._client.decode_cbor(response, _SCHEMAS["list_shares"])
+            return set(body)
         else:
             raise ClientException(response.code)
 
