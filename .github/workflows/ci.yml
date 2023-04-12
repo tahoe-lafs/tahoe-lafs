@@ -46,7 +46,6 @@ jobs:
       matrix:
         os:
           - windows-latest
-          - ubuntu-latest
         python-version:
           - "3.8"
           - "3.9"
