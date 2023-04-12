@@ -4,6 +4,7 @@ HTTP client that talks to the HTTP storage server.
 
 from __future__ import annotations
 
+from eliot import start_action, register_exception_extractor
 from typing import Union, Optional, Sequence, Mapping, BinaryIO
 from base64 import b64encode
 from io import BytesIO
@@ -18,7 +19,7 @@ from collections_extended import RangeMap
 from werkzeug.datastructures import Range, ContentRange
 from twisted.web.http_headers import Headers
 from twisted.web import http
-from twisted.web.iweb import IPolicyForHTTPS
+from twisted.web.iweb import IPolicyForHTTPS, IResponse
 from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred, succeed
 from twisted.internet.interfaces import (
     IOpenSSLClientConnectionCreator,
@@ -61,6 +62,9 @@ class ClientException(Exception):
     def __init__(self, code, *additional_args):
         Exception.__init__(self, code, *additional_args)
         self.code = code
+
+
+register_exception_extractor(ClientException, lambda e: {"response_code": e.code})
 
 
 # Schemas for server responses.
@@ -337,7 +341,7 @@ class StorageClient(object):
         https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
         return cls(https_url, swissnum, treq_client, reactor)
 
-    def relative_url(self, path):
+    def relative_url(self, path: str) -> DecodedURL:
         """Get a URL relative to the base URL."""
         return self._base_url.click(path)
 
@@ -351,19 +355,20 @@ class StorageClient(object):
         )
         return headers
 
-    def request(
+    @async_to_deferred
+    async def request(
         self,
-        method,
-        url,
-        lease_renew_secret=None,
-        lease_cancel_secret=None,
-        upload_secret=None,
-        write_enabler_secret=None,
-        headers=None,
-        message_to_serialize=None,
+        method: str,
+        url: DecodedURL,
+        lease_renew_secret: Optional[bytes] = None,
+        lease_cancel_secret: Optional[bytes] = None,
+        upload_secret: Optional[bytes] = None,
+        write_enabler_secret: Optional[bytes] = None,
+        headers: Optional[Headers] = None,
+        message_to_serialize: object = None,
         timeout: float = 60,
         **kwargs,
-    ):
+    ) -> IResponse:
         """
         Like ``treq.request()``, but with optional secrets that get translated
         into corresponding HTTP headers.
@@ -373,6 +378,41 @@ class StorageClient(object):
 
         Default timeout is 60 seconds.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:request",
+            method=method,
+            url=url.to_text(),
+            timeout=timeout,
+        ) as ctx:
+            response = await self._request(
+                method,
+                url,
+                lease_renew_secret,
+                lease_cancel_secret,
+                upload_secret,
+                write_enabler_secret,
+                headers,
+                message_to_serialize,
+                timeout,
+                **kwargs,
+            )
+            ctx.add_success_fields(response_code=response.code)
+            return response
+
+    async def _request(
+        self,
+        method: str,
+        url: DecodedURL,
+        lease_renew_secret: Optional[bytes] = None,
+        lease_cancel_secret: Optional[bytes] = None,
+        upload_secret: Optional[bytes] = None,
+        write_enabler_secret: Optional[bytes] = None,
+        headers: Optional[Headers] = None,
+        message_to_serialize: object = None,
+        timeout: float = 60,
+        **kwargs,
+    ) -> IResponse:
+        """The implementation of request()."""
         headers = self._get_headers(headers)
 
         # Add secrets:
@@ -403,7 +443,7 @@ class StorageClient(object):
             kwargs["data"] = dumps(message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
-        return self._treq.request(
+        return await self._treq.request(
             method, url, headers=headers, timeout=timeout, **kwargs
         )
 
@@ -448,12 +488,14 @@ class StorageClientGeneral(object):
         # Add some features we know are true because the HTTP API
         # specification requires them and because other parts of the storage
         # client implementation assumes they will be present.
-        decoded_response[b"http://allmydata.org/tahoe/protocols/storage/v1"].update({
-            b'tolerates-immutable-read-overrun': True,
-            b'delete-mutable-shares-with-zero-length-writev': True,
-            b'fills-holes-with-zero-bytes': True,
-            b'prevents-read-past-end-of-share-data': True,
-        })
+        decoded_response[b"http://allmydata.org/tahoe/protocols/storage/v1"].update(
+            {
+                b"tolerates-immutable-read-overrun": True,
+                b"delete-mutable-shares-with-zero-length-writev": True,
+                b"fills-holes-with-zero-bytes": True,
+                b"prevents-read-past-end-of-share-data": True,
+            }
+        )
         returnValue(decoded_response)
 
     @inlineCallbacks
