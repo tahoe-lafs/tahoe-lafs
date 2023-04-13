@@ -4,7 +4,8 @@ HTTP client that talks to the HTTP storage server.
 
 from __future__ import annotations
 
-from typing import Union, Optional, Sequence, Mapping, BinaryIO, cast, TypedDict
+
+from typing import Union, Optional, Sequence, Mapping, BinaryIO, cast, TypedDict, Set
 from base64 import b64encode
 from io import BytesIO
 from os import SEEK_END
@@ -505,14 +506,14 @@ class StorageClientGeneral(object):
         url = self._client.relative_url("/storage/v1/version")
         response = await self._client.request("GET", url)
         decoded_response = cast(
-            dict[bytes, object],
+            Mapping[bytes, object],
             await self._client.decode_cbor(response, _SCHEMAS["get_version"]),
         )
         # Add some features we know are true because the HTTP API
         # specification requires them and because other parts of the storage
         # client implementation assumes they will be present.
         cast(
-            dict[bytes, object],
+            Mapping[bytes, object],
             decoded_response[b"http://allmydata.org/tahoe/protocols/storage/v1"],
         ).update(
             {
@@ -750,7 +751,7 @@ class StorageClientImmutables(object):
             message_to_serialize=message,
         )
         decoded_response = cast(
-            dict[str, set[int]],
+            Mapping[str, Set[int]],
             await self._client.decode_cbor(response, _SCHEMAS["allocate_buckets"]),
         )
         return ImmutableCreateResult(
@@ -832,7 +833,7 @@ class StorageClientImmutables(object):
                 response.code,
             )
         body = cast(
-            dict[str, list[dict[str, int]]],
+            Mapping[str, Sequence[Mapping[str, int]]],
             await self._client.decode_cbor(
                 response, _SCHEMAS["immutable_write_share_chunk"]
             ),
@@ -853,7 +854,7 @@ class StorageClientImmutables(object):
         )
 
     @async_to_deferred
-    async def list_shares(self, storage_index: bytes) -> set[int]:
+    async def list_shares(self, storage_index: bytes) -> Set[int]:
         """
         Return the set of shares for a given storage index.
         """
@@ -866,7 +867,7 @@ class StorageClientImmutables(object):
         )
         if response.code == http.OK:
             body = cast(
-                set[int],
+                Set[int],
                 await self._client.decode_cbor(response, _SCHEMAS["list_shares"]),
             )
             return set(body)
@@ -939,9 +940,10 @@ class ReadTestWriteResult:
     reads: Mapping[int, Sequence[bytes]]
 
 
-# Result type for mutable read/test/write HTTP response.
+# Result type for mutable read/test/write HTTP response. Can't just use
+# dict[int,list[bytes]] because on Python 3.8 that will error out.
 MUTABLE_RTW = TypedDict(
-    "MUTABLE_RTW", {"success": bool, "data": dict[int, list[bytes]]}
+    "MUTABLE_RTW", {"success": bool, "data": Mapping[int, Sequence[bytes]]}
 )
 
 
@@ -1016,7 +1018,7 @@ class StorageClientMutables:
         )
 
     @async_to_deferred
-    async def list_shares(self, storage_index: bytes) -> set[int]:
+    async def list_shares(self, storage_index: bytes) -> Set[int]:
         """
         List the share numbers for a given storage index.
         """
@@ -1026,7 +1028,7 @@ class StorageClientMutables:
         response = await self._client.request("GET", url)
         if response.code == http.OK:
             return cast(
-                set[int],
+                Set[int],
                 await self._client.decode_cbor(
                     response, _SCHEMAS["mutable_list_shares"]
                 ),

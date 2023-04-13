@@ -260,7 +260,7 @@ jobs:
           name: "Submit coverage results"
           command: |
             if [ -n "${UPLOAD_COVERAGE}" ]; then
-              /tmp/venv/bin/codecov
+              echo "TODO: Need a new coverage solution, see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4011"
             fi
 
     docker:
