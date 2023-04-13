@@ -707,6 +707,35 @@ class StorageClientImmutables(object):
         Result fires when creating the storage index succeeded, if creating the
         storage index failed the result will fire with an exception.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:create",
+            storage_index=si_to_human_readable(storage_index),
+            share_numbers=share_numbers,
+            allocated_size=allocated_size,
+        ) as ctx:
+            result = await self._create(
+                storage_index,
+                share_numbers,
+                allocated_size,
+                upload_secret,
+                lease_renew_secret,
+                lease_cancel_secret,
+            )
+            ctx.add_success_fields(
+                already_have=result.already_have, allocated=result.allocated
+            )
+            return result
+
+    async def _create(
+        self,
+        storage_index: bytes,
+        share_numbers: set[int],
+        allocated_size: int,
+        upload_secret: bytes,
+        lease_renew_secret: bytes,
+        lease_cancel_secret: bytes,
+    ) -> ImmutableCreateResult:
+        """Implementation of create()."""
         url = self._client.relative_url(
             "/storage/v1/immutable/" + _encode_si(storage_index)
         )
