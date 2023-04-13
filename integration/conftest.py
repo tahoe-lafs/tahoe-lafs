@@ -206,13 +206,6 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     include_result=False,
 )
 def introducer(reactor, temp_dir, flog_gatherer, request):
-    config = '''
-[node]
-nickname = introducer0
-web.port = 4560
-log_gatherer.furl = {log_furl}
-'''.format(log_furl=flog_gatherer)
-
     intro_dir = join(temp_dir, 'introducer')
     print("making introducer", intro_dir)
 
@@ -232,6 +225,10 @@ log_gatherer.furl = {log_furl}
         )
         pytest_twisted.blockon(done_proto.done)
 
+    config = read_config(intro_dir, "tub.port")
+    config.set_config("node", "nickname", "introducer-tor")
+    config.set_config("node", "web.port", "4561")
+    config.set_config("node", "log_gatherer.furl", flog_gatherer)
     # over-write the config file with our stuff
     with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
         f.write(config)
@@ -283,7 +280,8 @@ def introducer_furl(introducer, temp_dir):
 )
 def tor_introducer(reactor, temp_dir, flog_gatherer, request):
     intro_dir = join(temp_dir, 'introducer_tor')
-    print("making introducer", intro_dir)
+    print("making Tor introducer in {}".format(intro_dir))
+    print("(this can take tens of seconds to allocate Onion address)")
 
     if not exists(intro_dir):
         mkdir(intro_dir)
@@ -342,7 +340,7 @@ def tor_introducer_furl(tor_introducer, temp_dir):
         print("Don't see {} yet".format(furl_fname))
         sleep(.1)
     furl = open(furl_fname, 'r').read()
-    print(f"Found Tor introducer furl: {furl}")
+    print(f"Found Tor introducer furl: {furl} in {furl_fname}")
     return furl
 
 
@@ -510,7 +508,13 @@ def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
     )
     pytest_twisted.blockon(proto.done)
 
-    return (chutney_dir, {"PYTHONPATH": join(chutney_dir, "lib")})
+    return (
+        chutney_dir,
+        {
+            "PYTHONPATH": join(chutney_dir, "lib"),
+            "CHUTNEY_START_TIME": "200",  # default is 60
+        }
+    )
 
 
 @pytest.fixture(scope='session')
@@ -544,17 +548,9 @@ def tor_network(reactor, temp_dir, chutney, request):
         return proto.done
 
     # now, as per Chutney's README, we have to create the network
-    # ./chutney configure networks/basic
-    # ./chutney start networks/basic
     pytest_twisted.blockon(chutney(("configure", basic_network)))
-    pytest_twisted.blockon(chutney(("start", basic_network)))
 
-    # print some useful stuff
-    try:
-        pytest_twisted.blockon(chutney(("status", basic_network)))
-    except ProcessTerminated:
-        print("Chutney.TorNet status failed (continuing)")
-
+    # ensure we will tear down the network right before we start it
     def cleanup():
         print("Tearing down Chutney Tor network")
         try:
@@ -563,5 +559,13 @@ def tor_network(reactor, temp_dir, chutney, request):
             # If this doesn't exit cleanly, that's fine, that shouldn't fail
             # the test suite.
             pass
-
     request.addfinalizer(cleanup)
+
+    pytest_twisted.blockon(chutney(("start", basic_network)))
+    pytest_twisted.blockon(chutney(("wait_for_bootstrap", basic_network)))
+
+    # print some useful stuff
+    try:
+        pytest_twisted.blockon(chutney(("status", basic_network)))
+    except ProcessTerminated:
+        print("Chutney.TorNet status failed (continuing)")

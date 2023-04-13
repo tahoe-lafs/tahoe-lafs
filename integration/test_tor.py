@@ -61,7 +61,7 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
     )
     yield proto.done
     cap = proto.output.getvalue().strip().split()[-1]
-    print("TEH CAP!", cap)
+    print("capability: {}".format(cap))
 
     proto = util._CollectOutputProtocol(capture_stderr=False)
     reactor.spawnProcess(
