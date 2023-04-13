@@ -68,10 +68,6 @@ def create_introducer(basedir=u"."):
         default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(config, i2p_provider, tor_provider)
         tub_options = create_tub_options(config)
 
-        # we don't remember these because the Introducer doesn't make
-        # outbound connections.
-        i2p_provider = None
-        tor_provider = None
         main_tub = create_main_tub(
             config, tub_options, default_connection_handlers,
             foolscap_connection_handlers, i2p_provider, tor_provider,

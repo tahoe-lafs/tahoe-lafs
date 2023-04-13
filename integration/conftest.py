@@ -512,7 +512,7 @@ def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
         chutney_dir,
         {
             "PYTHONPATH": join(chutney_dir, "lib"),
-            "CHUTNEY_START_TIME": "200",  # default is 60
+            "CHUTNEY_START_TIME": "600",  # default is 60
         }
     )
 
