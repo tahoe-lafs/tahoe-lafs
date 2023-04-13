@@ -229,9 +229,6 @@ def introducer(reactor, temp_dir, flog_gatherer, request):
     config.set_config("node", "nickname", "introducer-tor")
     config.set_config("node", "web.port", "4561")
     config.set_config("node", "log_gatherer.furl", flog_gatherer)
-    # over-write the config file with our stuff
-    with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
-        f.write(config)
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
