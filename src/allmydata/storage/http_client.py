@@ -44,7 +44,7 @@ from .http_common import (
     CBOR_MIME_TYPE,
     get_spki_hash,
 )
-from .common import si_b2a
+from .common import si_b2a, si_to_human_readable
 from ..util.hashutil import timing_safe_compare
 from ..util.deferredutil import async_to_deferred
 
@@ -513,20 +513,31 @@ class StorageClientGeneral(object):
         )
         return decoded_response
 
-    @inlineCallbacks
-    def add_or_renew_lease(
+    @async_to_deferred
+    async def add_or_renew_lease(
         self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
-    ) -> Deferred[None]:
+    ) -> None:
         """
         Add or renew a lease.
 
         If the renewal secret matches an existing lease, it is renewed.
         Otherwise a new lease is added.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:add-or-renew-lease",
+            storage_index=si_to_human_readable(storage_index),
+        ):
+            return await self._add_or_renew_lease(
+                storage_index, renew_secret, cancel_secret
+            )
+
+    async def _add_or_renew_lease(
+        self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
+    ) -> None:
         url = self._client.relative_url(
             "/storage/v1/lease/{}".format(_encode_si(storage_index))
         )
-        response = yield self._client.request(
+        response = await self._client.request(
             "PUT",
             url,
             lease_renew_secret=renew_secret,
