@@ -480,10 +480,17 @@ class StorageClientGeneral(object):
     _client: StorageClient
 
     @async_to_deferred
-    async def get_version(self):
+    async def get_version(self) -> dict[bytes, object]:
         """
         Return the version metadata for the server.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:get-version",
+        ):
+            return await self._get_version()
+
+    async def _get_version(self) -> dict[bytes, object]:
+        """Implementation of get_version()."""
         url = self._client.relative_url("/storage/v1/version")
         response = await self._client.request("GET", url)
         decoded_response = cast(
