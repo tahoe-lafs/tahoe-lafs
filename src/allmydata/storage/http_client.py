@@ -4,13 +4,14 @@ HTTP client that talks to the HTTP storage server.
 
 from __future__ import annotations
 
-from eliot import start_action, register_exception_extractor
 from typing import Union, Optional, Sequence, Mapping, BinaryIO, cast, TypedDict
 from base64 import b64encode
 from io import BytesIO
 from os import SEEK_END
 
 from attrs import define, asdict, frozen, field
+from eliot import start_action, register_exception_extractor
+from eliot.twisted import DeferredContext
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
@@ -160,8 +161,17 @@ def limited_content(
     trickle of data continues to arrive, it will continue to run.
     """
     d = succeed(None)
+
+    # Sadly, addTimeout() won't work because we need access to the IDelayedCall
+    # in order to reset it on each data chunk received.
     timeout = clock.callLater(60, d.cancel)
     collector = _LengthLimitedCollector(max_length, timeout)
+
+    with start_action(
+        action_type="allmydata:storage:http-client:limited-content",
+        max_length=max_length,
+    ).context() as action:
+        d = DeferredContext(d)
 
     # Make really sure everything gets called in Deferred context, treq might
     # call collector directly...
@@ -177,7 +187,8 @@ def limited_content(
             timeout.cancel()
         return f
 
-    return d.addCallbacks(done, failed)
+    result = d.addCallbacks(done, failed)
+    return result.addActionFinish()
 
 
 @define
