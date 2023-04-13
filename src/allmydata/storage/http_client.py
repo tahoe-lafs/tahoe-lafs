@@ -5,7 +5,17 @@ HTTP client that talks to the HTTP storage server.
 from __future__ import annotations
 
 
-from typing import Union, Optional, Sequence, Mapping, BinaryIO, cast, TypedDict, Set
+from typing import (
+    Union,
+    Optional,
+    Sequence,
+    Mapping,
+    BinaryIO,
+    cast,
+    TypedDict,
+    Set,
+    Dict,
+)
 from base64 import b64encode
 from io import BytesIO
 from os import SEEK_END
@@ -506,14 +516,14 @@ class StorageClientGeneral(object):
         url = self._client.relative_url("/storage/v1/version")
         response = await self._client.request("GET", url)
         decoded_response = cast(
-            Mapping[bytes, object],
+            Dict[bytes, object],
             await self._client.decode_cbor(response, _SCHEMAS["get_version"]),
         )
         # Add some features we know are true because the HTTP API
         # specification requires them and because other parts of the storage
         # client implementation assumes they will be present.
         cast(
-            Mapping[bytes, object],
+            Dict[bytes, object],
             decoded_response[b"http://allmydata.org/tahoe/protocols/storage/v1"],
         ).update(
             {
