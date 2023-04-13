@@ -83,6 +83,8 @@ def create_introducer(basedir=u"."):
             i2p_provider,
             tor_provider,
         )
+        i2p_provider.setServiceParent(node)
+        tor_provider.setServiceParent(node)
         return defer.succeed(node)
     except Exception:
         return Failure()
