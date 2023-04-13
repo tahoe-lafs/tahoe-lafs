@@ -759,17 +759,28 @@ class StorageClientImmutables(object):
             allocated=decoded_response["allocated"],
         )
 
-    @inlineCallbacks
-    def abort_upload(
+    @async_to_deferred
+    async def abort_upload(
         self, storage_index: bytes, share_number: int, upload_secret: bytes
-    ) -> Deferred[None]:
+    ) -> None:
         """Abort the upload."""
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:abort-upload",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+        ):
+            return await self._abort_upload(storage_index, share_number, upload_secret)
+
+    async def _abort_upload(
+        self, storage_index: bytes, share_number: int, upload_secret: bytes
+    ) -> None:
+        """Implementation of ``abort_upload()``."""
         url = self._client.relative_url(
             "/storage/v1/immutable/{}/{}/abort".format(
                 _encode_si(storage_index), share_number
             )
         )
-        response = yield self._client.request(
+        response = await self._client.request(
             "PUT",
             url,
             upload_secret=upload_secret,
@@ -803,6 +814,28 @@ class StorageClientImmutables(object):
         whether the _complete_ share (i.e. all chunks, not just this one) has
         been uploaded.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:write-share-chunk",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            offset=offset,
+            data_len=len(data),
+        ) as ctx:
+            result = await self._write_share_chunk(
+                storage_index, share_number, upload_secret, offset, data
+            )
+            ctx.add_success_fields(finished=result.finished)
+            return result
+
+    async def _write_share_chunk(
+        self,
+        storage_index: bytes,
+        share_number: int,
+        upload_secret: bytes,
+        offset: int,
+        data: bytes,
+    ) -> UploadProgress:
+        """Implementation of ``write_share_chunk()``."""
         url = self._client.relative_url(
             "/storage/v1/immutable/{}/{}".format(
                 _encode_si(storage_index), share_number
