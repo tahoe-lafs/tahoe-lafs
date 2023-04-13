@@ -687,13 +687,13 @@ class StorageClientImmutables(object):
     @async_to_deferred
     async def create(
         self,
-        storage_index,
-        share_numbers,
-        allocated_size,
-        upload_secret,
-        lease_renew_secret,
-        lease_cancel_secret,
-    ):  # type: (bytes, set[int], int, bytes, bytes, bytes) -> Deferred[ImmutableCreateResult]
+        storage_index: bytes,
+        share_numbers: set[int],
+        allocated_size: int,
+        upload_secret: bytes,
+        lease_renew_secret: bytes,
+        lease_cancel_secret: bytes,
+    ) -> ImmutableCreateResult:
         """
         Create a new storage index for an immutable.
 
@@ -754,8 +754,13 @@ class StorageClientImmutables(object):
 
     @async_to_deferred
     async def write_share_chunk(
-        self, storage_index, share_number, upload_secret, offset, data
-    ):  # type: (bytes, int, bytes, int, bytes) -> Deferred[UploadProgress]
+        self,
+        storage_index: bytes,
+        share_number: int,
+        upload_secret: bytes,
+        offset: int,
+        data: bytes,
+    ) -> UploadProgress:
         """
         Upload a chunk of data for a specific share.
 
@@ -819,7 +824,7 @@ class StorageClientImmutables(object):
         )
 
     @async_to_deferred
-    async def list_shares(self, storage_index: bytes) -> Deferred[set[int]]:
+    async def list_shares(self, storage_index: bytes) -> set[int]:
         """
         Return the set of shares for a given storage index.
         """
