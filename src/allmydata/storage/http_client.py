@@ -1044,6 +1044,29 @@ class StorageClientMutables:
         Given a mapping between share numbers and test/write vectors, the tests
         are done and if they are valid the writes are done.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:mutable:read-test-write",
+            storage_index=si_to_human_readable(storage_index),
+        ):
+            return await self._read_test_write_chunks(
+                storage_index,
+                write_enabler_secret,
+                lease_renew_secret,
+                lease_cancel_secret,
+                testwrite_vectors,
+                read_vector,
+            )
+
+    async def _read_test_write_chunks(
+        self,
+        storage_index: bytes,
+        write_enabler_secret: bytes,
+        lease_renew_secret: bytes,
+        lease_cancel_secret: bytes,
+        testwrite_vectors: dict[int, TestWriteVectors],
+        read_vector: list[ReadVector],
+    ) -> ReadTestWriteResult:
+        """Implementation of ``read_test_write_chunks()``."""
         url = self._client.relative_url(
             "/storage/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
         )
@@ -1073,25 +1096,45 @@ class StorageClientMutables:
         else:
             raise ClientException(response.code, (await response.content()))
 
-    def read_share_chunk(
+    @async_to_deferred
+    async def read_share_chunk(
         self,
         storage_index: bytes,
         share_number: int,
         offset: int,
         length: int,
-    ) -> Deferred[bytes]:
+    ) -> bytes:
         """
         Download a chunk of data from a share.
         """
-        return read_share_chunk(
-            self._client, "mutable", storage_index, share_number, offset, length
-        )
+        with start_action(
+            action_type="allmydata:storage:http-client:mutable:read-share-chunk",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            offset=offset,
+            length=length,
+        ) as ctx:
+            result = await read_share_chunk(
+                self._client, "mutable", storage_index, share_number, offset, length
+            )
+            ctx.add_success_fields(data_len=len(result))
+            return result
 
     @async_to_deferred
     async def list_shares(self, storage_index: bytes) -> Set[int]:
         """
         List the share numbers for a given storage index.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:mutable:list-shares",
+            storage_index=si_to_human_readable(storage_index),
+        ) as ctx:
+            result = await self._list_shares(storage_index)
+            ctx.add_success_fields(shares=result)
+            return result
+
+    async def _list_shares(self, storage_index: bytes) -> Set[int]:
+        """Implementation of ``list_shares()``."""
         url = self._client.relative_url(
             "/storage/v1/mutable/{}/shares".format(_encode_si(storage_index))
         )
@@ -1106,13 +1149,20 @@ class StorageClientMutables:
         else:
             raise ClientException(response.code)
 
-    def advise_corrupt_share(
+    @async_to_deferred
+    async def advise_corrupt_share(
         self,
         storage_index: bytes,
         share_number: int,
         reason: str,
-    ):
+    ) -> None:
         """Indicate a share has been corrupted, with a human-readable message."""
-        return advise_corrupt_share(
-            self._client, "mutable", storage_index, share_number, reason
-        )
+        with start_action(
+            action_type="allmydata:storage:http-client:mutable:advise-corrupt-share",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            reason=reason,
+        ):
+            await advise_corrupt_share(
+                self._client, "mutable", storage_index, share_number, reason
+            )
