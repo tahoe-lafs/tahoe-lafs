@@ -92,7 +92,7 @@ def format_http_success(resp):
 
 def format_http_error(msg, resp):
     return quote_output(
-        "%s: %s %s\n%s" % (msg, resp.status, resp.reason,
+        "%s: %s %s\n%r" % (msg, resp.status, resp.reason,
                            resp.read()),
         quotemarks=False)
 
