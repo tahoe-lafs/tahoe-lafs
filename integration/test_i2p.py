@@ -68,13 +68,6 @@ def i2p_network(reactor, temp_dir, request):
     include_result=False,
 )
 def i2p_introducer(reactor, temp_dir, flog_gatherer, request):
-    config = '''
-[node]
-nickname = introducer_i2p
-web.port = 4561
-log_gatherer.furl = {log_furl}
-'''.format(log_furl=flog_gatherer)
-
     intro_dir = join(temp_dir, 'introducer_i2p')
     print("making introducer", intro_dir)
 
@@ -94,8 +87,10 @@ log_gatherer.furl = {log_furl}
         pytest_twisted.blockon(done_proto.done)
 
     # over-write the config file with our stuff
-    with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
-        f.write(config)
+    config = read_config(intro_dir, "tub.port")
+    config.set_config("node", "nickname", "introducer_i2p")
+    config.set_config("node", "web.port", "4563")
+    config.set_config("node", "log_gatherer.furl", flog_gatherer)
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
