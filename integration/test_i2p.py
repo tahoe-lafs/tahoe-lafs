@@ -23,6 +23,8 @@ from twisted.internet.error import ProcessExitedAlready
 from allmydata.test.common import (
     write_introducer,
 )
+from allmydata.node import read_config
+
 
 if which("docker") is None:
     pytest.skip('Skipping I2P tests since Docker is unavailable', allow_module_level=True)
