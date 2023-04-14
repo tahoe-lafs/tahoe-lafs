@@ -55,9 +55,9 @@ def do_http(method, url, body=b""):
         assert body.read
     scheme, host, port, path = parse_url(url)
     if scheme == "http":
-        c = http_client.HTTPConnection(host, port, timeout=60)
+        c = http_client.HTTPConnection(host, port, timeout=60, blocksize=65536)
     elif scheme == "https":
-        c = http_client.HTTPSConnection(host, port, timeout=60)
+        c = http_client.HTTPSConnection(host, port, timeout=60, blocksize=65536)
     else:
         raise ValueError("unknown scheme '%s', need http or https" % scheme)
     c.putrequest(method, path)
@@ -78,7 +78,7 @@ def do_http(method, url, body=b""):
         return BadResponse(url, err)
 
     while True:
-        data = body.read(8192)
+        data = body.read(65536)
         if not data:
             break
         c.send(data)
