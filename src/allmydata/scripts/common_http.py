@@ -1,12 +1,11 @@
 """
-Ported to Python 3.
+Blocking HTTP client APIs.
 """
 
 import os
 from io import BytesIO
 from http import client as http_client
 import urllib
-import six
 import allmydata # for __full_version__
 
 from allmydata.util.encodingutil import quote_output
@@ -44,7 +43,7 @@ class BadResponse(object):
 def do_http(method, url, body=b""):
     if isinstance(body, bytes):
         body = BytesIO(body)
-    elif isinstance(body, six.text_type):
+    elif isinstance(body, str):
         raise TypeError("do_http body must be a bytestring, not unicode")
     else:
         # We must give a Content-Length header to twisted.web, otherwise it
@@ -87,16 +86,14 @@ def do_http(method, url, body=b""):
 
 
 def format_http_success(resp):
-    # ensure_text() shouldn't be necessary when Python 2 is dropped.
     return quote_output(
-        "%s %s" % (resp.status, six.ensure_text(resp.reason)),
+        "%s %s" % (resp.status, resp.reason),
         quotemarks=False)
 
 def format_http_error(msg, resp):
-    # ensure_text() shouldn't be necessary when Python 2 is dropped.
     return quote_output(
-        "%s: %s %s\n%s" % (msg, resp.status, six.ensure_text(resp.reason),
-                           six.ensure_text(resp.read())),
+        "%s: %s %s\n%s" % (msg, resp.status, resp.reason,
+                           resp.read()),
         quotemarks=False)
 
 def check_http_error(resp, stderr):
