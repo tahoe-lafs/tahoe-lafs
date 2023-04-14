@@ -886,21 +886,41 @@ class StorageClientImmutables(object):
             remaining.set(True, chunk["begin"], chunk["end"])
         return UploadProgress(finished=finished, required=remaining)
 
-    def read_share_chunk(
-        self, storage_index, share_number, offset, length
-    ):  # type: (bytes, int, int, int) -> Deferred[bytes]
+    @async_to_deferred
+    async def read_share_chunk(
+        self, storage_index: bytes, share_number: int, offset: int, length: int
+    ) -> bytes:
         """
         Download a chunk of data from a share.
         """
-        return read_share_chunk(
-            self._client, "immutable", storage_index, share_number, offset, length
-        )
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:read-share-chunk",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            offset=offset,
+            length=length,
+        ) as ctx:
+            result = await read_share_chunk(
+                self._client, "immutable", storage_index, share_number, offset, length
+            )
+            ctx.add_success_fields(data_len=len(result))
+            return result
 
     @async_to_deferred
     async def list_shares(self, storage_index: bytes) -> Set[int]:
         """
         Return the set of shares for a given storage index.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:list-shares",
+            storage_index=si_to_human_readable(storage_index),
+        ) as ctx:
+            result = await self._list_shares(storage_index)
+            ctx.add_success_fields(shares=result)
+            return result
+
+    async def _list_shares(self, storage_index: bytes) -> Set[int]:
+        """Implementation of ``list_shares()``."""
         url = self._client.relative_url(
             "/storage/v1/immutable/{}/shares".format(_encode_si(storage_index))
         )
@@ -917,16 +937,23 @@ class StorageClientImmutables(object):
         else:
             raise ClientException(response.code)
 
-    def advise_corrupt_share(
+    @async_to_deferred
+    async def advise_corrupt_share(
         self,
         storage_index: bytes,
         share_number: int,
         reason: str,
-    ):
+    ) -> None:
         """Indicate a share has been corrupted, with a human-readable message."""
-        return advise_corrupt_share(
-            self._client, "immutable", storage_index, share_number, reason
-        )
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:advise-corrupt-share",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            reason=reason,
+        ):
+            await advise_corrupt_share(
+                self._client, "immutable", storage_index, share_number, reason
+            )
 
 
 @frozen
