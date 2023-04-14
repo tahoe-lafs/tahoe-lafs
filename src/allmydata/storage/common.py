@@ -41,7 +41,6 @@ def si_a2b(ascii_storageindex):
 
 def si_to_human_readable(storageindex: bytes) -> str:
     """Create human-readable string of storage index."""
-    assert len(storageindex) == 16
     return str(base32.b2a(storageindex), "ascii")
 
 def storage_index_to_dir(storageindex):
