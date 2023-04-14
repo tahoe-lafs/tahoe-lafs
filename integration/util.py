@@ -90,11 +90,9 @@ class _CollectOutputProtocol(ProcessProtocol):
             self.done.errback(reason)
 
     def outReceived(self, data):
-        print("OUT: {!r}".format(data))
         self.output.write(data)
 
     def errReceived(self, data):
-        print("ERR: {!r}".format(data))
         if self.capture_stderr:
             self.output.write(data)
 
