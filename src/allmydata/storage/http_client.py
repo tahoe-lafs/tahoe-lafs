@@ -181,7 +181,7 @@ def limited_content(
     with start_action(
         action_type="allmydata:storage:http-client:limited-content",
         max_length=max_length,
-    ).context() as action:
+    ).context():
         d = DeferredContext(d)
 
     # Make really sure everything gets called in Deferred context, treq might
