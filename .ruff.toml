@@ -9,4 +9,6 @@ select = [
     # Make sure we bind closure variables in a loop (equivalent to pylint
     # cell-var-from-loop):
     "B023",
+    # Don't use mutable default arguments:
+    "B006",
 ]

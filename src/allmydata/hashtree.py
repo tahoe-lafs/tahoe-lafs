@@ -332,7 +332,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
             name += " (leaf [%d] of %d)" % (leafnum, numleaves)
         return name
 
-    def set_hashes(self, hashes={}, leaves={}):
+    def set_hashes(self, hashes=None, leaves=None):
         """Add a bunch of hashes to the tree.
 
         I will validate these to the best of my ability. If I already have a
@@ -382,7 +382,10 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
         corrupted or one of the received hashes was corrupted. If it raises
         NotEnoughHashesError, then the otherhashes dictionary was incomplete.
         """
-
+        if hashes is None:
+            hashes = {}
+        if leaves is None:
+            leaves = {}
         assert isinstance(hashes, dict)
         for h in hashes.values():
             assert isinstance(h, bytes)

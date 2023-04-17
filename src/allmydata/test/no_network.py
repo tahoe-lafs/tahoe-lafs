@@ -476,7 +476,7 @@ class GridTestMixin(object):
         ])
 
     def set_up_grid(self, num_clients=1, num_servers=10,
-                    client_config_hooks={}, oneshare=False):
+                    client_config_hooks=None, oneshare=False):
         """
         Create a Tahoe-LAFS storage grid.
 
@@ -489,6 +489,8 @@ class GridTestMixin(object):
 
         :return: ``None``
         """
+        if client_config_hooks is None:
+            client_config_hooks = {}
         # self.basedir must be set
         port_assigner = SameProcessStreamEndpointAssigner()
         port_assigner.setUp()
