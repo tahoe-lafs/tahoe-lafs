@@ -44,8 +44,8 @@ in {
 
   # We only use werkzeug for some routing stuff so we don't need its
   # watch-the-filesystem-and-reload thingy.  And watchdog fails to build on
-  # PyPy.
-  werkzeug = onPyPy (drv: drv.override (old: { watchdog = null; })) super.werkzeug;
+  # PyPy and CPython 3.11.
+  werkzeug = super.werkzeug: drv.override (old: { watchdog = null; });
 
   # greenlet is incompatible with PyPy but PyPy has a builtin equivalent.
   # Fixed in nixpkgs in a5f8184fb816a4fd5ae87136838c9981e0d22c67.
