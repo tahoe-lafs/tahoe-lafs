@@ -1,0 +1,1 @@
+There is now a `Nix flake <https://nixos.wiki/wiki/Flakes>`_ which provides a Python package override defining a Tahoe-LAFS package (as well as some pre-composed Python runtime packages including Tahoe-LAFS).
