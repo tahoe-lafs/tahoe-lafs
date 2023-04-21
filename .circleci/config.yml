@@ -561,6 +561,8 @@ commands:
         type: "steps"
 
     steps:
+      - "checkout"
+
       - "run":
           # Get cachix for Nix-friendly caching.
           name: "Install Basic Dependencies"
@@ -578,8 +580,6 @@ commands:
               # configuration tht lets Nix download something from the cache
               # instead of building it locally, if possible.
               cachix use "${CACHIX_NAME}"
-
-      - "checkout"
 
       - "run":
           # The Nix package doesn't know how to do this part, unfortunately.
