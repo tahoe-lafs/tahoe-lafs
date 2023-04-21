@@ -543,6 +543,11 @@ executors:
       # to.
       CACHIX_NAME: "tahoe-lafs-opensource"
 
+      # Let us use features marked "experimental".  For example, most/all of
+      # the `nix <subcommand>` forms.
+      NIX_CONFIG: "experimental-features = nix-command flakes"
+
+
 commands:
   nix-build:
     parameters:
