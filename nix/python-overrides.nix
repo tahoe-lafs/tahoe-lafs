@@ -42,6 +42,11 @@ in {
     inherit (super) collections-extended;
   };
 
+  # We only use werkzeug for some routing stuff so we don't need its
+  # watch-the-filesystem-and-reload thingy.  And watchdog fails to build on
+  # PyPy.
+  werkzeug = onPyPy (drv: drv.override (old: { watchdog = null; })) super.werkzeug;
+
   # greenlet is incompatible with PyPy but PyPy has a builtin equivalent.
   # Fixed in nixpkgs in a5f8184fb816a4fd5ae87136838c9981e0d22c67.
   greenlet = onPyPy (drv: null) super.greenlet;
@@ -50,14 +55,21 @@ in {
   # care about, also tkinter doesn't work on PyPy.
   matplotlib = super.matplotlib.override { tornado = null; enableTk = false; };
 
-  tqdm = super.tqdm.override {
+  tqdm = (super.tqdm.override {
     # ibid.
     tkinter = null;
     # pandas is only required by the part of the test suite covering
     # integration with pandas that we don't care about.  pandas is a huge
     # dependency.
     pandas = null;
-  };
+  }).overrideAttrs (old: {
+    # test_eta fails for some reason, just skip the whole test suite.
+    doInstallCheck = false;
+  });
+
+  # The test suite has a dependency on pytest-regressions which has a
+  # dependency on pillow which fails to build on PyPy.
+  markdown-it-py = onPyPy dontCheck super.markdown-it-py;
 
   # The treq test suite depends on httpbin.  httpbin pulls in babel (flask ->
   # jinja2 -> babel) and arrow (brotlipy -> construct -> arrow).  babel fails
@@ -71,7 +83,7 @@ in {
 
   # Building the docs requires sphinx which brings in a dependency on babel,
   # the test suite of which fails.
-  pyopenssl = onPyPy (drv: overrideIfPresent "sphinx-rtd-theme" null (dontBuildDocs drv)) super.pyopenssl;
+  pyopenssl = onPyPy (drv: overrideIfPresent "sphinx-rtd-theme" null (dontBuildDocs {} drv)) super.pyopenssl;
 
   # Likewise for beautifulsoup4.
   beautifulsoup4 = onPyPy (dontBuildDocs {}) super.beautifulsoup4;

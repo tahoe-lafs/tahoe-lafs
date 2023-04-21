@@ -22,24 +22,81 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
+  # Provide a Python package override that adds a working Tahoe-LAFS to the
+  # package set.
+  #
+  # "Python package override" is not a formally recognized kind of flake
+  # output but it provides the best results here:
+  #
+  #  1. It composes.  It is possible to apply N package overrides to a Python
+  #     derivation to produce a new one that integrates them all.
+  #
+  #     1b. It avoids creating a combinatorial explosion of outputs.  We don't
+  #         need to provide a Tahoe-LAFS package for every version of Python.
+  #         Downstream consumers can apply the override to whichever Python
+  #         derivation they like.
+  #
+  #     1c. It avoids locking downstream consumers into some *specific* Python
+  #         derivations (the ones we pick).  They can bring their own.
+  #
+  #  2. It avoids unnecessary rebuilds.  It is an override but by itself it
+  #     does not override anything in nixpkgs.  This means it does not impact
+  #     any derivations that depend on Python itself.  Since nixpkgs includes
+  #     many such derivations and many of them are expensive to build, this is
+  #     a significant advantage.
+  #
+  #     2b. Maybe it is actually possible to avoid these rebuilds if we
+  #     override python in nixpkgs.  Study
+  #     https://github.com/SomeoneSerge/pkgs/blob/0b9e433013b37b71f358dd5dfec00a96ca0dab7e/overlay.nix#L21-L27
+  #     and see if you can make any sense of what's going on there.
+  #
   outputs = { self, nixpkgs, flake-utils, ... }:
     {
-      # This overlay adds Tahoe-LAFS to all of the Python package sets (at
-      # least, all of the ones it knows about).  It also pulls in any extra
-      # Tahoe-LAFS Python dependencies that are missing and customizes some
-      # Python packages to make the overall experience better (faster, not
-      # broken, etc).
-      overlays.default = import ./nix/overlay.nix;
+      # This overlay adds Tahoe-LAFS and all of its properly-configured Python
+      # package dependencies to a Python package set.  Downstream consumers
+      # can apply it to their own Python derivation to produce a Tahoe-LAFS
+      # package.
+      pythonPackageOverrides.default = import ./nix/python-overrides.nix;
+
     } // flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ self.overlays.default ];
-        };
-      in {
-        packages = {
-          inherit (pkgs) python311;
-        };
+      {
+        packages =
+          let
+            pkgs = import nixpkgs {
+              inherit system;
+            };
+            # Create a Python runtime with access to a package set that
+            # includes Tahoe-LAFS.
+            makePython = py: py.override (old: {
+              packageOverrides = self.pythonPackageOverrides.default;
+            });
+            # Create a Python runtime with the Tahoe-LAFS package installed.
+            makeTahoe = py: (makePython py).withPackages (ps: [ps.tahoe-lafs]);
+          in
+            {
+              # Okay, above I said we would avoid a combinatorial explosion
+              # but here we have a Tahoe-LAFS package for every Python
+              # derivation.
+              #
+              # Both things are true.  These packages let us test that our
+              # package actually works against these different versions of
+              # Python but downstream consumers can largely ignore them and
+              # pick their own Python derivation (of course, we will not have
+              # tested that such an integration works but at least this gives
+              # us a good idea about which major/minor versions of which
+              # Python interpreters Tahoe-LAFS works with).
+              #
+              # Also note that these are not *Python packages*.  They are
+              # whole Python runtimes which happen to have Tahoe-LAFS
+              # available to them.
+              python38-tahoe-lafs = makeTahoe pkgs.python38;
+              python39-tahoe-lafs = makeTahoe pkgs.python39;
+              python310-tahoe-lafs = makeTahoe pkgs.python310;
+              python311-tahoe-lafs = makeTahoe pkgs.python311;
+
+              pypy38-tahoe-lafs = makeTahoe pkgs.pypy38;
+              pypy39-tahoe-lafs = makeTahoe pkgs.pypy39;
+            };
       }
     );
 }

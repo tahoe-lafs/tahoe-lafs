@@ -610,6 +610,6 @@ commands:
             cache_if_able nix build \
               --cores 4 \
               --override-input nixpkgs "nixpkgs-<<parameters.nixpkgs>>" \
-              .#<<parameters.pythonVersion>>.pkgs.tahoe-lafs
+              .#<<parameters.pythonVersion>>-tahoe-lafs
 
       - steps: "<<parameters.buildSteps>>"
