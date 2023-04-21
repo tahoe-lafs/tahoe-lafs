@@ -2,6 +2,14 @@
 # Tahoe-LAFS on CPython and PyPy.
 self: super:
 let
+  # string -> any -> derivation -> derivation
+  #
+  # If the overrideable function for the given derivation accepts an argument
+  # with the given name, override it with the given value.
+  overrideIfPresent = name: value: drv:
+    if (drv.override.__functionArgs ? ${name})
+    then drv.override { "${name}" = value; }
+    else drv;
 
   # Run a function on a derivation if and only if we're building for PyPy.
   onPyPy = f: drv: if super.isPyPy then f drv else drv;
@@ -17,6 +25,13 @@ let
   });
 
 in {
+  # The main show.
+  tahoe-lafs = self.callPackage ./tahoe-lafs.nix {
+    tahoe-lafs-src = ../.;
+    extrasNames = [];
+    doCheck = false;
+  };
+
   # Some dependencies aren't packaged in nixpkgs so supply our own packages.
   pycddl = self.callPackage ./pycddl.nix { };
   txi2p = self.callPackage ./txi2p.nix { };
@@ -56,7 +71,7 @@ in {
 
   # Building the docs requires sphinx which brings in a dependency on babel,
   # the test suite of which fails.
-  pyopenssl = onPyPy (dontBuildDocs { sphinx-rtd-theme = null; }) super.pyopenssl;
+  pyopenssl = onPyPy (drv: overrideIfPresent "sphinx-rtd-theme" null (dontBuildDocs drv)) super.pyopenssl;
 
   # Likewise for beautifulsoup4.
   beautifulsoup4 = onPyPy (dontBuildDocs {}) super.beautifulsoup4;
@@ -73,7 +88,7 @@ in {
   # Upstream package unaccountably includes a sqlalchemy dependency ... but
   # the project has no such dependency.  Fixed in nixpkgs in
   # da10e809fff70fbe1d86303b133b779f09f56503.
-  aiocontextvars = super.aiocontextvars.override { sqlalchemy = null; };
+  aiocontextvars = overrideIfPresent "sqlalchemy" null super.aiocontextvars;
 
   # By default, the sphinx docs are built, which pulls in a lot of
   # dependencies - including jedi, which does not work on PyPy.
@@ -95,9 +110,9 @@ in {
   # This also drops a bunch of unnecessary build-time dependencies, some of
   # which are broken on PyPy.  Fixed in nixpkgs in
   # 5feb5054bb08ba779bd2560a44cf7d18ddf37fea.
-  zfec = (super.zfec.override {
-    setuptoolsTrial = null;
-  }).overrideAttrs (old: {
+  zfec = (
+    overrideIfPresent "setuptoolsTrial" null super.zfec
+  ).overrideAttrs (old: {
     checkPhase = "trial zfec";
   });
 

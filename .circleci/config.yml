@@ -89,7 +89,7 @@ workflows:
 
       - "nixos":
           name: "<<matrix.pythonVersion>>"
-          nixpkgs: "22.11"
+          nixpkgs: "22_11"
           matrix:
             parameters:
               pythonVersion:
@@ -607,10 +607,9 @@ commands:
           name: "Build Package"
           command: |
             source .circleci/lib.sh
-            cache_if_able nix-build \
+            cache_if_able nix build \
               --cores 4 \
-              --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
-              --argstr pythonVersion "<<parameters.pythonVersion>>" \
-              ./default.nix
+              --override-input nixpkgs "nixpkgs-<<parameters.nixpkgs>>" \
+              .#<<parameters.pythonVersion>>.pkgs.tahoe-lafs
 
       - steps: "<<parameters.buildSteps>>"
