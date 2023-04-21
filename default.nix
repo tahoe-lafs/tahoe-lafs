@@ -15,7 +15,7 @@ let
   sources = import nix/sources.nix;
 in
 {
-  pkgsVersion ? "nixpkgs-22.11" # a string which chooses a nixpkgs from the
+  pkgsVersion ? "nixpkgs-22_11" # a string which chooses a nixpkgs from the
                                 # niv-managed sources data
 
 , pkgs ? import sources.${pkgsVersion} { } # nixpkgs itself

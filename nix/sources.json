@@ -11,7 +11,7 @@
         "url": "https://github.com/nmattia/niv/archive/5830a4dd348d77e39a0f3c4c762ff2663b602d4c.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
-    "nixpkgs-22.11": {
+    "nixpkgs-22_11": {
         "branch": "nixos-22.11",
         "description": "Nix Packages collection",
         "homepage": "",
