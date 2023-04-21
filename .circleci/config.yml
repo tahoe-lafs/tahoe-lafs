@@ -567,6 +567,7 @@ commands:
           command: |
             # Translate the nixpkgs selection into a flake reference we can
             # use to override the default nixpkgs input.
+            source .circleci/lib.sh
             NIXPKGS=$(nixpkgs_flake_reference nixpkgs-<<parameters.nixpkgs>>)
 
             nix-env \
