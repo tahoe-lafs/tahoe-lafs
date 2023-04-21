@@ -592,17 +592,20 @@ commands:
       - "run":
           name: "Build Dependencies"
           command: |
+            source .circleci/lib.sh
+
             # CircleCI build environment looks like it has a zillion and a
             # half cores.  Don't let Nix autodetect this high core count
             # because it blows up memory usage and fails the test run.  Pick a
             # number of cores that suits the build environment we're paying
             # for (the free one!).
-            source .circleci/lib.sh
+            CORES=3
+
             # nix-shell will build all of the dependencies of the target but
             # not the target itself.
             cache_if_able nix-shell \
               --run "" \
-              --cores 3 \
+              --cores ${CORES} \
               --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
               --argstr pythonVersion "<<parameters.pythonVersion>>" \
               ./default.nix
