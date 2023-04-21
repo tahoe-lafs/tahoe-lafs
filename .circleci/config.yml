@@ -620,7 +620,7 @@ commands:
             # use to override the default nixpkgs input.
             NIXPKGS=$(nixpkgs_flake_reference nixpkgs-<<parameters.nixpkgs>>)
 
-            cache_if_able nix build \
+            cache_if_able nix build -v \
               --cores 4 \
               --override-input nixpkgs "${NIXPKGS}" \
               .#<<parameters.pythonVersion>>-tahoe-lafs
