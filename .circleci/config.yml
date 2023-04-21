@@ -565,10 +565,11 @@ commands:
           # Get cachix for Nix-friendly caching.
           name: "Install Basic Dependencies"
           command: |
-            # Translate the nixpkgs selection into a flake reference we can
-            # use to override the default nixpkgs input.
-            source .circleci/lib.sh
-            NIXPKGS=$(nixpkgs_flake_reference nixpkgs-<<parameters.nixpkgs>>)
+            # It shouldn't much matter which nixpkgs we use here.  We're just
+            # installing a few small CI infrastructure tools.  We *don't* take
+            # build or runtime dependencies for the Tahoe-LAFS packages or
+            # tests from this package set.
+            NIXPKGS=https://github.com/nixos/nixpkgs/archive/nixos-22.11.tar.gz
 
             nix-env \
               --file $NIXPKGS \
