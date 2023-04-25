@@ -511,7 +511,6 @@ def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
         chutney_dir,
         {
             "PYTHONPATH": join(chutney_dir, "lib"),
-            "CHUTNEY_START_TIME": "600",  # default is 60
         }
     )
 
@@ -534,6 +533,10 @@ def tor_network(reactor, temp_dir, chutney, request):
 
     env = environ.copy()
     env.update(chutney_env)
+    env.update({
+        # default is 60, probably too short for reliable automated use.
+        "CHUTNEY_START_TIME": "600",
+    })
     chutney_argv = (sys.executable, '-m', 'chutney.TorNet')
     def chutney(argv):
         proto = _DumpOutputProtocol(None)
