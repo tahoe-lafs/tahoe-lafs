@@ -399,11 +399,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "gpg",
           ],
           "test": [
-              # Pin a specific pyflakes so we don't have different folks
-              # disagreeing on what is or is not a lint issue.  We can bump
-              # this version from time to time, but we will do it
-              # intentionally.
-              "ruff==0.0.261",
               "coverage ~= 5.0",
               "mock",
               "tox ~= 3.0",
