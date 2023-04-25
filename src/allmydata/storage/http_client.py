@@ -807,11 +807,10 @@ class StorageClientImmutables(object):
             url,
         )
         if response.code == http.OK:
-            body = cast(
+            return cast(
                 Set[int],
                 await self._client.decode_cbor(response, _SCHEMAS["list_shares"]),
             )
-            return set(body)
         else:
             raise ClientException(response.code)
 
