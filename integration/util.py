@@ -90,11 +90,9 @@ class _CollectOutputProtocol(ProcessProtocol):
             self.done.errback(reason)
 
     def outReceived(self, data):
-        print("OUT: {!r}".format(data))
         self.output.write(data)
 
     def errReceived(self, data):
-        print("ERR: {!r}".format(data))
         if self.capture_stderr:
             self.output.write(data)
 
@@ -140,7 +138,6 @@ class _MagicTextProtocol(ProcessProtocol):
         self.exited.callback(None)
 
     def outReceived(self, data):
-        print("OUT", data)
         data = str(data, sys.stdout.encoding)
         sys.stdout.write(data)
         self._output.write(data)
@@ -149,7 +146,6 @@ class _MagicTextProtocol(ProcessProtocol):
             self.magic_seen.callback(self)
 
     def errReceived(self, data):
-        print("ERR", data)
         data = str(data, sys.stderr.encoding)
         sys.stdout.write(data)
 

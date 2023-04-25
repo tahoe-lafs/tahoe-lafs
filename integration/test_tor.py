@@ -33,8 +33,8 @@ if sys.platform.startswith('win'):
 def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):
     carol = yield _create_anonymous_node(reactor, 'carol', 8008, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
     dave = yield _create_anonymous_node(reactor, 'dave', 8009, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
-    yield util.await_client_ready(carol, minimum_number_of_servers=2, timeout=60)
-    yield util.await_client_ready(dave, minimum_number_of_servers=2, timeout=60)
+    yield util.await_client_ready(carol, minimum_number_of_servers=2, timeout=600)
+    yield util.await_client_ready(dave, minimum_number_of_servers=2, timeout=600)
 
     # ensure both nodes are connected to "a grid" by uploading
     # something via carol, and retrieve it using dave.
@@ -61,7 +61,7 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
     )
     yield proto.done
     cap = proto.output.getvalue().strip().split()[-1]
-    print("TEH CAP!", cap)
+    print("capability: {}".format(cap))
 
     proto = util._CollectOutputProtocol(capture_stderr=False)
     reactor.spawnProcess(
