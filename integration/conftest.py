@@ -507,12 +507,7 @@ def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
     )
     pytest_twisted.blockon(proto.done)
 
-    return (
-        chutney_dir,
-        {
-            "PYTHONPATH": join(chutney_dir, "lib"),
-        }
-    )
+    return (chutney_dir, {"PYTHONPATH": join(chutney_dir, "lib")})
 
 
 @pytest.fixture(scope='session')
