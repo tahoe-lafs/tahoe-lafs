@@ -547,7 +547,7 @@ def tor_network(reactor, temp_dir, chutney, request):
     # now, as per Chutney's README, we have to create the network
     pytest_twisted.blockon(chutney(("configure", basic_network)))
 
-    # ensure we will tear down the network right before we start it
+    # before we start the network, ensure we will tear down at the end
     def cleanup():
         print("Tearing down Chutney Tor network")
         try:
