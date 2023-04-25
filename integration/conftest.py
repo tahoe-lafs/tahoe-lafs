@@ -289,6 +289,8 @@ def tor_introducer(reactor, temp_dir, flog_gatherer, request):
             request,
             (
                 'create-introducer',
+                # The control port should agree with the configuration of the
+                # Tor network we bootstrap with chutney.
                 '--tor-control-port', 'tcp:localhost:8007',
                 '--hide-ip',
                 '--listen=tor',
