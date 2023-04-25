@@ -1,0 +1,1 @@
+A bug where Introducer nodes configured to listen on Tor or I2P would not actually do so has been fixed.
