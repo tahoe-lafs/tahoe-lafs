@@ -4,6 +4,7 @@ Ported to Python 3.
 
 from __future__ import annotations
 
+import os
 import sys
 import shutil
 from time import sleep
@@ -47,6 +48,11 @@ from .util import (
     generate_ssh_key,
     block_with_timeout,
 )
+
+
+# No reason for HTTP requests to take longer than two minutes in the
+# integration tests. See allmydata/scripts/common_http.py for usage.
+os.environ["__TAHOE_CLI_HTTP_TIMEOUT"] = "120"
 
 
 # pytest customization hooks

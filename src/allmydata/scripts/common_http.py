@@ -53,10 +53,17 @@ def do_http(method, url, body=b""):
         assert body.seek
         assert body.read
     scheme, host, port, path = parse_url(url)
+
+    # For testing purposes, allow setting a timeout on HTTP requests. If this
+    # ever become a user-facing feature, this should probably be a CLI option?
+    timeout = os.environ.get("__TAHOE_CLI_HTTP_TIMEOUT", None)
+    if timeout is not None:
+        timeout = float(timeout)
+
     if scheme == "http":
-        c = http_client.HTTPConnection(host, port, timeout=300, blocksize=65536)
+        c = http_client.HTTPConnection(host, port, timeout=timeout, blocksize=65536)
     elif scheme == "https":
-        c = http_client.HTTPSConnection(host, port, timeout=300, blocksize=65536)
+        c = http_client.HTTPSConnection(host, port, timeout=timeout, blocksize=65536)
     else:
         raise ValueError("unknown scheme '%s', need http or https" % scheme)
     c.putrequest(method, path)

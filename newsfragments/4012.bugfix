@@ -1,1 +1,0 @@
-The command-line tools now have a 300-second timeout on individual network reads/writes/connects; previously they could block forever in some situations.
