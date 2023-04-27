@@ -412,7 +412,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # Bumping them to keep up with future releases is fine as long
               # as those releases are known to actually work.
               "pip==22.0.3",
-              "wheel==0.37.1"
+              "wheel==0.37.1",
               "setuptools==60.9.1",
               "tox~=3.0",
               "subunitreporter==22.2.0",
