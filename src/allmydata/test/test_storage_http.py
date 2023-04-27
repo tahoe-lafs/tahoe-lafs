@@ -34,7 +34,7 @@ from hyperlink import DecodedURL
 from collections_extended import RangeMap
 from twisted.internet.task import Clock, Cooperator
 from twisted.internet.interfaces import IReactorTime, IReactorFromThreads
-from twisted.internet.defer import CancelledError, Deferred
+from twisted.internet.defer import CancelledError, Deferred, ensureDeferred
 from twisted.web import http
 from twisted.web.http_headers import Headers
 from werkzeug import routing
@@ -520,6 +520,7 @@ class HttpTestFixture(Fixture):
         Like ``result_of``, but supports fake reactor and ``treq`` testing
         infrastructure necessary to support asynchronous HTTP server endpoints.
         """
+        d = ensureDeferred(d)
         result = []
         error = []
         d.addCallbacks(result.append, error.append)
