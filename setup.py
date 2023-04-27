@@ -398,10 +398,44 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "dulwich",
               "gpg",
           ],
+
+          # Here are the dependencies required to set up a reproducible test
+          # environment.  This could be for CI or local development.  These
+          # are *not* library dependencies of the test suite itself.  They are
+          # the tools we use to run the test suite at all.
+          "testenv": [
+              # Pin all of these versions for the same reason you ever want to
+              # pin anything: to prevent new releases with regressions from
+              # introducing spurious failures into CI runs for whatever
+              # development work is happening at the time.  The versions
+              # selected here are just the current versions at the time.
+              # Bumping them to keep up with future releases is fine as long
+              # as those releases are known to actually work.
+
+              # XXX For the moment, unpinned so we use whatever is in the
+              # image.  The images vary in what versions they have. :/
+              "pip", # ==22.0.3",
+              "wheel", # ==0.37.1"
+              "setuptools", # ==60.9.1",
+              "tox", # ~=3.0",
+              "subunitreporter", # ==22.2.0",
+              "python-subunit", # ==1.4.2",
+              "junitxml", # ==0.7",
+              "coverage", # ~= 5.0",
+
+              # As an exception, we don't pin certifi because it contains CA
+              # certificates which necessarily change over time.  Pinning this
+              # is guaranteed to cause things to break eventually as old
+              # certificates expire and as new ones are used in the wild that
+              # aren't present in whatever version we pin.  Hopefully there
+              # won't be functionality regressions in new releases of this
+              # package that cause us the kind of suffering we're trying to
+              # avoid with the above pins.
+              "certifi",
+          ],
+
           "test": [
-              "coverage ~= 5.0",
               "mock",
-              "tox ~= 3.0",
               "pytest",
               "pytest-twisted",
               "hypothesis >= 3.6.1",
@@ -410,7 +444,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "fixtures",
               "beautifulsoup4",
               "html5lib",
-              "junitxml",
               # Pin old version until
               # https://github.com/paramiko/paramiko/issues/1961 is fixed.
               "paramiko < 2.9",
