@@ -161,7 +161,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     )
     pytest_twisted.blockon(out_protocol.done)
 
-    twistd_protocol = _MagicTextProtocol("Gatherer waiting at")
+    twistd_protocol = _MagicTextProtocol("Gatherer waiting at", "gatherer")
     twistd_process = reactor.spawnProcess(
         twistd_protocol,
         which('twistd')[0],
@@ -244,7 +244,7 @@ log_gatherer.furl = {log_furl}
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
-    protocol = _MagicTextProtocol('introducer running')
+    protocol = _MagicTextProtocol('introducer running', "introducer")
     transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,
@@ -320,7 +320,7 @@ log_gatherer.furl = {log_furl}
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
-    protocol = _MagicTextProtocol('introducer running')
+    protocol = _MagicTextProtocol('introducer running', "tor_introducer")
     transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,

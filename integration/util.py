@@ -12,7 +12,7 @@ import sys
 import time
 import json
 from os import mkdir, environ
-from os.path import exists, join
+from os.path import exists, join, basename
 from io import StringIO, BytesIO
 from subprocess import check_output
 
@@ -129,8 +129,9 @@ class _MagicTextProtocol(ProcessProtocol):
     and then .callback()s on self.done and .errback's if the process exits
     """
 
-    def __init__(self, magic_text):
+    def __init__(self, magic_text: str, name: str) -> None:
         self.magic_seen = Deferred()
+        self.name = f"{name}: "
         self.exited = Deferred()
         self._magic_text = magic_text
         self._output = StringIO()
@@ -140,7 +141,7 @@ class _MagicTextProtocol(ProcessProtocol):
 
     def outReceived(self, data):
         data = str(data, sys.stdout.encoding)
-        sys.stdout.write(data)
+        sys.stdout.write(self.name + data)
         self._output.write(data)
         if not self.magic_seen.called and self._magic_text in self._output.getvalue():
             print("Saw '{}' in the logs".format(self._magic_text))
@@ -148,7 +149,7 @@ class _MagicTextProtocol(ProcessProtocol):
 
     def errReceived(self, data):
         data = str(data, sys.stderr.encoding)
-        sys.stdout.write(data)
+        sys.stdout.write(self.name + data)
 
 
 def _cleanup_process_async(transport: IProcessTransport, allow_missing: bool) -> None:
@@ -282,7 +283,7 @@ def _run_node(reactor, node_dir, request, magic_text, finalize=True):
     """
     if magic_text is None:
         magic_text = "client running"
-    protocol = _MagicTextProtocol(magic_text)
+    protocol = _MagicTextProtocol(magic_text, basename(node_dir))
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
