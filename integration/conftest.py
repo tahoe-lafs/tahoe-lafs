@@ -54,6 +54,10 @@ from .util import (
 # integration tests. See allmydata/scripts/common_http.py for usage.
 os.environ["__TAHOE_CLI_HTTP_TIMEOUT"] = "120"
 
+# Make Foolscap logging go into Twisted logging, so that integration test logs
+# include extra information
+# (https://github.com/warner/foolscap/blob/latest-release/doc/logging.rst):
+os.environ["FLOGTOTWISTED"] = "1"
 
 # pytest customization hooks
 
