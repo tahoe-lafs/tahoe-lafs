@@ -411,17 +411,14 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # selected here are just the current versions at the time.
               # Bumping them to keep up with future releases is fine as long
               # as those releases are known to actually work.
-
-              # XXX For the moment, unpinned so we use whatever is in the
-              # image.  The images vary in what versions they have. :/
-              "pip", # ==22.0.3",
-              "wheel", # ==0.37.1"
-              "setuptools", # ==60.9.1",
-              "tox", # ~=3.0",
-              "subunitreporter", # ==22.2.0",
-              "python-subunit", # ==1.4.2",
-              "junitxml", # ==0.7",
-              "coverage", # ~= 5.0",
+              "pip==22.0.3",
+              "wheel==0.37.1"
+              "setuptools==60.9.1",
+              "tox~=3.0",
+              "subunitreporter==22.2.0",
+              "python-subunit==1.4.2",
+              "junitxml==0.7",
+              "coverage ~= 5.0",
 
               # As an exception, we don't pin certifi because it contains CA
               # certificates which necessarily change over time.  Pinning this
