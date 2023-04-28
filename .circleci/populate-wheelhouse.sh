@@ -31,10 +31,3 @@ LANG="en_US.UTF-8" "${PIP}" \
     --wheel-dir "${WHEELHOUSE_PATH}" \
     "${PROJECT_ROOT}"[testenv] \
     "${PROJECT_ROOT}"[test]
-
-# Not strictly wheelhouse population but ... Note we omit basic deps here.
-# They're in the wheelhouse if Tahoe-LAFS wants to drag them in but it will
-# have to ask.
-"${PIP}" \
-    install \
-    "${PROJECT_ROOT}"[testenv]
