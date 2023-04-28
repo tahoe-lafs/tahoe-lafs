@@ -419,16 +419,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "python-subunit==1.4.2",
               "junitxml==0.7",
               "coverage ~= 5.0",
-
-              # As an exception, we don't pin certifi because it contains CA
-              # certificates which necessarily change over time.  Pinning this
-              # is guaranteed to cause things to break eventually as old
-              # certificates expire and as new ones are used in the wild that
-              # aren't present in whatever version we pin.  Hopefully there
-              # won't be functionality regressions in new releases of this
-              # package that cause us the kind of suffering we're trying to
-              # avoid with the above pins.
-              "certifi",
           ],
 
           "test": [
