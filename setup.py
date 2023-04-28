@@ -416,7 +416,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "pip==22.0.3",
               "wheel==0.37.1",
               "setuptools==60.9.1",
-              "tox~=3.0",
               "subunitreporter==22.2.0",
               "python-subunit==1.4.2",
               "junitxml==0.7",
