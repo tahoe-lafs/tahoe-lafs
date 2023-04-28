@@ -30,5 +30,8 @@ LANG="en_US.UTF-8" "${PIP}" \
     wheel \
     --wheel-dir "${WHEELHOUSE_PATH}" \
     "${PROJECT_ROOT}"[testenv] \
-    "${PROJECT_ROOT}"[test] \
-    "tox~=3.0"
+    "${PROJECT_ROOT}"[test]
+
+# Put tox right into the bootstrap environment because everyone is going to
+# need to use it.
+"${PIP}" install "tox~=3.0"
