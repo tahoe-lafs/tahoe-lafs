@@ -93,5 +93,5 @@ if [ -n "${ARTIFACTS}" ]; then
 
     # Create a junitxml results area.
     mkdir -p "$(dirname "${JUNITXML}")"
-    "${BOOTSTRAP_VENV}"/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}" || "${alternative}"
+    "${BOOTSTRAP_VENV}"/.tox/"${TAHOE_LAFS_TOX_ENVIRONMENT}"/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}" || "${alternative}"
 fi
