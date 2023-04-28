@@ -141,8 +141,10 @@ install_requires = [
 
     # HTTP server and client
     "klein",
-    # 2.2.0 has a bug: https://github.com/pallets/werkzeug/issues/2465
-    "werkzeug != 2.2.0",
+    # 2.2.0 has a bug: https://github.com/pallets/werkzeug/issues/2465 and 2.3 is
+    # incompatible with klein 21.8 and earlier; see
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4020 for the latter.
+    "werkzeug != 2.2.0,<2.3",
     "treq",
     "cbor2",
 
