@@ -30,7 +30,7 @@ export PIP_NO_INDEX="1"
 
 # Get tox inside the bootstrap virtualenv since we use tox to manage the rest
 # of the environment.
-"${BOOTSTRAP_VENV}"/bin/pip install "tox~=3.0"
+"${BOOTSTRAP_VENV}"/bin/pip install tox
 
 # Get everything else installed in it, too.
 "${BOOTSTRAP_VENV}"/bin/tox \
