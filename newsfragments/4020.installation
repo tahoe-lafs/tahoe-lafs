@@ -1,0 +1,1 @@
+werkzeug 2.3.0 and werkzeug 2.3.1 are now blacklisted by the package metadata due to incompatibilities with klein.
