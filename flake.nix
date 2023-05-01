@@ -68,6 +68,12 @@
             # Create a Python runtime with access to a package set that
             # includes Tahoe-LAFS.
             makePython = py: py.override (old: {
+              # Note that we make no attempt to compose our overrides with any
+              # that are already defined on the given Python derivation.  This
+              # is fine since this is an internal helper function and we only
+              # use it on pristine Python derivations (which should have no
+              # existing overrides).  If this were a general purpose function
+              # instead, we would need to do the composition.
               packageOverrides = self.pythonPackageOverrides.default;
             });
             # Create a Python runtime with the Tahoe-LAFS package installed.
