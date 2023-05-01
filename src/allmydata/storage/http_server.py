@@ -778,6 +778,7 @@ class HTTPServer(object):
     )
     def read_share_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk for an already uploaded immutable."""
+        request.setHeader("content-type", "application/octet-stream")
         try:
             bucket = self._storage_server.get_buckets(storage_index)[share_number]
         except KeyError:
@@ -883,7 +884,8 @@ class HTTPServer(object):
     )
     def read_mutable_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk from a mutable."""
-
+        request.setHeader("content-type", "application/octet-stream")
+        
         try:
             share_length = self._storage_server.get_mutable_share_length(
                 storage_index, share_number

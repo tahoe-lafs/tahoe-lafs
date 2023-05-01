@@ -596,6 +596,12 @@ def read_share_chunk(
     if response.code == http.NO_CONTENT:
         return b""
 
+    content_type = get_content_type(response.headers)
+    if content_type != "application/octet-stream":
+        raise ValueError(
+            f"Content-type was wrong: {content_type}, should be application/octet-stream"
+        )
+
     if response.code == http.PARTIAL_CONTENT:
         content_range = parse_content_range_header(
             response.headers.getRawHeaders("content-range")[0] or ""
