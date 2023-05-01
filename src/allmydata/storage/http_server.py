@@ -106,6 +106,9 @@ def _authorization_decorator(required_secrets):
     def decorator(f):
         @wraps(f)
         def route(self, request, *args, **kwargs):
+            # Don't set text/html content type by default:
+            request.defaultContentType = None
+
             with start_action(
                 action_type="allmydata:storage:http-server:handle-request",
                 method=request.method,
