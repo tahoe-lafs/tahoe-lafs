@@ -422,6 +422,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "coverage ~= 5.0",
           ],
 
+          # Here are the library dependencies of the test suite.
           "test": [
               "mock",
               "pytest",
