@@ -79,9 +79,10 @@ else
     alternative="false"
 fi
 
+WORKDIR=/tmp/tahoe-lafs.tox
 ${TIMEOUT} ${BOOTSTRAP_VENV}/bin/tox \
     -c ${PROJECT_ROOT}/tox.ini \
-    --workdir /tmp/tahoe-lafs.tox \
+    --workdir "${WORKDIR}" \
     -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
     ${TAHOE_LAFS_TOX_ARGS} || "${alternative}"
 
@@ -93,5 +94,6 @@ if [ -n "${ARTIFACTS}" ]; then
 
     # Create a junitxml results area.
     mkdir -p "$(dirname "${JUNITXML}")"
-    "${BOOTSTRAP_VENV}"/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}" || "${alternative}"
+
+    "${WORKDIR}/${TAHOE_LAFS_TOX_ENVIRONMENT}/bin/subunit2junitxml" < "${SUBUNIT2}" > "${JUNITXML}" || "${alternative}"
 fi

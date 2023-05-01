@@ -46,7 +46,6 @@ jobs:
       matrix:
         os:
           - windows-latest
-          - ubuntu-latest
         python-version:
           - "3.8"
           - "3.9"
@@ -80,7 +79,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade codecov "tox<4" tox-gh-actions setuptools
+          pip install --upgrade "tox<4" tox-gh-actions setuptools
           pip list
 
       - name: Display tool versions
