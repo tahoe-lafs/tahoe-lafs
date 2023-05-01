@@ -93,7 +93,6 @@ class _CollectOutputProtocol(ProcessProtocol):
         self.output.write(data)
 
     def errReceived(self, data):
-        print("ERR: {!r}".format(data))
         if self.capture_stderr:
             self.output.write(data)
 
@@ -605,19 +604,27 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_serve
             print("waiting because '{}'".format(e))
             time.sleep(1)
             continue
+        servers = js['servers']
 
-        if len(js['servers']) < minimum_number_of_servers:
-            print("waiting because insufficient servers")
+        if len(servers) < minimum_number_of_servers:
+            print(f"waiting because {servers} is fewer than required ({minimum_number_of_servers})")
             time.sleep(1)
             continue
+
+        print(
+            f"Now: {time.ctime()}\n"
+            f"Server last-received-data: {[time.ctime(s['last_received_data']) for s in servers]}"
+        )
+
         server_times = [
             server['last_received_data']
-            for server in js['servers']
+            for server in servers
         ]
         # if any times are null/None that server has never been
         # contacted (so it's down still, probably)
-        if any(t is None for t in server_times):
-            print("waiting because at least one server not contacted")
+        never_received_data = server_times.count(None)
+        if never_received_data > 0:
+            print(f"waiting because {never_received_data} server(s) not contacted")
             time.sleep(1)
             continue
 
