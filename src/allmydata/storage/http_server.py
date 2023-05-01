@@ -117,9 +117,9 @@ def _authorization_decorator(required_secrets):
                 try:
                     # Check Authorization header:
                     if not timing_safe_compare(
-                        request.requestHeaders.getRawHeaders("Authorization", [""])[0].encode(
-                            "utf-8"
-                        ),
+                        request.requestHeaders.getRawHeaders("Authorization", [""])[
+                            0
+                        ].encode("utf-8"),
                         swissnum_auth_header(self._swissnum),
                     ):
                         raise _HTTPError(http.UNAUTHORIZED)
@@ -494,6 +494,7 @@ def read_range(
 
 def _add_error_handling(app: Klein):
     """Add exception handlers to a Klein app."""
+
     @app.handle_errors(_HTTPError)
     def _http_error(_, request, failure):
         """Handle ``_HTTPError`` exceptions."""
@@ -885,7 +886,7 @@ class HTTPServer(object):
     def read_mutable_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk from a mutable."""
         request.setHeader("content-type", "application/octet-stream")
-        
+
         try:
             share_length = self._storage_server.get_mutable_share_length(
                 storage_index, share_number
