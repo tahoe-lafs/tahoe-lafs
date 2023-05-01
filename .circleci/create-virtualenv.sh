@@ -47,3 +47,7 @@ export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
 # above, it may still not be able to get us a compatible version unless we
 # explicitly ask for one.
 "${PIP}" install --upgrade setuptools==44.0.0 wheel
+
+# Just about every user of this image wants to use tox from the bootstrap
+# virtualenv so go ahead and install it now.
+"${PIP}" install "tox~=3.0"
