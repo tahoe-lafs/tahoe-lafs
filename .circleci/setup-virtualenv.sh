@@ -26,12 +26,7 @@ shift || :
 
 # Tell pip where it can find any existing wheels.
 export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
-
-# It is tempting to also set PIP_NO_INDEX=1 but (a) that will cause problems
-# between the time dependencies change and the images are re-built and (b) the
-# upcoming-deprecations job wants to install some dependencies from github and
-# it's awkward to get that done any earlier than the tox run.  So, we don't
-# set it.
+export PIP_NO_INDEX="1"
 
 # Get everything else installed in it, too.
 "${BOOTSTRAP_VENV}"/bin/tox \
