@@ -141,8 +141,10 @@ install_requires = [
 
     # HTTP server and client
     "klein",
+
     # 2.2.0 has a bug: https://github.com/pallets/werkzeug/issues/2465
-    "werkzeug != 2.2.0",
+    # 2.3.x has an incompatibility with Klein: https://github.com/twisted/klein/pull/575
+    "werkzeug != 2.2.0, < 2.3",
     "treq",
     "cbor2",
 
@@ -398,15 +400,31 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "dulwich",
               "gpg",
           ],
-          "test": [
-              # Pin a specific pyflakes so we don't have different folks
-              # disagreeing on what is or is not a lint issue.  We can bump
-              # this version from time to time, but we will do it
-              # intentionally.
-              "ruff==0.0.261",
+
+          # Here are the dependencies required to set up a reproducible test
+          # environment.  This could be for CI or local development.  These
+          # are *not* library dependencies of the test suite itself.  They are
+          # the tools we use to run the test suite at all.
+          "testenv": [
+              # Pin all of these versions for the same reason you ever want to
+              # pin anything: to prevent new releases with regressions from
+              # introducing spurious failures into CI runs for whatever
+              # development work is happening at the time.  The versions
+              # selected here are just the current versions at the time.
+              # Bumping them to keep up with future releases is fine as long
+              # as those releases are known to actually work.
+              "pip==22.0.3",
+              "wheel==0.37.1",
+              "setuptools==60.9.1",
+              "subunitreporter==22.2.0",
+              "python-subunit==1.4.2",
+              "junitxml==0.7",
               "coverage ~= 5.0",
+          ],
+
+          # Here are the library dependencies of the test suite.
+          "test": [
               "mock",
-              "tox ~= 3.0",
               "pytest",
               "pytest-twisted",
               "hypothesis >= 3.6.1",
@@ -415,7 +433,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "fixtures",
               "beautifulsoup4",
               "html5lib",
-              "junitxml",
               # Pin old version until
               # https://github.com/paramiko/paramiko/issues/1961 is fixed.
               "paramiko < 2.9",
