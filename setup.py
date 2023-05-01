@@ -144,7 +144,7 @@ install_requires = [
 
     # 2.2.0 has a bug: https://github.com/pallets/werkzeug/issues/2465
     # 2.3.x has an incompatibility with Klein: https://github.com/twisted/klein/pull/575
-    "werkzeug != 2.2.0, != 2.3.0, != 2.3.1",
+    "werkzeug != 2.2.0, < 2.3",
     "treq",
     "cbor2",
 
