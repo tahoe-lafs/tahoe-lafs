@@ -34,7 +34,7 @@ from hyperlink import DecodedURL
 from collections_extended import RangeMap
 from twisted.internet.task import Clock, Cooperator
 from twisted.internet.interfaces import IReactorTime, IReactorFromThreads
-from twisted.internet.defer import CancelledError, Deferred
+from twisted.internet.defer import CancelledError, Deferred, ensureDeferred
 from twisted.web import http
 from twisted.web.http_headers import Headers
 from werkzeug import routing
@@ -54,6 +54,7 @@ from ..storage.http_server import (
     ClientSecretsException,
     _authorized_route,
     StorageIndexConverter,
+    _add_error_handling,
 )
 from ..storage.http_client import (
     StorageClient,
@@ -253,6 +254,7 @@ class TestApp(object):
 
     clock: IReactorTime
     _app = Klein()
+    _add_error_handling(_app)
     _swissnum = SWISSNUM_FOR_TEST  # Match what the test client is using
 
     @_authorized_route(_app, {Secrets.UPLOAD}, "/upload_secret", methods=["GET"])
@@ -346,7 +348,7 @@ class CustomHTTPServerTests(SyncTestCase):
         response = result_of(
             self.client.request(
                 "GET",
-                "http://127.0.0.1/upload_secret",
+                DecodedURL.from_text("http://127.0.0.1/upload_secret"),
             )
         )
         self.assertEqual(response.code, 400)
@@ -354,7 +356,9 @@ class CustomHTTPServerTests(SyncTestCase):
         # With secret, we're good.
         response = result_of(
             self.client.request(
-                "GET", "http://127.0.0.1/upload_secret", upload_secret=b"MAGIC"
+                "GET",
+                DecodedURL.from_text("http://127.0.0.1/upload_secret"),
+                upload_secret=b"MAGIC",
             )
         )
         self.assertEqual(response.code, 200)
@@ -378,7 +382,7 @@ class CustomHTTPServerTests(SyncTestCase):
             response = result_of(
                 self.client.request(
                     "GET",
-                    f"http://127.0.0.1/bytes/{length}",
+                    DecodedURL.from_text(f"http://127.0.0.1/bytes/{length}"),
                 )
             )
 
@@ -399,7 +403,7 @@ class CustomHTTPServerTests(SyncTestCase):
             response = result_of(
                 self.client.request(
                     "GET",
-                    f"http://127.0.0.1/bytes/{length}",
+                    DecodedURL.from_text(f"http://127.0.0.1/bytes/{length}"),
                 )
             )
 
@@ -414,7 +418,7 @@ class CustomHTTPServerTests(SyncTestCase):
         response = result_of(
             self.client.request(
                 "GET",
-                "http://127.0.0.1/slowly_never_finish_result",
+                DecodedURL.from_text("http://127.0.0.1/slowly_never_finish_result"),
             )
         )
 
@@ -442,7 +446,7 @@ class CustomHTTPServerTests(SyncTestCase):
         response = result_of(
             self.client.request(
                 "GET",
-                "http://127.0.0.1/die",
+                DecodedURL.from_text("http://127.0.0.1/die"),
             )
         )
 
@@ -459,6 +463,7 @@ class Reactor(Clock):
 
     Advancing the clock also runs any callbacks scheduled via callFromThread.
     """
+
     def __init__(self):
         Clock.__init__(self)
         self._queue = Queue()
@@ -499,7 +504,9 @@ class HttpTestFixture(Fixture):
         self.storage_server = StorageServer(
             self.tempdir.path, b"\x00" * 20, clock=self.clock
         )
-        self.http_server = HTTPServer(self.clock, self.storage_server, SWISSNUM_FOR_TEST)
+        self.http_server = HTTPServer(
+            self.clock, self.storage_server, SWISSNUM_FOR_TEST
+        )
         self.treq = StubTreq(self.http_server.get_resource())
         self.client = StorageClient(
             DecodedURL.from_text("http://127.0.0.1"),
@@ -513,6 +520,7 @@ class HttpTestFixture(Fixture):
         Like ``result_of``, but supports fake reactor and ``treq`` testing
         infrastructure necessary to support asynchronous HTTP server endpoints.
         """
+        d = ensureDeferred(d)
         result = []
         error = []
         d.addCallbacks(result.append, error.append)

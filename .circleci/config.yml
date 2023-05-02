@@ -39,6 +39,8 @@ dockerhub-auth-template: &DOCKERHUB_AUTH
         <<: *DOCKERHUB_CONTEXT
     - "build-image-ubuntu-20-04":
         <<: *DOCKERHUB_CONTEXT
+    - "build-image-ubuntu-22-04":
+        <<: *DOCKERHUB_CONTEXT
     - "build-image-fedora-35":
         <<: *DOCKERHUB_CONTEXT
     - "build-image-oraclelinux-8":
@@ -78,6 +80,9 @@ workflows:
       - "ubuntu-20-04":
           {}
 
+      - "ubuntu-22-04":
+          {}
+
       # Equivalent to RHEL 8; CentOS 8 is dead.
       - "oraclelinux-8":
           {}
@@ -88,6 +93,8 @@ workflows:
           matrix:
             parameters:
               pythonVersion:
+                - "python38"
+                - "python39"
                 - "python310"
 
       - "nixos":
@@ -253,7 +260,7 @@ jobs:
           name: "Submit coverage results"
           command: |
             if [ -n "${UPLOAD_COVERAGE}" ]; then
-              /tmp/venv/bin/codecov
+              echo "TODO: Need a new coverage solution, see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4011"
             fi
 
     docker:
@@ -332,6 +339,16 @@ jobs:
     environment:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
+
+  ubuntu-22-04:
+    <<: *DEBIAN
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:22.04-py3.10"
+        user: "nobody"
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py310"
 
   oraclelinux-8: &RHEL_DERIV
     docker:
@@ -477,6 +494,15 @@ jobs:
       DISTRO: "ubuntu"
       TAG: "20.04"
       PYTHON_VERSION: "3.9"
+
+
+  build-image-ubuntu-22-04:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "22.04"
+      PYTHON_VERSION: "3.10"
 
 
   build-image-oraclelinux-8:
