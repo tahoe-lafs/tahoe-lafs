@@ -37,7 +37,7 @@ if sys.platform.startswith('win'):
 @pytest.fixture
 def i2p_network(reactor, temp_dir, request):
     """Fixture to start up local i2pd."""
-    proto = util._MagicTextProtocol("ephemeral keys")
+    proto = util._MagicTextProtocol("ephemeral keys", "i2pd")
     reactor.spawnProcess(
         proto,
         which("docker"),
@@ -96,7 +96,7 @@ def i2p_introducer(reactor, temp_dir, flog_gatherer, request):
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
-    protocol = util._MagicTextProtocol('introducer running')
+    protocol = util._MagicTextProtocol('introducer running', "introducer")
     transport = util._tahoe_runner_optional_coverage(
         protocol,
         reactor,

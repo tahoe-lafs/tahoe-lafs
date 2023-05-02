@@ -54,6 +54,10 @@ from allmydata.node import read_config
 # integration tests. See allmydata/scripts/common_http.py for usage.
 os.environ["__TAHOE_CLI_HTTP_TIMEOUT"] = "120"
 
+# Make Foolscap logging go into Twisted logging, so that integration test logs
+# include extra information
+# (https://github.com/warner/foolscap/blob/latest-release/doc/logging.rst):
+os.environ["FLOGTOTWISTED"] = "1"
 
 # pytest customization hooks
 
@@ -161,7 +165,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     )
     pytest_twisted.blockon(out_protocol.done)
 
-    twistd_protocol = _MagicTextProtocol("Gatherer waiting at")
+    twistd_protocol = _MagicTextProtocol("Gatherer waiting at", "gatherer")
     twistd_process = reactor.spawnProcess(
         twistd_protocol,
         which('twistd')[0],
@@ -238,7 +242,7 @@ def introducer(reactor, temp_dir, flog_gatherer, request):
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
-    protocol = _MagicTextProtocol('introducer running')
+    protocol = _MagicTextProtocol('introducer running', "introducer")
     transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,
@@ -313,7 +317,7 @@ def tor_introducer(reactor, temp_dir, flog_gatherer, request):
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
-    protocol = _MagicTextProtocol('introducer running')
+    protocol = _MagicTextProtocol('introducer running', "tor_introducer")
     transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,
