@@ -1749,6 +1749,10 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         return d
 
+    # In CI this test can be very slow, so give it a longer timeout:
+    test_filesystem.timeout = 360
+
+
     def test_filesystem_with_cli_in_subprocess(self):
         # We do this in a separate test so that test_filesystem doesn't skip if we can't run bin/tahoe.
 
