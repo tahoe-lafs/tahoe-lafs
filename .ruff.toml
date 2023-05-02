@@ -9,4 +9,10 @@ select = [
     # Make sure we bind closure variables in a loop (equivalent to pylint
     # cell-var-from-loop):
     "B023",
+    # Don't silence exceptions in finally by accident:
+    "B012",
+    # Don't use mutable default arguments:
+    "B006",
+    # Errors from PyLint:
+    "PLE",
 ]

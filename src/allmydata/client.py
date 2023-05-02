@@ -7,7 +7,7 @@ import os
 import stat
 import time
 import weakref
-from typing import Optional
+from typing import Optional, Iterable
 from base64 import urlsafe_b64encode
 from functools import partial
 # On Python 2 this will be the backported package:
@@ -189,7 +189,7 @@ class Terminator(service.Service):
         return service.Service.stopService(self)
 
 
-def read_config(basedir, portnumfile, generated_files=[]):
+def read_config(basedir, portnumfile, generated_files: Iterable=()):
     """
     Read and validate configuration for a client-style Node. See
     :method:`allmydata.node.read_config` for parameter meanings (the
@@ -1103,7 +1103,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         # may get an opaque node if there were any problems.
         return self.nodemaker.create_from_cap(write_uri, read_uri, deep_immutable=deep_immutable, name=name)
 
-    def create_dirnode(self, initial_children={}, version=None):
+    def create_dirnode(self, initial_children=None, version=None):
         d = self.nodemaker.create_new_mutable_directory(initial_children, version=version)
         return d
 
