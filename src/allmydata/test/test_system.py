@@ -787,7 +787,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
     def test_filesystem(self):
         self.data = LARGE_DATA
-        d = self.set_up_nodes()
+        d = self.set_up_nodes(4)
         def _new_happy_semantics(ign):
             for c in self.clients:
                 c.encoding_params['happy'] = 1
