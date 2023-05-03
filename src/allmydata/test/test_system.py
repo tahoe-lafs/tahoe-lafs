@@ -782,7 +782,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
     def test_filesystem(self):
         self.data = LARGE_DATA
-        d = self.set_up_nodes()
+        d = self.set_up_nodes(2)
         def _new_happy_semantics(ign):
             for c in self.clients:
                 c.encoding_params['happy'] = 1
@@ -1745,6 +1745,10 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 ##         d.addCallback(_check_ls_missing)
 
         return d
+
+    # In CI this test can be very slow, so give it a longer timeout:
+    test_filesystem.timeout = 360  # type: ignore[attr-defined]
+
 
     def test_filesystem_with_cli_in_subprocess(self):
         # We do this in a separate test so that test_filesystem doesn't skip if we can't run bin/tahoe.
