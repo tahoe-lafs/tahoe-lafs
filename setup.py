@@ -140,10 +140,10 @@ install_requires = [
     "collections-extended >= 2.0.2",
 
     # HTTP server and client
-    "klein",
+    # Latest version is necessary to work with latest werkzeug:
+    "klein >= 23.5.0",
     # 2.2.0 has a bug: https://github.com/pallets/werkzeug/issues/2465
-    # 2.3.x has an incompatibility with Klein: https://github.com/twisted/klein/pull/575
-    "werkzeug != 2.2.0, < 2.3",
+    "werkzeug != 2.2.0",
     "treq",
     "cbor2",
 
