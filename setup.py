@@ -141,7 +141,6 @@ install_requires = [
 
     # HTTP server and client
     "klein",
-
     # 2.2.0 has a bug: https://github.com/pallets/werkzeug/issues/2465
     # 2.3.x has an incompatibility with Klein: https://github.com/twisted/klein/pull/575
     "werkzeug != 2.2.0, < 2.3",
@@ -419,7 +418,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "subunitreporter==22.2.0",
               "python-subunit==1.4.2",
               "junitxml==0.7",
-              "coverage ~= 5.0",
+              "coverage==7.2.5",
           ],
 
           # Here are the library dependencies of the test suite.
