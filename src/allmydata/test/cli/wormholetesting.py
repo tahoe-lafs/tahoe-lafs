@@ -70,7 +70,8 @@ class MemoryWormholeServer(object):
         appid: str,
         relay_url: str,
         reactor: Any,
-        versions: Any={},
+        # Unfortunately we need a mutable default to match the real API
+        versions: Any={},  # noqa: B006
         delegate: Optional[Any]=None,
         journal: Optional[Any]=None,
         tor: Optional[Any]=None,

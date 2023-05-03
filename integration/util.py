@@ -12,7 +12,7 @@ import sys
 import time
 import json
 from os import mkdir, environ
-from os.path import exists, join
+from os.path import exists, join, basename
 from io import StringIO, BytesIO
 from subprocess import check_output
 
@@ -93,7 +93,6 @@ class _CollectOutputProtocol(ProcessProtocol):
         self.output.write(data)
 
     def errReceived(self, data):
-        print("ERR: {!r}".format(data))
         if self.capture_stderr:
             self.output.write(data)
 
@@ -129,8 +128,9 @@ class _MagicTextProtocol(ProcessProtocol):
     and then .callback()s on self.done and .errback's if the process exits
     """
 
-    def __init__(self, magic_text):
+    def __init__(self, magic_text: str, name: str) -> None:
         self.magic_seen = Deferred()
+        self.name = f"{name}: "
         self.exited = Deferred()
         self._magic_text = magic_text
         self._output = StringIO()
@@ -140,7 +140,7 @@ class _MagicTextProtocol(ProcessProtocol):
 
     def outReceived(self, data):
         data = str(data, sys.stdout.encoding)
-        sys.stdout.write(data)
+        sys.stdout.write(self.name + data)
         self._output.write(data)
         if not self.magic_seen.called and self._magic_text in self._output.getvalue():
             print("Saw '{}' in the logs".format(self._magic_text))
@@ -148,7 +148,7 @@ class _MagicTextProtocol(ProcessProtocol):
 
     def errReceived(self, data):
         data = str(data, sys.stderr.encoding)
-        sys.stdout.write(data)
+        sys.stdout.write(self.name + data)
 
 
 def _cleanup_process_async(transport: IProcessTransport, allow_missing: bool) -> None:
@@ -282,7 +282,7 @@ def _run_node(reactor, node_dir, request, magic_text, finalize=True):
     """
     if magic_text is None:
         magic_text = "client running"
-    protocol = _MagicTextProtocol(magic_text)
+    protocol = _MagicTextProtocol(magic_text, basename(node_dir))
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
@@ -605,19 +605,27 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_serve
             print("waiting because '{}'".format(e))
             time.sleep(1)
             continue
+        servers = js['servers']
 
-        if len(js['servers']) < minimum_number_of_servers:
-            print("waiting because insufficient servers")
+        if len(servers) < minimum_number_of_servers:
+            print(f"waiting because {servers} is fewer than required ({minimum_number_of_servers})")
             time.sleep(1)
             continue
+
+        print(
+            f"Now: {time.ctime()}\n"
+            f"Server last-received-data: {[time.ctime(s['last_received_data']) for s in servers]}"
+        )
+
         server_times = [
             server['last_received_data']
-            for server in js['servers']
+            for server in servers
         ]
         # if any times are null/None that server has never been
         # contacted (so it's down still, probably)
-        if any(t is None for t in server_times):
-            print("waiting because at least one server not contacted")
+        never_received_data = server_times.count(None)
+        if never_received_data > 0:
+            print(f"waiting because {never_received_data} server(s) not contacted")
             time.sleep(1)
             continue
 
