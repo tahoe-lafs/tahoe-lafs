@@ -6,8 +6,10 @@ and stdout.
 from subprocess import Popen, PIPE, check_output, check_call
 
 import pytest
-from pytest_twisted import ensureDeferred
+from pytest_twisted import blockon
 from twisted.internet import reactor
+from twisted.internet.threads import blockingCallFromThread
+from twisted.internet.defer import Deferred
 
 from .util import run_in_thread, cli, reconfigure
 
@@ -86,8 +88,8 @@ def test_large_file(alice, get_put_alias, tmp_path):
     assert outfile.read_bytes() == tempfile.read_bytes()
 
 
-@ensureDeferred
-async def test_upload_download_immutable_different_default_max_segment_size(alice, get_put_alias, tmpdir, request):
+@run_in_thread
+def test_upload_download_immutable_different_default_max_segment_size(alice, get_put_alias, tmpdir, request):
     """
     Tahoe-LAFS used to have a default max segment size of 128KB, and is now
     1MB.  Test that an upload created when 128KB was the default can be
@@ -100,22 +102,25 @@ async def test_upload_download_immutable_different_default_max_segment_size(alic
     with tempfile.open("wb") as f:
         f.write(large_data)
 
-    async def set_segment_size(segment_size):
-        await reconfigure(
+    def set_segment_size(segment_size):
+        return blockingCallFromThread(
             reactor,
-            request,
-            alice,
-            (1, 1, 1),
-            None,
-            max_segment_size=segment_size
-    )
+            lambda: Deferred.fromCoroutine(reconfigure(
+                reactor,
+                request,
+                alice,
+                (1, 1, 1),
+                None,
+                max_segment_size=segment_size
+            ))
+        )
 
     # 1. Upload file 1 with default segment size set to 1MB
-    await set_segment_size(1024 * 1024)
+    set_segment_size(1024 * 1024)
     cli(alice, "put", str(tempfile), "getput:seg1024kb")
 
     # 2. Download file 1 with default segment size set to 128KB
-    await set_segment_size(128 * 1024)
+    set_segment_size(128 * 1024)
     assert large_data == check_output(
         ["tahoe", "--node-directory", alice.node_dir, "get", "getput:seg1024kb", "-"]
     )
@@ -124,7 +129,7 @@ async def test_upload_download_immutable_different_default_max_segment_size(alic
     cli(alice, "put", str(tempfile), "getput:seg128kb")
 
     # 4. Download file 2 with default segment size set to 1MB
-    await set_segment_size(1024 * 1024)
+    set_segment_size(1024 * 1024)
     assert large_data == check_output(
         ["tahoe", "--node-directory", alice.node_dir, "get", "getput:seg128kb", "-"]
     )
