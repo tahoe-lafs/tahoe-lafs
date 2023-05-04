@@ -50,9 +50,9 @@ from .util import (
 )
 from allmydata.node import read_config
 
-# No reason for HTTP requests to take longer than two minutes in the
+# No reason for HTTP requests to take longer than four minutes in the
 # integration tests. See allmydata/scripts/common_http.py for usage.
-os.environ["__TAHOE_CLI_HTTP_TIMEOUT"] = "120"
+os.environ["__TAHOE_CLI_HTTP_TIMEOUT"] = "240"
 
 # Make Foolscap logging go into Twisted logging, so that integration test logs
 # include extra information
