@@ -14,7 +14,7 @@ from __future__ import annotations
 import time
 from urllib.parse import unquote as url_unquote, quote as url_quote
 
-from twisted.internet.defer import maybeDeferred
+from twisted.internet.defer import ensureDeferred
 
 import allmydata.uri
 from allmydata.util import jsonbytes as json
@@ -254,7 +254,7 @@ def test_status(alice):
 
 
 @run_in_thread
-async def test_directory_deep_check(reactor, request, alice):
+def test_directory_deep_check(reactor, request, alice):
     """
     use deep-check and confirm the result pages work
     """
@@ -265,7 +265,7 @@ async def test_directory_deep_check(reactor, request, alice):
     total = 4
 
     result = util.reconfigure(reactor, request, alice, (happy, required, total), convergence=None)
-    pytest_twisted.blockon(maybeDeferred(result))
+    pytest_twisted.blockon(ensureDeferred(result))
 
     # create a directory
     resp = requests.post(
