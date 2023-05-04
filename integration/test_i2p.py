@@ -7,6 +7,8 @@ from os.path import join, exists
 from os import mkdir, environ
 from time import sleep
 from shutil import which
+from uuid import uuid4
+from subprocess import check_call
 
 from eliot import log_call
 
@@ -18,8 +20,7 @@ from . import util
 from twisted.python.filepath import (
     FilePath,
 )
-from twisted.internet.error import ProcessExitedAlready
-
+from twisted.internet.error import ProcessExitedAlready, ProcessTerminated
 from allmydata.test.common import (
     write_introducer,
 )
@@ -38,11 +39,14 @@ if sys.platform.startswith('win'):
 def i2p_network(reactor, temp_dir, request):
     """Fixture to start up local i2pd."""
     proto = util._MagicTextProtocol("ephemeral keys", "i2pd")
+    container_name = str(uuid4())
     reactor.spawnProcess(
         proto,
         which("docker"),
         (
-            "docker", "run", "-p", "7656:7656", "purplei2p/i2pd:release-2.45.1",
+            "docker", "run", "-p", "7656:7656",
+            f"--name={container_name}",
+            "purplei2p/i2pd:release-2.45.1",
             # Bad URL for reseeds, so it can't talk to other routers.
             "--reseed.urls", "http://localhost:1/",
             # Make sure we see the "ephemeral keys message"
@@ -53,11 +57,7 @@ def i2p_network(reactor, temp_dir, request):
     )
 
     def cleanup():
-        try:
-            proto.transport.signalProcess("INT")
-            util.block_with_timeout(proto.exited, reactor)
-        except ProcessExitedAlready:
-            pass
+        check_call(["docker", "container", "kill", container_name])
     request.addfinalizer(cleanup)
 
     util.block_with_timeout(proto.magic_seen, reactor, timeout=30)
