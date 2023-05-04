@@ -6,7 +6,6 @@ and stdout.
 from subprocess import Popen, PIPE, check_output, check_call
 
 import pytest
-from pytest_twisted import blockon
 from twisted.internet import reactor
 from twisted.internet.threads import blockingCallFromThread
 from twisted.internet.defer import Deferred
