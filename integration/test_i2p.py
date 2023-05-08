@@ -129,10 +129,13 @@ def i2p_introducer_furl(i2p_introducer, temp_dir):
     return furl
 
 
-@pytest_twisted.inlineCallbacks
-def test_i2p_service_storage(reactor, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl):
-    yield _create_anonymous_node(reactor, 'carol_i2p', 8008, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl)
-    yield _create_anonymous_node(reactor, 'dave_i2p', 8009, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl)
+@pytest_twisted.ensureDeferred
+async def test_i2p_service_storage(reactor, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl):
+    carol = await _create_anonymous_node(reactor, 'carol_i2p', 8008, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl)
+    dave = await _create_anonymous_node(reactor, 'dave_i2p', 8009, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl)
+    await util.await_client_ready(carol, minimum_number_of_servers=2, timeout=60)
+    await util.await_client_ready(dave, minimum_number_of_servers=2, timeout=60)
+
     # ensure both nodes are connected to "a grid" by uploading
     # something via carol, and retrieve it using dave.
     gold_path = join(temp_dir, "gold")
@@ -156,7 +159,7 @@ def test_i2p_service_storage(reactor, request, temp_dir, flog_gatherer, i2p_netw
         ),
         env=environ,
     )
-    yield proto.done
+    await proto.done
     cap = proto.output.getvalue().strip().split()[-1]
     print("TEH CAP!", cap)
 
@@ -171,14 +174,13 @@ def test_i2p_service_storage(reactor, request, temp_dir, flog_gatherer, i2p_netw
         ),
         env=environ,
     )
-    yield proto.done
+    await proto.done
 
     dave_got = proto.output.getvalue().strip()
     assert dave_got == open(gold_path, 'rb').read().strip()
 
 
-@pytest_twisted.inlineCallbacks
-def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_gatherer, i2p_network, introducer_furl):
+async def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_gatherer, i2p_network, introducer_furl):
     node_dir = FilePath(temp_dir).child(name)
     web_port = "tcp:{}:interface=localhost".format(control_port + 2000)
 
@@ -199,7 +201,7 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
         ),
         env=environ,
     )
-    yield proto.done
+    await proto.done
 
 
     # Which services should this client connect to?
@@ -229,5 +231,6 @@ shares.total = 2
         f.write(node_config)
 
     print("running")
-    yield util._run_node(reactor, node_dir.path, request, None)
+    node = await util._run_node(reactor, node_dir.path, request, None)
     print("okay, launched")
+    return node
