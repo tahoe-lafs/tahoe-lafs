@@ -24,7 +24,7 @@ from twisted.internet.error import ProcessExitedAlready, ProcessTerminated
 from allmydata.test.common import (
     write_introducer,
 )
-from allmydata.node import read_config
+from allmydata.client import read_config
 
 
 if which("docker") is None:
@@ -196,7 +196,11 @@ async def _create_anonymous_node(reactor, name, control_port, request, temp_dir,
             '--nickname', name,
             '--introducer', introducer_furl,
             '--hide-ip',
-            '--listen', 'i2p',
+            '--listen=i2p',
+            '--shares-needed', '1',
+            '--shares-happy', '1',
+            '--shares-total', '2',
+            "--webport=" + web_port,
             node_dir.path,
         ),
         env=environ,
@@ -206,31 +210,11 @@ async def _create_anonymous_node(reactor, name, control_port, request, temp_dir,
 
     # Which services should this client connect to?
     write_introducer(node_dir, "default", introducer_furl)
-    with node_dir.child('tahoe.cfg').open('w') as f:
-        node_config = '''
-[node]
-nickname = %(name)s
-web.port = %(web_port)s
-web.static = public_html
-log_gatherer.furl = %(log_furl)s
 
-[i2p]
-enabled = true
+    config = read_config(node_dir.path, "tub.port")
+    config.set_config("node", "log_gatherer.furl", flog_gatherer)
 
-[client]
-shares.needed = 1
-shares.happy = 1
-shares.total = 2
-
-''' % {
-    'name': name,
-    'web_port': web_port,
-    'log_furl': flog_gatherer,
-}
-        node_config = node_config.encode("utf-8")
-        f.write(node_config)
-
-    print("running")
+    print("running...")
     node = await util._run_node(reactor, node_dir.path, request, None)
     print("okay, launched")
     return node
