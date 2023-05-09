@@ -347,7 +347,7 @@ class StorageClient(object):
         certificate_hash = nurl.user.encode("ascii")
         if pool is None:
             pool = HTTPConnectionPool(reactor)
-            pool.maxPersistentPerHost = 20
+            pool.maxPersistentPerHost = 10
 
         if cls.TEST_MODE_REGISTER_HTTP_POOL is not None:
             cls.TEST_MODE_REGISTER_HTTP_POOL(pool)
@@ -465,11 +465,20 @@ class StorageClient(object):
             kwargs["data"] = dumps(message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
-        return await self._treq.request(
+        response = await self._treq.request(
             method, url, headers=headers, timeout=timeout, **kwargs
         )
 
-    async def decode_cbor(self, response, schema: Schema) -> object:
+        if self.TEST_MODE_REGISTER_HTTP_POOL is not None:
+            if response.code != 404:
+                # We're doing API queries, HTML is never correct except in 404, but
+                # it's the default for Twisted's web server so make sure nothing
+                # unexpected happened.
+                assert get_content_type(response.headers) != "text/html"
+
+        return response
+
+    async def decode_cbor(self, response: IResponse, schema: Schema) -> object:
         """Given HTTP response, return decoded CBOR body."""
         with start_action(action_type="allmydata:storage:http-client:decode-cbor"):
             if response.code > 199 and response.code < 300:
@@ -626,6 +635,12 @@ def read_share_chunk(
 
     if response.code == http.NO_CONTENT:
         return b""
+
+    content_type = get_content_type(response.headers)
+    if content_type != "application/octet-stream":
+        raise ValueError(
+            f"Content-type was wrong: {content_type}, should be application/octet-stream"
+        )
 
     if response.code == http.PARTIAL_CONTENT:
         content_range = parse_content_range_header(

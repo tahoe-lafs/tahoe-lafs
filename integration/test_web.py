@@ -14,6 +14,8 @@ from __future__ import annotations
 import time
 from urllib.parse import unquote as url_unquote, quote as url_quote
 
+from twisted.internet.threads import deferToThread
+
 import allmydata.uri
 from allmydata.util import jsonbytes as json
 
@@ -24,7 +26,7 @@ import requests
 import html5lib
 from bs4 import BeautifulSoup
 
-from pytest_twisted import ensureDeferred
+import pytest_twisted
 
 @run_in_thread
 def test_index(alice):
@@ -185,7 +187,7 @@ def test_deep_stats(alice):
         time.sleep(.5)
 
 
-@util.run_in_thread
+@run_in_thread
 def test_status(alice):
     """
     confirm we get something sensible from /status and the various sub-types
@@ -251,7 +253,7 @@ def test_status(alice):
     assert found_download, "Failed to find the file we downloaded in the status-page"
 
 
-@ensureDeferred
+@pytest_twisted.ensureDeferred
 async def test_directory_deep_check(reactor, request, alice):
     """
     use deep-check and confirm the result pages work
@@ -263,7 +265,10 @@ async def test_directory_deep_check(reactor, request, alice):
     total = 4
 
     await util.reconfigure(reactor, request, alice, (happy, required, total), convergence=None)
+    await deferToThread(_test_directory_deep_check_blocking, alice)
 
+
+def _test_directory_deep_check_blocking(alice):
     # create a directory
     resp = requests.post(
         util.node_url(alice.node_dir, u"uri"),
