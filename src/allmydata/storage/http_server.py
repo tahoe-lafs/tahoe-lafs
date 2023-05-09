@@ -116,10 +116,14 @@ def _authorization_decorator(required_secrets):
             ) as ctx:
                 try:
                     # Check Authorization header:
+                    try:
+                        auth_header = request.requestHeaders.getRawHeaders(
+                            "Authorization", [""]
+                        )[0].encode("utf-8")
+                    except UnicodeError:
+                        raise _HTTPError(http.BAD_REQUEST)
                     if not timing_safe_compare(
-                        request.requestHeaders.getRawHeaders("Authorization", [""])[
-                            0
-                        ].encode("utf-8"),
+                        auth_header,
                         swissnum_auth_header(self._swissnum),
                     ):
                         raise _HTTPError(http.UNAUTHORIZED)

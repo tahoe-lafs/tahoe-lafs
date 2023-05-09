@@ -257,6 +257,10 @@ class TestApp(object):
     _add_error_handling(_app)
     _swissnum = SWISSNUM_FOR_TEST  # Match what the test client is using
 
+    @_authorized_route(_app, {}, "/noop", methods=["GET"])
+    def noop(self, request, authorization):
+        return "noop"
+
     @_authorized_route(_app, {Secrets.UPLOAD}, "/upload_secret", methods=["GET"])
     def validate_upload_secret(self, request, authorization):
         if authorization == {Secrets.UPLOAD: b"MAGIC"}:
@@ -338,6 +342,21 @@ class CustomHTTPServerTests(SyncTestCase):
             clock=treq._agent._memoryReactor,
         )
         self._http_server.clock = self.client._clock
+
+    def test_bad_swissnum_in_client(self) -> None:
+        """
+        If the swissnum is invalid, a BAD REQUEST response code is returned.
+        """
+        headers = Headers()
+        headers.addRawHeader("Authorization", b"\x00\xFF\x00\xFF")
+        response = result_of(
+            self.client._treq.request(
+                "GET",
+                DecodedURL.from_text("http://127.0.0.1/noop"),
+                headers=headers,
+            )
+        )
+        self.assertEqual(response.code, 400)
 
     def test_authorization_enforcement(self):
         """
