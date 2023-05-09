@@ -343,11 +343,12 @@ class CustomHTTPServerTests(SyncTestCase):
         )
         self._http_server.clock = self.client._clock
 
-    def test_bad_swissnum_in_client(self) -> None:
+    def test_bad_swissnum_from_client(self) -> None:
         """
         If the swissnum is invalid, a BAD REQUEST response code is returned.
         """
         headers = Headers()
+        # The value is not UTF-8.
         headers.addRawHeader("Authorization", b"\x00\xFF\x00\xFF")
         response = result_of(
             self.client._treq.request(
@@ -358,10 +359,35 @@ class CustomHTTPServerTests(SyncTestCase):
         )
         self.assertEqual(response.code, 400)
 
+    def test_bad_secret(self) -> None:
+        """
+        If the secret is invalid (not base64), a BAD REQUEST
+        response code is returned.
+        """
+        bad_secret = b"upload-secret []<>"
+        headers = Headers()
+        headers.addRawHeader(
+            "X-Tahoe-Authorization",
+            bad_secret,
+        )
+        response = result_of(
+            self.client.request(
+                "GET",
+                DecodedURL.from_text("http://127.0.0.1/upload_secret"),
+                headers=headers,
+            )
+        )
+        self.assertEqual(response.code, 400)
+
+    # TODO test other garbage values
+
     def test_authorization_enforcement(self):
         """
         The requirement for secrets is enforced by the ``_authorized_route``
         decorator; if they are not given, a 400 response code is returned.
+
+        Note that this refers to ``X-Tahoe-Authorization``, not the
+        ``Authorization`` header used for the swissnum.
         """
         # Without secret, get a 400 error.
         response = result_of(
@@ -1474,7 +1500,7 @@ class SharedImmutableMutableTestsMixin:
             self.client.advise_corrupt_share(storage_index, 13, reason)
         )
 
-        for (si, share_number) in [(storage_index, 11), (urandom(16), 13)]:
+        for si, share_number in [(storage_index, 11), (urandom(16), 13)]:
             with assert_fails_with_http_code(self, http.NOT_FOUND):
                 self.http.result_of_with_flush(
                     self.client.advise_corrupt_share(si, share_number, reason)
