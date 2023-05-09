@@ -325,7 +325,7 @@ class StorageClient(object):
         certificate_hash = nurl.user.encode("ascii")
         if pool is None:
             pool = HTTPConnectionPool(reactor)
-            pool.maxPersistentPerHost = 20
+            pool.maxPersistentPerHost = 10
 
         if cls.TEST_MODE_REGISTER_HTTP_POOL is not None:
             cls.TEST_MODE_REGISTER_HTTP_POOL(pool)
