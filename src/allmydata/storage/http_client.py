@@ -310,7 +310,7 @@ class StorageClient(object):
     _base_url: DecodedURL
     _swissnum: bytes
     _treq: Union[treq, StubTreq, HTTPClient]
-    _pool: HTTPConnectionPool
+    _pool: Optional[HTTPConnectionPool]
     _clock: IReactorTime
 
     @classmethod
@@ -482,7 +482,8 @@ class StorageClient(object):
 
     def shutdown(self) -> Deferred:
         """Shutdown any connections."""
-        return self._pool.closeCachedConnections()
+        if self._pool is not None:
+            return self._pool.closeCachedConnections()
 
 
 @define(hash=True)
