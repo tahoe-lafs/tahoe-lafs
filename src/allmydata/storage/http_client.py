@@ -4,13 +4,25 @@ HTTP client that talks to the HTTP storage server.
 
 from __future__ import annotations
 
-from eliot import start_action, register_exception_extractor
-from typing import Union, Optional, Sequence, Mapping, BinaryIO, cast, TypedDict, Set
+
+from typing import (
+    Union,
+    Optional,
+    Sequence,
+    Mapping,
+    BinaryIO,
+    cast,
+    TypedDict,
+    Set,
+    Dict,
+)
 from base64 import b64encode
 from io import BytesIO
 from os import SEEK_END
 
 from attrs import define, asdict, frozen, field
+from eliot import start_action, register_exception_extractor
+from eliot.twisted import DeferredContext
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
@@ -44,7 +56,7 @@ from .http_common import (
     CBOR_MIME_TYPE,
     get_spki_hash,
 )
-from .common import si_b2a
+from .common import si_b2a, si_to_human_readable
 from ..util.hashutil import timing_safe_compare
 from ..util.deferredutil import async_to_deferred
 
@@ -160,8 +172,17 @@ def limited_content(
     trickle of data continues to arrive, it will continue to run.
     """
     d = succeed(None)
+
+    # Sadly, addTimeout() won't work because we need access to the IDelayedCall
+    # in order to reset it on each data chunk received.
     timeout = clock.callLater(60, d.cancel)
     collector = _LengthLimitedCollector(max_length, timeout)
+
+    with start_action(
+        action_type="allmydata:storage:http-client:limited-content",
+        max_length=max_length,
+    ).context():
+        d = DeferredContext(d)
 
     # Make really sure everything gets called in Deferred context, treq might
     # call collector directly...
@@ -177,7 +198,8 @@ def limited_content(
             timeout.cancel()
         return f
 
-    return d.addCallbacks(done, failed)
+    result = d.addCallbacks(done, failed)
+    return result.addActionFinish()
 
 
 @define
@@ -489,21 +511,28 @@ class StorageClientGeneral(object):
     _client: StorageClient
 
     @async_to_deferred
-    async def get_version(self):
+    async def get_version(self) -> dict[bytes, object]:
         """
         Return the version metadata for the server.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:get-version",
+        ):
+            return await self._get_version()
+
+    async def _get_version(self) -> dict[bytes, object]:
+        """Implementation of get_version()."""
         url = self._client.relative_url("/storage/v1/version")
         response = await self._client.request("GET", url)
         decoded_response = cast(
-            Mapping[bytes, object],
+            Dict[bytes, object],
             await self._client.decode_cbor(response, _SCHEMAS["get_version"]),
         )
         # Add some features we know are true because the HTTP API
         # specification requires them and because other parts of the storage
         # client implementation assumes they will be present.
         cast(
-            Mapping[bytes, object],
+            Dict[bytes, object],
             decoded_response[b"http://allmydata.org/tahoe/protocols/storage/v1"],
         ).update(
             {
@@ -515,20 +544,31 @@ class StorageClientGeneral(object):
         )
         return decoded_response
 
-    @inlineCallbacks
-    def add_or_renew_lease(
+    @async_to_deferred
+    async def add_or_renew_lease(
         self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
-    ) -> Deferred[None]:
+    ) -> None:
         """
         Add or renew a lease.
 
         If the renewal secret matches an existing lease, it is renewed.
         Otherwise a new lease is added.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:add-or-renew-lease",
+            storage_index=si_to_human_readable(storage_index),
+        ):
+            return await self._add_or_renew_lease(
+                storage_index, renew_secret, cancel_secret
+            )
+
+    async def _add_or_renew_lease(
+        self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
+    ) -> None:
         url = self._client.relative_url(
             "/storage/v1/lease/{}".format(_encode_si(storage_index))
         )
-        response = yield self._client.request(
+        response = await self._client.request(
             "PUT",
             url,
             lease_renew_secret=renew_secret,
@@ -693,6 +733,35 @@ class StorageClientImmutables(object):
         Result fires when creating the storage index succeeded, if creating the
         storage index failed the result will fire with an exception.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:create",
+            storage_index=si_to_human_readable(storage_index),
+            share_numbers=share_numbers,
+            allocated_size=allocated_size,
+        ) as ctx:
+            result = await self._create(
+                storage_index,
+                share_numbers,
+                allocated_size,
+                upload_secret,
+                lease_renew_secret,
+                lease_cancel_secret,
+            )
+            ctx.add_success_fields(
+                already_have=result.already_have, allocated=result.allocated
+            )
+            return result
+
+    async def _create(
+        self,
+        storage_index: bytes,
+        share_numbers: set[int],
+        allocated_size: int,
+        upload_secret: bytes,
+        lease_renew_secret: bytes,
+        lease_cancel_secret: bytes,
+    ) -> ImmutableCreateResult:
+        """Implementation of create()."""
         url = self._client.relative_url(
             "/storage/v1/immutable/" + _encode_si(storage_index)
         )
@@ -715,17 +784,28 @@ class StorageClientImmutables(object):
             allocated=decoded_response["allocated"],
         )
 
-    @inlineCallbacks
-    def abort_upload(
+    @async_to_deferred
+    async def abort_upload(
         self, storage_index: bytes, share_number: int, upload_secret: bytes
-    ) -> Deferred[None]:
+    ) -> None:
         """Abort the upload."""
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:abort-upload",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+        ):
+            return await self._abort_upload(storage_index, share_number, upload_secret)
+
+    async def _abort_upload(
+        self, storage_index: bytes, share_number: int, upload_secret: bytes
+    ) -> None:
+        """Implementation of ``abort_upload()``."""
         url = self._client.relative_url(
             "/storage/v1/immutable/{}/{}/abort".format(
                 _encode_si(storage_index), share_number
             )
         )
-        response = yield self._client.request(
+        response = await self._client.request(
             "PUT",
             url,
             upload_secret=upload_secret,
@@ -759,6 +839,28 @@ class StorageClientImmutables(object):
         whether the _complete_ share (i.e. all chunks, not just this one) has
         been uploaded.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:write-share-chunk",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            offset=offset,
+            data_len=len(data),
+        ) as ctx:
+            result = await self._write_share_chunk(
+                storage_index, share_number, upload_secret, offset, data
+            )
+            ctx.add_success_fields(finished=result.finished)
+            return result
+
+    async def _write_share_chunk(
+        self,
+        storage_index: bytes,
+        share_number: int,
+        upload_secret: bytes,
+        offset: int,
+        data: bytes,
+    ) -> UploadProgress:
+        """Implementation of ``write_share_chunk()``."""
         url = self._client.relative_url(
             "/storage/v1/immutable/{}/{}".format(
                 _encode_si(storage_index), share_number
@@ -799,21 +901,41 @@ class StorageClientImmutables(object):
             remaining.set(True, chunk["begin"], chunk["end"])
         return UploadProgress(finished=finished, required=remaining)
 
-    def read_share_chunk(
-        self, storage_index, share_number, offset, length
-    ):  # type: (bytes, int, int, int) -> Deferred[bytes]
+    @async_to_deferred
+    async def read_share_chunk(
+        self, storage_index: bytes, share_number: int, offset: int, length: int
+    ) -> bytes:
         """
         Download a chunk of data from a share.
         """
-        return read_share_chunk(
-            self._client, "immutable", storage_index, share_number, offset, length
-        )
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:read-share-chunk",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            offset=offset,
+            length=length,
+        ) as ctx:
+            result = await read_share_chunk(
+                self._client, "immutable", storage_index, share_number, offset, length
+            )
+            ctx.add_success_fields(data_len=len(result))
+            return result
 
     @async_to_deferred
     async def list_shares(self, storage_index: bytes) -> Set[int]:
         """
         Return the set of shares for a given storage index.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:list-shares",
+            storage_index=si_to_human_readable(storage_index),
+        ) as ctx:
+            result = await self._list_shares(storage_index)
+            ctx.add_success_fields(shares=result)
+            return result
+
+    async def _list_shares(self, storage_index: bytes) -> Set[int]:
+        """Implementation of ``list_shares()``."""
         url = self._client.relative_url(
             "/storage/v1/immutable/{}/shares".format(_encode_si(storage_index))
         )
@@ -829,16 +951,23 @@ class StorageClientImmutables(object):
         else:
             raise ClientException(response.code)
 
-    def advise_corrupt_share(
+    @async_to_deferred
+    async def advise_corrupt_share(
         self,
         storage_index: bytes,
         share_number: int,
         reason: str,
-    ):
+    ) -> None:
         """Indicate a share has been corrupted, with a human-readable message."""
-        return advise_corrupt_share(
-            self._client, "immutable", storage_index, share_number, reason
-        )
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:advise-corrupt-share",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            reason=reason,
+        ):
+            await advise_corrupt_share(
+                self._client, "immutable", storage_index, share_number, reason
+            )
 
 
 @frozen
@@ -929,6 +1058,29 @@ class StorageClientMutables:
         Given a mapping between share numbers and test/write vectors, the tests
         are done and if they are valid the writes are done.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:mutable:read-test-write",
+            storage_index=si_to_human_readable(storage_index),
+        ):
+            return await self._read_test_write_chunks(
+                storage_index,
+                write_enabler_secret,
+                lease_renew_secret,
+                lease_cancel_secret,
+                testwrite_vectors,
+                read_vector,
+            )
+
+    async def _read_test_write_chunks(
+        self,
+        storage_index: bytes,
+        write_enabler_secret: bytes,
+        lease_renew_secret: bytes,
+        lease_cancel_secret: bytes,
+        testwrite_vectors: dict[int, TestWriteVectors],
+        read_vector: list[ReadVector],
+    ) -> ReadTestWriteResult:
+        """Implementation of ``read_test_write_chunks()``."""
         url = self._client.relative_url(
             "/storage/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
         )
@@ -958,25 +1110,45 @@ class StorageClientMutables:
         else:
             raise ClientException(response.code, (await response.content()))
 
-    def read_share_chunk(
+    @async_to_deferred
+    async def read_share_chunk(
         self,
         storage_index: bytes,
         share_number: int,
         offset: int,
         length: int,
-    ) -> Deferred[bytes]:
+    ) -> bytes:
         """
         Download a chunk of data from a share.
         """
-        return read_share_chunk(
-            self._client, "mutable", storage_index, share_number, offset, length
-        )
+        with start_action(
+            action_type="allmydata:storage:http-client:mutable:read-share-chunk",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            offset=offset,
+            length=length,
+        ) as ctx:
+            result = await read_share_chunk(
+                self._client, "mutable", storage_index, share_number, offset, length
+            )
+            ctx.add_success_fields(data_len=len(result))
+            return result
 
     @async_to_deferred
     async def list_shares(self, storage_index: bytes) -> Set[int]:
         """
         List the share numbers for a given storage index.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:mutable:list-shares",
+            storage_index=si_to_human_readable(storage_index),
+        ) as ctx:
+            result = await self._list_shares(storage_index)
+            ctx.add_success_fields(shares=result)
+            return result
+
+    async def _list_shares(self, storage_index: bytes) -> Set[int]:
+        """Implementation of ``list_shares()``."""
         url = self._client.relative_url(
             "/storage/v1/mutable/{}/shares".format(_encode_si(storage_index))
         )
@@ -991,13 +1163,20 @@ class StorageClientMutables:
         else:
             raise ClientException(response.code)
 
-    def advise_corrupt_share(
+    @async_to_deferred
+    async def advise_corrupt_share(
         self,
         storage_index: bytes,
         share_number: int,
         reason: str,
-    ):
+    ) -> None:
         """Indicate a share has been corrupted, with a human-readable message."""
-        return advise_corrupt_share(
-            self._client, "mutable", storage_index, share_number, reason
-        )
+        with start_action(
+            action_type="allmydata:storage:http-client:mutable:advise-corrupt-share",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            reason=reason,
+        ):
+            await advise_corrupt_share(
+                self._client, "mutable", storage_index, share_number, reason
+            )
