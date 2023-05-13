@@ -21,6 +21,12 @@ in {
   pycddl = self.callPackage ./pycddl.nix { };
   txi2p = self.callPackage ./txi2p.nix { };
 
+  # Update the version of klein.
+  klein = self.callPackage ./klein.nix {
+    # Avoid infinite recursion.
+    inherit (super) klein;
+  };
+
   # collections-extended is currently broken for Python 3.11 in nixpkgs but
   # we know where a working version lives.
   collections-extended = self.callPackage ./collections-extended.nix {
