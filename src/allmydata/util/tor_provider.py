@@ -2,14 +2,10 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import, print_function, with_statement
-from __future__ import division
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
+from typing import Optional
 import os
 
 from zope.interface import (
@@ -41,7 +37,7 @@ def _import_txtorcon():
     except ImportError: # pragma: no cover
         return None
 
-def create(reactor, config, import_tor=None, import_txtorcon=None):
+def create(reactor, config, import_tor=None, import_txtorcon=None) -> Optional[_Provider]:
     """
     Create a new _Provider service (this is an IService so must be
     hooked up to a parent or otherwise started).

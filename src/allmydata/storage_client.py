@@ -77,6 +77,7 @@ from allmydata.grid_manager import (
 from allmydata.crypto import (
     ed25519,
 )
+from allmydata.util.tor_provider import _Provider as TorProvider
 from allmydata.util import log, base32, connection_status
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
@@ -202,6 +203,7 @@ class StorageFarmBroker(service.MultiService):
             tub_maker,
             node_config: _Config,
             storage_client_config=None,
+            tor_provider: Optional[TorProvider]=None,
     ):
         service.MultiService.__init__(self)
         assert permute_peers # False not implemented yet
@@ -223,6 +225,7 @@ class StorageFarmBroker(service.MultiService):
         self.introducer_client = None
         self._threshold_listeners : list[tuple[float,defer.Deferred[Any]]]= [] # tuples of (threshold, Deferred)
         self._connected_high_water_mark = 0
+        self._tor_provider = tor_provider
 
     @log_call(action_type=u"storage-client:broker:set-static-servers")
     def set_static_servers(self, servers):
@@ -315,6 +318,7 @@ class StorageFarmBroker(service.MultiService):
                 server_id,
                 server["ann"],
                 grid_manager_verifier=gm_verifier,
+                tor_provider=tor_provider
             )
             s.on_status_changed(lambda _: self._got_connection())
             return s
@@ -1049,7 +1053,7 @@ class HTTPNativeStorageServer(service.MultiService):
     "connected".
     """
 
-    def __init__(self, server_id: bytes, announcement, reactor=reactor, grid_manager_verifier=None):
+    def __init__(self, server_id: bytes, announcement, reactor=reactor, grid_manager_verifier=None, tor_provider: Optional[TorProvider]=None):
         service.MultiService.__init__(self)
         assert isinstance(server_id, bytes)
         self._server_id = server_id
@@ -1057,6 +1061,8 @@ class HTTPNativeStorageServer(service.MultiService):
         self._on_status_changed = ObserverList()
         self._reactor = reactor
         self._grid_manager_verifier = grid_manager_verifier
+        self._tor_provider = tor_provider
+
         furl = announcement["anonymous-storage-FURL"].encode("utf-8")
         (
             self._nickname,
@@ -1242,6 +1248,8 @@ class HTTPNativeStorageServer(service.MultiService):
                 pool = HTTPConnectionPool(reactor, persistent=False)
                 pool.retryAutomatically = False
                 return StorageClientGeneral(
+                    # TODO if Tor client connections are enabled, use an Agent
+                    # created via tor.
                     StorageClient.from_nurl(nurl, reactor, pool)
                 ).get_version()
 
@@ -1249,6 +1257,8 @@ class HTTPNativeStorageServer(service.MultiService):
 
             # If we've gotten this far, we've found a working NURL.
             self._istorage_server = _HTTPStorageServer.from_http_client(
+                # TODO if Tor client connections are enabled, use an Agent
+                # created via tor.
                 StorageClient.from_nurl(nurl, reactor)
             )
             return self._istorage_server

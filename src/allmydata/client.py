@@ -10,7 +10,6 @@ import weakref
 from typing import Optional, Iterable
 from base64 import urlsafe_b64encode
 from functools import partial
-# On Python 2 this will be the backported package:
 from configparser import NoSectionError
 
 from foolscap.furl import (
@@ -47,7 +46,7 @@ from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.util.i2p_provider import create as create_i2p_provider
-from allmydata.util.tor_provider import create as create_tor_provider
+from allmydata.util.tor_provider import create as create_tor_provider, _Provider as TorProvider
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import (
@@ -268,7 +267,7 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
     introducer_clients = create_introducer_clients(config, main_tub, _introducer_factory)
     storage_broker = create_storage_farm_broker(
         config, default_connection_handlers, foolscap_connection_handlers,
-        tub_options, introducer_clients
+        tub_options, introducer_clients, tor_provider
     )
 
     client = _client_factory(
@@ -464,7 +463,7 @@ def create_introducer_clients(config, main_tub, _introducer_factory=None):
     return introducer_clients
 
 
-def create_storage_farm_broker(config: _Config, default_connection_handlers, foolscap_connection_handlers, tub_options, introducer_clients):
+def create_storage_farm_broker(config: _Config, default_connection_handlers, foolscap_connection_handlers, tub_options, introducer_clients, tor_provider: Optional[TorProvider]):
     """
     Create a StorageFarmBroker object, for use by Uploader/Downloader
     (and everybody else who wants to use storage servers)
@@ -500,6 +499,7 @@ def create_storage_farm_broker(config: _Config, default_connection_handlers, foo
         tub_maker=tub_creator,
         node_config=config,
         storage_client_config=storage_client_config,
+        tor_provider=tor_provider,
     )
     for ic in introducer_clients:
         sb.use_introducer(ic)
