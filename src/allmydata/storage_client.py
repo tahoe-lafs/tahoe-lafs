@@ -1232,16 +1232,21 @@ class HTTPNativeStorageServer(service.MultiService):
         self._connecting_deferred = connecting
         return connecting
 
-    def _agent_factory(self) -> Optional[Callable[[object, IPolicyForHTTPS, HTTPConnectionPool],IAgent]]:
+    async def _agent_factory(self) -> Optional[Callable[[object, IPolicyForHTTPS, HTTPConnectionPool],IAgent]]:
         """Return a factory for ``twisted.web.iweb.IAgent``."""
         # TODO default_connection_handlers should really be an object, not a dict...
         handler = self._default_connection_handlers["tcp"]
         if handler == "tcp":
             return None
         if handler == "tor":
-            raise RuntimeError("TODO implement this next")
+            tor_instance = await self._tor_provider.get_tor_instance(self._reactor)
+
+            def agent_factory(reactor: object, tls_context_factory: IPolicyForHTTPS, pool: HTTPConnectionPool) -> IAgent:
+                assert reactor == self._reactor
+                return tor_instance.web_agent(pool=pool, tls_context_factory=tls_context_factory)
+            return agent_factory
         else:
-            raise RuntimeError(f"Unsupported tcp connection {handler}")
+            raise RuntimeError(f"Unsupported tcp connection handler: {handler}")
 
     @async_to_deferred
     async def _pick_server_and_get_version(self):
