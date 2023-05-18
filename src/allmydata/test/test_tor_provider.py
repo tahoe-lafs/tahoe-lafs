@@ -628,9 +628,8 @@ class Provider_Service(unittest.TestCase):
         txtorcon = mock.Mock()
         with mock_txtorcon(txtorcon):
             p = tor_provider.create(reactor, cfg)
-        tor_state = mock.Mock()
-        tor_state.protocol = object()
-        txtorcon.build_tor_connection = mock.Mock(return_value=tor_state)
+        tor_instance = FakeTor()
+        txtorcon.connect = mock.Mock(return_value=tor_instance)
         ehs = mock.Mock()
         ehs.add_to_tor = mock.Mock(return_value=defer.succeed(None))
         ehs.remove_from_tor = mock.Mock(return_value=defer.succeed(None))
@@ -642,12 +641,12 @@ class Provider_Service(unittest.TestCase):
             yield flushEventualQueue()
         self.successResultOf(d)
         self.assertIs(p._onion_ehs, ehs)
-        self.assertIs(p._onion_tor_control_proto, tor_state.protocol)
+        self.assertIs(p._onion_tor_control_proto, tor_instance.protocol)
         cfs.assert_called_with(reactor, "ep_desc")
-        txtorcon.build_tor_connection.assert_called_with(tcep)
+        txtorcon.connect.assert_called_with(reactor, tcep)
         txtorcon.EphemeralHiddenService.assert_called_with("456 127.0.0.1:123",
                                                            b"private key")
-        ehs.add_to_tor.assert_called_with(tor_state.protocol)
+        ehs.add_to_tor.assert_called_with(tor_instance.protocol)
 
         yield p.stopService()
-        ehs.remove_from_tor.assert_called_with(tor_state.protocol)
+        ehs.remove_from_tor.assert_called_with(tor_instance.protocol)

@@ -322,17 +322,20 @@ class _Provider(service.MultiService):
             require("external_port")
             require("private_key_file")
 
-    @inlineCallbacks
-    def _start_onion(self, reactor):
+    def _get_tor_instance(self, reactor: object):
+        """Return a ``Deferred`` that fires with a ``txtorcon.Tor`` instance."""
         # launch tor, if necessary
         if self._get_tor_config("launch", False, boolean=True):
-            (_, tor_control_proto) = yield self._get_launched_tor(reactor)
+            return self._get_launched_tor(reactor).addCallback(lambda t: t[1])
         else:
             controlport = self._get_tor_config("control.port", None)
             tcep = clientFromString(reactor, controlport)
-            tor_state = yield self._txtorcon.build_tor_connection(tcep)
-            tor_control_proto = tor_state.protocol
+            return self._txtorcon.connect(reactor, tcep)
 
+    @inlineCallbacks
+    def _start_onion(self, reactor):
+        tor_instance = yield self._get_tor_instance(reactor)
+        tor_control_proto = tor_instance.protocol
         local_port = int(self._get_tor_config("onion.local_port"))
         external_port = int(self._get_tor_config("onion.external_port"))
 
