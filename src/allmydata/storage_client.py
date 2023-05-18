@@ -51,6 +51,7 @@ from zope.interface import (
 )
 from twisted.python.failure import Failure
 from twisted.web import http
+from twisted.web.iweb import IAgent, IPolicyForHTTPS
 from twisted.internet.task import LoopingCall
 from twisted.internet import defer, reactor
 from twisted.application import service
@@ -203,9 +204,13 @@ class StorageFarmBroker(service.MultiService):
             tub_maker,
             node_config: _Config,
             storage_client_config=None,
+            default_connection_handlers=None,
             tor_provider: Optional[TorProvider]=None,
     ):
         service.MultiService.__init__(self)
+        if default_connection_handlers is None:
+            default_connection_handlers = {"tcp": "tcp"}
+
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self._tub_maker = tub_maker
@@ -226,6 +231,7 @@ class StorageFarmBroker(service.MultiService):
         self._threshold_listeners : list[tuple[float,defer.Deferred[Any]]]= [] # tuples of (threshold, Deferred)
         self._connected_high_water_mark = 0
         self._tor_provider = tor_provider
+        self._default_connection_handlers = default_connection_handlers
 
     @log_call(action_type=u"storage-client:broker:set-static-servers")
     def set_static_servers(self, servers):
@@ -318,7 +324,8 @@ class StorageFarmBroker(service.MultiService):
                 server_id,
                 server["ann"],
                 grid_manager_verifier=gm_verifier,
-                tor_provider=tor_provider
+                default_connection_handlers=self._default_connection_handlers,
+                tor_provider=self._tor_provider
             )
             s.on_status_changed(lambda _: self._got_connection())
             return s
@@ -1053,7 +1060,7 @@ class HTTPNativeStorageServer(service.MultiService):
     "connected".
     """
 
-    def __init__(self, server_id: bytes, announcement, reactor=reactor, grid_manager_verifier=None, tor_provider: Optional[TorProvider]=None):
+    def __init__(self, server_id: bytes, announcement, default_connection_handlers: dict[str,str], reactor=reactor, grid_manager_verifier=None, tor_provider: Optional[TorProvider]=None):
         service.MultiService.__init__(self)
         assert isinstance(server_id, bytes)
         self._server_id = server_id
@@ -1062,6 +1069,7 @@ class HTTPNativeStorageServer(service.MultiService):
         self._reactor = reactor
         self._grid_manager_verifier = grid_manager_verifier
         self._tor_provider = tor_provider
+        self._default_connection_handlers = default_connection_handlers
 
         furl = announcement["anonymous-storage-FURL"].encode("utf-8")
         (
@@ -1223,6 +1231,17 @@ class HTTPNativeStorageServer(service.MultiService):
         ).addBoth(done)
         self._connecting_deferred = connecting
         return connecting
+
+    def _agent_factory(self) -> Optional[Callable[[object, IPolicyForHTTPS, HTTPConnectionPool],IAgent]]:
+        """Return a factory for ``twisted.web.iweb.IAgent``."""
+        # TODO default_connection_handlers should really be an object, not a dict...
+        handler = self._default_connection_handlers["tcp"]
+        if handler == "tcp":
+            return None
+        if handler == "tor":
+            raise RuntimeError("TODO implement this next")
+        else:
+            raise RuntimeError(f"Unsupported tcp connection {handler}")
 
     @async_to_deferred
     async def _pick_server_and_get_version(self):

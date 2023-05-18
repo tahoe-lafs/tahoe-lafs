@@ -499,6 +499,7 @@ def create_storage_farm_broker(config: _Config, default_connection_handlers, foo
         tub_maker=tub_creator,
         node_config=config,
         storage_client_config=storage_client_config,
+        default_connection_handlers=default_connection_handlers,
         tor_provider=tor_provider,
     )
     for ic in introducer_clients:
