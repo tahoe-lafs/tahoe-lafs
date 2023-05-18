@@ -23,6 +23,7 @@ from ..interfaces import (
     IAddressFamily,
 )
 
+
 def _import_tor():
     try:
         from foolscap.connections import tor
@@ -94,6 +95,10 @@ def _try_to_connect(reactor, endpoint_desc, stdout, txtorcon):
 
 @inlineCallbacks
 def _launch_tor(reactor, tor_executable, private_dir, txtorcon):
+    """
+    Launches Tor, returns a corresponding ``(control endpoint string,
+    txtorcon.Tor instance)`` tuple.
+    """
     # TODO: handle default tor-executable
     # TODO: it might be a good idea to find exactly which Tor we used,
     # and record it's absolute path into tahoe.cfg . This would protect
@@ -115,10 +120,6 @@ def _launch_tor(reactor, tor_executable, private_dir, txtorcon):
         # stderr=sys.stderr,
     )
 
-    # now tor is launched and ready to be spoken to
-    # as a side effect, we've got an ITorControlProtocol ready to go
-    tor_control_proto = tor.protocol
-
     # How/when to shut down the new process? for normal usage, the child
     # tor will exit when it notices its parent (us) quit. Unit tests will
     # mock out txtorcon.launch_tor(), so there will never be a real Tor
@@ -128,7 +129,8 @@ def _launch_tor(reactor, tor_executable, private_dir, txtorcon):
     # (because it's a TorProcessProtocol) which returns a Deferred
     # that fires when Tor has actually exited.
 
-    returnValue((tor_control_endpoint_desc, tor_control_proto))
+    returnValue((tor_control_endpoint_desc, tor))
+
 
 @inlineCallbacks
 def _connect_to_tor(reactor, cli_config, txtorcon):
@@ -163,8 +165,9 @@ def create_config(reactor, cli_config):
         if tor_executable:
             tahoe_config_tor["tor.executable"] = tor_executable
         print("launching Tor (to allocate .onion address)..", file=stdout)
-        (_, tor_control_proto) = yield _launch_tor(
+        (_, tor) = yield _launch_tor(
             reactor, tor_executable, private_dir, txtorcon)
+        tor_control_proto = tor.protocol
         print("Tor launched", file=stdout)
     else:
         print("connecting to Tor (to allocate .onion address)..", file=stdout)
@@ -288,7 +291,7 @@ class _Provider(service.MultiService):
         returnValue(tor_control_endpoint)
 
     def _get_launched_tor(self, reactor):
-        # this fires with a tuple of (control_endpoint, tor_protocol)
+        # this fires with a tuple of (control_endpoint, txtorcon.Tor instance)
         if not self._tor_launched:
             self._tor_launched = OneShotObserverList()
             private_dir = self._config.get_config_path("private")
