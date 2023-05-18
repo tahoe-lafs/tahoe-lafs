@@ -100,18 +100,16 @@ def _launch_tor(reactor, tor_executable, private_dir, txtorcon):
     # us against one Tor being on $PATH at create-node time, but then a
     # different Tor being present at node startup. OTOH, maybe we don't
     # need to worry about it.
-    tor_config = txtorcon.TorConfig()
-    tor_config.DataDirectory = data_directory(private_dir)
 
     # unix-domain control socket
-    tor_config.ControlPort = "unix:" + os.path.join(private_dir, "tor.control")
-    tor_control_endpoint_desc = tor_config.ControlPort
+    tor_control_endpoint_desc = "unix:" + os.path.join(private_dir, "tor.control")
 
-    tor_config.SOCKSPort = allocate_tcp_port()
-
-    tpp = yield txtorcon.launch_tor(
-        tor_config, reactor,
+    tor = yield txtorcon.launch(
+        reactor,
+        control_port=tor_control_endpoint_desc,
+        data_directory=data_directory(private_dir),
         tor_binary=tor_executable,
+        socks_port=allocate_tcp_port(),
         # can be useful when debugging; mirror Tor's output to ours
         # stdout=sys.stdout,
         # stderr=sys.stderr,
@@ -119,7 +117,7 @@ def _launch_tor(reactor, tor_executable, private_dir, txtorcon):
 
     # now tor is launched and ready to be spoken to
     # as a side effect, we've got an ITorControlProtocol ready to go
-    tor_control_proto = tpp.tor_protocol
+    tor_control_proto = tor.protocol
 
     # How/when to shut down the new process? for normal usage, the child
     # tor will exit when it notices its parent (us) quit. Unit tests will

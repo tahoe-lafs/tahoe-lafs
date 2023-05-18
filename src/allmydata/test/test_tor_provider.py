@@ -94,16 +94,16 @@ class LaunchTor(unittest.TestCase):
         reactor = object()
         private_dir = "private"
         txtorcon = mock.Mock()
-        tpp = mock.Mock
-        tpp.tor_protocol = mock.Mock()
-        txtorcon.launch_tor = mock.Mock(return_value=tpp)
+        tor = mock.Mock
+        tor.protocol = mock.Mock()
+        txtorcon.launch = mock.Mock(return_value=tor)
 
         with mock.patch("allmydata.util.tor_provider.allocate_tcp_port",
                         return_value=999999):
             d = tor_provider._launch_tor(reactor, tor_executable, private_dir,
                                          txtorcon)
         tor_control_endpoint, tor_control_proto = self.successResultOf(d)
-        self.assertIs(tor_control_proto, tpp.tor_protocol)
+        self.assertIs(tor_control_proto, tor.protocol)
 
     def test_launch(self):
         return self._do_test_launch(None)
