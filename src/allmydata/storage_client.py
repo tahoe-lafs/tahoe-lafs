@@ -1266,24 +1266,22 @@ class HTTPNativeStorageServer(service.MultiService):
             # version() calls before we are live talking to a server, it could only
             # be one. See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3992
 
+            agent_factory = await self._agent_factory()
+
             def request(reactor, nurl: DecodedURL):
                 # Since we're just using this one off to check if the NURL
                 # works, no need for persistent pool or other fanciness.
                 pool = HTTPConnectionPool(reactor, persistent=False)
                 pool.retryAutomatically = False
                 return StorageClientGeneral(
-                    # TODO if Tor client connections are enabled, use an Agent
-                    # created via tor.
-                    StorageClient.from_nurl(nurl, reactor, pool)
+                    StorageClient.from_nurl(nurl, reactor, pool, agent_factory=agent_factory)
                 ).get_version()
 
             nurl = await _pick_a_http_server(reactor, self._nurls, request)
 
             # If we've gotten this far, we've found a working NURL.
             self._istorage_server = _HTTPStorageServer.from_http_client(
-                # TODO if Tor client connections are enabled, use an Agent
-                # created via tor.
-                StorageClient.from_nurl(nurl, reactor)
+                StorageClient.from_nurl(nurl, reactor, agent_factory=agent_factory)
             )
             return self._istorage_server
 
