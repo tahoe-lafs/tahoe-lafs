@@ -311,6 +311,36 @@ def _run_node(reactor, node_dir, request, magic_text, finalize=True):
     return d
 
 
+def basic_node_configuration(request, flog_gatherer, node_dir: str):
+    """
+    Setup common configuration options for a node, given a ``pytest`` request
+    fixture.
+    """
+    config_path = join(node_dir, 'tahoe.cfg')
+    config = get_config(config_path)
+    set_config(
+        config,
+        u'node',
+        u'log_gatherer.furl',
+        flog_gatherer,
+    )
+    force_foolscap = request.config.getoption("force_foolscap")
+    assert force_foolscap in (True, False)
+    set_config(
+        config,
+        'storage',
+        'force_foolscap',
+        str(force_foolscap),
+    )
+    set_config(
+        config,
+        'client',
+        'force_foolscap',
+        str(force_foolscap),
+    )
+    write_config(FilePath(config_path), config)
+
+
 def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, name, web_port,
                  storage=True,
                  magic_text=None,
@@ -351,29 +381,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
         created_d = done_proto.done
 
         def created(_):
-            config_path = join(node_dir, 'tahoe.cfg')
-            config = get_config(config_path)
-            set_config(
-                config,
-                u'node',
-                u'log_gatherer.furl',
-                flog_gatherer,
-            )
-            force_foolscap = request.config.getoption("force_foolscap")
-            assert force_foolscap in (True, False)
-            set_config(
-                config,
-                'storage',
-                'force_foolscap',
-                str(force_foolscap),
-            )
-            set_config(
-                config,
-                'client',
-                'force_foolscap',
-                str(force_foolscap),
-            )
-            write_config(FilePath(config_path), config)
+            basic_node_configuration(request, flog_gatherer, node_dir)
         created_d.addCallback(created)
 
     d = Deferred()
