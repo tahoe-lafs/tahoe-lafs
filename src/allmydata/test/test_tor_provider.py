@@ -2,7 +2,6 @@
 Ported to Python 3.
 """
 
-from collections import namedtuple
 import os
 from twisted.trial import unittest
 from twisted.internet import defer, error
