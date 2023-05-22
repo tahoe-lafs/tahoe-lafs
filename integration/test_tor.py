@@ -144,13 +144,13 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
 def test_anonymous_client(reactor, alice, request, temp_dir, flog_gatherer, tor_network, introducer_furl):
     """
     A normal node (alice) and a normal introducer are configured, and one node
-    (carol) which is configured to be anonymous by talking via Tor.
+    (anonymoose) which is configured to be anonymous by talking via Tor.
 
-    Carol should be able to communicate with alice.
+    Anonymoose should be able to communicate with alice.
 
-    TODO how to ensure that carol is actually using Tor?
+    TODO how to ensure that anonymoose is actually using Tor?
     """
-    carol = yield _create_anonymous_node(reactor, 'carol', 8008, request, temp_dir, flog_gatherer, tor_network, introducer_furl)
-    yield util.await_client_ready(carol, minimum_number_of_servers=2, timeout=600)
+    anonymoose = yield _create_anonymous_node(reactor, 'anonymoose', 8008, request, temp_dir, flog_gatherer, tor_network, introducer_furl)
+    yield util.await_client_ready(anonymoose, minimum_number_of_servers=2, timeout=600)
 
-    yield upload_to_one_download_from_the_other(reactor, temp_dir, alice, carol)
+    yield upload_to_one_download_from_the_other(reactor, temp_dir, alice, anonymoose)
