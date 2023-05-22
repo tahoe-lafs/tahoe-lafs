@@ -331,6 +331,7 @@ class CustomHTTPServerTests(SyncTestCase):
             DecodedURL.from_text("http://127.0.0.1"),
             SWISSNUM_FOR_TEST,
             treq=treq,
+            pool=None,
             # We're using a Treq private API to get the reactor, alas, but only
             # in a test, so not going to worry about it too much. This would be
             # fixed if https://github.com/twisted/treq/issues/226 were ever
@@ -512,6 +513,7 @@ class HttpTestFixture(Fixture):
             DecodedURL.from_text("http://127.0.0.1"),
             SWISSNUM_FOR_TEST,
             treq=self.treq,
+            pool=None,
             clock=self.clock,
         )
 
@@ -624,6 +626,7 @@ class GenericHTTPAPITests(SyncTestCase):
                 DecodedURL.from_text("http://127.0.0.1"),
                 b"something wrong",
                 treq=StubTreq(self.http.http_server.get_resource()),
+                pool=None,
                 clock=self.http.clock,
             )
         )
@@ -1455,7 +1458,7 @@ class SharedImmutableMutableTestsMixin:
             self.client.advise_corrupt_share(storage_index, 13, reason)
         )
 
-        for (si, share_number) in [(storage_index, 11), (urandom(16), 13)]:
+        for si, share_number in [(storage_index, 11), (urandom(16), 13)]:
             with assert_fails_with_http_code(self, http.NOT_FOUND):
                 self.http.result_of_with_flush(
                     self.client.advise_corrupt_share(si, share_number, reason)
