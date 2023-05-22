@@ -1274,14 +1274,19 @@ class HTTPNativeStorageServer(service.MultiService):
                 pool = HTTPConnectionPool(reactor, persistent=False)
                 pool.retryAutomatically = False
                 return StorageClientGeneral(
-                    StorageClient.from_nurl(nurl, reactor, pool, agent_factory=agent_factory)
+                    StorageClient.from_nurl(
+                        nurl, reactor, self._default_connection_handlers,
+                        pool=pool, agent_factory=agent_factory)
                 ).get_version()
 
             nurl = await _pick_a_http_server(reactor, self._nurls, request)
 
             # If we've gotten this far, we've found a working NURL.
             self._istorage_server = _HTTPStorageServer.from_http_client(
-                StorageClient.from_nurl(nurl, reactor, agent_factory=agent_factory)
+                StorageClient.from_nurl(
+                    nurl, reactor, self._default_connection_handlers,
+                    agent_factory=agent_factory
+                )
             )
             return self._istorage_server
 

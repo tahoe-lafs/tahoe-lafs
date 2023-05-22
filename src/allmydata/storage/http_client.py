@@ -341,6 +341,9 @@ class StorageClient(object):
         cls,
         nurl: DecodedURL,
         reactor,
+        # TODO default_connection_handlers should really be a class, not a dict
+        # of strings...
+        default_connection_handlers: dict[str, str],
         pool: Optional[HTTPConnectionPool] = None,
         agent_factory: Optional[
             Callable[[object, IPolicyForHTTPS, HTTPConnectionPool], IAgent]
@@ -349,6 +352,11 @@ class StorageClient(object):
         """
         Create a ``StorageClient`` for the given NURL.
         """
+        # Safety check: if we're using normal TCP connections, we better not be
+        # configured for Tor or I2P.
+        if agent_factory is None:
+            assert default_connection_handlers["tcp"] == "tcp"
+
         assert nurl.fragment == "v=1"
         assert nurl.scheme == "pb"
         swissnum = nurl.path[0].encode("ascii")
