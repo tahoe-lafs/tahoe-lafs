@@ -1239,6 +1239,7 @@ class HTTPNativeStorageServer(service.MultiService):
         if handler == "tcp":
             return None
         if handler == "tor":
+            assert self._tor_provider is not None
             tor_instance = await self._tor_provider.get_tor_instance(self._reactor)
 
             def agent_factory(reactor: object, tls_context_factory: IPolicyForHTTPS, pool: HTTPConnectionPool) -> IAgent:
