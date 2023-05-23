@@ -1274,7 +1274,8 @@ class HTTPNativeStorageServer(service.MultiService):
 
         maybe_storage_server = self.get_storage_server()
         if maybe_storage_server is not None:
-            result.addCallback(lambda _: maybe_storage_server._http_client.shutdown())
+            client_shutting_down = maybe_storage_server._http_client.shutdown()
+            result.addCallback(lambda _: client_shutting_down)
 
         return result
 
