@@ -379,8 +379,6 @@ class CustomHTTPServerTests(SyncTestCase):
         )
         self.assertEqual(response.code, 400)
 
-    # TODO test other garbage values
-
     def test_authorization_enforcement(self):
         """
         The requirement for secrets is enforced by the ``_authorized_route``
