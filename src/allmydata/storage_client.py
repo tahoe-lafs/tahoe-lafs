@@ -1271,6 +1271,11 @@ class HTTPNativeStorageServer(service.MultiService):
         if self._lc.running:
             self._lc.stop()
         self._failed_to_connect("shut down")
+
+        if self._istorage_server is not None:
+            client_shutting_down = self._istorage_server._http_client.shutdown()
+            result.addCallback(lambda _: client_shutting_down)
+
         return result
 
 

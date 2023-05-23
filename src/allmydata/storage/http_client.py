@@ -332,6 +332,7 @@ class StorageClient(object):
     _base_url: DecodedURL
     _swissnum: bytes
     _treq: Union[treq, StubTreq, HTTPClient]
+    _pool: Optional[HTTPConnectionPool]
     _clock: IReactorTime
 
     @classmethod
@@ -361,7 +362,7 @@ class StorageClient(object):
         )
 
         https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
-        return cls(https_url, swissnum, treq_client, reactor)
+        return cls(https_url, swissnum, treq_client, pool, reactor)
 
     def relative_url(self, path: str) -> DecodedURL:
         """Get a URL relative to the base URL."""
@@ -500,6 +501,11 @@ class StorageClient(object):
                     await limited_content(response, self._clock, max_length=10_000)
                 ).read()
                 raise ClientException(response.code, response.phrase, data)
+
+    def shutdown(self) -> Deferred:
+        """Shutdown any connections."""
+        if self._pool is not None:
+            return self._pool.closeCachedConnections()
 
 
 @define(hash=True)
