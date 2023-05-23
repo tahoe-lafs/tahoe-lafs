@@ -401,9 +401,6 @@ def alice(
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
             web_port="tcp:9980:interface=localhost",
             storage=False,
-            # We're going to kill this ourselves, so no need for finalizer to
-            # do it:
-            finalize=False,
         )
     )
     pytest_twisted.blockon(await_client_ready(process))
