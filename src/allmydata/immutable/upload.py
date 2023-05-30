@@ -1391,7 +1391,9 @@ class CHKUploader(object):
     def get_upload_status(self):
         return self._upload_status
 
-def read_this_many_bytes(uploadable, size, prepend_data=[]):
+def read_this_many_bytes(uploadable, size, prepend_data=None):
+    if prepend_data is None:
+        prepend_data = []
     if size == 0:
         return defer.succeed([])
     d = uploadable.read(size)

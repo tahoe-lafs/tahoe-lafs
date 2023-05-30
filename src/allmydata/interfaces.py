@@ -1447,7 +1447,7 @@ class IDirectoryNode(IFilesystemNode):
         is a file, or if must_be_file is True and the child is a directory,
         I raise ChildOfWrongTypeError."""
 
-    def create_subdirectory(name, initial_children={}, overwrite=True,
+    def create_subdirectory(name, initial_children=None, overwrite=True,
                             mutable=True, mutable_version=None, metadata=None):
         """I create and attach a directory at the given name. The new
         directory can be empty, or it can be populated with children
@@ -2586,7 +2586,7 @@ class IClient(Interface):
         @return: a Deferred that fires with an IMutableFileNode instance.
         """
 
-    def create_dirnode(initial_children={}):
+    def create_dirnode(initial_children=None):
         """Create a new unattached dirnode, possibly with initial children.
 
         @param initial_children: dict with keys that are unicode child names,
@@ -2641,7 +2641,7 @@ class INodeMaker(Interface):
         for use by unit tests, to create mutable files that are smaller than
         usual."""
 
-    def create_new_mutable_directory(initial_children={}):
+    def create_new_mutable_directory(initial_children=None):
         """I create a new mutable directory, and return a Deferred that will
         fire with the IDirectoryNode instance when it is ready. If
         initial_children= is provided (a dict mapping unicode child name to

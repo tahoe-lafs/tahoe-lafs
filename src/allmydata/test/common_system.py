@@ -819,8 +819,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             helper_furl = f.read()
 
         self.helper_furl = helper_furl
-        if self.numclients >= 4:
-            with open(os.path.join(basedirs[3], 'tahoe.cfg'), 'a+') as f:
+        if self.numclients >= 2:
+            with open(os.path.join(basedirs[1], 'tahoe.cfg'), 'a+') as f:
                 f.write(
                     "[client]\n"
                     "helper.furl = {}\n".format(helper_furl)
@@ -836,9 +836,9 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         log.msg("CONNECTED")
         # now find out where the web port was
         self.webish_url = self.clients[0].getServiceNamed("webish").getURL()
-        if self.numclients >=4:
+        if self.numclients >=2:
             # and the helper-using webport
-            self.helper_webish_url = self.clients[3].getServiceNamed("webish").getURL()
+            self.helper_webish_url = self.clients[1].getServiceNamed("webish").getURL()
 
     def _generate_config(self, which, basedir, force_foolscap=False):
         config = {}
@@ -854,10 +854,10 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             ("node", "tub.location"): allclients,
 
             # client 0 runs a webserver and a helper
-            # client 3 runs a webserver but no helper
-            ("node", "web.port"): {0, 3},
+            # client 1 runs a webserver but no helper
+            ("node", "web.port"): {0, 1},
             ("node", "timeout.keepalive"): {0},
-            ("node", "timeout.disconnect"): {3},
+            ("node", "timeout.disconnect"): {1},
 
             ("helper", "enabled"): {0},
         }

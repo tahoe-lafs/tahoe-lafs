@@ -17,7 +17,7 @@ import errno
 from base64 import b32decode, b32encode
 from errno import ENOENT, EPERM
 from warnings import warn
-from typing import Union
+from typing import Union, Iterable
 
 import attr
 
@@ -172,7 +172,7 @@ def create_node_dir(basedir, readme_text):
             f.write(readme_text)
 
 
-def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
+def read_config(basedir, portnumfile, generated_files: Iterable = (), _valid_config=None):
     """
     Read and validate configuration.
 
@@ -741,7 +741,7 @@ def create_connection_handlers(config, i2p_provider, tor_provider):
 
 
 def create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
-               handler_overrides={}, force_foolscap=False, **kwargs):
+               handler_overrides=None, force_foolscap=False, **kwargs):
     """
     Create a Tub with the right options and handlers. It will be
     ephemeral unless the caller provides certFile= in kwargs
@@ -755,6 +755,8 @@ def create_tub(tub_options, default_connection_handlers, foolscap_connection_han
     :param bool force_foolscap: If True, only allow Foolscap, not just HTTPS
         storage protocol.
     """
+    if handler_overrides is None:
+        handler_overrides = {}
     # We listen simultaneously for both Foolscap and HTTPS on the same port,
     # so we have to create a special Foolscap Tub for that to work:
     if force_foolscap:
@@ -922,7 +924,7 @@ def tub_listen_on(i2p_provider, tor_provider, tub, tubport, location):
 def create_main_tub(config, tub_options,
                     default_connection_handlers, foolscap_connection_handlers,
                     i2p_provider, tor_provider,
-                    handler_overrides={}, cert_filename="node.pem"):
+                    handler_overrides=None, cert_filename="node.pem"):
     """
     Creates a 'main' Foolscap Tub, typically for use as the top-level
     access point for a running Node.
@@ -943,6 +945,8 @@ def create_main_tub(config, tub_options,
     :param tor_provider: None, or a _Provider instance if txtorcon +
         Tor are installed.
     """
+    if handler_overrides is None:
+        handler_overrides = {}
     portlocation = _tub_portlocation(
         config,
         iputil.get_local_addresses_sync,
