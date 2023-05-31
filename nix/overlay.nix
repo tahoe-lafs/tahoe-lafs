@@ -16,7 +16,6 @@ in
 # can apply it to their own nixpkgs derivation to produce a Tahoe-LAFS
 # package.
 final: prev: ({}
-// (makePython final prev "python")
 // (makePython final prev "python3")
 
 // (makePython final prev "python38")

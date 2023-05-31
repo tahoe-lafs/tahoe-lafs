@@ -81,7 +81,6 @@
               # Also note that these are not *Python packages*.  They are
               # whole Python runtimes which happen to have Tahoe-LAFS
               # available to them.
-              python-tahoe-lafs = makeTahoe python;
               python3-tahoe-lafs = makeTahoe python3;
 
               python38-tahoe-lafs = makeTahoe python38;
