@@ -60,7 +60,7 @@
           let
             pkgs = import nixpkgs {
               inherit system;
-              overlays = [ (import ./nix/overlay.nix { inherit (nixpkgs) lib; }) ];
+              overlays = [ self.overlays.default ];
             };
             # Create a Python runtime with the Tahoe-LAFS package installed.
             makeTahoe = py: py.withPackages (ps: [ps.tahoe-lafs]);
