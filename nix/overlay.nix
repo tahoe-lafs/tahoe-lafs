@@ -4,7 +4,7 @@ let
     let
       self = prev.${py}.override {
         inherit self;
-        packageOverrides = import ./python-overrides.nix;
+        packageOverrides = lib.composeManyExtensions final.pythonPackageOverlays;
       };
     in {
       ${py} = self;
@@ -15,7 +15,11 @@ in
 # package dependencies to a Python package set.  Downstream consumers
 # can apply it to their own nixpkgs derivation to produce a Tahoe-LAFS
 # package.
-final: prev: ({}
+final: prev: ({
+  pythonPackageOverlays = (prev.pythonPackageOverlays or []) ++ [
+    (import ./python-overrides.nix)
+  ];
+}
 // (makePython final prev "python3")
 
 // (makePython final prev "python38")
