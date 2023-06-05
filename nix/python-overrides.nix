@@ -66,10 +66,6 @@ in {
   # a5f8184fb816a4fd5ae87136838c9981e0d22c67.
   six = onPyPy dontCheck super.six;
 
-  # Building the docs requires sphinx which brings in a dependency on babel,
-  # the test suite of which fails.
-  pyopenssl = onPyPy (dontBuildDocs { sphinx-rtd-theme = null; }) super.pyopenssl;
-
   # Likewise for beautifulsoup4.
   beautifulsoup4 = onPyPy (dontBuildDocs {}) super.beautifulsoup4;
 
