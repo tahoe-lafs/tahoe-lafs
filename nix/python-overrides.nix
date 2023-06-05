@@ -27,6 +27,12 @@ in {
     inherit (super) klein;
   };
 
+  # Update the version of pyopenssl.
+  pyopenssl = self.callPackage ./pyopenssl.nix {
+    # Avoid infinite recursion.
+    inherit (super) pyopenssl;
+  };
+
   # collections-extended is currently broken for Python 3.11 in nixpkgs but
   # we know where a working version lives.
   collections-extended = self.callPackage ./collections-extended.nix {
