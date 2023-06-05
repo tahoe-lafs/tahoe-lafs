@@ -1,4 +1,4 @@
-{ pyopenssl, fetchPypi }:
+{ pyopenssl, fetchPypi, isPyPy }:
 pyopenssl.overrideAttrs (old: rec {
   pname = "pyopenssl";
   version = "23.2.0";
