@@ -1234,7 +1234,10 @@ class HTTPNativeStorageServer(service.MultiService):
 
     async def _agent_factory(self) -> Optional[Callable[[object, IPolicyForHTTPS, HTTPConnectionPool],IAgent]]:
         """Return a factory for ``twisted.web.iweb.IAgent``."""
-        # TODO default_connection_handlers should really be an object, not a dict...
+        # TODO default_connection_handlers should really be an object, not a
+        # dict, so we can ask "is this using Tor" without poking at a
+        # dictionary with arbitrary strings... See
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4032
         handler = self._default_connection_handlers["tcp"]
         if handler == "tcp":
             return None
