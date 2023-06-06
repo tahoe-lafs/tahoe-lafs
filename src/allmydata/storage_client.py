@@ -51,7 +51,6 @@ from zope.interface import (
 )
 from twisted.python.failure import Failure
 from twisted.web import http
-from twisted.web.iweb import IAgent, IPolicyForHTTPS
 from twisted.internet.task import LoopingCall
 from twisted.internet import defer, reactor
 from twisted.application import service
