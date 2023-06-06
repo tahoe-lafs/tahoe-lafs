@@ -67,7 +67,7 @@ try:
     from txtorcon import Tor  # type: ignore
 except ImportError:
 
-    class Tor:
+    class Tor:  # type: ignore[no-redef]
         pass
 
 
