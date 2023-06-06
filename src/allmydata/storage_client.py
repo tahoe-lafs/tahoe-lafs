@@ -89,7 +89,8 @@ from allmydata.util.deferredutil import async_to_deferred, race
 from allmydata.storage.http_client import (
     StorageClient, StorageClientImmutables, StorageClientGeneral,
     ClientException as HTTPClientException, StorageClientMutables,
-    ReadVector, TestWriteVectors, WriteVector, TestVector, ClientException
+    ReadVector, TestWriteVectors, WriteVector, TestVector, ClientException,
+    StorageClientFactory
 )
 from .node import _Config
 
@@ -1068,8 +1069,9 @@ class HTTPNativeStorageServer(service.MultiService):
         self._on_status_changed = ObserverList()
         self._reactor = reactor
         self._grid_manager_verifier = grid_manager_verifier
-        self._tor_provider = tor_provider
-        self._default_connection_handlers = default_connection_handlers
+        self._storage_client_factory = StorageClientFactory(
+            default_connection_handlers, tor_provider
+        )
 
         furl = announcement["anonymous-storage-FURL"].encode("utf-8")
         (
@@ -1232,26 +1234,6 @@ class HTTPNativeStorageServer(service.MultiService):
         self._connecting_deferred = connecting
         return connecting
 
-    async def _agent_factory(self) -> Optional[Callable[[object, IPolicyForHTTPS, HTTPConnectionPool],IAgent]]:
-        """Return a factory for ``twisted.web.iweb.IAgent``."""
-        # TODO default_connection_handlers should really be an object, not a
-        # dict, so we can ask "is this using Tor" without poking at a
-        # dictionary with arbitrary strings... See
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4032
-        handler = self._default_connection_handlers["tcp"]
-        if handler == "tcp":
-            return None
-        if handler == "tor":
-            assert self._tor_provider is not None
-            tor_instance = await self._tor_provider.get_tor_instance(self._reactor)
-
-            def agent_factory(reactor: object, tls_context_factory: IPolicyForHTTPS, pool: HTTPConnectionPool) -> IAgent:
-                assert reactor == self._reactor
-                return tor_instance.web_agent(pool=pool, tls_context_factory=tls_context_factory)
-            return agent_factory
-        else:
-            raise RuntimeError(f"Unsupported tcp connection handler: {handler}")
-
     @async_to_deferred
     async def _pick_server_and_get_version(self):
         """
@@ -1270,28 +1252,24 @@ class HTTPNativeStorageServer(service.MultiService):
             # version() calls before we are live talking to a server, it could only
             # be one. See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3992
 
-            agent_factory = await self._agent_factory()
-
-            def request(reactor, nurl: DecodedURL):
+            @async_to_deferred
+            async def request(reactor, nurl: DecodedURL):
                 # Since we're just using this one off to check if the NURL
                 # works, no need for persistent pool or other fanciness.
                 pool = HTTPConnectionPool(reactor, persistent=False)
                 pool.retryAutomatically = False
-                return StorageClientGeneral(
-                    StorageClient.from_nurl(
-                        nurl, reactor, self._default_connection_handlers,
-                        pool=pool, agent_factory=agent_factory)
-                ).get_version()
+                storage_client = await self._storage_client_factory.create_storage_client(
+                    nurl, reactor, pool
+                )
+                return await StorageClientGeneral(storage_client).get_version()
 
             nurl = await _pick_a_http_server(reactor, self._nurls, request)
 
             # If we've gotten this far, we've found a working NURL.
-            self._istorage_server = _HTTPStorageServer.from_http_client(
-                StorageClient.from_nurl(
-                    nurl, reactor, self._default_connection_handlers,
-                    agent_factory=agent_factory
-                )
+            storage_client = await self._storage_client_factory.create_storage_client(
+                    nurl, reactor, None
             )
+            self._istorage_server = _HTTPStorageServer.from_http_client(storage_client)
             return self._istorage_server
 
         try:
