@@ -369,7 +369,7 @@ class StorageClientFactory:
 
         if handler == "tcp":
             return Agent(reactor, tls_context_factory, pool=pool)
-        if handler == "tor":  # TODO or nurl.scheme == "pb+tor":
+        if handler == "tor" or nurl.scheme == "pb+tor":
             assert self._tor_provider is not None
             if self._tor_instance is None:
                 self._tor_instance = await self._tor_provider.get_tor_instance(reactor)
