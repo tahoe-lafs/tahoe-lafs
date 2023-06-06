@@ -330,9 +330,9 @@ class StorageClientFactory:
 
     # If set, we're doing unit testing and we should call this with any
     # HTTPConnectionPool that gets passed/created to ``create_agent()``.
-    TEST_MODE_REGISTER_HTTP_POOL = ClassVar[
+    TEST_MODE_REGISTER_HTTP_POOL: ClassVar[
         Optional[Callable[[HTTPConnectionPool], None]]
-    ]
+    ] = None
 
     @classmethod
     def start_test_mode(cls, callback: Callable[[HTTPConnectionPool], None]) -> None:
