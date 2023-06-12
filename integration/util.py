@@ -140,7 +140,8 @@ class _MagicTextProtocol(ProcessProtocol):
 
     def outReceived(self, data):
         data = str(data, sys.stdout.encoding)
-        sys.stdout.write(self.name + data)
+        for line in data.splitlines():
+            sys.stdout.write(self.name + line + "\n")
         self._output.write(data)
         if not self.magic_seen.called and self._magic_text in self._output.getvalue():
             print("Saw '{}' in the logs".format(self._magic_text))
@@ -148,7 +149,8 @@ class _MagicTextProtocol(ProcessProtocol):
 
     def errReceived(self, data):
         data = str(data, sys.stderr.encoding)
-        sys.stdout.write(self.name + data)
+        for line in data.splitlines():
+            sys.stdout.write(self.name + line + "\n")
 
 
 def _cleanup_process_async(transport: IProcessTransport, allow_missing: bool) -> None:
@@ -629,16 +631,9 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_serve
             server['last_received_data']
             for server in servers
         ]
-        # if any times are null/None that server has never been
-        # contacted (so it's down still, probably)
-        never_received_data = server_times.count(None)
-        if never_received_data > 0:
-            print(f"waiting because {never_received_data} server(s) not contacted")
-            time.sleep(1)
-            continue
-
-        # check that all times are 'recent enough'
-        if any([time.time() - t > liveness for t in server_times]):
+        # check that all times are 'recent enough' (it's OK if _some_ servers
+        # are down, we just want to make sure a sufficient number are up)
+        if len([time.time() - t <= liveness for t in server_times if t is not None]) < minimum_number_of_servers:
             print("waiting because at least one server too old")
             time.sleep(1)
             continue
