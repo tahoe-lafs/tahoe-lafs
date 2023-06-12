@@ -51,6 +51,7 @@ from zope.interface import (
 )
 from twisted.python.failure import Failure
 from twisted.web import http
+from twisted.web.iweb import IAgent, IPolicyForHTTPS
 from twisted.internet.task import LoopingCall
 from twisted.internet import defer, reactor
 from twisted.application import service
@@ -77,6 +78,7 @@ from allmydata.grid_manager import (
 from allmydata.crypto import (
     ed25519,
 )
+from allmydata.util.tor_provider import _Provider as TorProvider
 from allmydata.util import log, base32, connection_status
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
@@ -202,8 +204,13 @@ class StorageFarmBroker(service.MultiService):
             tub_maker,
             node_config: _Config,
             storage_client_config=None,
+            default_connection_handlers=None,
+            tor_provider: Optional[TorProvider]=None,
     ):
         service.MultiService.__init__(self)
+        if default_connection_handlers is None:
+            default_connection_handlers = {"tcp": "tcp"}
+
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self._tub_maker = tub_maker
@@ -223,6 +230,8 @@ class StorageFarmBroker(service.MultiService):
         self.introducer_client = None
         self._threshold_listeners : list[tuple[float,defer.Deferred[Any]]]= [] # tuples of (threshold, Deferred)
         self._connected_high_water_mark = 0
+        self._tor_provider = tor_provider
+        self._default_connection_handlers = default_connection_handlers
 
     @log_call(action_type=u"storage-client:broker:set-static-servers")
     def set_static_servers(self, servers):
@@ -315,6 +324,8 @@ class StorageFarmBroker(service.MultiService):
                 server_id,
                 server["ann"],
                 grid_manager_verifier=gm_verifier,
+                default_connection_handlers=self._default_connection_handlers,
+                tor_provider=self._tor_provider
             )
             s.on_status_changed(lambda _: self._got_connection())
             return s
@@ -1049,7 +1060,7 @@ class HTTPNativeStorageServer(service.MultiService):
     "connected".
     """
 
-    def __init__(self, server_id: bytes, announcement, reactor=reactor, grid_manager_verifier=None):
+    def __init__(self, server_id: bytes, announcement, default_connection_handlers: dict[str,str], reactor=reactor, grid_manager_verifier=None, tor_provider: Optional[TorProvider]=None):
         service.MultiService.__init__(self)
         assert isinstance(server_id, bytes)
         self._server_id = server_id
@@ -1057,6 +1068,9 @@ class HTTPNativeStorageServer(service.MultiService):
         self._on_status_changed = ObserverList()
         self._reactor = reactor
         self._grid_manager_verifier = grid_manager_verifier
+        self._tor_provider = tor_provider
+        self._default_connection_handlers = default_connection_handlers
+
         furl = announcement["anonymous-storage-FURL"].encode("utf-8")
         (
             self._nickname,
@@ -1218,6 +1232,26 @@ class HTTPNativeStorageServer(service.MultiService):
         self._connecting_deferred = connecting
         return connecting
 
+    async def _agent_factory(self) -> Optional[Callable[[object, IPolicyForHTTPS, HTTPConnectionPool],IAgent]]:
+        """Return a factory for ``twisted.web.iweb.IAgent``."""
+        # TODO default_connection_handlers should really be an object, not a
+        # dict, so we can ask "is this using Tor" without poking at a
+        # dictionary with arbitrary strings... See
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4032
+        handler = self._default_connection_handlers["tcp"]
+        if handler == "tcp":
+            return None
+        if handler == "tor":
+            assert self._tor_provider is not None
+            tor_instance = await self._tor_provider.get_tor_instance(self._reactor)
+
+            def agent_factory(reactor: object, tls_context_factory: IPolicyForHTTPS, pool: HTTPConnectionPool) -> IAgent:
+                assert reactor == self._reactor
+                return tor_instance.web_agent(pool=pool, tls_context_factory=tls_context_factory)
+            return agent_factory
+        else:
+            raise RuntimeError(f"Unsupported tcp connection handler: {handler}")
+
     @async_to_deferred
     async def _pick_server_and_get_version(self):
         """
@@ -1236,20 +1270,27 @@ class HTTPNativeStorageServer(service.MultiService):
             # version() calls before we are live talking to a server, it could only
             # be one. See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3992
 
+            agent_factory = await self._agent_factory()
+
             def request(reactor, nurl: DecodedURL):
                 # Since we're just using this one off to check if the NURL
                 # works, no need for persistent pool or other fanciness.
                 pool = HTTPConnectionPool(reactor, persistent=False)
                 pool.retryAutomatically = False
                 return StorageClientGeneral(
-                    StorageClient.from_nurl(nurl, reactor, pool)
+                    StorageClient.from_nurl(
+                        nurl, reactor, self._default_connection_handlers,
+                        pool=pool, agent_factory=agent_factory)
                 ).get_version()
 
             nurl = await _pick_a_http_server(reactor, self._nurls, request)
 
             # If we've gotten this far, we've found a working NURL.
             self._istorage_server = _HTTPStorageServer.from_http_client(
-                StorageClient.from_nurl(nurl, reactor)
+                StorageClient.from_nurl(
+                    nurl, reactor, self._default_connection_handlers,
+                    agent_factory=agent_factory
+                )
             )
             return self._istorage_server
 

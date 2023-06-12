@@ -166,7 +166,7 @@ jobs:
       matrix:
         include:
           - os: macos-12
-            python-version: "3.9"
+            python-version: "3.11"
             force-foolscap: false
           - os: windows-latest
             python-version: "3.11"

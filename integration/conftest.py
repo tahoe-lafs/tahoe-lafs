@@ -279,7 +279,7 @@ def introducer_furl(introducer, temp_dir):
     return furl
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 @log_call(
     action_type=u"integration:tor:introducer",
     include_args=["temp_dir", "flog_gatherer"],
@@ -342,7 +342,7 @@ def tor_introducer(reactor, temp_dir, flog_gatherer, request):
     return transport
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def tor_introducer_furl(tor_introducer, temp_dir):
     furl_fname = join(temp_dir, 'introducer_tor', 'private', 'introducer.furl')
     while not exists(furl_fname):
