@@ -140,7 +140,8 @@ class _MagicTextProtocol(ProcessProtocol):
 
     def outReceived(self, data):
         data = str(data, sys.stdout.encoding)
-        sys.stdout.write(self.name + data)
+        for line in data.splitlines():
+            sys.stdout.write(self.name + line + "\n")
         self._output.write(data)
         if not self.magic_seen.called and self._magic_text in self._output.getvalue():
             print("Saw '{}' in the logs".format(self._magic_text))
@@ -148,7 +149,8 @@ class _MagicTextProtocol(ProcessProtocol):
 
     def errReceived(self, data):
         data = str(data, sys.stderr.encoding)
-        sys.stdout.write(self.name + data)
+        for line in data.splitlines():
+            sys.stdout.write(self.name + line + "\n")
 
 
 def _cleanup_process_async(transport: IProcessTransport, allow_missing: bool) -> None:
