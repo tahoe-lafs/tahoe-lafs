@@ -38,8 +38,8 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
     The two nodes can talk to the introducer and each other: we upload to one
     node, read from the other.
     """
-    carol = yield _create_anonymous_node(reactor, 'carol', 8008, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
-    dave = yield _create_anonymous_node(reactor, 'dave', 8009, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl)
+    carol = yield _create_anonymous_node(reactor, 'carol', 8008, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl, 2)
+    dave = yield _create_anonymous_node(reactor, 'dave', 8009, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl, 2)
     yield util.await_client_ready(carol, minimum_number_of_servers=2, timeout=600)
     yield util.await_client_ready(dave, minimum_number_of_servers=2, timeout=600)
     yield upload_to_one_download_from_the_other(reactor, temp_dir, carol, dave)
@@ -94,7 +94,7 @@ async def upload_to_one_download_from_the_other(reactor, temp_dir, upload_to: ut
 
 
 @pytest_twisted.inlineCallbacks
-def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_gatherer, tor_network, introducer_furl) -> util.TahoeProcess:
+def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_gatherer, tor_network, introducer_furl, shares_total: int) -> util.TahoeProcess:
     node_dir = FilePath(temp_dir).child(name)
     web_port = "tcp:{}:interface=localhost".format(control_port + 2000)
 
@@ -116,7 +116,7 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
                 '--listen', 'tor',
                 '--shares-needed', '1',
                 '--shares-happy', '1',
-                '--shares-total', '2',
+                '--shares-total', str(shares_total),
                 node_dir.path,
             ),
             env=environ,
@@ -141,16 +141,23 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
 
 
 @pytest_twisted.inlineCallbacks
-def test_anonymous_client(reactor, alice, request, temp_dir, flog_gatherer, tor_network, introducer_furl):
+def test_anonymous_client(reactor, request, temp_dir, flog_gatherer, tor_network, introducer_furl):
     """
-    A normal node (alice) and a normal introducer are configured, and one node
+    A normal node (normie) and a normal introducer are configured, and one node
     (anonymoose) which is configured to be anonymous by talking via Tor.
 
-    Anonymoose should be able to communicate with alice.
+    Anonymoose should be able to communicate with normie.
 
     TODO how to ensure that anonymoose is actually using Tor?
     """
-    anonymoose = yield _create_anonymous_node(reactor, 'anonymoose', 8008, request, temp_dir, flog_gatherer, tor_network, introducer_furl)
-    yield util.await_client_ready(anonymoose, minimum_number_of_servers=2, timeout=600)
+    normie = yield util._create_node(
+        reactor, request, temp_dir, introducer_furl, flog_gatherer, "normie",
+        web_port="tcp:9989:interface=localhost",
+        storage=True, needed=1, happy=1, total=1,
+    )
+    yield util.await_client_ready(normie)
 
-    yield upload_to_one_download_from_the_other(reactor, temp_dir, alice, anonymoose)
+    anonymoose = yield _create_anonymous_node(reactor, 'anonymoose', 8008, request, temp_dir, flog_gatherer, tor_network, introducer_furl, 1)
+    yield util.await_client_ready(anonymoose, minimum_number_of_servers=1, timeout=600)
+
+    yield upload_to_one_download_from_the_other(reactor, temp_dir, normie, anonymoose)
