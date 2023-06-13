@@ -1,6 +1,6 @@
 { pyopenssl, fetchPypi, isPyPy }:
 pyopenssl.overrideAttrs (old: rec {
-  pname = "pyopenssl";
+  pname = "pyOpenSSL";
   version = "23.2.0";
   src = fetchPypi {
     inherit pname version;
