@@ -21,10 +21,13 @@ in {
   pycddl = self.callPackage ./pycddl.nix { };
   txi2p = self.callPackage ./txi2p.nix { };
 
-  # Update the version of klein.
+  # Some packages are of somewhat too-old versions - update them.
   klein = self.callPackage ./klein.nix {
     # Avoid infinite recursion.
     inherit (super) klein;
+  };
+  txtorcon = self.callPackage ./txtorcon.nix {
+    inherit (super) txtorcon;
   };
 
   # Update the version of pyopenssl.

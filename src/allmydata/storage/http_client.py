@@ -15,6 +15,7 @@ from typing import (
     TypedDict,
     Set,
     Dict,
+    Callable,
 )
 from base64 import b64encode
 from io import BytesIO
@@ -31,7 +32,7 @@ from collections_extended import RangeMap
 from werkzeug.datastructures import Range, ContentRange
 from twisted.web.http_headers import Headers
 from twisted.web import http
-from twisted.web.iweb import IPolicyForHTTPS, IResponse
+from twisted.web.iweb import IPolicyForHTTPS, IResponse, IAgent
 from twisted.internet.defer import inlineCallbacks, Deferred, succeed
 from twisted.internet.interfaces import (
     IOpenSSLClientConnectionCreator,
@@ -334,11 +335,25 @@ class StorageClient(object):
 
     @classmethod
     def from_nurl(
-        cls, nurl: DecodedURL, reactor, pool: Optional[HTTPConnectionPool] = None
+        cls,
+        nurl: DecodedURL,
+        reactor,
+        # TODO default_connection_handlers should really be a class, not a dict
+        # of strings...
+        default_connection_handlers: dict[str, str],
+        pool: Optional[HTTPConnectionPool] = None,
+        agent_factory: Optional[
+            Callable[[object, IPolicyForHTTPS, HTTPConnectionPool], IAgent]
+        ] = None,
     ) -> StorageClient:
         """
         Create a ``StorageClient`` for the given NURL.
         """
+        # Safety check: if we're using normal TCP connections, we better not be
+        # configured for Tor or I2P.
+        if agent_factory is None:
+            assert default_connection_handlers["tcp"] == "tcp"
+
         assert nurl.fragment == "v=1"
         assert nurl.scheme == "pb"
         swissnum = nurl.path[0].encode("ascii")
@@ -350,11 +365,21 @@ class StorageClient(object):
         if cls.TEST_MODE_REGISTER_HTTP_POOL is not None:
             cls.TEST_MODE_REGISTER_HTTP_POOL(pool)
 
+        def default_agent_factory(
+            reactor: object,
+            tls_context_factory: IPolicyForHTTPS,
+            pool: HTTPConnectionPool,
+        ) -> IAgent:
+            return Agent(reactor, tls_context_factory, pool=pool)
+
+        if agent_factory is None:
+            agent_factory = default_agent_factory
+
         treq_client = HTTPClient(
-            Agent(
+            agent_factory(
                 reactor,
                 _StorageClientHTTPSPolicy(expected_spki_hash=certificate_hash),
-                pool=pool,
+                pool,
             )
         )
 

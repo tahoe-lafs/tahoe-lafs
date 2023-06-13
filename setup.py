@@ -163,10 +163,9 @@ setup_requires = [
 ]
 
 tor_requires = [
-    # This is exactly what `foolscap[tor]` means but pip resolves the pair of
-    # dependencies "foolscap[i2p] foolscap[tor]" to "foolscap[i2p]" so we lose
-    # this if we don't declare it ourselves!
-    "txtorcon >= 0.17.0",
+    # 23.5 added support for custom TLS contexts in web_agent(), which is
+    # needed for the HTTP storage client to run over Tor.
+    "txtorcon >= 23.5.0",
 ]
 
 i2p_requires = [
