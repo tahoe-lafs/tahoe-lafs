@@ -29,8 +29,12 @@ in {
 
   # Update the version of pyopenssl.
   pyopenssl = self.callPackage ./pyopenssl.nix {
-    # Avoid infinite recursion.
-    inherit (super) pyopenssl;
+    pyopenssl =
+      # Building the docs requires sphinx which brings in a dependency on babel,
+      # the test suite of which fails.
+      onPyPy (dontBuildDocs { sphinx-rtd-theme = null; })
+        # Avoid infinite recursion.
+        super.pyopenssl;
   };
 
   # collections-extended is currently broken for Python 3.11 in nixpkgs but
