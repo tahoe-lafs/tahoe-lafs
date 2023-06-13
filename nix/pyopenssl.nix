@@ -4,7 +4,7 @@ pyopenssl.overrideAttrs (old: rec {
   version = "23.2.0";
   src = fetchPypi {
     inherit pname version;
-    sha256 = "1qgarxcmlrrrlyjnsry47lz04z8bviy7rrlbbp9874kdj799rckc";
+    sha256 = "J2+TH1WkUufeppxxc+mE6ypEB85BPJGKo0tV+C+bi6w=";
   };
   # Building the docs requires sphinx which brings in a dependency on babel,
   # the test suite of which fails.
