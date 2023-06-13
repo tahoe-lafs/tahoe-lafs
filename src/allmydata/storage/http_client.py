@@ -47,7 +47,6 @@ import treq
 from treq.client import HTTPClient
 from treq.testing import StubTreq
 from OpenSSL import SSL
-from cryptography.hazmat.bindings.openssl.binding import Binding
 from werkzeug.http import parse_content_range_header
 
 from .http_common import (
@@ -60,8 +59,6 @@ from .http_common import (
 from .common import si_b2a, si_to_human_readable
 from ..util.hashutil import timing_safe_compare
 from ..util.deferredutil import async_to_deferred
-
-_OPENSSL = Binding().lib
 
 
 def _encode_si(si):  # type: (bytes) -> str
@@ -257,11 +254,11 @@ class _TLSContextFactory(CertificateOptions):
             # not the usual TLS concerns about invalid CAs or revoked
             # certificates.
             things_are_ok = (
-                _OPENSSL.X509_V_OK,
-                _OPENSSL.X509_V_ERR_CERT_NOT_YET_VALID,
-                _OPENSSL.X509_V_ERR_CERT_HAS_EXPIRED,
-                _OPENSSL.X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT,
-                _OPENSSL.X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN,
+                SSL.X509VerificationCodes.OK,
+                SSL.X509VerificationCodes.ERR_CERT_NOT_YET_VALID,
+                SSL.X509VerificationCodes.ERR_CERT_HAS_EXPIRED,
+                SSL.X509VerificationCodes.ERR_DEPTH_ZERO_SELF_SIGNED_CERT,
+                SSL.X509VerificationCodes.ERR_SELF_SIGNED_CERT_IN_CHAIN,
             )
             # TODO can we do this once instead of multiple times?
             if errno in things_are_ok and timing_safe_compare(

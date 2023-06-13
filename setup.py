@@ -63,11 +63,10 @@ install_requires = [
     #   Twisted[conch] also depends on cryptography and Twisted[tls]
     #   transitively depends on cryptography.  So it's anyone's guess what
     #   version of cryptography will *really* be installed.
+    "cryptography >= 2.6",
 
-    # * cryptography 40 broke constants we need; should really be using them
-    # * via pyOpenSSL; will be fixed in
-    # * https://github.com/pyca/pyopenssl/issues/1201
-    "cryptography >= 2.6, < 40",
+    # * Used for custom HTTPS validation
+    "pyOpenSSL >= 23.2.0",
 
     # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
     #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>

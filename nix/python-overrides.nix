@@ -30,6 +30,16 @@ in {
     inherit (super) txtorcon;
   };
 
+  # Update the version of pyopenssl.
+  pyopenssl = self.callPackage ./pyopenssl.nix {
+    pyopenssl =
+      # Building the docs requires sphinx which brings in a dependency on babel,
+      # the test suite of which fails.
+      onPyPy (dontBuildDocs { sphinx-rtd-theme = null; })
+        # Avoid infinite recursion.
+        super.pyopenssl;
+  };
+
   # collections-extended is currently broken for Python 3.11 in nixpkgs but
   # we know where a working version lives.
   collections-extended = self.callPackage ./collections-extended.nix {
@@ -62,10 +72,6 @@ in {
   # nixpkgs PyPy build appears to be missing.  Maybe fixed in nixpkgs in
   # a5f8184fb816a4fd5ae87136838c9981e0d22c67.
   six = onPyPy dontCheck super.six;
-
-  # Building the docs requires sphinx which brings in a dependency on babel,
-  # the test suite of which fails.
-  pyopenssl = onPyPy (dontBuildDocs { sphinx-rtd-theme = null; }) super.pyopenssl;
 
   # Likewise for beautifulsoup4.
   beautifulsoup4 = onPyPy (dontBuildDocs {}) super.beautifulsoup4;
