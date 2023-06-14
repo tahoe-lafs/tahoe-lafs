@@ -686,8 +686,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
     def setUp(self):
         self._http_client_pools = []
-        http_client.StorageClient.start_test_mode(self._got_new_http_connection_pool)
-        self.addCleanup(http_client.StorageClient.stop_test_mode)
+        http_client.StorageClientFactory.start_test_mode(self._got_new_http_connection_pool)
+        self.addCleanup(http_client.StorageClientFactory.stop_test_mode)
         self.port_assigner = SameProcessStreamEndpointAssigner()
         self.port_assigner.setUp()
         self.addCleanup(self.port_assigner.tearDown)

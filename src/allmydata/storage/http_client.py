@@ -16,6 +16,7 @@ from typing import (
     Set,
     Dict,
     Callable,
+    ClassVar,
 )
 from base64 import b64encode
 from io import BytesIO
@@ -59,6 +60,15 @@ from .http_common import (
 from .common import si_b2a, si_to_human_readable
 from ..util.hashutil import timing_safe_compare
 from ..util.deferredutil import async_to_deferred
+from ..util.tor_provider import _Provider as TorProvider
+
+try:
+    from txtorcon import Tor  # type: ignore
+except ImportError:
+
+    class Tor:  # type: ignore[no-redef]
+        pass
+
 
 
 def _encode_si(si):  # type: (bytes) -> str
@@ -299,18 +309,30 @@ class _StorageClientHTTPSPolicy:
         )
 
 
-@define(hash=True)
-class StorageClient(object):
+@define
+class StorageClientFactory:
     """
-    Low-level HTTP client that talks to the HTTP storage server.
+    Create ``StorageClient`` instances, using appropriate
+    ``twisted.web.iweb.IAgent`` for different connection methods: normal TCP,
+    Tor, and eventually I2P.
+
+    There is some caching involved since there might be shared setup work, e.g.
+    connecting to the local Tor service only needs to happen once.
     """
 
-    # If set, we're doing unit testing and we should call this with
-    # HTTPConnectionPool we create.
-    TEST_MODE_REGISTER_HTTP_POOL = None
+    _default_connection_handlers: dict[str, str]
+    _tor_provider: Optional[TorProvider]
+    # Cache the Tor instance created by the provider, if relevant.
+    _tor_instance: Optional[Tor] = None
+
+    # If set, we're doing unit testing and we should call this with any
+    # HTTPConnectionPool that gets passed/created to ``create_agent()``.
+    TEST_MODE_REGISTER_HTTP_POOL: ClassVar[
+        Optional[Callable[[HTTPConnectionPool], None]]
+    ] = None
 
     @classmethod
-    def start_test_mode(cls, callback):
+    def start_test_mode(cls, callback: Callable[[HTTPConnectionPool], None]) -> None:
         """Switch to testing mode.
 
         In testing mode we register the pool with test system using the given
@@ -325,66 +347,84 @@ class StorageClient(object):
         """Stop testing mode."""
         cls.TEST_MODE_REGISTER_HTTP_POOL = None
 
-    # The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
-    # ``StorageClient.from_nurl()``.
-    _base_url: DecodedURL
-    _swissnum: bytes
-    _treq: Union[treq, StubTreq, HTTPClient]
-    _pool: Optional[HTTPConnectionPool]
-    _clock: IReactorTime
-
-    @classmethod
-    def from_nurl(
-        cls,
+    async def _create_agent(
+        self,
         nurl: DecodedURL,
-        reactor,
-        # TODO default_connection_handlers should really be a class, not a dict
-        # of strings...
-        default_connection_handlers: dict[str, str],
-        pool: Optional[HTTPConnectionPool] = None,
-        agent_factory: Optional[
-            Callable[[object, IPolicyForHTTPS, HTTPConnectionPool], IAgent]
-        ] = None,
-    ) -> StorageClient:
-        """
-        Create a ``StorageClient`` for the given NURL.
-        """
-        # Safety check: if we're using normal TCP connections, we better not be
-        # configured for Tor or I2P.
-        if agent_factory is None:
-            assert default_connection_handlers["tcp"] == "tcp"
+        reactor: object,
+        tls_context_factory: IPolicyForHTTPS,
+        pool: HTTPConnectionPool,
+    ) -> IAgent:
+        """Create a new ``IAgent``, possibly using Tor."""
+        if self.TEST_MODE_REGISTER_HTTP_POOL is not None:
+            self.TEST_MODE_REGISTER_HTTP_POOL(pool)
 
+        # TODO default_connection_handlers should really be an object, not a
+        # dict, so we can ask "is this using Tor" without poking at a
+        # dictionary with arbitrary strings... See
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4032
+        handler = self._default_connection_handlers["tcp"]
+
+        if handler == "tcp":
+            return Agent(reactor, tls_context_factory, pool=pool)
+        if handler == "tor" or nurl.scheme == "pb+tor":
+            assert self._tor_provider is not None
+            if self._tor_instance is None:
+                self._tor_instance = await self._tor_provider.get_tor_instance(reactor)
+            return self._tor_instance.web_agent(
+                pool=pool, tls_context_factory=tls_context_factory
+            )
+        else:
+            raise RuntimeError(f"Unsupported tcp connection handler: {handler}")
+
+    async def create_storage_client(
+        self,
+        nurl: DecodedURL,
+        reactor: IReactorTime,
+        pool: Optional[HTTPConnectionPool] = None,
+    ) -> StorageClient:
+        """Create a new ``StorageClient`` for the given NURL."""
         assert nurl.fragment == "v=1"
-        assert nurl.scheme == "pb"
-        swissnum = nurl.path[0].encode("ascii")
-        certificate_hash = nurl.user.encode("ascii")
+        assert nurl.scheme in ("pb", "pb+tor")
         if pool is None:
             pool = HTTPConnectionPool(reactor)
             pool.maxPersistentPerHost = 10
 
-        if cls.TEST_MODE_REGISTER_HTTP_POOL is not None:
-            cls.TEST_MODE_REGISTER_HTTP_POOL(pool)
-
-        def default_agent_factory(
-            reactor: object,
-            tls_context_factory: IPolicyForHTTPS,
-            pool: HTTPConnectionPool,
-        ) -> IAgent:
-            return Agent(reactor, tls_context_factory, pool=pool)
-
-        if agent_factory is None:
-            agent_factory = default_agent_factory
-
-        treq_client = HTTPClient(
-            agent_factory(
-                reactor,
-                _StorageClientHTTPSPolicy(expected_spki_hash=certificate_hash),
-                pool,
-            )
+        certificate_hash = nurl.user.encode("ascii")
+        agent = await self._create_agent(
+            nurl,
+            reactor,
+            _StorageClientHTTPSPolicy(expected_spki_hash=certificate_hash),
+            pool,
+        )
+        treq_client = HTTPClient(agent)
+        https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
+        swissnum = nurl.path[0].encode("ascii")
+        return StorageClient(
+            https_url,
+            swissnum,
+            treq_client,
+            pool,
+            reactor,
+            self.TEST_MODE_REGISTER_HTTP_POOL is not None,
         )
 
-        https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
-        return cls(https_url, swissnum, treq_client, pool, reactor)
+
+@define(hash=True)
+class StorageClient(object):
+    """
+    Low-level HTTP client that talks to the HTTP storage server.
+
+    Create using a ``StorageClientFactory`` instance.
+    """
+
+    # The URL should be a HTTPS URL ("https://...")
+    _base_url: DecodedURL
+    _swissnum: bytes
+    _treq: Union[treq, StubTreq, HTTPClient]
+    _pool: HTTPConnectionPool
+    _clock: IReactorTime
+    # Are we running unit tests?
+    _test_mode: bool
 
     def relative_url(self, path: str) -> DecodedURL:
         """Get a URL relative to the base URL."""
@@ -492,12 +532,11 @@ class StorageClient(object):
             method, url, headers=headers, timeout=timeout, **kwargs
         )
 
-        if self.TEST_MODE_REGISTER_HTTP_POOL is not None:
-            if response.code != 404:
-                # We're doing API queries, HTML is never correct except in 404, but
-                # it's the default for Twisted's web server so make sure nothing
-                # unexpected happened.
-                assert get_content_type(response.headers) != "text/html"
+        if self._test_mode and response.code != 404:
+            # We're doing API queries, HTML is never correct except in 404, but
+            # it's the default for Twisted's web server so make sure nothing
+            # unexpected happened.
+            assert get_content_type(response.headers) != "text/html"
 
         return response
 
@@ -526,8 +565,7 @@ class StorageClient(object):
 
     def shutdown(self) -> Deferred:
         """Shutdown any connections."""
-        if self._pool is not None:
-            return self._pool.closeCachedConnections()
+        return self._pool.closeCachedConnections()
 
 
 @define(hash=True)
