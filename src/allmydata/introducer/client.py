@@ -35,7 +35,7 @@ class InvalidCacheError(Exception):
 
 V2 = b"http://allmydata.org/tahoe/protocols/introducer/v2"
 
-@implementer(RIIntroducerSubscriberClient_v2, IIntroducerClient)
+@implementer(RIIntroducerSubscriberClient_v2, IIntroducerClient)  # type: ignore[misc]
 class IntroducerClient(service.Service, Referenceable):
 
     def __init__(self, tub, introducer_furl,
