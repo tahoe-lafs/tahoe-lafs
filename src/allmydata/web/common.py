@@ -86,6 +86,8 @@ from allmydata.util.encodingutil import (
 )
 from allmydata.util import abbreviate
 from allmydata.crypto.rsa import PrivateKey, PublicKey, create_signing_keypair_from_string
+from ..webish import TahoeLAFSRequest
+
 
 class WebError(Exception):
     def __init__(self, text, code=http.BAD_REQUEST):
@@ -723,13 +725,15 @@ def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *,
 
     :return: Either bytes or tuple of bytes.
     """
+    # This is not... obvious to callers, let's say, but it does happen.
+    assert isinstance(req, TahoeLAFSRequest)
     if isinstance(argname, str):
         argname_bytes = argname.encode("utf-8")
     else:
         argname_bytes = argname
 
-    results = []
-    if argname_bytes in req.args:
+    results : list[bytes] = []
+    if req.args is not None and argname_bytes in req.args:
         results.extend(req.args[argname_bytes])
     argname_unicode = str(argname_bytes, "utf-8")
     if req.fields and argname_unicode in req.fields:

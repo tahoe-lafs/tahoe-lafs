@@ -242,7 +242,9 @@ class TahoeLAFSSite(Site, object):
 
 
 class WebishServer(service.MultiService):
-    name = "webish"
+    # The type in Twisted for services is wrong in 22.10...
+    # https://github.com/twisted/twisted/issues/10135
+    name = "webish"  # type: ignore[assignment]
 
     def __init__(self, client, webport, tempdir, nodeurl_path=None, staticdir=None,
                  clock=None, now_fn=time.time):
