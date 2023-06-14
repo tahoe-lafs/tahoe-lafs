@@ -510,16 +510,6 @@ class IServer(IDisplayableServer):
     def start_connecting(trigger_cb):
         pass
 
-    def get_rref():
-        """Obsolete.  Use ``get_storage_server`` instead.
-
-        Once a server is connected, I return a RemoteReference.
-        Before a server is connected for the first time, I return None.
-
-        Note that the rref I return will start producing DeadReferenceErrors
-        once the connection is lost.
-        """
-
     def upload_permitted():
         """
         :return: True if we should use this server for uploads, False
