@@ -14,6 +14,7 @@ from typing import (
     TypeVar,
     Optional,
     Coroutine,
+    Generator
 )
 from typing_extensions import ParamSpec
 
@@ -212,7 +213,7 @@ class WaitForDelayedCallsMixin(PollMixin):
 def until(
         action: Callable[[], defer.Deferred[Any]],
         condition: Callable[[], bool],
-) -> defer.Deferred[None]:
+) -> Generator[Any, None, None]:
     """
     Run a Deferred-returning function until a condition is true.
 
