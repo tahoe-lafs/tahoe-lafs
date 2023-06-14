@@ -1925,7 +1925,11 @@ class FakeTransport(object):
     def loseConnection(self):
         logmsg("FakeTransport.loseConnection()", level=NOISY)
 
-    # getPeer and getHost can just raise errors, since we don't know what to return
+    def getHost(self):
+        pass
+
+    def getPeer(self):
+        pass
 
 
 @implementer(ISession)
@@ -1990,15 +1994,18 @@ class Dispatcher(object):
     def __init__(self, client):
         self._client = client
 
-    def requestAvatar(self, avatarID, mind, interface):
+    def requestAvatar(self, avatarId, mind, *interfaces):
+        [interface] = interfaces
         _assert(interface == IConchUser, interface=interface)
-        rootnode = self._client.create_node_from_uri(avatarID.rootcap)
-        handler = SFTPUserHandler(self._client, rootnode, avatarID.username)
+        rootnode = self._client.create_node_from_uri(avatarId.rootcap)
+        handler = SFTPUserHandler(self._client, rootnode, avatarId.username)
         return (interface, handler, handler.logout)
 
 
 class SFTPServer(service.MultiService):
-    name = "frontend:sftp"
+    # The type in Twisted for services is wrong in 22.10...
+    # https://github.com/twisted/twisted/issues/10135
+    name = "frontend:sftp"  # type: ignore[assignment]
 
     def __init__(self, client, accountfile,
                  sftp_portstr, pubkey_file, privkey_file):
