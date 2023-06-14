@@ -40,7 +40,7 @@ from itertools import count
 from sys import stderr
 
 from attrs import frozen, define, field, Factory
-from twisted.internet.defer import Deferred, DeferredQueue, succeed, Awaitable
+from twisted.internet.defer import Deferred, DeferredQueue, succeed
 from wormhole._interfaces import IWormhole
 from wormhole.wormhole import create
 from zope.interface import implementer
