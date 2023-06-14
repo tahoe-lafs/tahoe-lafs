@@ -17,11 +17,13 @@ if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, range, max, min  # noqa: F401
 
 from past.builtins import long
+from typing import Dict
 
 from zope.interface import Interface, Attribute
 from twisted.plugin import (
     IPlugin,
 )
+from twisted.internet.defer import Deferred
 from foolscap.api import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
      ChoiceOf, IntegerConstraint, Any, RemoteInterface, Referenceable
 
@@ -307,12 +309,15 @@ class RIStorageServer(RemoteInterface):
         store that on disk.
         """
 
+# The result of IStorageServer.get_version():
+VersionMessage = Dict[bytes, object]
+
 
 class IStorageServer(Interface):
     """
     An object capable of storing shares for a storage client.
     """
-    def get_version():
+    def get_version() -> Deferred[VersionMessage]:
         """
         :see: ``RIStorageServer.get_version``
         """

@@ -57,6 +57,7 @@ from .http_common import (
     CBOR_MIME_TYPE,
     get_spki_hash,
 )
+from ..interfaces import VersionMessage
 from .common import si_b2a, si_to_human_readable
 from ..util.hashutil import timing_safe_compare
 from ..util.deferredutil import async_to_deferred
@@ -576,7 +577,7 @@ class StorageClientGeneral(object):
     _client: StorageClient
 
     @async_to_deferred
-    async def get_version(self) -> dict[bytes, object]:
+    async def get_version(self) -> VersionMessage:
         """
         Return the version metadata for the server.
         """
@@ -585,7 +586,7 @@ class StorageClientGeneral(object):
         ):
             return await self._get_version()
 
-    async def _get_version(self) -> dict[bytes, object]:
+    async def _get_version(self) -> VersionMessage:
         """Implementation of get_version()."""
         url = self._client.relative_url("/storage/v1/version")
         response = await self._client.request("GET", url)
