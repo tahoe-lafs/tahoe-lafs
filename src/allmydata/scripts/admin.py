@@ -114,7 +114,7 @@ class AddGridManagerCertOptions(BaseOptions):
     def postOptions(self) -> None:
         assert self.parent is not None
         assert self.parent.parent is not None
-        
+
         if self['name'] is None:
             raise usage.UsageError(
                 "Must provide --name option"
