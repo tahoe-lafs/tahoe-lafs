@@ -16,9 +16,10 @@ later in the configuration process.
 from __future__ import annotations
 
 from itertools import chain
+from typing import cast
 
 from twisted.internet.protocol import Protocol
-from twisted.internet.interfaces import IDelayedCall
+from twisted.internet.interfaces import IDelayedCall, IReactorFromThreads
 from twisted.internet.ssl import CertificateOptions
 from twisted.web.server import Site
 from twisted.protocols.tls import TLSMemoryBIOFactory
@@ -89,7 +90,7 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
             certificate=cls.tub.myCertificate.original,
         )
 
-        http_storage_server = HTTPServer(reactor, storage_server, swissnum)
+        http_storage_server = HTTPServer(cast(IReactorFromThreads, reactor), storage_server, swissnum)
         cls.https_factory = TLSMemoryBIOFactory(
             certificate_options,
             False,
