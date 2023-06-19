@@ -104,6 +104,11 @@ class RunOptions(BasedirOptions):
          " [default: %s]" % quote_local_unicode_path(_default_nodedir)),
         ]
 
+    optFlags = [
+        ("allow-stdin-close", None,
+         'Do not exit when stdin closes ("tahoe run" otherwise will exit).'),
+    ]
+
     def parseArgs(self, basedir=None, *twistd_args):
         # This can't handle e.g. 'tahoe run --reactor=foo', since
         # '--reactor=foo' looks like an option to the tahoe subcommand, not to
@@ -156,6 +161,7 @@ class DaemonizeTheRealService(Service, HookMixin):
             "running": None,
         }
         self.stderr = options.parent.stderr
+        self._close_on_stdin_close = False if options["allow-stdin-close"] else True
 
     def startService(self):
 
@@ -202,7 +208,8 @@ class DaemonizeTheRealService(Service, HookMixin):
                 srv.setServiceParent(self.parent)
                 # exiting on stdin-closed facilitates cleanup when run
                 # as a subprocess
-                on_stdin_close(reactor, reactor.stop)
+                if self._close_on_stdin_close:
+                    on_stdin_close(reactor, reactor.stop)
             d.addCallback(created)
             d.addErrback(handle_config_error)
             d.addBoth(self._call_hook, 'running')
@@ -213,11 +220,13 @@ class DaemonizeTheRealService(Service, HookMixin):
 
 class DaemonizeTahoeNodePlugin(object):
     tapname = "tahoenode"
-    def __init__(self, nodetype, basedir):
+    def __init__(self, nodetype, basedir, allow_stdin_close):
         self.nodetype = nodetype
         self.basedir = basedir
+        self.allow_stdin_close = allow_stdin_close
 
     def makeService(self, so):
+        so["allow-stdin-close"] = self.allow_stdin_close
         return DaemonizeTheRealService(self.nodetype, self.basedir, so)
 
 
@@ -304,7 +313,9 @@ def run(reactor, config, runApp=twistd.runApp):
         print(config, file=err)
         print("tahoe %s: usage error from twistd: %s\n" % (config.subcommand_name, ue), file=err)
         return 1
-    twistd_config.loadedPlugins = {"DaemonizeTahoeNode": DaemonizeTahoeNodePlugin(nodetype, basedir)}
+    twistd_config.loadedPlugins = {
+        "DaemonizeTahoeNode": DaemonizeTahoeNodePlugin(nodetype, basedir, config["allow-stdin-close"])
+    }
 
     # our own pid-style file contains PID and process creation time
     pidfile = FilePath(get_pidfile(config['basedir']))
