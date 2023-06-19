@@ -205,7 +205,8 @@ class DaemonizeTheRealService(Service, HookMixin):
             d = service_factory()
 
             def created(srv):
-                srv.setServiceParent(self.parent)
+                if self.parent is not None:
+                    srv.setServiceParent(self.parent)
                 # exiting on stdin-closed facilitates cleanup when run
                 # as a subprocess
                 if self._close_on_stdin_close:

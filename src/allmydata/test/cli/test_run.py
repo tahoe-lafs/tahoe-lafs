@@ -31,6 +31,12 @@ from twisted.python.filepath import (
 from twisted.internet.testing import (
     MemoryReactor,
 )
+from twisted.python.failure import (
+    Failure,
+)
+from twisted.internet.error import (
+    ConnectionDone,
+)
 from twisted.internet.test.modulehelpers import (
     AlternateReactor,
 )
@@ -145,6 +151,95 @@ class DaemonizeTheRealServiceTests(SyncTestCase):
             """,
             "Privacy requested",
         )
+
+
+class DaemonizeStopTests(SyncTestCase):
+    """
+    Tests relating to stopping the daemon
+    """
+    def setUp(self):
+        self.nodedir = FilePath(self.mktemp())
+        self.nodedir.makedirs()
+        config = ""
+        self.nodedir.child("tahoe.cfg").setContent(config.encode("ascii"))
+        self.nodedir.child("tahoe-client.tac").touch()
+
+        # arrange to know when reactor.stop() is called
+        self.reactor = MemoryReactor()
+        self.stop_calls = []
+
+        def record_stop():
+            self.stop_calls.append(object())
+        self.reactor.stop = record_stop
+
+        super().setUp()
+
+    def test_stop_on_stdin_close(self):
+        """
+        We stop when stdin is closed.
+        """
+        options = parse_options(["run", self.nodedir.path])
+        stdout = options.stdout = StringIO()
+        stderr = options.stderr = StringIO()
+        stdin = options.stdin = StringIO()
+        run_options = options.subOptions
+
+        with AlternateReactor(self.reactor):
+            service = DaemonizeTheRealService(
+                "client",
+                self.nodedir.path,
+                run_options,
+            )
+            service.startService()
+
+            # We happen to know that the service uses reactor.callWhenRunning
+            # to schedule all its work (though I couldn't tell you *why*).
+            # Make sure those scheduled calls happen.
+            waiting = self.reactor.whenRunningHooks[:]
+            del self.reactor.whenRunningHooks[:]
+            for f, a, k in waiting:
+                f(*a, **k)
+
+            # there should be a single reader: our StandardIO process
+            # reader for stdin. Simulate it closing.
+            for r in self.reactor.getReaders():
+                r.connectionLost(Failure(ConnectionDone()))
+
+            self.assertEqual(len(self.stop_calls), 1)
+
+    def test_allow_stdin_close(self):
+        """
+        If --allow-stdin-close is specified then closing stdin doesn't
+        stop the process
+        """
+        options = parse_options(["run", "--allow-stdin-close", self.nodedir.path])
+        stdout = options.stdout = StringIO()
+        stderr = options.stderr = StringIO()
+        stdin = options.stdin = StringIO()
+        run_options = options.subOptions
+
+        with AlternateReactor(self.reactor):
+            service = DaemonizeTheRealService(
+                "client",
+                self.nodedir.path,
+                run_options,
+            )
+            service.startService()
+
+            # We happen to know that the service uses reactor.callWhenRunning
+            # to schedule all its work (though I couldn't tell you *why*).
+            # Make sure those scheduled calls happen.
+            waiting = self.reactor.whenRunningHooks[:]
+            del self.reactor.whenRunningHooks[:]
+            for f, a, k in waiting:
+                f(*a, **k)
+
+            # kind of cheating -- there are no readers, because we
+            # never instantiated a StandardIO in this case..
+            for r in self.reactor.getReaders():
+                r.connectionLost(Failure(ConnectionDone()))
+
+            self.assertEqual(self.stop_calls, [])
 
 
 class RunTests(SyncTestCase):
