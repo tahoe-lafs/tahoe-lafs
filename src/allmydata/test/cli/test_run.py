@@ -179,9 +179,9 @@ class DaemonizeStopTests(SyncTestCase):
         We stop when stdin is closed.
         """
         options = parse_options(["run", self.nodedir.path])
-        stdout = options.stdout = StringIO()
-        stderr = options.stderr = StringIO()
-        stdin = options.stdin = StringIO()
+        options.stdout = StringIO()
+        options.stderr = StringIO()
+        options.stdin = StringIO()
         run_options = options.subOptions
 
         with AlternateReactor(self.reactor):
@@ -213,9 +213,9 @@ class DaemonizeStopTests(SyncTestCase):
         stop the process
         """
         options = parse_options(["run", "--allow-stdin-close", self.nodedir.path])
-        stdout = options.stdout = StringIO()
-        stderr = options.stderr = StringIO()
-        stdin = options.stdin = StringIO()
+        options.stdout = StringIO()
+        options.stderr = StringIO()
+        options.stdin = StringIO()
         run_options = options.subOptions
 
         with AlternateReactor(self.reactor):
