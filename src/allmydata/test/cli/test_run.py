@@ -2,6 +2,8 @@
 Tests for ``allmydata.scripts.tahoe_run``.
 """
 
+from __future__ import annotations
+
 import re
 from six.moves import (
     StringIO,
