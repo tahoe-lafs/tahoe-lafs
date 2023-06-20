@@ -174,37 +174,55 @@ class DaemonizeStopTests(SyncTestCase):
 
         super().setUp()
 
-    def test_stop_on_stdin_close(self):
+    def _make_daemon(self, extra_argv: list[str]) -> DaemonizeTheRealService:
         """
-        We stop when stdin is closed.
+        Create the daemonization service.
+
+        :param extra_argv: Extra arguments to pass between ``run`` and the
+            node path.
         """
-        options = parse_options(["run", self.nodedir.path])
+        options = parse_options(["run"] + extra_argv + [self.nodedir.path])
         options.stdout = StringIO()
         options.stderr = StringIO()
         options.stdin = StringIO()
         run_options = options.subOptions
+        return DaemonizeTheRealService(
+            "client",
+            self.nodedir.path,
+            run_options,
+        )
 
+    def _run_daemon(self) -> None:
+        """
+        Simulate starting up the reactor so the daemon plugin can do its
+        stuff.
+        """
+        # We happen to know that the service uses reactor.callWhenRunning
+        # to schedule all its work (though I couldn't tell you *why*).
+        # Make sure those scheduled calls happen.
+        waiting = self.reactor.whenRunningHooks[:]
+        del self.reactor.whenRunningHooks[:]
+        for f, a, k in waiting:
+            f(*a, **k)
+
+    def _close_stdin(self) -> None:
+        """
+        Simulate closing the daemon plugin's stdin.
+        """
+        # there should be a single reader: our StandardIO process
+        # reader for stdin. Simulate it closing.
+        for r in self.reactor.getReaders():
+            r.connectionLost(Failure(ConnectionDone()))
+
+    def test_stop_on_stdin_close(self):
+        """
+        We stop when stdin is closed.
+        """
         with AlternateReactor(self.reactor):
-            service = DaemonizeTheRealService(
-                "client",
-                self.nodedir.path,
-                run_options,
-            )
+            service = self._make_daemon([])
             service.startService()
-
-            # We happen to know that the service uses reactor.callWhenRunning
-            # to schedule all its work (though I couldn't tell you *why*).
-            # Make sure those scheduled calls happen.
-            waiting = self.reactor.whenRunningHooks[:]
-            del self.reactor.whenRunningHooks[:]
-            for f, a, k in waiting:
-                f(*a, **k)
-
-            # there should be a single reader: our StandardIO process
-            # reader for stdin. Simulate it closing.
-            for r in self.reactor.getReaders():
-                r.connectionLost(Failure(ConnectionDone()))
-
+            self._run_daemon()
+            self._close_stdin()
             self.assertEqual(len(self.stop_calls), 1)
 
     def test_allow_stdin_close(self):
@@ -212,33 +230,11 @@ class DaemonizeStopTests(SyncTestCase):
         If --allow-stdin-close is specified then closing stdin doesn't
         stop the process
         """
-        options = parse_options(["run", "--allow-stdin-close", self.nodedir.path])
-        options.stdout = StringIO()
-        options.stderr = StringIO()
-        options.stdin = StringIO()
-        run_options = options.subOptions
-
         with AlternateReactor(self.reactor):
-            service = DaemonizeTheRealService(
-                "client",
-                self.nodedir.path,
-                run_options,
-            )
+            service = self._make_daemon(["--allow-stdin-close"])
             service.startService()
-
-            # We happen to know that the service uses reactor.callWhenRunning
-            # to schedule all its work (though I couldn't tell you *why*).
-            # Make sure those scheduled calls happen.
-            waiting = self.reactor.whenRunningHooks[:]
-            del self.reactor.whenRunningHooks[:]
-            for f, a, k in waiting:
-                f(*a, **k)
-
-            # kind of cheating -- there are no readers, because we
-            # never instantiated a StandardIO in this case..
-            for r in self.reactor.getReaders():
-                r.connectionLost(Failure(ConnectionDone()))
-
+            self._run_daemon()
+            self._close_stdin()
             self.assertEqual(self.stop_calls, [])
 
 
