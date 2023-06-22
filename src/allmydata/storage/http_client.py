@@ -57,6 +57,7 @@ from .http_common import (
     get_content_type,
     CBOR_MIME_TYPE,
     get_spki_hash,
+    response_is_not_html,
 )
 from .common import si_b2a, si_to_human_readable
 from ..util.hashutil import timing_safe_compare
@@ -402,13 +403,17 @@ class StorageClientFactory:
         treq_client = HTTPClient(agent)
         https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
         swissnum = nurl.path[0].encode("ascii")
+        response_check = lambda _: None
+        if self.TEST_MODE_REGISTER_HTTP_POOL is not None:
+            response_check = response_is_not_html
+
         return StorageClient(
             https_url,
             swissnum,
             treq_client,
             pool,
             reactor,
-            self.TEST_MODE_REGISTER_HTTP_POOL is not None,
+            response_check,
         )
 
 

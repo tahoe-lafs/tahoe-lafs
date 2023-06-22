@@ -43,7 +43,11 @@ from testtools.matchers import Equals
 from zope.interface import implementer
 
 from .common import SyncTestCase
-from ..storage.http_common import get_content_type, CBOR_MIME_TYPE
+from ..storage.http_common import (
+    get_content_type,
+    CBOR_MIME_TYPE,
+    response_is_not_html,
+)
 from ..storage.common import si_b2a
 from ..storage.lease import LeaseInfo
 from ..storage.server import StorageServer
@@ -315,18 +319,6 @@ def result_of(d):
         "We expected given Deferred to have result already, but it wasn't. "
         + "This is probably a test design issue."
     )
-
-def response_is_not_html(response):
-    """
-    During tests, this is registered so we can ensure the web server
-    doesn't give us text/html.
-
-    HTML is never correct except in 404, but it's the default for
-    Twisted's web server so we assert nothing unexpected happened.
-    """
-    if response.code != 404:
-        assert get_content_type(response.headers) != "text/html"
-
 
 class CustomHTTPServerTests(SyncTestCase):
     """
