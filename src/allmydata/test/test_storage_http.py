@@ -316,6 +316,17 @@ def result_of(d):
         + "This is probably a test design issue."
     )
 
+def response_is_not_html(response):
+    """
+    During tests, this is registered so we can ensure the web server
+    doesn't give us text/html.
+
+    HTML is never correct except in 404, but it's the default for
+    Twisted's web server so we assert nothing unexpected happened.
+    """
+    if response.code != 404:
+        assert get_content_type(response.headers) != "text/html"
+
 
 class CustomHTTPServerTests(SyncTestCase):
     """
@@ -342,7 +353,7 @@ class CustomHTTPServerTests(SyncTestCase):
             # fixed if https://github.com/twisted/treq/issues/226 were ever
             # fixed.
             clock=treq._agent._memoryReactor,
-            test_mode=True,
+            analyze_response=response_is_not_html,
         )
         self._http_server.clock = self.client._clock
 
@@ -560,7 +571,7 @@ class HttpTestFixture(Fixture):
             treq=self.treq,
             pool=None,
             clock=self.clock,
-            test_mode=True,
+            analyze_response=response_is_not_html,
         )
 
     def result_of_with_flush(self, d):
@@ -674,7 +685,7 @@ class GenericHTTPAPITests(SyncTestCase):
                 treq=StubTreq(self.http.http_server.get_resource()),
                 pool=None,
                 clock=self.http.clock,
-                test_mode=True,
+                analyze_response=response_is_not_html,
             )
         )
         with assert_fails_with_http_code(self, http.UNAUTHORIZED):
