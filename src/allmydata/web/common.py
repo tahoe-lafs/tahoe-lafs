@@ -724,9 +724,7 @@ def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *,
 
     :return: Either bytes or tuple of bytes.
     """
-    # This is not... obvious to callers, let's say, but it does happen in
-    # pretty much all non-test real code. We have to import here to prevent
-    # circular import.
+    # Need to import here to prevent circular import:
     from ..webish import TahoeLAFSRequest
 
     if isinstance(argname, str):
@@ -739,6 +737,8 @@ def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *,
         results.extend(req.args[argname_bytes])
     argname_unicode = str(argname_bytes, "utf-8")
     if isinstance(req, TahoeLAFSRequest) and req.fields and argname_unicode in req.fields:
+        # In all but one or two unit tests, the request will be a
+        # TahoeLAFSRequest.
         value = req.fields[argname_unicode].value
         if isinstance(value, str):
             value = value.encode("utf-8")
