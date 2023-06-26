@@ -12,6 +12,7 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from werkzeug.http import parse_options_header
 from twisted.web.http_headers import Headers
+from twisted.web.iweb import IResponse
 
 CBOR_MIME_TYPE = "application/cbor"
 
@@ -25,6 +26,18 @@ def get_content_type(headers: Headers) -> Optional[str]:
     values = headers.getRawHeaders("content-type", [None]) or [None]
     content_type = parse_options_header(values[0])[0] or None
     return content_type
+
+
+def response_is_not_html(response: IResponse) -> None:
+    """
+    During tests, this is registered so we can ensure the web server
+    doesn't give us text/html.
+
+    HTML is never correct except in 404, but it's the default for
+    Twisted's web server so we assert nothing unexpected happened.
+    """
+    if response.code != 404:
+        assert get_content_type(response.headers) != "text/html"
 
 
 def swissnum_auth_header(swissnum: bytes) -> bytes:

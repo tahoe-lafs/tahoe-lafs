@@ -43,7 +43,11 @@ from testtools.matchers import Equals
 from zope.interface import implementer
 
 from .common import SyncTestCase
-from ..storage.http_common import get_content_type, CBOR_MIME_TYPE
+from ..storage.http_common import (
+    get_content_type,
+    CBOR_MIME_TYPE,
+    response_is_not_html,
+)
 from ..storage.common import si_b2a
 from ..storage.lease import LeaseInfo
 from ..storage.server import StorageServer
@@ -316,7 +320,6 @@ def result_of(d):
         + "This is probably a test design issue."
     )
 
-
 class CustomHTTPServerTests(SyncTestCase):
     """
     Tests that use a custom HTTP server.
@@ -342,7 +345,7 @@ class CustomHTTPServerTests(SyncTestCase):
             # fixed if https://github.com/twisted/treq/issues/226 were ever
             # fixed.
             clock=treq._agent._memoryReactor,
-            test_mode=True,
+            analyze_response=response_is_not_html,
         )
         self._http_server.clock = self.client._clock
 
@@ -560,7 +563,7 @@ class HttpTestFixture(Fixture):
             treq=self.treq,
             pool=None,
             clock=self.clock,
-            test_mode=True,
+            analyze_response=response_is_not_html,
         )
 
     def result_of_with_flush(self, d):
@@ -674,7 +677,7 @@ class GenericHTTPAPITests(SyncTestCase):
                 treq=StubTreq(self.http.http_server.get_resource()),
                 pool=None,
                 clock=self.http.clock,
-                test_mode=True,
+                analyze_response=response_is_not_html,
             )
         )
         with assert_fails_with_http_code(self, http.UNAUTHORIZED):
