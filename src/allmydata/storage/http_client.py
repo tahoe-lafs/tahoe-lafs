@@ -34,7 +34,7 @@ from werkzeug.datastructures import Range, ContentRange
 from twisted.web.http_headers import Headers
 from twisted.web import http
 from twisted.web.iweb import IPolicyForHTTPS, IResponse, IAgent
-from twisted.internet.defer import inlineCallbacks, Deferred, succeed
+from twisted.internet.defer import Deferred, succeed
 from twisted.internet.interfaces import (
     IOpenSSLClientConnectionCreator,
     IReactorTime,
@@ -58,6 +58,7 @@ from .http_common import (
     get_spki_hash,
     response_is_not_html,
 )
+from ..interfaces import VersionMessage
 from .common import si_b2a, si_to_human_readable
 from ..util.hashutil import timing_safe_compare
 from ..util.deferredutil import async_to_deferred
@@ -69,7 +70,6 @@ except ImportError:
 
     class Tor:  # type: ignore[no-redef]
         pass
-
 
 
 def _encode_si(si):  # type: (bytes) -> str
@@ -180,24 +180,24 @@ def limited_content(
     This will time out if no data is received for 60 seconds; so long as a
     trickle of data continues to arrive, it will continue to run.
     """
-    d = succeed(None)
+    result_deferred = succeed(None)
 
     # Sadly, addTimeout() won't work because we need access to the IDelayedCall
     # in order to reset it on each data chunk received.
-    timeout = clock.callLater(60, d.cancel)
+    timeout = clock.callLater(60, result_deferred.cancel)
     collector = _LengthLimitedCollector(max_length, timeout)
 
     with start_action(
         action_type="allmydata:storage:http-client:limited-content",
         max_length=max_length,
     ).context():
-        d = DeferredContext(d)
+        d = DeferredContext(result_deferred)
 
     # Make really sure everything gets called in Deferred context, treq might
     # call collector directly...
     d.addCallback(lambda _: treq.collect(response, collector))
 
-    def done(_):
+    def done(_: object) -> BytesIO:
         timeout.cancel()
         collector.f.seek(0)
         return collector.f
@@ -577,7 +577,7 @@ class StorageClientGeneral(object):
     _client: StorageClient
 
     @async_to_deferred
-    async def get_version(self) -> dict[bytes, object]:
+    async def get_version(self) -> VersionMessage:
         """
         Return the version metadata for the server.
         """
@@ -586,7 +586,7 @@ class StorageClientGeneral(object):
         ):
             return await self._get_version()
 
-    async def _get_version(self) -> dict[bytes, object]:
+    async def _get_version(self) -> VersionMessage:
         """Implementation of get_version()."""
         url = self._client.relative_url("/storage/v1/version")
         response = await self._client.request("GET", url)
@@ -659,15 +659,15 @@ class UploadProgress(object):
     required: RangeMap
 
 
-@inlineCallbacks
-def read_share_chunk(
+@async_to_deferred
+async def read_share_chunk(
     client: StorageClient,
     share_type: str,
     storage_index: bytes,
     share_number: int,
     offset: int,
     length: int,
-) -> Deferred[bytes]:
+) -> bytes:
     """
     Download a chunk of data from a share.
 
@@ -688,7 +688,7 @@ def read_share_chunk(
     # The default 60 second timeout is for getting the response, so it doesn't
     # include the time it takes to download the body... so we will will deal
     # with that later, via limited_content().
-    response = yield client.request(
+    response = await client.request(
         "GET",
         url,
         headers=Headers(
@@ -725,7 +725,7 @@ def read_share_chunk(
             raise ValueError("Server sent more than we asked for?!")
         # It might also send less than we asked for. That's (probably) OK, e.g.
         # if we went past the end of the file.
-        body = yield limited_content(response, client._clock, supposed_length)
+        body = await limited_content(response, client._clock, supposed_length)
         body.seek(0, SEEK_END)
         actual_length = body.tell()
         if actual_length != supposed_length:
@@ -751,7 +751,7 @@ async def advise_corrupt_share(
     storage_index: bytes,
     share_number: int,
     reason: str,
-):
+) -> None:
     assert isinstance(reason, str)
     url = client.relative_url(
         "/storage/v1/{}/{}/{}/corrupt".format(

@@ -142,9 +142,12 @@ def stringify_remote_address(rref):
     return str(remote)
 
 
+# MyPy doesn't work well with remote interfaces...
 @implementer(RIIntroducerPublisherAndSubscriberService_v2)
-class IntroducerService(service.MultiService, Referenceable):
-    name = "introducer"
+class IntroducerService(service.MultiService, Referenceable):  # type: ignore[misc]
+    # The type in Twisted for services is wrong in 22.10...
+    # https://github.com/twisted/twisted/issues/10135
+    name = "introducer"  # type: ignore[assignment]
     # v1 is the original protocol, added in 1.0 (but only advertised starting
     # in 1.3), removed in 1.12. v2 is the new signed protocol, added in 1.10
     # TODO: reconcile bytes/str for keys

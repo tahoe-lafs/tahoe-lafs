@@ -386,13 +386,16 @@ class _ReadRangeProducer:
     a request.
     """
 
-    request: Request
+    request: Optional[Request]
     read_data: ReadData
-    result: Deferred
+    result: Optional[Deferred[bytes]]
     start: int
     remaining: int
 
     def resumeProducing(self):
+        if self.result is None or self.request is None:
+            return
+
         to_read = min(self.remaining, 65536)
         data = self.read_data(self.start, to_read)
         assert len(data) <= to_read
@@ -441,7 +444,7 @@ class _ReadRangeProducer:
 
 def read_range(
     request: Request, read_data: ReadData, share_length: int
-) -> Union[Deferred, bytes]:
+) -> Union[Deferred[bytes], bytes]:
     """
     Read an optional ``Range`` header, reads data appropriately via the given
     callable, writes the data to the request.
@@ -478,6 +481,8 @@ def read_range(
         raise _HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)
 
     offset, end = range_header.ranges[0]
+    assert end is not None  # should've exited in block above this if so
+
     # If we're being ask to read beyond the length of the share, just read
     # less:
     end = min(end, share_length)
@@ -496,7 +501,7 @@ def read_range(
         ContentRange("bytes", offset, end).to_header(),
     )
 
-    d = Deferred()
+    d: Deferred[bytes] = Deferred()
     request.registerProducer(
         _ReadRangeProducer(
             request, read_data_with_error_handling, d, offset, end - offset

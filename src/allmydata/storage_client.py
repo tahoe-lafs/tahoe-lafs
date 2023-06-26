@@ -33,7 +33,7 @@ Ported to Python 3.
 from __future__ import annotations
 
 from six import ensure_text
-from typing import Union, Callable, Any, Optional
+from typing import Union, Callable, Any, Optional, cast
 from os import urandom
 import re
 import time
@@ -53,6 +53,7 @@ from twisted.python.failure import Failure
 from twisted.web import http
 from twisted.internet.task import LoopingCall
 from twisted.internet import defer, reactor
+from twisted.internet.interfaces import IReactorTime
 from twisted.application import service
 from twisted.plugin import (
     getPlugins,
@@ -70,6 +71,7 @@ from allmydata.interfaces import (
     IServer,
     IStorageServer,
     IFoolscapStoragePlugin,
+    VersionMessage
 )
 from allmydata.grid_manager import (
     create_grid_manager_verifier,
@@ -1089,7 +1091,7 @@ class HTTPNativeStorageServer(service.MultiService):
         self._connection_status = connection_status.ConnectionStatus.unstarted()
         self._version = None
         self._last_connect_time = None
-        self._connecting_deferred = None
+        self._connecting_deferred : Optional[defer.Deferred[object]]= None
 
     def get_permutation_seed(self):
         return self._permutation_seed
@@ -1266,7 +1268,7 @@ class HTTPNativeStorageServer(service.MultiService):
 
             # If we've gotten this far, we've found a working NURL.
             storage_client = await self._storage_client_factory.create_storage_client(
-                    nurl, reactor, None
+                    nurl, cast(IReactorTime, reactor), None
             )
             self._istorage_server = _HTTPStorageServer.from_http_client(storage_client)
             return self._istorage_server
@@ -1507,7 +1509,7 @@ class _HTTPStorageServer(object):
         """
         return _HTTPStorageServer(http_client=http_client)
 
-    def get_version(self):
+    def get_version(self) -> defer.Deferred[VersionMessage]:
         return StorageClientGeneral(self._http_client).get_version()
 
     @defer.inlineCallbacks

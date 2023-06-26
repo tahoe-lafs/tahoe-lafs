@@ -1843,7 +1843,9 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
     """I am a service that allows file uploading. I am a service-child of the
     Client.
     """
-    name = "uploader"
+    # The type in Twisted for services is wrong in 22.10...
+    # https://github.com/twisted/twisted/issues/10135
+    name = "uploader"  # type: ignore[assignment]
     URI_LIT_SIZE_THRESHOLD = 55
 
     def __init__(self, helper_furl=None, stats_provider=None, history=None):

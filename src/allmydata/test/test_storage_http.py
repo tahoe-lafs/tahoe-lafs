@@ -517,8 +517,8 @@ class Reactor(Clock):
         Clock.__init__(self)
         self._queue = Queue()
 
-    def callFromThread(self, f, *args, **kwargs):
-        self._queue.put((f, args, kwargs))
+    def callFromThread(self, callable, *args, **kwargs):
+        self._queue.put((callable, args, kwargs))
 
     def advance(self, *args, **kwargs):
         Clock.advance(self, *args, **kwargs)

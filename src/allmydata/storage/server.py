@@ -55,7 +55,9 @@ class StorageServer(service.MultiService):
     """
     Implement the business logic for the storage server.
     """
-    name = 'storage'
+    # The type in Twisted for services is wrong in 22.10...
+    # https://github.com/twisted/twisted/issues/10135
+    name = 'storage'  # type: ignore[assignment]
     # only the tests change this to anything else
     LeaseCheckerClass = LeaseCheckingCrawler
 

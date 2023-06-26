@@ -23,7 +23,7 @@ def get_content_type(headers: Headers) -> Optional[str]:
 
     Returns ``None`` if no content-type was set.
     """
-    values = headers.getRawHeaders("content-type") or [None]
+    values = headers.getRawHeaders("content-type", [None]) or [None]
     content_type = parse_options_header(values[0])[0] or None
     return content_type
 
