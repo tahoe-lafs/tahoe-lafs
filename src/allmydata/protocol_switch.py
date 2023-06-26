@@ -102,8 +102,15 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
         for location_hint in chain.from_iterable(
             hints.split(",") for hints in cls.tub.locationHints
         ):
-            if location_hint.startswith("tcp:"):
-                _, hostname, port = location_hint.split(":")
+            if location_hint.startswith("tcp:") or location_hint.startswith("tor:"):
+                scheme, hostname, port = location_hint.split(":")
+                if scheme == "tcp":
+                    subscheme = None
+                else:
+                    subscheme = "tor"
+                    # If we're listening on Tor, the hostname needs to have an
+                    # .onion TLD.
+                    assert hostname.endswith(".onion")
                 port = int(port)
                 storage_nurls.add(
                     build_nurl(
@@ -111,9 +118,10 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
                         port,
                         str(swissnum, "ascii"),
                         cls.tub.myCertificate.original.to_cryptography(),
+                        subscheme
                     )
                 )
-            # TODO this is probably where we'll have to support Tor and I2P?
+            # TODO this is where we'll have to support Tor and I2P as well.
             # See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3888#comment:9
             # for discussion (there will be separate tickets added for those at
             # some point.)

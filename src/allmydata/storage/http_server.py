@@ -995,13 +995,20 @@ class _TLSEndpointWrapper(object):
 
 
 def build_nurl(
-    hostname: str, port: int, swissnum: str, certificate: CryptoCertificate
+    hostname: str,
+    port: int,
+    swissnum: str,
+    certificate: CryptoCertificate,
+    subscheme: Optional[str] = None,
 ) -> DecodedURL:
     """
     Construct a HTTPS NURL, given the hostname, port, server swissnum, and x509
     certificate for the server.  Clients can then connect to the server using
     this NURL.
     """
+    scheme = "pb"
+    if subscheme is not None:
+        scheme = f"{scheme}+{subscheme}"
     return DecodedURL().replace(
         fragment="v=1",  # how we know this NURL is HTTP-based (i.e. not Foolscap)
         host=hostname,
@@ -1013,7 +1020,7 @@ def build_nurl(
                 "ascii",
             ),
         ),
-        scheme="pb",
+        scheme=scheme,
     )
 
 

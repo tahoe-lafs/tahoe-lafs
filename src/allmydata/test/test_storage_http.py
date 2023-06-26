@@ -43,7 +43,11 @@ from testtools.matchers import Equals
 from zope.interface import implementer
 
 from .common import SyncTestCase
-from ..storage.http_common import get_content_type, CBOR_MIME_TYPE
+from ..storage.http_common import (
+    get_content_type,
+    CBOR_MIME_TYPE,
+    response_is_not_html,
+)
 from ..storage.common import si_b2a
 from ..storage.lease import LeaseInfo
 from ..storage.server import StorageServer
@@ -58,6 +62,7 @@ from ..storage.http_server import (
 )
 from ..storage.http_client import (
     StorageClient,
+    StorageClientFactory,
     ClientException,
     StorageClientImmutables,
     ImmutableCreateResult,
@@ -315,7 +320,6 @@ def result_of(d):
         + "This is probably a test design issue."
     )
 
-
 class CustomHTTPServerTests(SyncTestCase):
     """
     Tests that use a custom HTTP server.
@@ -323,10 +327,10 @@ class CustomHTTPServerTests(SyncTestCase):
 
     def setUp(self):
         super(CustomHTTPServerTests, self).setUp()
-        StorageClient.start_test_mode(
+        StorageClientFactory.start_test_mode(
             lambda pool: self.addCleanup(pool.closeCachedConnections)
         )
-        self.addCleanup(StorageClient.stop_test_mode)
+        self.addCleanup(StorageClientFactory.stop_test_mode)
         # Could be a fixture, but will only be used in this test class so not
         # going to bother:
         self._http_server = TestApp()
@@ -341,6 +345,7 @@ class CustomHTTPServerTests(SyncTestCase):
             # fixed if https://github.com/twisted/treq/issues/226 were ever
             # fixed.
             clock=treq._agent._memoryReactor,
+            analyze_response=response_is_not_html,
         )
         self._http_server.clock = self.client._clock
 
@@ -529,10 +534,10 @@ class HttpTestFixture(Fixture):
     """
 
     def _setUp(self):
-        StorageClient.start_test_mode(
+        StorageClientFactory.start_test_mode(
             lambda pool: self.addCleanup(pool.closeCachedConnections)
         )
-        self.addCleanup(StorageClient.stop_test_mode)
+        self.addCleanup(StorageClientFactory.stop_test_mode)
         self.clock = Reactor()
         self.tempdir = self.useFixture(TempDir())
         # The global Cooperator used by Twisted (a) used by pull producers in
@@ -558,6 +563,7 @@ class HttpTestFixture(Fixture):
             treq=self.treq,
             pool=None,
             clock=self.clock,
+            analyze_response=response_is_not_html,
         )
 
     def result_of_with_flush(self, d):
@@ -671,6 +677,7 @@ class GenericHTTPAPITests(SyncTestCase):
                 treq=StubTreq(self.http.http_server.get_resource()),
                 pool=None,
                 clock=self.http.clock,
+                analyze_response=response_is_not_html,
             )
         )
         with assert_fails_with_http_code(self, http.UNAUTHORIZED):
