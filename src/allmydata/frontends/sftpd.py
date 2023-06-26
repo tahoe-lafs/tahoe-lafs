@@ -1926,10 +1926,10 @@ class FakeTransport(object):
         logmsg("FakeTransport.loseConnection()", level=NOISY)
 
     def getHost(self):
-        pass
+        raise NotImplementedError()
 
     def getPeer(self):
-        pass
+        raise NotImplementedError()
 
 
 @implementer(ISession)
