@@ -99,7 +99,7 @@ def create_flog_gatherer(reactor, request, temp_dir, flog_binary):
     )
     yield out_protocol.done
 
-    twistd_protocol = _MagicTextProtocol("Gatherer waiting at")
+    twistd_protocol = _MagicTextProtocol("Gatherer waiting at", "gatherer")
     twistd_process = reactor.spawnProcess(
         twistd_protocol,
         which('twistd')[0],
@@ -341,7 +341,7 @@ def create_introducer(reactor, request, temp_dir, flog_gatherer, port):
     # on windows, "tahoe start" means: run forever in the foreground,
     # but on linux it means daemonize. "tahoe run" is consistent
     # between platforms.
-    protocol = _MagicTextProtocol('introducer running')
+    protocol = _MagicTextProtocol('introducer running', "introducer")
     transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,

@@ -25,7 +25,7 @@ class DBError(Exception):
 
 
 def get_db(dbfile, stderr=sys.stderr,
-           create_version=(None, None), updaters={}, just_create=False, dbname="db",
+           create_version=(None, None), updaters=None, just_create=False, dbname="db",
            ):
     """Open or create the given db file. The parent directory must exist.
     create_version=(SCHEMA, VERNUM), and SCHEMA must have a 'version' table.
@@ -33,6 +33,8 @@ def get_db(dbfile, stderr=sys.stderr,
     to get from ver=1 to ver=2. Returns a (sqlite3,db) tuple, or raises
     DBError.
     """
+    if updaters is None:
+        updaters = {}
     must_create = not os.path.exists(dbfile)
     try:
         db = sqlite3.connect(dbfile)

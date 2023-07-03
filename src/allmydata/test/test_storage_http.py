@@ -34,7 +34,7 @@ from hyperlink import DecodedURL
 from collections_extended import RangeMap
 from twisted.internet.task import Clock, Cooperator
 from twisted.internet.interfaces import IReactorTime, IReactorFromThreads
-from twisted.internet.defer import CancelledError, Deferred
+from twisted.internet.defer import CancelledError, Deferred, ensureDeferred
 from twisted.web import http
 from twisted.web.http_headers import Headers
 from werkzeug import routing
@@ -43,7 +43,11 @@ from testtools.matchers import Equals
 from zope.interface import implementer
 
 from .common import SyncTestCase
-from ..storage.http_common import get_content_type, CBOR_MIME_TYPE
+from ..storage.http_common import (
+    get_content_type,
+    CBOR_MIME_TYPE,
+    response_is_not_html,
+)
 from ..storage.common import si_b2a
 from ..storage.lease import LeaseInfo
 from ..storage.server import StorageServer
@@ -54,9 +58,11 @@ from ..storage.http_server import (
     ClientSecretsException,
     _authorized_route,
     StorageIndexConverter,
+    _add_error_handling,
 )
 from ..storage.http_client import (
     StorageClient,
+    StorageClientFactory,
     ClientException,
     StorageClientImmutables,
     ImmutableCreateResult,
@@ -253,7 +259,12 @@ class TestApp(object):
 
     clock: IReactorTime
     _app = Klein()
+    _add_error_handling(_app)
     _swissnum = SWISSNUM_FOR_TEST  # Match what the test client is using
+
+    @_authorized_route(_app, {}, "/noop", methods=["GET"])
+    def noop(self, request, authorization):
+        return "noop"
 
     @_authorized_route(_app, {Secrets.UPLOAD}, "/upload_secret", methods=["GET"])
     def validate_upload_secret(self, request, authorization):
@@ -309,7 +320,6 @@ def result_of(d):
         + "This is probably a test design issue."
     )
 
-
 class CustomHTTPServerTests(SyncTestCase):
     """
     Tests that use a custom HTTP server.
@@ -317,10 +327,10 @@ class CustomHTTPServerTests(SyncTestCase):
 
     def setUp(self):
         super(CustomHTTPServerTests, self).setUp()
-        StorageClient.start_test_mode(
+        StorageClientFactory.start_test_mode(
             lambda pool: self.addCleanup(pool.closeCachedConnections)
         )
-        self.addCleanup(StorageClient.stop_test_mode)
+        self.addCleanup(StorageClientFactory.stop_test_mode)
         # Could be a fixture, but will only be used in this test class so not
         # going to bother:
         self._http_server = TestApp()
@@ -329,24 +339,65 @@ class CustomHTTPServerTests(SyncTestCase):
             DecodedURL.from_text("http://127.0.0.1"),
             SWISSNUM_FOR_TEST,
             treq=treq,
+            pool=None,
             # We're using a Treq private API to get the reactor, alas, but only
             # in a test, so not going to worry about it too much. This would be
             # fixed if https://github.com/twisted/treq/issues/226 were ever
             # fixed.
             clock=treq._agent._memoryReactor,
+            analyze_response=response_is_not_html,
         )
         self._http_server.clock = self.client._clock
+
+    def test_bad_swissnum_from_client(self) -> None:
+        """
+        If the swissnum is invalid, a BAD REQUEST response code is returned.
+        """
+        headers = Headers()
+        # The value is not UTF-8.
+        headers.addRawHeader("Authorization", b"\x00\xFF\x00\xFF")
+        response = result_of(
+            self.client._treq.request(
+                "GET",
+                DecodedURL.from_text("http://127.0.0.1/noop"),
+                headers=headers,
+            )
+        )
+        self.assertEqual(response.code, 400)
+
+    def test_bad_secret(self) -> None:
+        """
+        If the secret is invalid (not base64), a BAD REQUEST
+        response code is returned.
+        """
+        bad_secret = b"upload-secret []<>"
+        headers = Headers()
+        headers.addRawHeader(
+            "X-Tahoe-Authorization",
+            bad_secret,
+        )
+        response = result_of(
+            self.client.request(
+                "GET",
+                DecodedURL.from_text("http://127.0.0.1/upload_secret"),
+                headers=headers,
+            )
+        )
+        self.assertEqual(response.code, 400)
 
     def test_authorization_enforcement(self):
         """
         The requirement for secrets is enforced by the ``_authorized_route``
         decorator; if they are not given, a 400 response code is returned.
+
+        Note that this refers to ``X-Tahoe-Authorization``, not the
+        ``Authorization`` header used for the swissnum.
         """
         # Without secret, get a 400 error.
         response = result_of(
             self.client.request(
                 "GET",
-                "http://127.0.0.1/upload_secret",
+                DecodedURL.from_text("http://127.0.0.1/upload_secret"),
             )
         )
         self.assertEqual(response.code, 400)
@@ -354,7 +405,9 @@ class CustomHTTPServerTests(SyncTestCase):
         # With secret, we're good.
         response = result_of(
             self.client.request(
-                "GET", "http://127.0.0.1/upload_secret", upload_secret=b"MAGIC"
+                "GET",
+                DecodedURL.from_text("http://127.0.0.1/upload_secret"),
+                upload_secret=b"MAGIC",
             )
         )
         self.assertEqual(response.code, 200)
@@ -378,7 +431,7 @@ class CustomHTTPServerTests(SyncTestCase):
             response = result_of(
                 self.client.request(
                     "GET",
-                    f"http://127.0.0.1/bytes/{length}",
+                    DecodedURL.from_text(f"http://127.0.0.1/bytes/{length}"),
                 )
             )
 
@@ -399,7 +452,7 @@ class CustomHTTPServerTests(SyncTestCase):
             response = result_of(
                 self.client.request(
                     "GET",
-                    f"http://127.0.0.1/bytes/{length}",
+                    DecodedURL.from_text(f"http://127.0.0.1/bytes/{length}"),
                 )
             )
 
@@ -414,7 +467,7 @@ class CustomHTTPServerTests(SyncTestCase):
         response = result_of(
             self.client.request(
                 "GET",
-                "http://127.0.0.1/slowly_never_finish_result",
+                DecodedURL.from_text("http://127.0.0.1/slowly_never_finish_result"),
             )
         )
 
@@ -442,7 +495,7 @@ class CustomHTTPServerTests(SyncTestCase):
         response = result_of(
             self.client.request(
                 "GET",
-                "http://127.0.0.1/die",
+                DecodedURL.from_text("http://127.0.0.1/die"),
             )
         )
 
@@ -459,12 +512,13 @@ class Reactor(Clock):
 
     Advancing the clock also runs any callbacks scheduled via callFromThread.
     """
+
     def __init__(self):
         Clock.__init__(self)
         self._queue = Queue()
 
-    def callFromThread(self, f, *args, **kwargs):
-        self._queue.put((f, args, kwargs))
+    def callFromThread(self, callable, *args, **kwargs):
+        self._queue.put((callable, args, kwargs))
 
     def advance(self, *args, **kwargs):
         Clock.advance(self, *args, **kwargs)
@@ -480,10 +534,10 @@ class HttpTestFixture(Fixture):
     """
 
     def _setUp(self):
-        StorageClient.start_test_mode(
+        StorageClientFactory.start_test_mode(
             lambda pool: self.addCleanup(pool.closeCachedConnections)
         )
-        self.addCleanup(StorageClient.stop_test_mode)
+        self.addCleanup(StorageClientFactory.stop_test_mode)
         self.clock = Reactor()
         self.tempdir = self.useFixture(TempDir())
         # The global Cooperator used by Twisted (a) used by pull producers in
@@ -499,13 +553,17 @@ class HttpTestFixture(Fixture):
         self.storage_server = StorageServer(
             self.tempdir.path, b"\x00" * 20, clock=self.clock
         )
-        self.http_server = HTTPServer(self.clock, self.storage_server, SWISSNUM_FOR_TEST)
+        self.http_server = HTTPServer(
+            self.clock, self.storage_server, SWISSNUM_FOR_TEST
+        )
         self.treq = StubTreq(self.http_server.get_resource())
         self.client = StorageClient(
             DecodedURL.from_text("http://127.0.0.1"),
             SWISSNUM_FOR_TEST,
             treq=self.treq,
+            pool=None,
             clock=self.clock,
+            analyze_response=response_is_not_html,
         )
 
     def result_of_with_flush(self, d):
@@ -513,6 +571,7 @@ class HttpTestFixture(Fixture):
         Like ``result_of``, but supports fake reactor and ``treq`` testing
         infrastructure necessary to support asynchronous HTTP server endpoints.
         """
+        d = ensureDeferred(d)
         result = []
         error = []
         d.addCallbacks(result.append, error.append)
@@ -616,7 +675,9 @@ class GenericHTTPAPITests(SyncTestCase):
                 DecodedURL.from_text("http://127.0.0.1"),
                 b"something wrong",
                 treq=StubTreq(self.http.http_server.get_resource()),
+                pool=None,
                 clock=self.http.clock,
+                analyze_response=response_is_not_html,
             )
         )
         with assert_fails_with_http_code(self, http.UNAUTHORIZED):
@@ -1447,7 +1508,7 @@ class SharedImmutableMutableTestsMixin:
             self.client.advise_corrupt_share(storage_index, 13, reason)
         )
 
-        for (si, share_number) in [(storage_index, 11), (urandom(16), 13)]:
+        for si, share_number in [(storage_index, 11), (urandom(16), 13)]:
             with assert_fails_with_http_code(self, http.NOT_FOUND):
                 self.http.result_of_with_flush(
                     self.client.advise_corrupt_share(si, share_number, reason)

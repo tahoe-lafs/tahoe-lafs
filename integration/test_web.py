@@ -14,17 +14,21 @@ from __future__ import annotations
 import time
 from urllib.parse import unquote as url_unquote, quote as url_quote
 
+from twisted.internet.threads import deferToThread
+
 import allmydata.uri
 from allmydata.util import jsonbytes as json
 
 from . import util
+from .util import run_in_thread
 
 import requests
 import html5lib
 from bs4 import BeautifulSoup
 
-from pytest_twisted import ensureDeferred
+import pytest_twisted
 
+@run_in_thread
 def test_index(alice):
     """
     we can download the index file
@@ -32,6 +36,7 @@ def test_index(alice):
     util.web_get(alice, u"")
 
 
+@run_in_thread
 def test_index_json(alice):
     """
     we can download the index file as json
@@ -41,6 +46,7 @@ def test_index_json(alice):
     json.loads(data)
 
 
+@run_in_thread
 def test_upload_download(alice):
     """
     upload a file, then download it via readcap
@@ -70,6 +76,7 @@ def test_upload_download(alice):
     assert str(data, "utf-8") == FILE_CONTENTS
 
 
+@run_in_thread
 def test_put(alice):
     """
     use PUT to create a file
@@ -89,6 +96,7 @@ def test_put(alice):
     assert cap.needed_shares == int(cfg.get_config("client", "shares.needed"))
 
 
+@run_in_thread
 def test_helper_status(storage_nodes):
     """
     successfully GET the /helper_status page
@@ -101,6 +109,7 @@ def test_helper_status(storage_nodes):
     assert str(dom.h1.string) == u"Helper Status"
 
 
+@run_in_thread
 def test_deep_stats(alice):
     """
     create a directory, do deep-stats on it and prove the /operations/
@@ -178,7 +187,7 @@ def test_deep_stats(alice):
         time.sleep(.5)
 
 
-@util.run_in_thread
+@run_in_thread
 def test_status(alice):
     """
     confirm we get something sensible from /status and the various sub-types
@@ -244,7 +253,7 @@ def test_status(alice):
     assert found_download, "Failed to find the file we downloaded in the status-page"
 
 
-@ensureDeferred
+@pytest_twisted.ensureDeferred
 async def test_directory_deep_check(reactor, request, alice):
     """
     use deep-check and confirm the result pages work
@@ -256,7 +265,10 @@ async def test_directory_deep_check(reactor, request, alice):
     total = 4
 
     await util.reconfigure(reactor, request, alice, (happy, required, total), convergence=None)
+    await deferToThread(_test_directory_deep_check_blocking, alice)
 
+
+def _test_directory_deep_check_blocking(alice):
     # create a directory
     resp = requests.post(
         util.node_url(alice.node_dir, u"uri"),
@@ -417,6 +429,7 @@ async def test_directory_deep_check(reactor, request, alice):
     assert dom is not None, "Operation never completed"
 
 
+@run_in_thread
 def test_storage_info(storage_nodes):
     """
     retrieve and confirm /storage URI for one storage node
@@ -428,6 +441,7 @@ def test_storage_info(storage_nodes):
     )
 
 
+@run_in_thread
 def test_storage_info_json(storage_nodes):
     """
     retrieve and confirm /storage?t=json URI for one storage node
@@ -442,6 +456,7 @@ def test_storage_info_json(storage_nodes):
     assert data[u"stats"][u"storage_server.reserved_space"] == 1000000000
 
 
+@run_in_thread
 def test_introducer_info(introducer):
     """
     retrieve and confirm /introducer URI for the introducer
@@ -460,6 +475,7 @@ def test_introducer_info(introducer):
     assert "subscription_summary" in data
 
 
+@run_in_thread
 def test_mkdir_with_children(alice):
     """
     create a directory using ?t=mkdir-with-children

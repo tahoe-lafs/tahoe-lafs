@@ -43,8 +43,9 @@ DAY = 24*HOUR
 
 class OphandleTable(resource.Resource, service.Service):
     """Renders /operations/%d."""
-
-    name = "operations"
+    # The type in Twisted for services is wrong in 22.10...
+    # https://github.com/twisted/twisted/issues/10135
+    name = "operations"  # type: ignore[assignment]
 
     UNCOLLECTED_HANDLE_LIFETIME = 4*DAY
     COLLECTED_HANDLE_LIFETIME = 1*DAY

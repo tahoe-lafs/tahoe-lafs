@@ -53,3 +53,5 @@ zope.interface-*.egg
 # This is the plaintext of the private environment needed for some CircleCI
 # operations.  It's never supposed to be checked in.
 secret-env-plain
+
+.ruff_cache

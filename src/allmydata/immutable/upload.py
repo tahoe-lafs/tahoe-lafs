@@ -2,21 +2,11 @@
 Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2, native_str
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from future.utils import native_str
 from past.builtins import long, unicode
 from six import ensure_str
-
-try:
-    from typing import List
-except ImportError:
-    pass
 
 import os, time, weakref, itertools
 
@@ -915,12 +905,12 @@ class _Accum(object):
     :ivar remaining: The number of bytes still expected.
     :ivar ciphertext: The bytes accumulated so far.
     """
-    remaining = attr.ib(validator=attr.validators.instance_of(int)) # type: int
-    ciphertext = attr.ib(default=attr.Factory(list))                # type: List[bytes]
+    remaining : int = attr.ib(validator=attr.validators.instance_of(int))
+    ciphertext : list[bytes] = attr.ib(default=attr.Factory(list))
 
     def extend(self,
                size,           # type: int
-               ciphertext,     # type: List[bytes]
+               ciphertext,     # type: list[bytes]
     ):
         """
         Accumulate some more ciphertext.
@@ -1401,7 +1391,9 @@ class CHKUploader(object):
     def get_upload_status(self):
         return self._upload_status
 
-def read_this_many_bytes(uploadable, size, prepend_data=[]):
+def read_this_many_bytes(uploadable, size, prepend_data=None):
+    if prepend_data is None:
+        prepend_data = []
     if size == 0:
         return defer.succeed([])
     d = uploadable.read(size)
@@ -1851,7 +1843,9 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
     """I am a service that allows file uploading. I am a service-child of the
     Client.
     """
-    name = "uploader"
+    # The type in Twisted for services is wrong in 22.10...
+    # https://github.com/twisted/twisted/issues/10135
+    name = "uploader"  # type: ignore[assignment]
     URI_LIT_SIZE_THRESHOLD = 55
 
     def __init__(self, helper_furl=None, stats_provider=None, history=None):

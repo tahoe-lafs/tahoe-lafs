@@ -33,8 +33,7 @@ Ported to Python 3.
 from __future__ import annotations
 
 from six import ensure_text
-
-from typing import Union, Any
+from typing import Union, Callable, Any, Optional, cast
 from os import urandom
 import re
 import time
@@ -45,6 +44,7 @@ import json
 
 import attr
 from hyperlink import DecodedURL
+from twisted.web.client import HTTPConnectionPool
 from zope.interface import (
     Attribute,
     Interface,
@@ -54,6 +54,7 @@ from twisted.python.failure import Failure
 from twisted.web import http
 from twisted.internet.task import LoopingCall
 from twisted.internet import defer, reactor
+from twisted.internet.interfaces import IReactorTime
 from twisted.application import service
 from twisted.plugin import (
     getPlugins,
@@ -71,6 +72,7 @@ from allmydata.interfaces import (
     IServer,
     IStorageServer,
     IFoolscapStoragePlugin,
+    VersionMessage
 )
 from allmydata.grid_manager import (
     create_grid_manager_verifier, SignedCertificate
@@ -78,17 +80,19 @@ from allmydata.grid_manager import (
 from allmydata.crypto import (
     ed25519,
 )
+from allmydata.util.tor_provider import _Provider as TorProvider
 from allmydata.util import log, base32, connection_status
 from allmydata.util.assertutil import precondition
 from allmydata.util.observer import ObserverList
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
-from allmydata.util.deferredutil import async_to_deferred
+from allmydata.util.deferredutil import async_to_deferred, race
 from allmydata.storage.http_client import (
     StorageClient, StorageClientImmutables, StorageClientGeneral,
     ClientException as HTTPClientException, StorageClientMutables,
-    ReadVector, TestWriteVectors, WriteVector, TestVector, ClientException
+    ReadVector, TestWriteVectors, WriteVector, TestVector, ClientException,
+    StorageClientFactory
 )
 from .node import _Config
 
@@ -203,8 +207,13 @@ class StorageFarmBroker(service.MultiService):
             tub_maker,
             node_config: _Config,
             storage_client_config=None,
+            default_connection_handlers=None,
+            tor_provider: Optional[TorProvider]=None,
     ):
         service.MultiService.__init__(self)
+        if default_connection_handlers is None:
+            default_connection_handlers = {"tcp": "tcp"}
+
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
         self._tub_maker = tub_maker
@@ -224,6 +233,8 @@ class StorageFarmBroker(service.MultiService):
         self.introducer_client = None
         self._threshold_listeners : list[tuple[float,defer.Deferred[Any]]]= [] # tuples of (threshold, Deferred)
         self._connected_high_water_mark = 0
+        self._tor_provider = tor_provider
+        self._default_connection_handlers = default_connection_handlers
 
     @log_call(action_type=u"storage-client:broker:set-static-servers")
     def set_static_servers(self, servers):
@@ -316,6 +327,8 @@ class StorageFarmBroker(service.MultiService):
                 server_id,
                 server["ann"],
                 grid_manager_verifier=gm_verifier,
+                default_connection_handlers=self._default_connection_handlers,
+                tor_provider=self._tor_provider
             )
             s.on_status_changed(lambda _: self._got_connection())
             return s
@@ -1020,6 +1033,26 @@ class NativeStorageServer(service.MultiService):
         self._reconnector.reset()
 
 
+@async_to_deferred
+async def _pick_a_http_server(
+        reactor,
+        nurls: list[DecodedURL],
+        request: Callable[[Any, DecodedURL], defer.Deferred[Any]]
+) -> DecodedURL:
+    """Pick the first server we successfully send a request to.
+
+    Fires with ``None`` if no server was found, or with the ``DecodedURL`` of
+    the first successfully-connected server.
+    """
+    queries = race([
+        request(reactor, nurl).addCallback(lambda _, nurl=nurl: nurl)
+        for nurl in nurls
+    ])
+
+    _, nurl = await queries
+    return nurl
+
+
 @implementer(IServer)
 class HTTPNativeStorageServer(service.MultiService):
     """
@@ -1030,7 +1063,7 @@ class HTTPNativeStorageServer(service.MultiService):
     "connected".
     """
 
-    def __init__(self, server_id: bytes, announcement, reactor=reactor, grid_manager_verifier=None):
+    def __init__(self, server_id: bytes, announcement, default_connection_handlers: dict[str,str], reactor=reactor, grid_manager_verifier=None, tor_provider: Optional[TorProvider]=None):
         service.MultiService.__init__(self)
         assert isinstance(server_id, bytes)
         self._server_id = server_id
@@ -1038,6 +1071,10 @@ class HTTPNativeStorageServer(service.MultiService):
         self._on_status_changed = ObserverList()
         self._reactor = reactor
         self._grid_manager_verifier = grid_manager_verifier
+        self._storage_client_factory = StorageClientFactory(
+            default_connection_handlers, tor_provider
+        )
+
         furl = announcement["anonymous-storage-FURL"].encode("utf-8")
         (
             self._nickname,
@@ -1046,17 +1083,16 @@ class HTTPNativeStorageServer(service.MultiService):
             self._short_description,
             self._long_description
         ) = _parse_announcement(server_id, furl, announcement)
-        # TODO need some way to do equivalent of Happy Eyeballs for multiple NURLs?
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3935
-        nurl = DecodedURL.from_text(announcement[ANONYMOUS_STORAGE_NURLS][0])
-        self._istorage_server = _HTTPStorageServer.from_http_client(
-            StorageClient.from_nurl(nurl, reactor)
-        )
+        self._nurls = [
+            DecodedURL.from_text(u)
+            for u in announcement[ANONYMOUS_STORAGE_NURLS]
+        ]
+        self._istorage_server : Optional[_HTTPStorageServer] = None
 
         self._connection_status = connection_status.ConnectionStatus.unstarted()
         self._version = None
         self._last_connect_time = None
-        self._connecting_deferred = None
+        self._connecting_deferred : Optional[defer.Deferred[object]]= None
 
     def get_permutation_seed(self):
         return self._permutation_seed
@@ -1168,19 +1204,85 @@ class HTTPNativeStorageServer(service.MultiService):
     def try_to_connect(self):
         self._connect()
 
-    def _connect(self):
-        result = self._istorage_server.get_version()
+    def _connect(self) -> defer.Deferred[object]:
+        """
+        Try to connect to a working storage server.
 
-        def remove_connecting_deferred(result):
+        If called while a previous ``_connect()`` is already running, it will
+        just return the same ``Deferred``.
+
+        ``LoopingCall.stop()`` doesn't cancel ``Deferred``s, unfortunately:
+        https://github.com/twisted/twisted/issues/11814. Thus we want to store
+        the ``Deferred`` so we can cancel it when necessary.
+
+        We also want to return it so that loop iterations take it into account,
+        and a new iteration doesn't start while we're in the middle of the
+        previous one.
+        """
+        # Conceivably try_to_connect() was called on this before, in which case
+        # we already are in the middle of connecting. So in that case just
+        # return whatever is in progress:
+        if self._connecting_deferred is not None:
+            return self._connecting_deferred
+
+        def done(_):
             self._connecting_deferred = None
-            return result
 
+        connecting = self._pick_server_and_get_version()
         # Set a short timeout since we're relying on this for server liveness.
-        self._connecting_deferred = result.addTimeout(5, self._reactor).addBoth(
-                remove_connecting_deferred).addCallbacks(
-            self._got_version,
-            self._failed_to_connect
-        )
+        connecting = connecting.addTimeout(5, self._reactor).addCallbacks(
+            self._got_version, self._failed_to_connect
+        ).addBoth(done)
+        self._connecting_deferred = connecting
+        return connecting
+
+    @async_to_deferred
+    async def _pick_server_and_get_version(self):
+        """
+        Minimal implementation of connection logic: pick a server, get its
+        version.  This doesn't deal with errors much, so as to minimize
+        statefulness.  It does change ``self._istorage_server``, so possibly
+        more refactoring would be useful to remove even that much statefulness.
+        """
+        async def get_istorage_server() -> _HTTPStorageServer:
+            if self._istorage_server is not None:
+                return self._istorage_server
+
+            # We haven't selected a server yet, so let's do so.
+
+            # TODO This is somewhat inefficient on startup: it takes two successful
+            # version() calls before we are live talking to a server, it could only
+            # be one. See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3992
+
+            @async_to_deferred
+            async def request(reactor, nurl: DecodedURL):
+                # Since we're just using this one off to check if the NURL
+                # works, no need for persistent pool or other fanciness.
+                pool = HTTPConnectionPool(reactor, persistent=False)
+                pool.retryAutomatically = False
+                storage_client = await self._storage_client_factory.create_storage_client(
+                    nurl, reactor, pool
+                )
+                return await StorageClientGeneral(storage_client).get_version()
+
+            nurl = await _pick_a_http_server(reactor, self._nurls, request)
+
+            # If we've gotten this far, we've found a working NURL.
+            storage_client = await self._storage_client_factory.create_storage_client(
+                    nurl, cast(IReactorTime, reactor), None
+            )
+            self._istorage_server = _HTTPStorageServer.from_http_client(storage_client)
+            return self._istorage_server
+
+        try:
+            storage_server = await get_istorage_server()
+
+            # Get the version from the remote server.
+            version = await storage_server.get_version()
+            return version
+        except Exception as e:
+            log.msg(f"Failed to connect to a HTTP storage server: {e}", level=log.CURIOUS)
+            raise
 
     def stopService(self):
         if self._connecting_deferred is not None:
@@ -1190,6 +1292,11 @@ class HTTPNativeStorageServer(service.MultiService):
         if self._lc.running:
             self._lc.stop()
         self._failed_to_connect("shut down")
+
+        if self._istorage_server is not None:
+            client_shutting_down = self._istorage_server._http_client.shutdown()
+            result.addCallback(lambda _: client_shutting_down)
+
         return result
 
 
@@ -1355,7 +1462,7 @@ class _HTTPBucketWriter(object):
         return self.finished
 
 
-def _ignore_404(failure: Failure) -> Union[Failure, None]:
+def _ignore_404(failure: Failure) -> Optional[Failure]:
     """
     Useful for advise_corrupt_share(), since it swallows unknown share numbers
     in Foolscap.
@@ -1397,13 +1504,13 @@ class _HTTPStorageServer(object):
     _http_client = attr.ib(type=StorageClient)
 
     @staticmethod
-    def from_http_client(http_client):  # type: (StorageClient) -> _HTTPStorageServer
+    def from_http_client(http_client: StorageClient) -> _HTTPStorageServer:
         """
         Create an ``IStorageServer`` from a HTTP ``StorageClient``.
         """
         return _HTTPStorageServer(http_client=http_client)
 
-    def get_version(self):
+    def get_version(self) -> defer.Deferred[VersionMessage]:
         return StorageClientGeneral(self._http_client).get_version()
 
     @defer.inlineCallbacks

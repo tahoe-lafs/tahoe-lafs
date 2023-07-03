@@ -16,9 +16,10 @@ later in the configuration process.
 from __future__ import annotations
 
 from itertools import chain
+from typing import cast
 
 from twisted.internet.protocol import Protocol
-from twisted.internet.interfaces import IDelayedCall
+from twisted.internet.interfaces import IDelayedCall, IReactorFromThreads
 from twisted.internet.ssl import CertificateOptions
 from twisted.web.server import Site
 from twisted.protocols.tls import TLSMemoryBIOFactory
@@ -89,7 +90,7 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
             certificate=cls.tub.myCertificate.original,
         )
 
-        http_storage_server = HTTPServer(reactor, storage_server, swissnum)
+        http_storage_server = HTTPServer(cast(IReactorFromThreads, reactor), storage_server, swissnum)
         cls.https_factory = TLSMemoryBIOFactory(
             certificate_options,
             False,
@@ -102,8 +103,15 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
         for location_hint in chain.from_iterable(
             hints.split(",") for hints in cls.tub.locationHints
         ):
-            if location_hint.startswith("tcp:"):
-                _, hostname, port = location_hint.split(":")
+            if location_hint.startswith("tcp:") or location_hint.startswith("tor:"):
+                scheme, hostname, port = location_hint.split(":")
+                if scheme == "tcp":
+                    subscheme = None
+                else:
+                    subscheme = "tor"
+                    # If we're listening on Tor, the hostname needs to have an
+                    # .onion TLD.
+                    assert hostname.endswith(".onion")
                 port = int(port)
                 storage_nurls.add(
                     build_nurl(
@@ -111,9 +119,10 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
                         port,
                         str(swissnum, "ascii"),
                         cls.tub.myCertificate.original.to_cryptography(),
+                        subscheme
                     )
                 )
-            # TODO this is probably where we'll have to support Tor and I2P?
+            # TODO this is where we'll have to support Tor and I2P as well.
             # See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3888#comment:9
             # for discussion (there will be separate tickets added for those at
             # some point.)
