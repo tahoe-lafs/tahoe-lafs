@@ -43,6 +43,7 @@ from twisted.internet.protocol import (
 )
 from twisted.internet.error import ProcessTerminated
 
+from allmydata.node import read_config
 from .util import (
     _CollectOutputProtocol,
     _MagicTextProtocol,
@@ -306,16 +307,6 @@ def create_introducer(reactor, request, temp_dir, flog_gatherer, port):
     """
     Run a new Introducer and return an Introducer instance.
     """
-    config = (
-        '[node]\n'
-        'nickname = introducer{port}\n'
-        'web.port = {port}\n'
-        'log_gatherer.furl = {log_furl}\n'
-    ).format(
-        port=port,
-        log_furl=flog_gatherer.furl,
-    )
-
     intro_dir = join(temp_dir, 'introducer{}'.format(port))
 
     if not exists(intro_dir):
@@ -334,9 +325,10 @@ def create_introducer(reactor, request, temp_dir, flog_gatherer, port):
         )
         yield done_proto.done
 
-    # over-write the config file with our stuff
-    with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
-        f.write(config)
+    config = read_config(intro_dir, "tub.port")
+    config.set_config("node", "nickname", f"introducer-{port}")
+    config.set_config("node", "web.port", f"{port}")
+    config.set_config("node", "log_gatherer.furl", flog_gatherer.furl)
 
     # on windows, "tahoe start" means: run forever in the foreground,
     # but on linux it means daemonize. "tahoe run" is consistent
