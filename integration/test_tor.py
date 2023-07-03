@@ -128,7 +128,7 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
 
     # Which services should this client connect to?
     write_introducer(node_dir, "default", introducer_furl)
-    util.basic_node_configuration(request, flog_gatherer, node_dir.path)
+    util.basic_node_configuration(request, flog_gatherer.furl, node_dir.path)
 
     config = read_config(node_dir.path, "tub.port")
     config.set_config("tor", "onion", "true")

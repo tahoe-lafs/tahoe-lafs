@@ -214,7 +214,7 @@ def tor_introducer(reactor, temp_dir, flog_gatherer, request):
     config = read_config(intro_dir, "tub.port")
     config.set_config("node", "nickname", "introducer-tor")
     config.set_config("node", "web.port", "4561")
-    config.set_config("node", "log_gatherer.furl", flog_gatherer)
+    config.set_config("node", "log_gatherer.furl", flog_gatherer.furl)
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
