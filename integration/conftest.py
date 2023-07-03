@@ -30,7 +30,6 @@ import pytest
 import pytest_twisted
 
 from .util import (
-    _CollectOutputProtocol,
     _MagicTextProtocol,
     _DumpOutputProtocol,
     _ProcessExitedProtocol,
