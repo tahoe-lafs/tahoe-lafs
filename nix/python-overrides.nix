@@ -9,14 +9,39 @@ let
   # Disable a Python package's test suite.
   dontCheck = drv: drv.overrideAttrs (old: { doInstallCheck = false; });
 
+  # string -> any -> derivation -> derivation
+  #
+  # If the overrideable function for the given derivation accepts an argument
+  # with the given name, override it with the given value.
+  #
+  # Since we try to work with multiple versions of nixpkgs, sometimes we need
+  # to override a parameter that exists in one version but not others.  This
+  # makes it a bit easier to do so.
+  overrideIfPresent = name: value: drv:
+    if (drv.override.__functionArgs ? ${name})
+    then drv.override { "${name}" = value; }
+    else drv;
+
   # Disable building a Python package's documentation.
-  dontBuildDocs = alsoDisable: drv: (drv.override ({
-    sphinxHook = null;
-  } // alsoDisable)).overrideAttrs ({ outputs, ... }: {
+  dontBuildDocs = drv: (
+    overrideIfPresent "sphinxHook" null (
+      overrideIfPresent "sphinx-rtd-theme" null
+        drv
+    )
+  ).overrideAttrs ({ outputs, ... }: {
     outputs = builtins.filter (x: "doc" != x) outputs;
   });
 
 in {
+  tahoe-lafs = self.callPackage ./tahoe-lafs.nix {
+    # Define the location of the Tahoe-LAFS source to be packaged (the same
+    # directory as contains this file).  Clean up as many of the non-source
+    # files (eg the `.git` directory, `~` backup files, nix's own `result`
+    # symlink, etc) as possible to avoid needing to re-build when files that
+    # make no difference to the package have changed.
+    tahoe-lafs-src = self.lib.cleanSource ../.;
+  };
+
   # Some dependencies aren't packaged in nixpkgs so supply our own packages.
   pycddl = self.callPackage ./pycddl.nix { };
   txi2p = self.callPackage ./txi2p.nix { };
@@ -33,11 +58,10 @@ in {
   # Update the version of pyopenssl.
   pyopenssl = self.callPackage ./pyopenssl.nix {
     pyopenssl =
-      # Building the docs requires sphinx which brings in a dependency on babel,
-      # the test suite of which fails.
-      onPyPy (dontBuildDocs { sphinx-rtd-theme = null; })
-        # Avoid infinite recursion.
-        super.pyopenssl;
+      # Building the docs requires sphinx which brings in a dependency on
+      # babel, the test suite of which fails.  Avoid infinite recursion here
+      # by taking pyopenssl from the `super` package set.
+      onPyPy dontBuildDocs super.pyopenssl;
   };
 
   # collections-extended is currently broken for Python 3.11 in nixpkgs but
@@ -74,7 +98,7 @@ in {
   six = onPyPy dontCheck super.six;
 
   # Likewise for beautifulsoup4.
-  beautifulsoup4 = onPyPy (dontBuildDocs {}) super.beautifulsoup4;
+  beautifulsoup4 = onPyPy dontBuildDocs super.beautifulsoup4;
 
   # The autobahn test suite pulls in a vast number of dependencies for
   # functionality we don't care about.  It might be nice to *selectively*
