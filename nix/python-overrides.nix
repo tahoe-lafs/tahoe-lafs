@@ -103,7 +103,22 @@ in {
   # The autobahn test suite pulls in a vast number of dependencies for
   # functionality we don't care about.  It might be nice to *selectively*
   # disable just some of it but this is easier.
-  autobahn = onPyPy dontCheck super.autobahn;
+  autobahn = onPyPy dontCheck (super.autobahn.override {
+    base58 = null;
+    click = null;
+    ecdsa = null;
+    eth-abi = null;
+    jinja2 = null;
+    hkdf = null;
+    mnemonic = null;
+    py-ecc = null;
+    py-eth-sig-utils = null;
+    py-multihash = null;
+    rlp = null;
+    spake2 = null;
+    yapf = null;
+    eth-account = null;
+  });
 
   # and python-dotenv tests pulls in a lot of dependencies, including jedi,
   # which does not work on PyPy.
