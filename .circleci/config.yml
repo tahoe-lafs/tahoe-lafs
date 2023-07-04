@@ -575,7 +575,7 @@ commands:
             nix-env \
               --file $NIXPKGS \
               --install \
-              -A cachix bash
+              -A cachix bash jp
               # Activate it for "binary substitution".  This sets up
               # configuration tht lets Nix download something from the cache
               # instead of building it locally, if possible.
