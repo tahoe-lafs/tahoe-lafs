@@ -149,11 +149,10 @@ in {
   # This also drops a bunch of unnecessary build-time dependencies, some of
   # which are broken on PyPy.  Fixed in nixpkgs in
   # 5feb5054bb08ba779bd2560a44cf7d18ddf37fea.
-  zfec = (super.zfec.override {
-    setuptoolsTrial = null;
-  }).overrideAttrs (old: {
-    checkPhase = "trial zfec";
-  });
+  zfec = (overrideIfPresent "setuptoolsTrial" null super.zfec).overrideAttrs (
+    old: {
+      checkPhase = "trial zfec";
+    });
 
   # collections-extended is packaged with poetry-core.  poetry-core test suite
   # uses virtualenv and virtualenv test suite fails on PyPy.
