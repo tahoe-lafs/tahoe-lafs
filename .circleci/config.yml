@@ -598,6 +598,7 @@ commands:
             NIXPKGS=$(nixpkgs_flake_reference nixpkgs-<<parameters.nixpkgs>>)
             cache_if_able nix build \
               --verbose \
+              --print-build-logs \
               --cores "$DEPENDENCY_CORES" \
               --override-input nixpkgs "$NIXPKGS" \
               .#<<parameters.pythonVersion>>-tahoe-lafs
