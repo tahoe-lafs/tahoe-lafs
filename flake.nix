@@ -73,12 +73,14 @@
       # Construct the unit test application name for the given Python runtime.
       unitTestName = pyVersion: "${pyVersion}-unittest";
 
+      # (string -> a) -> (string -> b) -> string -> attrset a b
+      #
+      # Make a singleton attribute set from the result of two functions.
+      singletonOf = f: g: x: { ${f x} = g x; };
+
       # Create a derivation that includes a Python runtime, Tahoe-LAFS, and
       # all of its dependencies.
-      makeRuntimeEnv = pyVersion: {
-        ${packageName pyVersion} = makeRuntimeEnv' pyVersion;
-      };
-
+      makeRuntimeEnv = singletonOf packageName makeRuntimeEnv';
       makeRuntimeEnv' = pyVersion: (pkgs.${pyVersion}.withPackages (ps: with ps;
         [ tahoe-lafs ] ++
         tahoe-lafs.passthru.extras.i2p ++
@@ -89,11 +91,7 @@
 
       # Create a derivation that includes a Python runtime, Tahoe-LAFS, and
       # all of its dependencies.
-      makeTestEnv = pyVersion: {
-        ${packageName pyVersion} = makeTestEnv' pyVersion;
-      };
-
-      makeTestEnv' = pyVersion: (pkgs.${pyVersion}.withPackages (ps: with ps;
+      makeTestEnv = pyVersion: (pkgs.${pyVersion}.withPackages (ps: with ps;
         [ tahoe-lafs ] ++
         tahoe-lafs.passthru.extras.i2p ++
         tahoe-lafs.passthru.extras.tor ++
@@ -148,7 +146,7 @@
                 writeScript "unit-tests"
                   ''
                     export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
-                    ${makeTestEnv' pyVersion}/bin/python -m twisted.trial "$@"
+                    ${makeTestEnv pyVersion}/bin/python -m twisted.trial "$@"
                   '';
             };
           };
