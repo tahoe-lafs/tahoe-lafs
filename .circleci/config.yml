@@ -554,8 +554,8 @@ commands:
     parameters:
       nixpkgs:
         description: >-
-          Reference the name of a niv-managed nixpkgs source (see `niv show`
-          and nix/sources.json)
+          Reference the name of a flake-managed nixpkgs input (see `nix flake
+          metadata` and flake.nix)
         type: "string"
       pythonVersion:
         description: >-
