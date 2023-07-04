@@ -592,21 +592,6 @@ commands:
               --run 'python setup.py update_version'
 
       - "run":
-          name: "Build Dependencies"
-          command: |
-            source .circleci/lib.sh
-
-            NIXPKGS=$(nixpkgs_flake_reference nixpkgs-<<parameters.nixpkgs>>)
-
-            # `nix develop` will build all of the dependencies of the target but
-            # not the target itself.
-            cache_if_able nix develop \
-              --command "true" \
-              --cores $DEPENDENCY_CORES \
-              --override-input nixpkgs "$NIXPKGS" \
-              .#<<parameters.pythonVersion>>-tahoe-lafs
-
-      - "run":
           name: "Build Package"
           command: |
             source .circleci/lib.sh
