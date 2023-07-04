@@ -597,6 +597,7 @@ commands:
             source .circleci/lib.sh
             NIXPKGS=$(nixpkgs_flake_reference nixpkgs-<<parameters.nixpkgs>>)
             cache_if_able nix build \
+              --cores "$DEPENDENCY_CORES" \
               --override-input nixpkgs "$NIXPKGS" \
               .#<<parameters.pythonVersion>>-tahoe-lafs
 
