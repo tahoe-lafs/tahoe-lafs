@@ -571,7 +571,7 @@ commands:
           # Get cachix for Nix-friendly caching.
           name: "Install Basic Dependencies"
           command: |
-            NIXPKGS="https://github.com/nixos/nixpkgs/archive/nixos-<<parameters.nixpkgs>>.tar.gz"
+            NIXPKGS="https://github.com/nixos/nixpkgs/archive/nixos-23.05.tar.gz"
             nix-env \
               --file $NIXPKGS \
               --install \
