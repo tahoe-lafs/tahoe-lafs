@@ -90,15 +90,17 @@
       # Create a derivation that includes a Python runtime, Tahoe-LAFS, and
       # all of its dependencies.
       makeTestEnv = pyVersion: {
-        ${packageName pyVersion} = (pkgs.${pyVersion}.withPackages (ps: with ps;
-          [ tahoe-lafs ] ++
-          tahoe-lafs.passthru.extras.i2p ++
-          tahoe-lafs.passthru.extras.tor ++
-          tahoe-lafs.passthru.extras.unittest
-        )).overrideAttrs (old: {
-          name = packageName pyVersion;
-        });
+        ${packageName pyVersion} = makeTestEnv' pyVersion;
       };
+
+      makeTestEnv' = pyVersion: (pkgs.${pyVersion}.withPackages (ps: with ps;
+        [ tahoe-lafs ] ++
+        tahoe-lafs.passthru.extras.i2p ++
+        tahoe-lafs.passthru.extras.tor ++
+        tahoe-lafs.passthru.extras.unittest
+      )).overrideAttrs (old: {
+        name = packageName pyVersion;
+      });
     in {
       # Define the flake's package outputs.  We'll define one version of the
       # package for each version of Python we could find.  We'll also point
@@ -146,7 +148,7 @@
                 writeScript "unit-tests"
                   ''
                     export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
-                    ${makeTestEnv pyVersion}/bin/python -m twisted.trial "$@"
+                    ${makeTestEnv' pyVersion}/bin/python -m twisted.trial "$@"
                   '';
             };
           };
