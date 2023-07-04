@@ -89,7 +89,7 @@ workflows:
 
       - "nixos":
           name: "<<matrix.pythonVersion>>"
-          nixpkgs: "22.11"
+          nixpkgs: "22_11"
           matrix:
             parameters:
               pythonVersion:
