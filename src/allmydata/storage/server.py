@@ -31,7 +31,7 @@ from allmydata.storage.immutable import (
 )
 from allmydata.storage.crawler import BucketCountingCrawler
 from allmydata.storage.expirer import LeaseCheckingCrawler
-from ..storage_client import ANONYMOUS_STORAGE_NURLS
+from .http_common import ANONYMOUS_STORAGE_NURLS
 
 # storage/
 # storage/shares/incoming
@@ -834,7 +834,7 @@ class FoolscapStorageServer(Referenceable):  # type: ignore # warner/foolscap#78
 
         # The HTTP storage NURLs for this server. We include them in version
         # messages so clients can upgrade from Foolscap to HTTP.
-        self._nurls : list[str] = []
+        self._nurls : list[bytes] = []
 
     def _bucket_writer_closed(self, bw):
         if bw in self._bucket_writer_disconnect_markers:
@@ -843,13 +843,14 @@ class FoolscapStorageServer(Referenceable):  # type: ignore # warner/foolscap#78
 
     def set_nurls(self, nurls: list[DecodedURL]) -> None:
         """Set the HTTP NURLs for this server."""
-        self._nurls = [n.to_text() for n in nurls]
+        self._nurls = [n.to_text().encode("utf-8") for n in nurls]
 
     def remote_get_version(self):
         result = self._server.get_version()
         if self._nurls:
+            # Tell clients how to upgrade to HTTP protocol:
             result[b"http://allmydata.org/tahoe/protocols/storage/v2"] = {
-                ANONYMOUS_STORAGE_NURLS: self._nurls
+                ANONYMOUS_STORAGE_NURLS.encode("ascii"): self._nurls
             }
         return result
 

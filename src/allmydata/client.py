@@ -60,6 +60,7 @@ from allmydata.interfaces import (
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
 from allmydata.node import _Config
+from allmydata.storage.http_common import ANONYMOUS_STORAGE_NURLS
 
 KiB=1024
 MiB=1024*KiB
@@ -838,7 +839,7 @@ class _Client(node.Node, pollmixin.PollMixin):
             if hasattr(self.tub.negotiationClass, "add_storage_server"):
                 nurls = self.tub.negotiationClass.add_storage_server(ss, swissnum.encode("ascii"))
                 self.storage_nurls = nurls
-                announcement[storage_client.ANONYMOUS_STORAGE_NURLS] = [n.to_text() for n in nurls]
+                announcement[ANONYMOUS_STORAGE_NURLS] = [n.to_text() for n in nurls]
                 # Tell Foolscap server about the nurls so it can send them out
                 # to clients, allowing them to auto-upgrade.
                 foolscap_server.set_nurls(nurls)

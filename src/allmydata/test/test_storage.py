@@ -33,6 +33,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet.task import Clock
 
+from hyperlink import DecodedURL
 from hypothesis import given, strategies, example
 
 import itertools
@@ -582,6 +583,19 @@ class Server(AsyncTestCase):
         ver = ss.get_version()
         sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
         self.assertTrue(sv1.get(b'prevents-read-past-end-of-share-data'), sv1)
+
+    def test_get_version_can_expose_nurls(self):
+        """
+        ``FoolscapStorageServer.remote_get_version()`` includes NURLs if set.
+        """
+        ss = FoolscapStorageServer(self.create("test_get_version_can_expose_nurls"))
+        v2 = b'http://allmydata.org/tahoe/protocols/storage/v2'
+        self.assertNotIn(v2, ss.remote_get_version())
+        ss.set_nurls([DecodedURL.from_text("pb://blah"), DecodedURL.from_text("pb://baz")])
+        self.assertEqual(
+            ss.remote_get_version()[v2],
+            {b"anonymous-storage-NURLs": [b"pb://blah", b"pb://baz"]}
+        )
 
     def test_declares_maximum_share_sizes(self):
         ss = self.create("test_declares_maximum_share_sizes")

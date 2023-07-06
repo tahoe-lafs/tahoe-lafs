@@ -16,6 +16,10 @@ from twisted.web.iweb import IResponse
 
 CBOR_MIME_TYPE = "application/cbor"
 
+# Key used in introducer announcements and Foolscap storage server version for
+# HTTP storage NURLs:
+ANONYMOUS_STORAGE_NURLS = "anonymous-storage-NURLs"
+
 
 def get_content_type(headers: Headers) -> Optional[str]:
     """

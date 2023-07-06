@@ -93,9 +93,8 @@ from allmydata.storage.http_client import (
     ReadVector, TestWriteVectors, WriteVector, TestVector, ClientException,
     StorageClientFactory
 )
+from .storage.http_common import ANONYMOUS_STORAGE_NURLS
 from .node import _Config
-
-ANONYMOUS_STORAGE_NURLS = "anonymous-storage-NURLs"
 
 
 # who is responsible for de-duplication?
@@ -333,6 +332,8 @@ class StorageFarmBroker(service.MultiService):
             return s
 
         handler_overrides = server.get("connections", {})
+        # TODO connect and get version; if it has HTTP and we support HTTP, do
+        # HTTPNativeStorageServer instead.
         s = NativeStorageServer(
             server_id,
             server["ann"],
