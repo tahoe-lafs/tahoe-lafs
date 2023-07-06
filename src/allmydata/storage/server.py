@@ -8,6 +8,7 @@ from typing import Iterable, Any
 
 import os, re
 
+from hyperlink import DecodedURL
 from foolscap.api import Referenceable
 from foolscap.ipb import IRemoteReference
 from twisted.application import service
@@ -30,6 +31,7 @@ from allmydata.storage.immutable import (
 )
 from allmydata.storage.crawler import BucketCountingCrawler
 from allmydata.storage.expirer import LeaseCheckingCrawler
+from ..storage_client import ANONYMOUS_STORAGE_NURLS
 
 # storage/
 # storage/shares/incoming
@@ -830,13 +832,26 @@ class FoolscapStorageServer(Referenceable):  # type: ignore # warner/foolscap#78
 
         self._server.register_bucket_writer_close_handler(self._bucket_writer_closed)
 
+        # The HTTP storage NURLs for this server. We include them in version
+        # messages so clients can upgrade from Foolscap to HTTP.
+        self._nurls : list[str] = []
+
     def _bucket_writer_closed(self, bw):
         if bw in self._bucket_writer_disconnect_markers:
             canary, disconnect_marker = self._bucket_writer_disconnect_markers.pop(bw)
             canary.dontNotifyOnDisconnect(disconnect_marker)
 
+    def set_nurls(self, nurls: list[DecodedURL]) -> None:
+        """Set the HTTP NURLs for this server."""
+        self._nurls = [n.to_text() for n in nurls]
+
     def remote_get_version(self):
-        return self._server.get_version()
+        result = self._server.get_version()
+        if self._nurls:
+            result[b"http://allmydata.org/tahoe/protocols/storage/v2"] = {
+                ANONYMOUS_STORAGE_NURLS: self._nurls
+            }
+        return result
 
     def remote_allocate_buckets(self, storage_index,
                                 renew_secret, cancel_secret,

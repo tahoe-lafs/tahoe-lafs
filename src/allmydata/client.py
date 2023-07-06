@@ -832,12 +832,17 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         if anonymous_storage_enabled(self.config):
             furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
-            furl = self.tub.registerReference(FoolscapStorageServer(ss), furlFile=furl_file)
+            foolscap_server = FoolscapStorageServer(ss)
+            furl = self.tub.registerReference(foolscap_server, furlFile=furl_file)
             (_, _, swissnum) = decode_furl(furl)
             if hasattr(self.tub.negotiationClass, "add_storage_server"):
                 nurls = self.tub.negotiationClass.add_storage_server(ss, swissnum.encode("ascii"))
                 self.storage_nurls = nurls
                 announcement[storage_client.ANONYMOUS_STORAGE_NURLS] = [n.to_text() for n in nurls]
+                # Tell Foolscap server about the nurls so it can send them out
+                # to clients, allowing them to auto-upgrade.
+                foolscap_server.set_nurls(nurls)
+
             announcement["anonymous-storage-FURL"] = furl
 
         enabled_storage_servers = self._enable_storage_servers(
