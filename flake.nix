@@ -9,8 +9,11 @@
     "nixpkgs-22_11" = {
       url = github:NixOS/nixpkgs?ref=nixos-22.11;
     };
+    "nixpkgs-23_05" = {
+      url = github:NixOS/nixpkgs?ref=release-23.05;
+    };
     "nixpkgs-unstable" = {
-      url = github:NixOS/nixpkgs;
+      url = github:NixOS/nixpkgs?ref=pull/238965/head;
     };
 
     # Point the default nixpkgs at one of those.  This avoids having getting a
@@ -100,6 +103,8 @@
         name = packageName pyVersion;
       });
     in {
+      legacyPackages = pkgs;
+
       # Define the flake's package outputs.  We'll define one version of the
       # package for each version of Python we could find.  We'll also point
       # the flake's "default" package at one of these somewhat arbitrarily.
@@ -108,7 +113,9 @@
       packages = with pkgs.lib;
         foldr mergeAttrs {} ([
           { default = self.packages.${system}.${packageName defaultPyVersion}; }
-        ] ++ (builtins.map makeRuntimeEnv pythonVersions));
+        ] ++ (builtins.map makeRuntimeEnv pythonVersions)
+        ++ (builtins.map (singletonOf unitTestName makeTestEnv) pythonVersions)
+        );
 
       # Define the flake's app outputs.  We'll define a version of an app for
       # running the test suite for each version of Python we could find.

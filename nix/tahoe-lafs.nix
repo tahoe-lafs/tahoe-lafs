@@ -46,8 +46,12 @@ buildPythonPackage rec {
 
   passthru = {
     extras = with pythonPackages; {
-      tor = [ txtorcon ];
-      i2p = [ txi2p ];
+      tor = [
+        txtorcon
+      ];
+      i2p = [
+        txi2p
+      ];
       unittest = [
         beautifulsoup4
         fixtures

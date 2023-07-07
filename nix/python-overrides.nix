@@ -55,14 +55,22 @@ in {
     inherit (super) txtorcon;
   };
 
-  # Update the version of pyopenssl.
-  pyopenssl = self.callPackage ./pyopenssl.nix {
-    pyopenssl =
-      # Building the docs requires sphinx which brings in a dependency on
-      # babel, the test suite of which fails.  Avoid infinite recursion here
-      # by taking pyopenssl from the `super` package set.
-      onPyPy dontBuildDocs super.pyopenssl;
-  };
+  # With our customized package set a Twisted unit test fails.  Patch the
+  # Twisted test suite to skip that test.
+  twisted = super.twisted.overrideAttrs (old: {
+    patches = (old.patches or []) ++ [ ./twisted.patch ];
+  });
+
+  # Update the version of pyopenssl - and since we're doing that anyway, we
+  # don't need the docs.  Unfortunately this triggers a lot of rebuilding of
+  # dependent packages.
+  pyopenssl = dontBuildDocs (self.callPackage ./pyopenssl.nix {
+    inherit (super) pyopenssl;
+  });
+
+  # The cryptography that we get from nixpkgs to satisfy the pyopenssl upgrade
+  # that we did breaks service-identity ... so get a newer version that works.
+  service-identity = self.callPackage ./service-identity.nix { };
 
   # collections-extended is currently broken for Python 3.11 in nixpkgs but
   # we know where a working version lives.
@@ -76,16 +84,19 @@ in {
 
   # tornado and tk pull in a huge dependency trees for functionality we don't
   # care about, also tkinter doesn't work on PyPy.
-  matplotlib = super.matplotlib.override { tornado = null; enableTk = false; };
+  matplotlib = onPyPy (matplotlib: matplotlib.override {
+    tornado = null;
+    enableTk = false;
+  }) super.matplotlib;
 
-  tqdm = super.tqdm.override {
+  tqdm = onPyPy (tqdm: tqdm.override {
     # ibid.
     tkinter = null;
     # pandas is only required by the part of the test suite covering
     # integration with pandas that we don't care about.  pandas is a huge
     # dependency.
     pandas = null;
-  };
+  }) super.tqdm;
 
   # The treq test suite depends on httpbin.  httpbin pulls in babel (flask ->
   # jinja2 -> babel) and arrow (brotlipy -> construct -> arrow).  babel fails
@@ -103,56 +114,19 @@ in {
   # The autobahn test suite pulls in a vast number of dependencies for
   # functionality we don't care about.  It might be nice to *selectively*
   # disable just some of it but this is easier.
-  autobahn = onPyPy dontCheck (super.autobahn.override {
-    base58 = null;
-    click = null;
-    ecdsa = null;
-    eth-abi = null;
-    jinja2 = null;
-    hkdf = null;
-    mnemonic = null;
-    py-ecc = null;
-    py-eth-sig-utils = null;
-    py-multihash = null;
-    rlp = null;
-    spake2 = null;
-    yapf = null;
-    eth-account = null;
-  });
+  autobahn = dontCheck super.autobahn;
 
   # and python-dotenv tests pulls in a lot of dependencies, including jedi,
   # which does not work on PyPy.
   python-dotenv = onPyPy dontCheck super.python-dotenv;
 
-  # Upstream package unaccountably includes a sqlalchemy dependency ... but
-  # the project has no such dependency.  Fixed in nixpkgs in
-  # da10e809fff70fbe1d86303b133b779f09f56503.
-  aiocontextvars = super.aiocontextvars.override { sqlalchemy = null; };
-
   # By default, the sphinx docs are built, which pulls in a lot of
   # dependencies - including jedi, which does not work on PyPy.
-  hypothesis =
-    (let h = super.hypothesis;
-     in
-       if (h.override.__functionArgs.enableDocumentation or false)
-       then h.override { enableDocumentation = false; }
-       else h).overrideAttrs ({ nativeBuildInputs, ... }: {
-         # The nixpkgs expression is missing the tzdata check input.
-         nativeBuildInputs = nativeBuildInputs ++ [ super.tzdata ];
-       });
+  hypothesis = onPyPy dontBuildDocs super.hypothesis;
 
   # flaky's test suite depends on nose and nose appears to have Python 3
   # incompatibilities (it includes `print` statements, for example).
   flaky = onPyPy dontCheck super.flaky;
-
-  # Replace the deprecated way of running the test suite with the modern way.
-  # This also drops a bunch of unnecessary build-time dependencies, some of
-  # which are broken on PyPy.  Fixed in nixpkgs in
-  # 5feb5054bb08ba779bd2560a44cf7d18ddf37fea.
-  zfec = (overrideIfPresent "setuptoolsTrial" null super.zfec).overrideAttrs (
-    old: {
-      checkPhase = "trial zfec";
-    });
 
   # collections-extended is packaged with poetry-core.  poetry-core test suite
   # uses virtualenv and virtualenv test suite fails on PyPy.
@@ -172,15 +146,6 @@ in {
   # since we actually depend directly and significantly on Foolscap.
   foolscap = onPyPy dontCheck super.foolscap;
 
-  # Fixed by nixpkgs PR https://github.com/NixOS/nixpkgs/pull/222246
-  psutil = super.psutil.overrideAttrs ({ pytestFlagsArray, disabledTests, ...}: {
-    # Upstream already disables some tests but there are even more that have
-    # build impurities that come from build system hardware configuration.
-    # Skip them too.
-    pytestFlagsArray = [ "-v" ] ++ pytestFlagsArray;
-    disabledTests = disabledTests ++ [ "sensors_temperatures" ];
-  });
-
   # CircleCI build systems don't have enough memory to run this test suite.
-  lz4 = dontCheck super.lz4;
+  lz4 = onPyPy dontCheck super.lz4;
 }
