@@ -89,20 +89,13 @@ workflows:
 
       - "nixos":
           name: "<<matrix.pythonVersion>>"
-          nixpkgs: "nixpkgs-22_11"
+          nixpkgs: "nixpkgs-unstable"
           matrix:
             parameters:
               pythonVersion:
                 - "python38"
                 - "python39"
                 - "python310"
-
-      - "nixos":
-          name: "<<matrix.pythonVersion>>"
-          nixpkgs: "nixpkgs-unstable"
-          matrix:
-            parameters:
-              pythonVersion:
                 - "python311"
 
       # Eventually, test against PyPy 3.8
