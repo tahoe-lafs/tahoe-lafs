@@ -20,7 +20,7 @@
     # _third_ package set involved and gives a way to provide what should be a
     # working experience by default (that is, if nixpkgs doesn't get
     # overridden).
-    nixpkgs.follows = "nixpkgs-22_11";
+    nixpkgs.follows = "nixpkgs-unstable";
 
     # Also get flake-utils for simplified multi-system definitions.
     flake-utils = {
