@@ -615,6 +615,27 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnless("node.uptime" in stats)
         self.failUnless(isinstance(stats["node.uptime"], float))
 
+    async def test_nurls(self):
+        """
+        When HTTP storage is available, the version for storage server includes
+        the NURLs.
+        """
+        basedir = "test_client.Basic.test_nurls"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                           BASECONFIG + \
+                           "[storage]\n" + \
+                           "enabled = true\n" +
+                           "force_foolscap = false\n")
+        c = await client.create_client(basedir)
+        version = c.tub.strongReferences[0].remote_get_version()
+        nurls = version[b'http://allmydata.org/tahoe/protocols/storage/v2'][
+            b'anonymous-storage-NURLs'
+        ]
+        self.assertTrue(len(nurls) > 0)
+        for nurl in nurls:
+            self.assertTrue(nurl.startswith(b"pb://"))
+
     @defer.inlineCallbacks
     def test_helper_furl(self):
         """
