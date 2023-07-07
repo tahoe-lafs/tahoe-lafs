@@ -320,21 +320,23 @@ class StorageFarmBroker(service.MultiService):
             "pub-{}".format(str(server_id, "ascii")),  # server_id is v0-<key> not pub-v0-key .. for reasons?
         )
 
-        if self._should_we_use_http(self.node_config, server["ann"]):
-            s = HTTPNativeStorageServer(
+        def http_server_factory(nurls: list[str]) -> HTTPNativeStorageServer:
+            return HTTPNativeStorageServer(
                 server_id,
                 server["ann"],
+                nurls,
                 grid_manager_verifier=gm_verifier,
                 default_connection_handlers=self._default_connection_handlers,
                 tor_provider=self._tor_provider
             )
+
+        if self._should_we_use_http(self.node_config, server["ann"]):
+            s = http_server_factory(server["ann"][ANONYMOUS_STORAGE_NURLS])
             s.on_status_changed(lambda _: self._got_connection())
             return s
 
         handler_overrides = server.get("connections", {})
-        # TODO connect and get version; if it has HTTP and we support HTTP, do
-        # HTTPNativeStorageServer instead.
-        s = NativeStorageServer(
+        initial_server = NativeStorageServer(
             server_id,
             server["ann"],
             self._tub_maker,
@@ -343,6 +345,7 @@ class StorageFarmBroker(service.MultiService):
             self.storage_client_config,
             gm_verifier,
         )
+        s = UpgradingStorageServer(initial_server, http_server_factory)
         s.on_status_changed(lambda _: self._got_connection())
         return s
 
@@ -1061,9 +1064,13 @@ class HTTPNativeStorageServer(service.MultiService):
     The notion of being "connected" is less meaningful for HTTP; we just poll
     occasionally, and if we've succeeded at last poll, we assume we're
     "connected".
+
+    The ``nurls`` parameter supersedes any NURLs from the announcement, since
+    the announcement may be from a Foolscap-only server that has since been
+    upgraded.
     """
 
-    def __init__(self, server_id: bytes, announcement, default_connection_handlers: dict[str,str], reactor=reactor, grid_manager_verifier=None, tor_provider: Optional[TorProvider]=None):
+    def __init__(self, server_id: bytes, announcement, nurls: list[str], default_connection_handlers: dict[str,str], reactor=reactor, grid_manager_verifier=None, tor_provider: Optional[TorProvider]=None):
         service.MultiService.__init__(self)
         assert isinstance(server_id, bytes)
         self._server_id = server_id
@@ -1083,10 +1090,7 @@ class HTTPNativeStorageServer(service.MultiService):
             self._short_description,
             self._long_description
         ) = _parse_announcement(server_id, furl, announcement)
-        self._nurls = [
-            DecodedURL.from_text(u)
-            for u in announcement[ANONYMOUS_STORAGE_NURLS]
-        ]
+        self._nurls = [DecodedURL.from_text(u) for u in nurls]
         self._istorage_server : Optional[_HTTPStorageServer] = None
 
         self._connection_status = connection_status.ConnectionStatus.unstarted()
@@ -1298,6 +1302,28 @@ class HTTPNativeStorageServer(service.MultiService):
             result.addCallback(lambda _: client_shutting_down)
 
         return result
+
+
+@implementer(IServer)
+class UpgradingStorageServer(service.MultiService):
+    """
+    A reference to a remote storage server that can be upgraded from Foolscap
+    to HTTP.
+    """
+
+    def __init__(self, original_server: Union[NativeStorageServer,HTTPNativeStorageServer], http_server_factory: Callable[[list[str]],HTTPNativeStorageServer]):
+        service.MultiService.__init__(self)
+        self._current_server = original_server
+        self.addService(self._current_server)
+        self._http_server_factory = http_server_factory
+        self._nurls : list[str] = []  # might become an argument if we end up supporting upgradable HTTPNativeStorageServer
+
+    def __getattr__(self, attr):
+        return getattr(self._current_server, attr)
+
+    # TODO on the callback for new version responses, check if NURLs changed.
+    # if yes, stop current server, remove it, create http one with factory, add
+    # and start it with the new nurls.
 
 
 class UnknownServerTypeError(Exception):
