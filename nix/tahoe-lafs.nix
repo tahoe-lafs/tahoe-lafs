@@ -54,6 +54,7 @@ buildPythonPackage rec {
       ];
       unittest = [
         beautifulsoup4
+        html5lib
         fixtures
         hypothesis
         mock
