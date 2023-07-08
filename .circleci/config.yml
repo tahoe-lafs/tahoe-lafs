@@ -532,7 +532,7 @@ executors:
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
-        image: "nixos/nix:2.10.3"
+        image: "nixos/nix:2.16.1"
     environment:
       # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and allows us
       # to push to CACHIX_NAME.  CACHIX_NAME tells cachix which cache to push
