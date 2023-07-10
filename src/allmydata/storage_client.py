@@ -1336,6 +1336,14 @@ class UpgradingStorageServer(service.MultiService):
         self.addService(self._current_server)
         self._current_server.on_status_changed(self._status_changed)
 
+    def on_status_changed(self, callback: Callable[[UpgradingStorageServer], object]):
+        """Wrapper that make sure callbacks match our identity."""
+        def wrapped_callback(server):
+            if server is self._current_server:
+                callback(self)
+        assert self._current_server is not None
+        self._current_server.on_status_changed(wrapped_callback)
+
     def _status_changed(self, server: Union[NativeStorageServer,HTTPNativeStorageServer]) -> None:
         assert server is self._current_server
         version = server.get_version()
