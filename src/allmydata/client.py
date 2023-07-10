@@ -840,9 +840,9 @@ class _Client(node.Node, pollmixin.PollMixin):
                 nurls = self.tub.negotiationClass.add_storage_server(ss, swissnum.encode("ascii"))
                 self.storage_nurls = nurls
                 announcement[ANONYMOUS_STORAGE_NURLS] = [n.to_text() for n in nurls]
-                # Tell Foolscap server about the nurls so it can send them out
+                # Tell storage server about the nurls so it can send them out
                 # to clients, allowing them to auto-upgrade.
-                foolscap_server.set_nurls(nurls)
+                ss.set_nurls(nurls)
 
             announcement["anonymous-storage-FURL"] = furl
 

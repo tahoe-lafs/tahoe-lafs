@@ -130,6 +130,15 @@ class StorageServer(service.MultiService):
         # These callables will be called with BucketWriters that closed:
         self._call_on_bucket_writer_close = []
 
+        # The HTTP storage NURLs for this server. We include them in version
+        # messages so clients can upgrade from Foolscap to HTTP, or from old
+        # HTTP to new HTTP server configuration.
+        self._nurls : list[bytes] = []
+
+    def set_nurls(self, nurls: list[DecodedURL]) -> None:
+        """Set the HTTP NURLs for this server."""
+        self._nurls = [n.to_text().encode("utf-8") for n in nurls]
+
     def stopService(self):
         # Cancel any in-progress uploads:
         for bw in list(self._bucket_writers.values()):
@@ -276,6 +285,13 @@ class StorageServer(service.MultiService):
                       },
                     b"application-version": allmydata.__full_version__.encode("utf-8"),
                     }
+
+        if self._nurls:
+            # Tell clients how to upgrade to latest HTTP protocol config:
+            version[b"http://allmydata.org/tahoe/protocols/storage/v2"] = {
+                ANONYMOUS_STORAGE_NURLS.encode("ascii"): self._nurls
+            }
+
         return version
 
     def allocate_buckets(self, storage_index,
@@ -832,27 +848,14 @@ class FoolscapStorageServer(Referenceable):  # type: ignore # warner/foolscap#78
 
         self._server.register_bucket_writer_close_handler(self._bucket_writer_closed)
 
-        # The HTTP storage NURLs for this server. We include them in version
-        # messages so clients can upgrade from Foolscap to HTTP.
-        self._nurls : list[bytes] = []
-
     def _bucket_writer_closed(self, bw):
         if bw in self._bucket_writer_disconnect_markers:
             canary, disconnect_marker = self._bucket_writer_disconnect_markers.pop(bw)
             canary.dontNotifyOnDisconnect(disconnect_marker)
 
-    def set_nurls(self, nurls: list[DecodedURL]) -> None:
-        """Set the HTTP NURLs for this server."""
-        self._nurls = [n.to_text().encode("utf-8") for n in nurls]
 
     def remote_get_version(self):
-        result = self._server.get_version()
-        if self._nurls:
-            # Tell clients how to upgrade to HTTP protocol:
-            result[b"http://allmydata.org/tahoe/protocols/storage/v2"] = {
-                ANONYMOUS_STORAGE_NURLS.encode("ascii"): self._nurls
-            }
-        return result
+        return self._server.get_version()
 
     def remote_allocate_buckets(self, storage_index,
                                 renew_secret, cancel_secret,

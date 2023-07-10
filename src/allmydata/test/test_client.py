@@ -622,13 +622,14 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         """
         basedir = "test_client.Basic.test_nurls"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
-                           BASECONFIG + \
-                           "[storage]\n" + \
-                           "enabled = true\n" +
-                           "force_foolscap = false\n")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       BASECONFIG +
+                       "[storage]\n" +
+                       "enabled = true\n" +
+                       "force_foolscap = false\n")
         c = await client.create_client(basedir)
-        version = c.tub.strongReferences[0].remote_get_version()
+        ss = c.getServiceNamed("storage")
+        version = ss.get_version()
         nurls = version[b'http://allmydata.org/tahoe/protocols/storage/v2'][
             b'anonymous-storage-NURLs'
         ]
