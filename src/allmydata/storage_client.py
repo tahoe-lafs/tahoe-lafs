@@ -1331,8 +1331,6 @@ class UpgradingStorageServer(service.MultiService):
             previous_server = self._current_server
             self._current_server = None
             self.removeService(previous_server)
-            if self.running:
-                previous_server.stopService()
 
         self._current_server = server
         self.addService(self._current_server)
