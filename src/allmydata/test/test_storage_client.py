@@ -292,7 +292,7 @@ class PluginMatchedAnnouncement(SyncTestCase):
     def set_rref(self, server_id, node, rref):
         storage_broker = node.get_storage_broker()
         native_storage_server = storage_broker.servers[server_id]
-        native_storage_server._rref = rref
+        native_storage_server._current_server._rref = rref
 
     @inlineCallbacks
     def test_ignored_non_enabled_plugin(self):
