@@ -331,20 +331,19 @@ class StorageFarmBroker(service.MultiService):
             )
 
         if self._should_we_use_http(self.node_config, server["ann"]):
-            s = http_server_factory(server["ann"][ANONYMOUS_STORAGE_NURLS])
-            s.on_status_changed(lambda _: self._got_connection())
-            return s
+            initial_server = http_server_factory(server["ann"][ANONYMOUS_STORAGE_NURLS])
+        else:
+            handler_overrides = server.get("connections", {})
+            initial_server = NativeStorageServer(
+                server_id,
+                server["ann"],
+                self._tub_maker,
+                handler_overrides,
+                self.node_config,
+                self.storage_client_config,
+                gm_verifier,
+            )
 
-        handler_overrides = server.get("connections", {})
-        initial_server = NativeStorageServer(
-            server_id,
-            server["ann"],
-            self._tub_maker,
-            handler_overrides,
-            self.node_config,
-            self.storage_client_config,
-            gm_verifier,
-        )
         s = UpgradingStorageServer(initial_server, http_server_factory)
         s.on_status_changed(lambda _: self._got_connection())
         return s
@@ -1311,19 +1310,52 @@ class UpgradingStorageServer(service.MultiService):
     to HTTP.
     """
 
-    def __init__(self, original_server: Union[NativeStorageServer,HTTPNativeStorageServer], http_server_factory: Callable[[list[str]],HTTPNativeStorageServer]):
+    _current_server : Optional[Union[NativeStorageServer,HTTPNativeStorageServer]] = None
+
+    def __init__(
+        self,
+        original_server: Union[NativeStorageServer,HTTPNativeStorageServer],
+        http_server_factory: Callable[[list[str]],HTTPNativeStorageServer]
+    ):
         service.MultiService.__init__(self)
-        self._current_server = original_server
-        self.addService(self._current_server)
         self._http_server_factory = http_server_factory
         self._nurls : list[str] = []  # might become an argument if we end up supporting upgradable HTTPNativeStorageServer
+        self._switch_current_server(original_server)
+
+    def _switch_current_server(self, server: Union[NativeStorageServer,HTTPNativeStorageServer]) -> None:
+        """Set a new current server, and get notified when its status changed."""
+        if self._current_server is not None:
+            previous_server = self._current_server
+            self._current_server = None
+            self.removeService(previous_server)
+            if self.running:
+                previous_server.stopService()
+
+        self._current_server = server
+        self.addService(self._current_server)
+        self._current_server.on_status_changed(self._status_changed)
+
+    def _status_changed(self, server: Union[NativeStorageServer,HTTPNativeStorageServer]) -> None:
+        assert server is self._current_server
+        version = server.get_version()
+        if version is None:
+            return
+        v2 = version.get("http://allmydata.org/tahoe/protocols/storage/v2", None)
+        if v2 is None:
+            return
+        nurls = v2[ANONYMOUS_STORAGE_NURLS]
+        if nurls != self._nurls:
+            # The new set of NURLs is different than the previous set of NURLs.
+            # This can happen when a Foolscap server gets upgraded to support
+            # HTTP, or when a HTTP server is restarted with a new
+            # configuration. In either case, we should switch.
+
+            # Note this could cause reentrancy bugs, as server.stopService() is
+            # called in the middle of a callback from the server.
+            self._switch_current_server(self._http_server_factory(nurls))
 
     def __getattr__(self, attr):
         return getattr(self._current_server, attr)
-
-    # TODO on the callback for new version responses, check if NURLs changed.
-    # if yes, stop current server, remove it, create http one with factory, add
-    # and start it with the new nurls.
 
 
 class UnknownServerTypeError(Exception):

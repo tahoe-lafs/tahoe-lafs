@@ -798,7 +798,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             expected_storage_server_class = NativeStorageServer
         else:
             expected_storage_server_class = HTTPNativeStorageServer
-        self.assertIsInstance(native_server, expected_storage_server_class)
+        self.assertIsInstance(native_server._current_server, expected_storage_server_class)
 
     @inlineCallbacks
     def _set_up_client_nodes(self, force_foolscap):
