@@ -331,9 +331,11 @@ class StorageFarmBroker(service.MultiService):
             )
 
         if self._should_we_use_http(self.node_config, server["ann"]):
-            initial_server = http_server_factory(server["ann"][ANONYMOUS_STORAGE_NURLS])
+            nurls = server["ann"][ANONYMOUS_STORAGE_NURLS]
+            initial_server = http_server_factory(nurls)
         else:
             handler_overrides = server.get("connections", {})
+            nurls = []
             initial_server = NativeStorageServer(
                 server_id,
                 server["ann"],
@@ -344,7 +346,7 @@ class StorageFarmBroker(service.MultiService):
                 gm_verifier,
             )
 
-        s = UpgradingStorageServer(initial_server, http_server_factory)
+        s = UpgradingStorageServer(initial_server, http_server_factory, nurls)
         s.on_status_changed(lambda _: self._got_connection())
         return s
 
@@ -1315,11 +1317,12 @@ class UpgradingStorageServer(service.MultiService):
     def __init__(
         self,
         original_server: Union[NativeStorageServer,HTTPNativeStorageServer],
-        http_server_factory: Callable[[list[str]],HTTPNativeStorageServer]
+        http_server_factory: Callable[[list[str]],HTTPNativeStorageServer],
+        nurls: list[str],
     ):
         service.MultiService.__init__(self)
         self._http_server_factory = http_server_factory
-        self._nurls : list[str] = []  # might become an argument if we end up supporting upgradable HTTPNativeStorageServer
+        self._nurls = nurls
         self._switch_current_server(original_server)
 
     def _switch_current_server(self, server: Union[NativeStorageServer,HTTPNativeStorageServer]) -> None:
@@ -1352,6 +1355,7 @@ class UpgradingStorageServer(service.MultiService):
 
             # Note this could cause reentrancy bugs, as server.stopService() is
             # called in the middle of a callback from the server.
+            self._nurls = nurls
             self._switch_current_server(self._http_server_factory(nurls))
 
     def __getattr__(self, attr):
