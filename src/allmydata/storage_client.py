@@ -367,8 +367,9 @@ class StorageFarmBroker(service.MultiService):
             serverid,
             {"ann": ann.copy()},
         )
-        s._rref = rref
-        s._is_connected = True
+        # Yes, this is terrible, this whole test method should go away
+        s._current_server._rref = rref  # type: ignore
+        s._current_server._is_connected = True  # type: ignore
         self.servers[serverid] = s
 
     def test_add_server(self, server_id, s):
