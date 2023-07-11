@@ -50,7 +50,7 @@ from ..common import (
 from ...webish import (
     TahoeLAFSRequest,
     TahoeLAFSSite,
-    anonymous_tempfile,
+    anonymous_tempfile_factory,
 )
 
 
@@ -179,7 +179,7 @@ class TahoeLAFSSiteTests(SyncTestCase):
         FilePath(tempdir).makedirs()
 
         site = TahoeLAFSSite(
-            anonymous_tempfile(tempdir),
+            anonymous_tempfile_factory(tempdir),
             Resource(),
             logPath=logPath,
         )

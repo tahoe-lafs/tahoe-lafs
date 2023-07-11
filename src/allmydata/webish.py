@@ -217,7 +217,7 @@ def censor(queryargs: bytes) -> bytes:
     return urlencode(result, safe="[]").encode("ascii")
 
 
-def anonymous_tempfile(tempdir: bytes) -> BinaryIO:
+def anonymous_tempfile_factory(tempdir: bytes) -> Callable[[], BinaryIO]:
     """
     Create a no-argument callable for creating a new temporary file in the
     given directory.
