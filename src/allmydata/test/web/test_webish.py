@@ -6,9 +6,6 @@ import tempfile
 from uuid import (
     uuid4,
 )
-from errno import (
-    EACCES,
-)
 from io import (
     BytesIO,
 )
@@ -30,9 +27,6 @@ from testtools.matchers import (
     HasLength,
 )
 
-from twisted.python.runtime import (
-    platform,
-)
 from twisted.python.filepath import (
     FilePath,
 )
