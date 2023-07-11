@@ -92,7 +92,7 @@ from allmydata.storage_client import (
     _FoolscapStorage,
     _NullStorage,
     _pick_a_http_server,
-    ANONYMOUS_STORAGE_NURLS,
+    UpgradingStorageServer
 )
 from ..storage.server import (
     StorageServer,
@@ -292,7 +292,10 @@ class PluginMatchedAnnouncement(SyncTestCase):
     def set_rref(self, server_id, node, rref):
         storage_broker = node.get_storage_broker()
         native_storage_server = storage_broker.servers[server_id]
-        native_storage_server._current_server._rref = rref
+        if isinstance(native_storage_server, UpgradingStorageServer):
+            native_storage_server = native_storage_server.get_underlying_server()
+        assert isinstance(native_storage_server, NativeStorageServer)
+        native_storage_server._rref = rref
 
     @inlineCallbacks
     def test_ignored_non_enabled_plugin(self):
@@ -742,41 +745,28 @@ storage:
         self.assertTrue(done.called)
 
     def test_should_we_use_http_default(self):
-        """Default is to not use HTTP; this will change eventually"""
+        """Default is to not use HTTP; this will change eventually."""
         basedir = self.mktemp()
         node_config = config_from_string(basedir, "", "")
-        announcement = {ANONYMOUS_STORAGE_NURLS: ["pb://..."]}
         self.assertFalse(
-            StorageFarmBroker._should_we_use_http(node_config, announcement)
-        )
-        self.assertFalse(
-            StorageFarmBroker._should_we_use_http(node_config, {})
+            StorageFarmBroker._should_we_use_http(node_config)
         )
 
     def test_should_we_use_http(self):
         """
-        If HTTP is allowed, it will only be used if the announcement includes
-        some NURLs.
+        If HTTP is allowed in the config, we should use HTTP.
         """
         basedir = self.mktemp()
 
-        no_nurls = {}
-        empty_nurls = {ANONYMOUS_STORAGE_NURLS: []}
-        has_nurls = {ANONYMOUS_STORAGE_NURLS: ["pb://.."]}
-
-        for force_foolscap, announcement, expected_http_usage in [
-                ("false", no_nurls, False),
-                ("false", empty_nurls, False),
-                ("false", has_nurls, True),
-                ("true", empty_nurls, False),
-                ("true", no_nurls, False),
-                ("true", has_nurls, False),
+        for force_foolscap, expected_http_usage in [
+            ("false", True),
+            ("true", False),
         ]:
             node_config = config_from_string(
                 basedir, "", f"[client]\nforce_foolscap = {force_foolscap}"
             )
             self.assertEqual(
-                StorageFarmBroker._should_we_use_http(node_config, announcement),
+                StorageFarmBroker._should_we_use_http(node_config),
                 expected_http_usage
             )
 

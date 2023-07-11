@@ -25,6 +25,7 @@ from allmydata.storage import http_client
 from allmydata.storage_client import (
     NativeStorageServer,
     HTTPNativeStorageServer,
+    UpgradingStorageServer
 )
 
 from twisted.python.filepath import (
@@ -798,7 +799,9 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             expected_storage_server_class = NativeStorageServer
         else:
             expected_storage_server_class = HTTPNativeStorageServer
-        self.assertIsInstance(native_server._current_server, expected_storage_server_class)
+        if isinstance(native_server, UpgradingStorageServer):
+            native_server = native_server.get_underlying_server()
+        self.assertIsInstance(native_server, expected_storage_server_class)
 
     @inlineCallbacks
     def _set_up_client_nodes(self, force_foolscap):

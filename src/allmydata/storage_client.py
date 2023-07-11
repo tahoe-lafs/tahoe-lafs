@@ -286,14 +286,14 @@ class StorageFarmBroker(service.MultiService):
         })
 
     @staticmethod
-    def _should_we_use_http(node_config: _Config, announcement: dict) -> bool:
+    def _should_we_use_http(node_config: _Config) -> bool:
         """
-        Given an announcement dictionary and config, return whether we should
-        connect to storage server over HTTP.
+        Given the node config, return whether we should connect to storage
+        servers that use HTTP.
         """
         return not node_config.get_config(
             "client", "force_foolscap", default=True, boolean=True,
-        ) and len(announcement.get(ANONYMOUS_STORAGE_NURLS, [])) > 0
+        )
 
     @log_call(
         action_type=u"storage-client:broker:make-storage-server",
@@ -330,8 +330,9 @@ class StorageFarmBroker(service.MultiService):
                 tor_provider=self._tor_provider
             )
 
-        if self._should_we_use_http(self.node_config, server["ann"]):
-            nurls = server["ann"][ANONYMOUS_STORAGE_NURLS]
+        nurls = server["ann"].get(ANONYMOUS_STORAGE_NURLS, [])
+        use_http = self._should_we_use_http(self.node_config)
+        if use_http and nurls:
             initial_server = http_server_factory(nurls)
         else:
             handler_overrides = server.get("connections", {})
@@ -346,7 +347,14 @@ class StorageFarmBroker(service.MultiService):
                 gm_verifier,
             )
 
-        s = UpgradingStorageServer(initial_server, http_server_factory, nurls)
+        if use_http:
+            # We might switch from Foolscap to HTTP, or the NURLs for a HTTP
+            # server might change, so allow upgrading:
+            s = UpgradingStorageServer(initial_server, http_server_factory, nurls)
+        else:
+            # Only ever going to use Foolscap since HTTP is disabled:
+            assert isinstance(initial_server, NativeStorageServer)
+            s = initial_server
         s.on_status_changed(self._got_connection)
         return s
 
@@ -368,8 +376,11 @@ class StorageFarmBroker(service.MultiService):
             {"ann": ann.copy()},
         )
         # Yes, this is terrible, this whole test method should go away
-        s._current_server._rref = rref  # type: ignore
-        s._current_server._is_connected = True  # type: ignore
+        if isinstance(s, UpgradingStorageServer):
+            s = s.get_underlying_server()
+        assert isinstance(s, NativeStorageServer)
+        s._rref = rref
+        s._is_connected = True
         self.servers[serverid] = s
 
     def test_add_server(self, server_id, s):
@@ -1359,6 +1370,11 @@ class UpgradingStorageServer(service.MultiService):
 
     def __getattr__(self, attr):
         return getattr(self._current_server, attr)
+
+    def get_underlying_server(self) -> Union[NativeStorageServer,HTTPNativeStorageServer]:
+        """Return the current server."""
+        assert self._current_server is not None
+        return self._current_server
 
 
 class UnknownServerTypeError(Exception):
