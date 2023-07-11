@@ -140,7 +140,8 @@ class _MagicTextProtocol(ProcessProtocol):
 
     def outReceived(self, data):
         data = str(data, sys.stdout.encoding)
-        sys.stdout.write(self.name + data)
+        for line in data.splitlines():
+            sys.stdout.write(self.name + line + "\n")
         self._output.write(data)
         if not self.magic_seen.called and self._magic_text in self._output.getvalue():
             print("Saw '{}' in the logs".format(self._magic_text))
@@ -148,7 +149,8 @@ class _MagicTextProtocol(ProcessProtocol):
 
     def errReceived(self, data):
         data = str(data, sys.stderr.encoding)
-        sys.stdout.write(self.name + data)
+        for line in data.splitlines():
+            sys.stdout.write(self.name + line + "\n")
 
 
 def _cleanup_process_async(transport: IProcessTransport, allow_missing: bool) -> None:
@@ -311,6 +313,36 @@ def _run_node(reactor, node_dir, request, magic_text, finalize=True):
     return d
 
 
+def basic_node_configuration(request, flog_gatherer, node_dir: str):
+    """
+    Setup common configuration options for a node, given a ``pytest`` request
+    fixture.
+    """
+    config_path = join(node_dir, 'tahoe.cfg')
+    config = get_config(config_path)
+    set_config(
+        config,
+        u'node',
+        u'log_gatherer.furl',
+        flog_gatherer,
+    )
+    force_foolscap = request.config.getoption("force_foolscap")
+    assert force_foolscap in (True, False)
+    set_config(
+        config,
+        'storage',
+        'force_foolscap',
+        str(force_foolscap),
+    )
+    set_config(
+        config,
+        'client',
+        'force_foolscap',
+        str(force_foolscap),
+    )
+    write_config(FilePath(config_path), config)
+
+
 def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, name, web_port,
                  storage=True,
                  magic_text=None,
@@ -351,29 +383,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
         created_d = done_proto.done
 
         def created(_):
-            config_path = join(node_dir, 'tahoe.cfg')
-            config = get_config(config_path)
-            set_config(
-                config,
-                u'node',
-                u'log_gatherer.furl',
-                flog_gatherer,
-            )
-            force_foolscap = request.config.getoption("force_foolscap")
-            assert force_foolscap in (True, False)
-            set_config(
-                config,
-                'storage',
-                'force_foolscap',
-                str(force_foolscap),
-            )
-            set_config(
-                config,
-                'client',
-                'force_foolscap',
-                str(force_foolscap),
-            )
-            write_config(FilePath(config_path), config)
+            basic_node_configuration(request, flog_gatherer, node_dir)
         created_d.addCallback(created)
 
     d = Deferred()
@@ -621,16 +631,9 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_serve
             server['last_received_data']
             for server in servers
         ]
-        # if any times are null/None that server has never been
-        # contacted (so it's down still, probably)
-        never_received_data = server_times.count(None)
-        if never_received_data > 0:
-            print(f"waiting because {never_received_data} server(s) not contacted")
-            time.sleep(1)
-            continue
-
-        # check that all times are 'recent enough'
-        if any([time.time() - t > liveness for t in server_times]):
+        # check that all times are 'recent enough' (it's OK if _some_ servers
+        # are down, we just want to make sure a sufficient number are up)
+        if len([time.time() - t <= liveness for t in server_times if t is not None]) < minimum_number_of_servers:
             print("waiting because at least one server too old")
             time.sleep(1)
             continue

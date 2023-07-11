@@ -39,6 +39,12 @@ class Producer(object):
         self.consumer = consumer
         self.done = False
 
+    def stopProducing(self):
+        pass
+
+    def pauseProducing(self):
+        pass
+
     def resumeProducing(self):
         """Kick off streaming."""
         self.iterate()

@@ -56,7 +56,7 @@ class HashedLeaseSerializer(object):
         """
         Hash a lease secret for storage.
         """
-        return blake2b(secret, digest_size=32, encoder=RawEncoder())
+        return blake2b(secret, digest_size=32, encoder=RawEncoder)
 
     @classmethod
     def _hash_lease_info(cls, lease_info):

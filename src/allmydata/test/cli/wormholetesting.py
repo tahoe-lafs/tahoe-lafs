@@ -40,7 +40,7 @@ from itertools import count
 from sys import stderr
 
 from attrs import frozen, define, field, Factory
-from twisted.internet.defer import Deferred, DeferredQueue, succeed, Awaitable
+from twisted.internet.defer import Deferred, DeferredQueue, succeed
 from wormhole._interfaces import IWormhole
 from wormhole.wormhole import create
 from zope.interface import implementer
@@ -63,14 +63,15 @@ class MemoryWormholeServer(object):
         specific application id and relay URL combination.
     """
     _apps: dict[ApplicationKey, _WormholeApp] = field(default=Factory(dict))
-    _waiters: dict[ApplicationKey, Deferred] = field(default=Factory(dict))
+    _waiters: dict[ApplicationKey, Deferred[IWormhole]] = field(default=Factory(dict))
 
     def create(
         self,
         appid: str,
         relay_url: str,
         reactor: Any,
-        versions: Any={},
+        # Unfortunately we need a mutable default to match the real API
+        versions: Any={},  # noqa: B006
         delegate: Optional[Any]=None,
         journal: Optional[Any]=None,
         tor: Optional[Any]=None,
@@ -129,7 +130,7 @@ class TestingHelper(object):
         key = (relay_url, appid)
         if key in self._server._waiters:
             raise ValueError(f"There is already a waiter for {key}")
-        d = Deferred()
+        d : Deferred[IWormhole] = Deferred()
         self._server._waiters[key] = d
         wormhole = await d
         return wormhole
@@ -165,7 +166,7 @@ class _WormholeApp(object):
     appid/relay_url scope.
     """
     wormholes: dict[WormholeCode, IWormhole] = field(default=Factory(dict))
-    _waiting: dict[WormholeCode, List[Deferred]] = field(default=Factory(dict))
+    _waiting: dict[WormholeCode, List[Deferred[_MemoryWormhole]]] = field(default=Factory(dict))
     _counter: Iterator[int] = field(default=Factory(count))
 
     def allocate_code(self, wormhole: IWormhole, code: Optional[WormholeCode]) -> WormholeCode:
@@ -191,13 +192,13 @@ class _WormholeApp(object):
 
         return code
 
-    def wait_for_wormhole(self, code: WormholeCode) -> Awaitable[_MemoryWormhole]:
+    def wait_for_wormhole(self, code: WormholeCode) -> Deferred[_MemoryWormhole]:
         """
         Return a ``Deferred`` which fires with the next wormhole to be associated
         with the given code.  This is used to let the first end of a wormhole
         rendezvous with the second end.
         """
-        d = Deferred()
+        d : Deferred[_MemoryWormhole] = Deferred()
         self._waiting.setdefault(code, []).append(d)
         return d
 
@@ -241,8 +242,8 @@ class _MemoryWormhole(object):
 
     _view: _WormholeServerView
     _code: Optional[WormholeCode] = None
-    _payload: DeferredQueue = field(default=Factory(DeferredQueue))
-    _waiting_for_code: list[Deferred] = field(default=Factory(list))
+    _payload: DeferredQueue[WormholeMessage] = field(default=Factory(DeferredQueue))
+    _waiting_for_code: list[Deferred[WormholeCode]] = field(default=Factory(list))
 
     def allocate_code(self) -> None:
         if self._code is not None:
@@ -264,7 +265,7 @@ class _MemoryWormhole(object):
 
     def when_code(self) -> Deferred[WormholeCode]:
         if self._code is None:
-            d = Deferred()
+            d : Deferred[WormholeCode] = Deferred()
             self._waiting_for_code.append(d)
             return d
         return succeed(self._code)

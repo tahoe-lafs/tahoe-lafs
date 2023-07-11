@@ -78,18 +78,21 @@ class Version(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin, \
         fso.nodedirs = [os.path.dirname(abspath_expanduser_unicode(str(storedir)))
                         for (i,ss,storedir)
                         in self.iterate_servers()]
-        fso.stdout = StringIO()
-        fso.stderr = StringIO()
+        # This attribute isn't defined on FindSharesOptions but `find_shares()`
+        # definitely expects it...
+        fso.stdout = StringIO()  # type: ignore[attr-defined]
         debug.find_shares(fso)
-        sharefiles = fso.stdout.getvalue().splitlines()
+        sharefiles = fso.stdout.getvalue().splitlines()  # type: ignore[attr-defined]
         expected = self.nm.default_encoding_parameters["n"]
         self.assertThat(sharefiles, HasLength(expected))
 
+        # This attribute isn't defined on DebugOptions but `dump_share()`
+        # definitely expects it...
         do = debug.DumpOptions()
         do["filename"] = sharefiles[0]
-        do.stdout = StringIO()
+        do.stdout = StringIO()  # type: ignore[attr-defined]
         debug.dump_share(do)
-        output = do.stdout.getvalue()
+        output = do.stdout.getvalue()  # type: ignore[attr-defined]
         lines = set(output.splitlines())
         self.assertTrue("Mutable slot found:" in lines, output)
         self.assertTrue(" share_type: MDMF" in lines, output)
@@ -104,10 +107,12 @@ class Version(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin, \
         self.assertTrue("  verify-cap: %s" % vcap in lines, output)
         cso = debug.CatalogSharesOptions()
         cso.nodedirs = fso.nodedirs
-        cso.stdout = StringIO()
-        cso.stderr = StringIO()
+        # Definitely not options on CatalogSharesOptions, but the code does use
+        # stdout and stderr...
+        cso.stdout = StringIO()  # type: ignore[attr-defined]
+        cso.stderr = StringIO()  # type: ignore[attr-defined]
         debug.catalog_shares(cso)
-        shares = cso.stdout.getvalue().splitlines()
+        shares = cso.stdout.getvalue().splitlines()  # type: ignore[attr-defined]
         oneshare = shares[0] # all shares should be MDMF
         self.failIf(oneshare.startswith("UNKNOWN"), oneshare)
         self.assertTrue(oneshare.startswith("MDMF"), oneshare)

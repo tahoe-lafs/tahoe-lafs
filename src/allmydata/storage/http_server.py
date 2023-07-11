@@ -4,7 +4,7 @@ HTTP server for storage.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Union, cast
+from typing import Any, Callable, Union, cast, Optional
 from functools import wraps
 from base64 import b64decode
 import binascii
@@ -75,7 +75,7 @@ def _extract_secrets(
     secrets, return dictionary mapping secrets to decoded values.
 
     If too few secrets were given, or too many, a ``ClientSecretsException`` is
-    raised.
+    raised; its text is sent in the HTTP response.
     """
     string_key_to_enum = {e.value: e for e in Secrets}
     result = {}
@@ -84,6 +84,10 @@ def _extract_secrets(
             string_key, string_value = header_value.strip().split(" ", 1)
             key = string_key_to_enum[string_key]
             value = b64decode(string_value)
+            if value == b"":
+                raise ClientSecretsException(
+                    "Failed to decode secret {}".format(string_key)
+                )
             if key in (Secrets.LEASE_CANCEL, Secrets.LEASE_RENEW) and len(value) != 32:
                 raise ClientSecretsException("Lease secrets must be 32 bytes long")
             result[key] = value
@@ -91,7 +95,9 @@ def _extract_secrets(
         raise ClientSecretsException("Bad header value(s): {}".format(header_values))
     if result.keys() != required_secrets:
         raise ClientSecretsException(
-            "Expected {} secrets, got {}".format(required_secrets, result.keys())
+            "Expected {} in X-Tahoe-Authorization headers, got {}".format(
+                [r.value for r in required_secrets], list(result.keys())
+            )
         )
     return result
 
@@ -106,6 +112,9 @@ def _authorization_decorator(required_secrets):
     def decorator(f):
         @wraps(f)
         def route(self, request, *args, **kwargs):
+            # Don't set text/html content type by default:
+            request.defaultContentType = None
+
             with start_action(
                 action_type="allmydata:storage:http-server:handle-request",
                 method=request.method,
@@ -113,13 +122,19 @@ def _authorization_decorator(required_secrets):
             ) as ctx:
                 try:
                     # Check Authorization header:
+                    try:
+                        auth_header = request.requestHeaders.getRawHeaders(
+                            "Authorization", [""]
+                        )[0].encode("utf-8")
+                    except UnicodeError:
+                        raise _HTTPError(http.BAD_REQUEST, "Bad Authorization header")
                     if not timing_safe_compare(
-                        request.requestHeaders.getRawHeaders("Authorization", [""])[0].encode(
-                            "utf-8"
-                        ),
+                        auth_header,
                         swissnum_auth_header(self._swissnum),
                     ):
-                        raise _HTTPError(http.UNAUTHORIZED)
+                        raise _HTTPError(
+                            http.UNAUTHORIZED, "Wrong Authorization header"
+                        )
 
                     # Check secrets:
                     authorization = request.requestHeaders.getRawHeaders(
@@ -127,8 +142,8 @@ def _authorization_decorator(required_secrets):
                     )
                     try:
                         secrets = _extract_secrets(authorization, required_secrets)
-                    except ClientSecretsException:
-                        raise _HTTPError(http.BAD_REQUEST)
+                    except ClientSecretsException as e:
+                        raise _HTTPError(http.BAD_REQUEST, str(e))
 
                     # Run the business logic:
                     result = f(self, request, secrets, *args, **kwargs)
@@ -269,8 +284,10 @@ class _HTTPError(Exception):
     Raise from ``HTTPServer`` endpoint to return the given HTTP response code.
     """
 
-    def __init__(self, code: int):
+    def __init__(self, code: int, body: Optional[str] = None):
+        Exception.__init__(self, (code, body))
         self.code = code
+        self.body = body
 
 
 # CDDL schemas.
@@ -369,13 +386,16 @@ class _ReadRangeProducer:
     a request.
     """
 
-    request: Request
+    request: Optional[Request]
     read_data: ReadData
-    result: Deferred
+    result: Optional[Deferred[bytes]]
     start: int
     remaining: int
 
     def resumeProducing(self):
+        if self.result is None or self.request is None:
+            return
+
         to_read = min(self.remaining, 65536)
         data = self.read_data(self.start, to_read)
         assert len(data) <= to_read
@@ -424,7 +444,7 @@ class _ReadRangeProducer:
 
 def read_range(
     request: Request, read_data: ReadData, share_length: int
-) -> Union[Deferred, bytes]:
+) -> Union[Deferred[bytes], bytes]:
     """
     Read an optional ``Range`` header, reads data appropriately via the given
     callable, writes the data to the request.
@@ -461,6 +481,8 @@ def read_range(
         raise _HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)
 
     offset, end = range_header.ranges[0]
+    assert end is not None  # should've exited in block above this if so
+
     # If we're being ask to read beyond the length of the share, just read
     # less:
     end = min(end, share_length)
@@ -479,7 +501,7 @@ def read_range(
         ContentRange("bytes", offset, end).to_header(),
     )
 
-    d = Deferred()
+    d: Deferred[bytes] = Deferred()
     request.registerProducer(
         _ReadRangeProducer(
             request, read_data_with_error_handling, d, offset, end - offset
@@ -491,11 +513,15 @@ def read_range(
 
 def _add_error_handling(app: Klein):
     """Add exception handlers to a Klein app."""
+
     @app.handle_errors(_HTTPError)
     def _http_error(_, request, failure):
         """Handle ``_HTTPError`` exceptions."""
         request.setResponseCode(failure.value.code)
-        return b""
+        if failure.value.body is not None:
+            return failure.value.body
+        else:
+            return b""
 
     @app.handle_errors(CDDLValidationError)
     def _cddl_validation_error(_, request, failure):
@@ -775,6 +801,7 @@ class HTTPServer(object):
     )
     def read_share_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk for an already uploaded immutable."""
+        request.setHeader("content-type", "application/octet-stream")
         try:
             bucket = self._storage_server.get_buckets(storage_index)[share_number]
         except KeyError:
@@ -880,6 +907,7 @@ class HTTPServer(object):
     )
     def read_mutable_chunk(self, request, authorization, storage_index, share_number):
         """Read a chunk from a mutable."""
+        request.setHeader("content-type", "application/octet-stream")
 
         try:
             share_length = self._storage_server.get_mutable_share_length(
@@ -972,13 +1000,20 @@ class _TLSEndpointWrapper(object):
 
 
 def build_nurl(
-    hostname: str, port: int, swissnum: str, certificate: CryptoCertificate
+    hostname: str,
+    port: int,
+    swissnum: str,
+    certificate: CryptoCertificate,
+    subscheme: Optional[str] = None,
 ) -> DecodedURL:
     """
     Construct a HTTPS NURL, given the hostname, port, server swissnum, and x509
     certificate for the server.  Clients can then connect to the server using
     this NURL.
     """
+    scheme = "pb"
+    if subscheme is not None:
+        scheme = f"{scheme}+{subscheme}"
     return DecodedURL().replace(
         fragment="v=1",  # how we know this NURL is HTTP-based (i.e. not Foolscap)
         host=hostname,
@@ -990,7 +1025,7 @@ def build_nurl(
                 "ascii",
             ),
         ),
-        scheme="pb",
+        scheme=scheme,
     )
 
 

@@ -63,11 +63,10 @@ install_requires = [
     #   Twisted[conch] also depends on cryptography and Twisted[tls]
     #   transitively depends on cryptography.  So it's anyone's guess what
     #   version of cryptography will *really* be installed.
+    "cryptography >= 2.6",
 
-    # * cryptography 40 broke constants we need; should really be using them
-    # * via pyOpenSSL; will be fixed in
-    # * https://github.com/pyca/pyopenssl/issues/1201
-    "cryptography >= 2.6, < 40",
+    # * Used for custom HTTPS validation
+    "pyOpenSSL >= 23.2.0",
 
     # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
     #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
@@ -140,10 +139,10 @@ install_requires = [
     "collections-extended >= 2.0.2",
 
     # HTTP server and client
-    "klein",
+    # Latest version is necessary to work with latest werkzeug:
+    "klein >= 23.5.0",
     # 2.2.0 has a bug: https://github.com/pallets/werkzeug/issues/2465
-    # 2.3.x has an incompatibility with Klein: https://github.com/twisted/klein/pull/575
-    "werkzeug != 2.2.0, < 2.3",
+    "werkzeug != 2.2.0",
     "treq",
     "cbor2",
 
@@ -164,10 +163,9 @@ setup_requires = [
 ]
 
 tor_requires = [
-    # This is exactly what `foolscap[tor]` means but pip resolves the pair of
-    # dependencies "foolscap[i2p] foolscap[tor]" to "foolscap[i2p]" so we lose
-    # this if we don't declare it ourselves!
-    "txtorcon >= 0.17.0",
+    # 23.5 added support for custom TLS contexts in web_agent(), which is
+    # needed for the HTTP storage client to run over Tor.
+    "txtorcon >= 23.5.0",
 ]
 
 i2p_requires = [
@@ -418,7 +416,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "subunitreporter==22.2.0",
               "python-subunit==1.4.2",
               "junitxml==0.7",
-              "coverage ~= 5.0",
+              "coverage==7.2.5",
           ],
 
           # Here are the library dependencies of the test suite.

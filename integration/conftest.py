@@ -50,9 +50,9 @@ from .util import (
 )
 from allmydata.node import read_config
 
-# No reason for HTTP requests to take longer than two minutes in the
+# No reason for HTTP requests to take longer than four minutes in the
 # integration tests. See allmydata/scripts/common_http.py for usage.
-os.environ["__TAHOE_CLI_HTTP_TIMEOUT"] = "120"
+os.environ["__TAHOE_CLI_HTTP_TIMEOUT"] = "240"
 
 # Make Foolscap logging go into Twisted logging, so that integration test logs
 # include extra information
@@ -279,7 +279,7 @@ def introducer_furl(introducer, temp_dir):
     return furl
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 @log_call(
     action_type=u"integration:tor:introducer",
     include_args=["temp_dir", "flog_gatherer"],
@@ -342,7 +342,7 @@ def tor_introducer(reactor, temp_dir, flog_gatherer, request):
     return transport
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def tor_introducer_furl(tor_introducer, temp_dir):
     furl_fname = join(temp_dir, 'introducer_tor', 'private', 'introducer.furl')
     while not exists(furl_fname):
@@ -401,9 +401,6 @@ def alice(
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
             web_port="tcp:9980:interface=localhost",
             storage=False,
-            # We're going to kill this ourselves, so no need for finalizer to
-            # do it:
-            finalize=False,
         )
     )
     pytest_twisted.blockon(await_client_ready(process))
