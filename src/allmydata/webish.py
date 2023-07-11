@@ -4,7 +4,7 @@ General web server-related utilities.
 from __future__ import annotations
 
 from six import ensure_str
-from typing import BinaryIO, Callable, Optional
+from typing import IO, Callable, Optional
 import re, time, tempfile
 from urllib.parse import parse_qsl, urlencode
 
@@ -217,7 +217,7 @@ def censor(queryargs: bytes) -> bytes:
     return urlencode(result, safe="[]").encode("ascii")
 
 
-def anonymous_tempfile_factory(tempdir: bytes) -> Callable[[], BinaryIO]:
+def anonymous_tempfile_factory(tempdir: bytes) -> Callable[[], IO[bytes]]:
     """
     Create a no-argument callable for creating a new temporary file in the
     given directory.
@@ -243,14 +243,14 @@ class TahoeLAFSSite(Site, object):
     """
     requestFactory = TahoeLAFSRequest
 
-    def __init__(self, make_tempfile: Callable[[], BinaryIO], *args, **kwargs):
+    def __init__(self, make_tempfile: Callable[[], IO[bytes]], *args, **kwargs):
         Site.__init__(self, *args, logFormatter=_logFormatter, **kwargs)
         assert callable(make_tempfile)
         with make_tempfile():
             pass
         self._make_tempfile = make_tempfile
 
-    def getContentFile(self, length: Optional[int]) -> BinaryIO:
+    def getContentFile(self, length: Optional[int]) -> IO[bytes]:
         if length is None or length >= 1024 * 1024:
             return self._make_tempfile()
         return BytesIO()
