@@ -347,7 +347,7 @@ class StorageFarmBroker(service.MultiService):
             )
 
         s = UpgradingStorageServer(initial_server, http_server_factory, nurls)
-        s.on_status_changed(lambda _: self._got_connection())
+        s.on_status_changed(self._got_connection)
         return s
 
     def when_connected_enough(self, threshold):
@@ -373,7 +373,7 @@ class StorageFarmBroker(service.MultiService):
         self.servers[serverid] = s
 
     def test_add_server(self, server_id, s):
-        s.on_status_changed(lambda _: self._got_connection())
+        s.on_status_changed(self._got_connection)
         self.servers[server_id] = s
 
     def use_introducer(self, introducer_client):
@@ -938,10 +938,10 @@ class NativeStorageServer(service.MultiService):
 
     def on_status_changed(self, status_changed):
         """
-        :param status_changed: a callable taking a single arg (the
-            NativeStorageServer) that is notified when we become connected
+        :param status_changed: a callable taking no arguments, that is
+            notified when we become connected
         """
-        return self._on_status_changed.subscribe(status_changed)
+        return self._on_status_changed.subscribe(lambda _: status_changed())
 
     # Special methods used by copy.copy() and copy.deepcopy(). When those are
     # used in allmydata.immutable.filenode to copy CheckResults during
@@ -1124,10 +1124,10 @@ class HTTPNativeStorageServer(service.MultiService):
 
     def on_status_changed(self, status_changed):
         """
-        :param status_changed: a callable taking a single arg (the
-            NativeStorageServer) that is notified when we become connected
+        :param status_changed: a callable taking no arguments that is
+            notified when we become connected
         """
-        return self._on_status_changed.subscribe(status_changed)
+        return self._on_status_changed.subscribe(lambda _: status_changed())
 
     def upload_permitted(self):
         """
@@ -1337,17 +1337,9 @@ class UpgradingStorageServer(service.MultiService):
         self.addService(self._current_server)
         self._current_server.on_status_changed(self._status_changed)
 
-    def on_status_changed(self, callback: Callable[[UpgradingStorageServer], object]):
-        """Wrapper that make sure callbacks match our identity."""
-        def wrapped_callback(server):
-            if server is self._current_server:
-                callback(self)
+    def _status_changed(self) -> None:
         assert self._current_server is not None
-        self._current_server.on_status_changed(wrapped_callback)
-
-    def _status_changed(self, server: Union[NativeStorageServer,HTTPNativeStorageServer]) -> None:
-        assert server is self._current_server
-        version = server.get_version()
+        version = self._current_server.get_version()
         if version is None:
             return
         v2 = version.get("http://allmydata.org/tahoe/protocols/storage/v2", None)

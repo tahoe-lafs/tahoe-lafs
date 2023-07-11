@@ -219,7 +219,7 @@ class FakeDisplayableServer(StubServer):  # type: ignore  # tahoe-lafs/ticket/35
         self.last_connect_time = last_connect_time
 
     def on_status_changed(self, cb): # TODO: try to remove me
-        cb(self)
+        cb()
     def is_connected(self): # TODO: remove me
         return self.connected
     def get_version(self):
@@ -270,7 +270,7 @@ class FakeStorageServer(service.MultiService):
     def get_stats(self):
         return {"storage_server.accepting_immutable_shares": False}
     def on_status_changed(self, cb):
-        cb(self)
+        cb()
 
 class FakeClient(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
     def __init__(self):
