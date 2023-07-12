@@ -341,7 +341,7 @@ class WebMixin(TimezoneMixin):
         self.ws = webish.WebishServer(
             self.s,
             "0",
-            webish.anonymous_tempfile(tempdir.path),
+            webish.anonymous_tempfile_factory(tempdir.path),
             staticdir=self.staticdir,
             clock=self.clock,
             now_fn=lambda:self.fakeTime,
