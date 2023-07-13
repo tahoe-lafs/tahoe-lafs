@@ -1,5 +1,5 @@
 """
-Ported to Python 3.
+Functionality related to operating a Tahoe-LAFS node (client _or_ server).
 """
 from __future__ import annotations
 
@@ -1029,14 +1029,14 @@ class _Client(node.Node, pollmixin.PollMixin):
     def init_web(self, webport):
         self.log("init_web(webport=%s)", args=(webport,))
 
-        from allmydata.webish import WebishServer
+        from allmydata.webish import WebishServer, anonymous_tempfile_factory
         nodeurl_path = self.config.get_config_path("node.url")
         staticdir_config = self.config.get_config("node", "web.static", "public_html")
         staticdir = self.config.get_config_path(staticdir_config)
         ws = WebishServer(
             self,
             webport,
-            self._get_tempdir(),
+            anonymous_tempfile_factory(self._get_tempdir()),
             nodeurl_path,
             staticdir,
         )
