@@ -151,7 +151,7 @@ install_requires = [
     "pycddl >= 0.4",
 
     # Command-line parsing
-    "click >= 7.0",
+    "click >= 8.1.1",
 
     # for pid-file support
     "psutil",
