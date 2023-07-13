@@ -235,8 +235,7 @@ class Client(object):
         self.protocol = self.process.transport.proto
         yield await_client_ready(self.process, minimum_number_of_servers=servers)
 
-
-    # XXX add stop / start / restart
+    # XXX add stop / start ?
     # ...maybe "reconfig" of some kind?
 
 

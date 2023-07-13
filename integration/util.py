@@ -177,38 +177,33 @@ class _MagicTextProtocol(ProcessProtocol):
             sys.stdout.write(self.name + line + "\n")
 
 
-def _cleanup_process_async(transport: IProcessTransport, allow_missing: bool) -> None:
+def _cleanup_process_async(transport: IProcessTransport) -> None:
     """
     If the given process transport seems to still be associated with a
     running process, send a SIGTERM to that process.
 
     :param transport: The transport to use.
 
-    :param allow_missing: If ``True`` then it is not an error for the
-        transport to have no associated process.  Otherwise, an exception will
-        be raised in that case.
-
     :raise: ``ValueError`` if ``allow_missing`` is ``False`` and the transport
         has no process.
     """
     if transport.pid is None:
-        if allow_missing:
-            print("Process already cleaned up and that's okay.")
-            return
-        else:
-            raise ValueError("Process is not running")
+        # in cases of "restart", we will have registered a finalizer
+        # that will kill the process -- but already explicitly killed
+        # it (and then ran again) due to the "restart". So, if the
+        # process is already killed, our job is done.
+        print("Process already cleaned up and that's okay.")
+        return
     print("signaling {} with TERM".format(transport.pid))
     try:
         transport.signalProcess('TERM')
     except ProcessExitedAlready:
         # The transport object thought it still had a process but the real OS
         # process has already exited.  That's fine.  We accomplished what we
-        # wanted to.  We don't care about ``allow_missing`` here because
-        # there's no way we could have known the real OS process already
-        # exited.
+        # wanted to.
         pass
 
-def _cleanup_tahoe_process(tahoe_transport, exited, allow_missing=False):
+def _cleanup_tahoe_process(tahoe_transport, exited):
     """
     Terminate the given process with a kill signal (SIGTERM on POSIX,
     TerminateProcess on Windows).
@@ -219,7 +214,7 @@ def _cleanup_tahoe_process(tahoe_transport, exited, allow_missing=False):
     :return: After the process has exited.
     """
     from twisted.internet import reactor
-    _cleanup_process_async(tahoe_transport, allow_missing=allow_missing)
+    _cleanup_process_async(tahoe_transport)
     print(f"signaled, blocking on exit {exited}")
     block_with_timeout(exited, reactor)
     print("exited, goodbye")
@@ -282,16 +277,20 @@ class TahoeProcess(object):
         )
 
     def kill(self):
-        """Kill the process, block until it's done."""
+        """
+        Kill the process, block until it's done.
+        Does nothing if the process is already stopped (or never started).
+        """
         print(f"TahoeProcess.kill({self.transport.pid} / {self.node_dir})")
         _cleanup_tahoe_process(self.transport, self.transport.exited)
 
     def kill_async(self):
         """
         Kill the process, return a Deferred that fires when it's done.
+        Does nothing if the process is already stopped (or never started).
         """
         print(f"TahoeProcess.kill_async({self.transport.pid} / {self.node_dir})")
-        _cleanup_process_async(self.transport, allow_missing=False)
+        _cleanup_process_async(self.transport)
         return self.transport.exited
 
     def restart_async(self, reactor: IReactorProcess, request: Any) -> Deferred:
@@ -302,7 +301,7 @@ class TahoeProcess(object):
             handle requests.
         """
         d = self.kill_async()
-        d.addCallback(lambda ignored: _run_node(reactor, self.node_dir, request, None, finalize=False))
+        d.addCallback(lambda ignored: _run_node(reactor, self.node_dir, request, None))
         def got_new_process(proc):
             # Grab the new transport since the one we had before is no longer
             # valid after the stop/start cycle.
@@ -314,7 +313,7 @@ class TahoeProcess(object):
         return "<TahoeProcess in '{}'>".format(self._node_dir)
 
 
-def _run_node(reactor, node_dir, request, magic_text, finalize=True):
+def _run_node(reactor, node_dir, request, magic_text):
     """
     Run a tahoe process from its node_dir.
 
@@ -343,8 +342,7 @@ def _run_node(reactor, node_dir, request, magic_text, finalize=True):
         node_dir,
     )
 
-    if finalize:
-        request.addfinalizer(tahoe_process.kill)
+    request.addfinalizer(tahoe_process.kill)
 
     d = protocol.magic_seen
     d.addCallback(lambda ignored: tahoe_process)
@@ -386,8 +384,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
                  magic_text=None,
                  needed=2,
                  happy=3,
-                 total=4,
-                 finalize=True):
+                 total=4):
     """
     Helper to create a single node, run it and return the instance
     spawnProcess returned (ITransport)
@@ -427,7 +424,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
     d = Deferred()
     d.callback(None)
     d.addCallback(lambda _: created_d)
-    d.addCallback(lambda _: _run_node(reactor, node_dir, request, magic_text, finalize=finalize))
+    d.addCallback(lambda _: _run_node(reactor, node_dir, request, magic_text))
     return d
 
 
