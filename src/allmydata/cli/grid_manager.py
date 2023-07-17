@@ -226,4 +226,4 @@ def _config_path_from_option(config: str) -> Optional[FilePath]:
 
 
 if __name__ == '__main__':
-    grid_manager()
+    grid_manager()  # type: ignore
