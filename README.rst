@@ -147,3 +147,4 @@ See `TGPPL.PDF <https://tahoe-lafs.org/~zooko/tgppl.pdf>`__ for why the TGPPL ex
 .. |Contributor Covenant| image:: https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg
     :alt: code of conduct
     :target: docs/CODE_OF_CONDUCT.md
+
