@@ -375,6 +375,8 @@ class StorageClientFactory:
                 pool=pool, tls_context_factory=tls_context_factory
             )
         else:
+            # I2P support will be added here. See
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4037
             raise RuntimeError(f"Unsupported tcp connection handler: {handler}")
 
     async def create_storage_client(
