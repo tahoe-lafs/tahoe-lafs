@@ -564,10 +564,15 @@ commands:
           # Get cachix for Nix-friendly caching.
           name: "Install Basic Dependencies"
           command: |
+            # Get some build environment dependencies and let them float on a
+            # certain release branch.  These aren't involved in the actual
+            # package build (only in CI environment setup) so the fact that
+            # they float shouldn't hurt reproducibility.
             NIXPKGS="nixpkgs/nixos-23.05"
             nix profile install $NIXPKGS#cachix $NIXPKGS#bash $NIXPKGS#jp
-            # Activate it for "binary substitution".  This sets up
-            # configuration tht lets Nix download something from the cache
+
+            # Activate our cachix cache for "binary substitution".  This sets
+            # up configuration tht lets Nix download something from the cache
             # instead of building it locally, if possible.
             cachix use "${CACHIX_NAME}"
 
