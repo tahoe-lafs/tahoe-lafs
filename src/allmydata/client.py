@@ -7,7 +7,6 @@ import os
 import stat
 import time
 import weakref
-import tempfile
 from typing import Optional, Iterable
 from base64 import urlsafe_b64encode
 from functools import partial
