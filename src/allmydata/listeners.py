@@ -94,7 +94,7 @@ class TCPProvider:
         raise NotImplementedError()
 
 
-@define
+@frozen
 class StaticProvider:
     """
     A provider that uses all pre-computed values.
