@@ -837,7 +837,11 @@ class _Client(node.Node, pollmixin.PollMixin):
             if hasattr(self.tub.negotiationClass, "add_storage_server"):
                 nurls = self.tub.negotiationClass.add_storage_server(ss, swissnum.encode("ascii"))
                 self.storage_nurls = nurls
-                announcement[storage_client.ANONYMOUS_STORAGE_NURLS] = [n.to_text() for n in nurls]
+                # There is code in e.g. storage_client.py that checks if an
+                # announcement has changed. Since NURL order isn't meaningful,
+                # we don't want a change in the order to count as a change, so we
+                # send the NURLs as a set. CBOR supports sets, as does Foolscap.
+                announcement[storage_client.ANONYMOUS_STORAGE_NURLS] = {n.to_text() for n in nurls}
             announcement["anonymous-storage-FURL"] = furl
 
         enabled_storage_servers = self._enable_storage_servers(
