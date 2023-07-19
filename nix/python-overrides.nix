@@ -57,7 +57,7 @@ in {
 
   # With our customized package set a Twisted unit test fails.  Patch the
   # Twisted test suite to skip that test.
-  # Filed upstream at https://github.com/twisted/twisted/issues/11892
+  # Filed upstream at https://github.com/twisted/twisted/issues/11877
   twisted = super.twisted.overrideAttrs (old: {
     patches = (old.patches or []) ++ [ ./twisted.patch ];
   });
