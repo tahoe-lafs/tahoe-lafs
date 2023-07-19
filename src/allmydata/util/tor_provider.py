@@ -42,7 +42,7 @@ def can_hide_ip() -> Literal[True]:
 def is_available() -> bool:
     return not (_import_tor() is None or _import_txtorcon() is None)
 
-def create(reactor, config, import_tor=None, import_txtorcon=None) -> Optional[_Provider]:
+def create(reactor, config, import_tor=None, import_txtorcon=None) -> _Provider:
     """
     Create a new _Provider service (this is an IService so must be
     hooked up to a parent or otherwise started).

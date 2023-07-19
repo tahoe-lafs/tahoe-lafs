@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any, Protocol, Sequence, Mapping, Optional, Union, Awaitable
 from typing_extensions import Literal
 
-from attrs import frozen, define
+from attrs import frozen
 
 from .interfaces import IAddressFamily
 from .util.iputil import allocate_tcp_port
@@ -101,7 +101,7 @@ class StaticProvider:
     """
     _available: bool
     _hide_ip: bool
-    _config: Union[Awaitable[ListenerConfig], ListenerConfig]
+    _config: Union[Awaitable[Optional[ListenerConfig]], Optional[ListenerConfig]]
     _address: IAddressFamily
 
     def is_available(self) -> bool:
@@ -110,8 +110,8 @@ class StaticProvider:
     def can_hide_ip(self) -> bool:
         return self._hide_ip
 
-    async def create_config(self, reactor: Any, cli_config: Any) -> ListenerConfig:
-        if isinstance(self._config, ListenerConfig):
+    async def create_config(self, reactor: Any, cli_config: Any) -> Optional[ListenerConfig]:
+        if self._config is None or isinstance(self._config, ListenerConfig):
             return self._config
         return await self._config
 
