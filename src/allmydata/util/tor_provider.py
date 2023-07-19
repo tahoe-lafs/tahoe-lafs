@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 from typing_extensions import Literal
 import os
 
