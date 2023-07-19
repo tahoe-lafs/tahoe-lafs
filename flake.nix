@@ -12,8 +12,12 @@
     "nixpkgs-23_05" = {
       url = github:NixOS/nixpkgs?ref=release-23.05;
     };
+
+    # We depend on a very new python-cryptography which is not yet available
+    # from any release branch of nixpkgs.  However, it is contained in a PR
+    # currently up for review.  Point our nixpkgs at that for now.
     "nixpkgs-unstable" = {
-      url = github:NixOS/nixpkgs?ref=pull/238965/head;
+      url = github:NixOS/nixpkgs?ref=pull/244135/head;
     };
 
     # Point the default nixpkgs at one of those.  This avoids having getting a
