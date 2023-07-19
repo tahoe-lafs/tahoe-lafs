@@ -88,6 +88,7 @@ from allmydata.util import base32, yamlutil
 from allmydata.storage_client import (
     IFoolscapStorageServer,
     NativeStorageServer,
+    HTTPNativeStorageServer,
     StorageFarmBroker,
     _FoolscapStorage,
     _NullStorage,
@@ -624,6 +625,47 @@ storage:
         s2 = broker.servers[key_s]
         self.assertIdentical(s2, s)
         self.assertEqual(s2.get_permutation_seed(), permseed)
+
+    def test_upgrade_from_foolscap_to_http(self):
+        """
+        When an announcement is initially Foolscap but then switches to HTTP,
+        HTTP is used, assuming HTTP is enabled.
+        """
+        tub_maker = lambda _: new_tub()
+        config = config_from_string(
+            "/dev/null", "", "[client]\nforce_foolscap = False\n"
+        )
+        broker = StorageFarmBroker(True, tub_maker, config)
+        broker.startService()
+        key_s = b'v0-1234-1'
+
+        ones = str(base32.b2a(b"1"), "utf-8")
+        initial_announcement = {
+            "service-name": "storage",
+            "anonymous-storage-FURL": f"pb://{ones}@nowhere/fake2",
+            "permutation-seed-base32": "bbbbbbbbbbbbbbbbbbbbbbbb",
+        }
+        broker._got_announcement(key_s, initial_announcement)
+        initial_service = broker.servers[key_s]
+        self.assertIsInstance(initial_service, NativeStorageServer)
+        self.assertTrue(initial_service.running)
+        self.assertIdentical(initial_service.parent, broker)
+
+        http_announcement = {
+            "service-name": "storage",
+            "anonymous-storage-FURL": f"pb://{ones}@nowhere/fake2",
+            "permutation-seed-base32": "bbbbbbbbbbbbbbbbbbbbbbbb",
+            ANONYMOUS_STORAGE_NURLS: [f"pb://{ones}@nowhere/fake2#v=1"],
+        }
+        broker._got_announcement(key_s, http_announcement)
+        self.assertFalse(initial_service.running)
+        self.assertEqual(initial_service.parent, None)
+        new_service = broker.servers[key_s]
+        self.assertIsInstance(new_service, HTTPNativeStorageServer)
+        self.assertTrue(new_service.running)
+        self.assertIdentical(new_service.parent, broker)
+
+        return broker.stopService()
 
     def test_static_permutation_seed_pubkey(self):
         broker = make_broker()
