@@ -46,33 +46,50 @@
 
     } // (flake-utils.lib.eachDefaultSystem (system: let
 
-      # First get the package set for this system architecture.
+      # The package set for this system architecture.
       pkgs = import nixpkgs {
         inherit system;
         # And include our Tahoe-LAFS package in that package set.
         overlays = [ self.overlays.default ];
       };
 
-      # Find out what Python versions we're working with.
-      pythonVersions = builtins.attrNames (
-        pkgs.lib.attrsets.filterAttrs
+      # pythonVersions :: [string]
+      #
+      # The version strings for the Python runtimes we'll work with.
+      pythonVersions =
+        let
           # Match attribute names that look like a Python derivation - CPython
           # or PyPy.  We take care to avoid things like "python-foo" and
           # "python3Full-unittest" though.  We only want things like "pypy38"
           # or "python311".
-          (name: _: null != builtins.match "(python|pypy)3[[:digit:]]{0,2}" name)
-          pkgs
-      );
+          nameMatches = name: null != builtins.match "(python|pypy)3[[:digit:]]{0,2}" name;
 
+          # Sometimes an old version is left in the package set as an error
+          # saying something like "we remove this".  Make sure we whatever we
+          # found by name evaluates without error, too.
+          notError = drv: (builtins.tryEval drv).success;
+        in
+          # Discover all of the Python runtime derivations by inspecting names
+          # and filtering out derivations with errors.
+          builtins.attrNames (
+            pkgs.lib.attrsets.filterAttrs
+              (name: drv: nameMatches name && notError drv)
+              pkgs
+          );
+
+      # defaultPyVersion :: string
+      #
       # An element of pythonVersions which we'll use for the default package.
-      defaultPyVersion = "python310";
+      defaultPyVersion = "python3";
 
+      # pythons :: [derivation]
+      #
       # Retrieve the actual Python package for each configured version.  We
       # already applied our overlay to pkgs so our packages will already be
       # available.
       pythons = builtins.map (pyVer: pkgs.${pyVer}) pythonVersions;
 
-      # string -> string
+      # packageName :: string -> string
       #
       # Construct the Tahoe-LAFS package name for the given Python runtime.
       packageName = pyVersion: "${pyVersion}-tahoe-lafs";
@@ -87,6 +104,8 @@
       # Make a singleton attribute set from the result of two functions.
       singletonOf = f: g: x: { ${f x} = g x; };
 
+      # makeRuntimeEnv :: string -> derivation
+      #
       # Create a derivation that includes a Python runtime, Tahoe-LAFS, and
       # all of its dependencies.
       makeRuntimeEnv = singletonOf packageName makeRuntimeEnv';
@@ -98,6 +117,8 @@
         name = packageName pyVersion;
       });
 
+      # makeTestEnv :: string -> derivation
+      #
       # Create a derivation that includes a Python runtime, Tahoe-LAFS, and
       # all of its dependencies.
       makeTestEnv = pyVersion: (pkgs.${pyVersion}.withPackages (ps: with ps;
@@ -109,13 +130,14 @@
         name = packageName pyVersion;
       });
     in {
+      # A package set with out overlay on it.
       legacyPackages = pkgs;
 
-      # Define the flake's package outputs.  We'll define one version of the
-      # package for each version of Python we could find.  We'll also point
-      # the flake's "default" package at one of these somewhat arbitrarily.
-      # The package consists of a Python environment with Tahoe-LAFS available
-      # to it.
+      # The flake's package outputs.  We'll define one version of the package
+      # for each version of Python we could find.  We'll also point the
+      # flake's "default" package at the derivation corresponding to the
+      # default Python version we defined above.  The package consists of a
+      # Python environment with Tahoe-LAFS available to it.
       packages = with pkgs.lib;
         foldr mergeAttrs {} ([
           { default = self.packages.${system}.${packageName defaultPyVersion}; }
@@ -123,22 +145,28 @@
         ++ (builtins.map (singletonOf unitTestName makeTestEnv) pythonVersions)
         );
 
-      # Define the flake's app outputs.  We'll define a version of an app for
-      # running the test suite for each version of Python we could find.
-      # We'll also define a version of an app for running the "tahoe"
-      # command-line entrypoint for each version of Python we could find.
+      # The flake's app outputs.  We'll define a version of an app for running
+      # the test suite for each version of Python we could find.  We'll also
+      # define a version of an app for running the "tahoe" command-line
+      # entrypoint for each version of Python we could find.
       apps =
         let
+          # writeScript :: string -> string -> path
+          #
+          # Write a shell program to a file so it can be run later.
+          #
           # We avoid writeShellApplication here because it has ghc as a
           # dependency but ghc has Python as a dependency and our Python
-          # package override triggers a rebuild of ghc which takes a looong
-          # time.
+          # package override triggers a rebuild of ghc and many Haskell
+          # packages which takes a looong time.
           writeScript = name: text:
             let script = pkgs.writeShellScript name text;
             in "${script}";
 
-          # A helper function to define the runtime entrypoint for a certain
-          # Python runtime.
+          # makeTahoeApp :: string -> attrset
+          #
+          # A helper function to define the Tahoe-LAFS runtime entrypoint for
+          # a certain Python runtime.
           makeTahoeApp = pyVersion: {
             "tahoe-${pyVersion}" = {
               type = "app";
@@ -150,8 +178,10 @@
             };
           };
 
-          # A helper function to define the unit test entrypoint for a certain
-          # Python runtime.
+          # makeUnitTestsApp :: string -> attrset
+          #
+          # A helper function to define the Tahoe-LAFS unit test entrypoint
+          # for a certain Python runtime.
           makeUnitTestsApp = pyVersion: {
             "${unitTestName pyVersion}" = {
               type = "app";
@@ -165,6 +195,7 @@
           };
         in
           with pkgs.lib;
+          # Merge a default app definition with the rest of the apps.
           foldr mergeAttrs
             { default = self.apps.${system}."tahoe-python3"; }
             (
