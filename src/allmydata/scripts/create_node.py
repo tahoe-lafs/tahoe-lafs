@@ -24,6 +24,7 @@ from allmydata.scripts.common import (
     write_introducer,
 )
 from allmydata.scripts.default_nodedir import _default_nodedir
+from allmydata.util import dictutil
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path, get_io_encoding
 
@@ -183,11 +184,17 @@ class _CreateBaseOptions(BasedirOptions):
     def postOptions(self):
         super(_CreateBaseOptions, self).postOptions()
         if self['hide-ip']:
-            if not (_LISTENERS["tor"].is_available() or _LISTENERS["i2p"].is_available()):
+            ip_hiders = dictutil.filter(lambda v: v.can_hide_ip(), _LISTENERS)
+            available = dictutil.filter(lambda v: v.is_available(), ip_hiders)
+            if not available:
                 raise UsageError(
-                    "--hide-ip was specified but neither 'txtorcon' nor 'txi2p' "
-                    "are installed.\nTo do so:\n   pip install tahoe-lafs[tor]\nor\n"
-                    "   pip install tahoe-lafs[i2p]"
+                    "--hide-ip was specified but no IP-hiding listener is installed.\n"
+                    "Try one of these:\n" +
+                    "".join([
+                        f"\tpip install tahoe-lafs[{name}]\n"
+                        for name
+                        in ip_hiders
+                    ])
                 )
 
 class CreateClientOptions(_CreateBaseOptions):
