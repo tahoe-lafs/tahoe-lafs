@@ -26,6 +26,12 @@
     flake-utils = {
       url = github:numtide/flake-utils;
     };
+
+    # And get a helper that lets us easily continue to provide a default.nix.
+    flake-compat = {
+      url = "github:edolstra/flake-compat";
+      flake = false;
+    };
   };
 
   outputs = { self, nixpkgs, flake-utils, ... }:
