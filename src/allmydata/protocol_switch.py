@@ -112,6 +112,9 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
                     # If we're listening on Tor, the hostname needs to have an
                     # .onion TLD.
                     assert hostname.endswith(".onion")
+                # The I2P scheme is yet not supported by the HTTP client, so we
+                # don't want generate a NURL that won't work. This will be
+                # fixed in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4037
                 port = int(port)
                 storage_nurls.add(
                     build_nurl(
@@ -122,10 +125,7 @@ class _FoolscapOrHttps(Protocol, metaclass=_PretendToBeNegotiation):
                         subscheme
                     )
                 )
-            # TODO this is where we'll have to support Tor and I2P as well.
-            # See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3888#comment:9
-            # for discussion (there will be separate tickets added for those at
-            # some point.)
+
         return storage_nurls
 
     def __init__(self, *args, **kwargs):
