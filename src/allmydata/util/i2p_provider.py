@@ -109,6 +109,11 @@ def _connect_to_i2p(reactor, cli_config, txi2p):
         raise ValueError("unable to reach any default I2P SAM port")
 
 async def create_config(reactor: Any, cli_config: Any) -> ListenerConfig:
+    """
+    For a given set of command-line options, construct an I2P listener.
+
+    This includes allocating a new I2P address.
+    """
     txi2p = _import_txi2p()
     if not txi2p:
         raise ValueError("Cannot create I2P Destination without txi2p. "

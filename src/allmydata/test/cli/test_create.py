@@ -47,6 +47,13 @@ class Config(unittest.TestCase):
             self.assertIn("option %s not recognized" % (option,), str(e))
 
     async def test_create_client_config(self):
+        """
+        ``create_node.write_client_config`` writes a configuration file
+        that can be parsed.
+
+        TODO Maybe we should test that we can recover the given configuration
+        from the parse, too.
+        """
         d = self.mktemp()
         os.mkdir(d)
         fname = os.path.join(d, 'tahoe.cfg')
@@ -289,6 +296,10 @@ class Config(unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_node_slow(self):
+        """
+        A node can be created using a listener type that returns an
+        unfired Deferred from its ``create_config`` method.
+        """
         d = defer.Deferred()
         slow = StaticProvider(True, False, d, None)
         create_node._LISTENERS["xxyzy"] = slow
@@ -384,6 +395,10 @@ class Tor(unittest.TestCase):
         self.assertEqual(cfg.get("node", "tub.location"), "jkl")
 
     def test_launch(self):
+        """
+        The ``--tor-launch`` command line option sets ``tor-launch`` to
+        ``True``.
+        """
         basedir = self.mktemp()
         config_d = defer.succeed(None)
 
@@ -400,6 +415,10 @@ class Tor(unittest.TestCase):
         self.assertEqual(args[1]["tor-control-port"], None)
 
     def test_control_port(self):
+        """
+        The ``--tor-control-port`` command line parameter's value is
+        passed along as the ``tor-control-port`` value.
+        """
         basedir = self.mktemp()
         config_d = defer.succeed(None)
 
