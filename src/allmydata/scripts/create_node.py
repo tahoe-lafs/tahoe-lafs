@@ -267,6 +267,13 @@ def merge_config(
         left: Optional[ListenerConfig],
         right: Optional[ListenerConfig],
 ) -> Optional[ListenerConfig]:
+    """
+    Merge two listener configurations into one configuration representing
+    both of them.
+
+    If either is ``None`` then the result is ``None``.  This supports the
+    "disable listeners" functionality.
+    """
     if left is None or right is None:
         return None
     return ListenerConfig(
