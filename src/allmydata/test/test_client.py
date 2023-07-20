@@ -1,17 +1,7 @@
-"""
-Ported to Python 3.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 import os
-import sys
+from unittest import skipIf
 from functools import (
     partial,
 )
@@ -42,6 +32,7 @@ from twisted.internet import defer
 from twisted.python.filepath import (
     FilePath,
 )
+from twisted.python.runtime import platform
 from testtools.matchers import (
     Equals,
     AfterPreprocessing,
@@ -156,12 +147,12 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                 yield client.create_client(basedir)
             self.assertIn("[client]helper.furl", str(ctx.exception))
 
+    # if somebody knows a clever way to do this (cause
+    # EnvironmentError when reading a file that really exists), on
+    # windows, please fix this
+    @skipIf(platform.isWindows(), "We don't know how to set permissions on Windows.")
+    @skipIf(os.getuid() == 0, "cannot test as superuser which all of the permissions")
     def test_unreadable_config(self):
-        if sys.platform == "win32":
-            # if somebody knows a clever way to do this (cause
-            # EnvironmentError when reading a file that really exists), on
-            # windows, please fix this
-            raise unittest.SkipTest("can't make unreadable files on windows")
         basedir = "test_client.Basic.test_unreadable_config"
         os.mkdir(basedir)
         fn = os.path.join(basedir, "tahoe.cfg")
