@@ -13,6 +13,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.endpoints import clientFromString, TCP4ServerEndpoint
 from twisted.internet.error import ConnectionRefusedError, ConnectError
 from twisted.application import service
+from twisted.python.usage import Options
 
 from .observer import OneShotObserverList
 from .iputil import allocate_tcp_port
@@ -154,14 +155,16 @@ def _connect_to_tor(reactor, cli_config, txtorcon):
     else:
         raise ValueError("unable to reach any default Tor control port")
 
-async def create_config(reactor: Any, cli_config: Any) -> ListenerConfig:
+async def create_config(reactor: Any, cli_config: Options) -> ListenerConfig:
     txtorcon = _import_txtorcon()
     if not txtorcon:
         raise ValueError("Cannot create onion without txtorcon. "
                          "Please 'pip install tahoe-lafs[tor]' to fix this.")
     tahoe_config_tor = [] # written into tahoe.cfg:[tor]
     private_dir = os.path.abspath(os.path.join(cli_config["basedir"], "private"))
-    stdout = cli_config.stdout
+    # XXX We shouldn't carry stdout around by jamming it into the Options
+    # value.  See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4048
+    stdout = cli_config.stdout # type: ignore[attr-defined]
     if cli_config["tor-launch"]:
         tahoe_config_tor.append(("launch", "true"))
         tor_executable = cli_config["tor-executable"]

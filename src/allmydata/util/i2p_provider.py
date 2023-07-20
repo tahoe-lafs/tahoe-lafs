@@ -15,6 +15,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.endpoints import clientFromString
 from twisted.internet.error import ConnectionRefusedError, ConnectError
 from twisted.application import service
+from twisted.python.usage import Options
 
 from ..listeners import ListenerConfig
 from ..interfaces import (
@@ -108,7 +109,7 @@ def _connect_to_i2p(reactor, cli_config, txi2p):
     else:
         raise ValueError("unable to reach any default I2P SAM port")
 
-async def create_config(reactor: Any, cli_config: Any) -> ListenerConfig:
+async def create_config(reactor: Any, cli_config: Options) -> ListenerConfig:
     """
     For a given set of command-line options, construct an I2P listener.
 
@@ -120,7 +121,9 @@ async def create_config(reactor: Any, cli_config: Any) -> ListenerConfig:
                          "Please 'pip install tahoe-lafs[i2p]' to fix this.")
     tahoe_config_i2p = [] # written into tahoe.cfg:[i2p]
     private_dir = os.path.abspath(os.path.join(cli_config["basedir"], "private"))
-    stdout = cli_config.stdout
+    # XXX We shouldn't carry stdout around by jamming it into the Options
+    # value.  See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4048
+    stdout = cli_config.stdout # type: ignore[attr-defined]
     if cli_config["i2p-launch"]:
         raise NotImplementedError("--i2p-launch is under development.")
     else:

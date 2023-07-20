@@ -10,6 +10,7 @@ from typing import Any, Protocol, Sequence, Mapping, Optional, Union, Awaitable
 from typing_extensions import Literal
 
 from attrs import frozen
+from twisted.python.usage import Options
 
 from .interfaces import IAddressFamily
 from .util.iputil import allocate_tcp_port
@@ -45,7 +46,7 @@ class Listener(Protocol):
         node's public internet address from peers?
         """
 
-    async def create_config(self, reactor: Any, cli_config: Any) -> Optional[ListenerConfig]:
+    async def create_config(self, reactor: Any, cli_config: Options) -> Optional[ListenerConfig]:
         """
         Set up an instance of this listener according to the given
         configuration parameters.
@@ -75,7 +76,7 @@ class TCPProvider:
     def can_hide_ip(self) -> Literal[False]:
         return False
 
-    async def create_config(self, reactor: Any, cli_config: Any) -> ListenerConfig:
+    async def create_config(self, reactor: Any, cli_config: Options) -> ListenerConfig:
         tub_ports = []
         tub_locations = []
         if cli_config["port"]: # --port/--location are a pair
@@ -110,7 +111,7 @@ class StaticProvider:
     def can_hide_ip(self) -> bool:
         return self._hide_ip
 
-    async def create_config(self, reactor: Any, cli_config: Any) -> Optional[ListenerConfig]:
+    async def create_config(self, reactor: Any, cli_config: Options) -> Optional[ListenerConfig]:
         if self._config is None or isinstance(self._config, ListenerConfig):
             return self._config
         return await self._config
