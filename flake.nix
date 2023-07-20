@@ -193,14 +193,7 @@
                 writeScript "unit-tests"
                   ''
                     export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
-                    if [ $(id -u) = "0" ]; then
-                      # The test suite assumes non-root permissions.  Get rid
-                      # of the root permissions we seem to have.
-                      SUDO="${pkgs.su}/bin/su --shell /bin/sh - nobody --"
-                    else
-                      SUDO=""
-                    fi
-                    $SUDO ${makeTestEnv pyVersion}/bin/python -m twisted.trial "$@"
+                    ${makeTestEnv pyVersion}/bin/python -m twisted.trial "$@"
                   '';
             };
           };
