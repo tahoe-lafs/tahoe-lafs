@@ -164,9 +164,7 @@
           # dependency but ghc has Python as a dependency and our Python
           # package override triggers a rebuild of ghc and many Haskell
           # packages which takes a looong time.
-          writeScript = name: text:
-            let script = pkgs.writeShellScript name text;
-            in "${script}";
+          writeScript = name: text: "${pkgs.writeShellScript name text}";
 
           # makeTahoeApp :: string -> attrset
           #
