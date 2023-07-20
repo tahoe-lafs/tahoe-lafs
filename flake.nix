@@ -190,10 +190,14 @@
             "${unitTestName pyVersion}" = {
               type = "app";
               program =
-                writeScript "unit-tests"
-                  ''
+                let
+                  py = makeTestEnv pyVersion;
+                in
+                  writeScript "unit-tests"
+                    ''
+                    ${py} setup.py update_version
                     export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
-                    ${makeTestEnv pyVersion}/bin/python -m twisted.trial "$@"
+                    ${py}/bin/python -m twisted.trial "$@"
                   '';
             };
           };
