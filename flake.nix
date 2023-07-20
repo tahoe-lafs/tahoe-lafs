@@ -196,7 +196,7 @@
                     if [ $(id -u) = "0" ]; then
                       # The test suite assumes non-root permissions.  Get rid
                       # of the root permissions we seem to have.
-                      SUDO="sudo -u nobody"
+                      SUDO="${pkgs.su}/bin/su --shell /bin/sh - nobody --"
                     else
                       SUDO=""
                     fi
