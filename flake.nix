@@ -123,8 +123,9 @@
 
       # makeTestEnv :: string -> derivation
       #
-      # Create a derivation that includes a Python runtime, Tahoe-LAFS, and
-      # all of its dependencies.
+      # Create a derivation that includes a Python runtime and all of the
+      # Tahoe-LAFS dependencies, but not Tahoe-LAFS itself, which we'll get
+      # from the working directory.
       makeTestEnv = pyVersion: (pkgs.${pyVersion}.withPackages (ps: with ps;
         [ tahoe-lafs ] ++
         tahoe-lafs.passthru.extras.i2p ++
@@ -191,13 +192,14 @@
               type = "app";
               program =
                 let
-                  py = makeTestEnv pyVersion;
+                  python = "${makeTestEnv pyVersion}/bin/python";
                 in
                   writeScript "unit-tests"
                     ''
-                    ${py} setup.py update_version
+                    ${python} setup.py update_version
                     export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
-                    ${py}/bin/python -m twisted.trial "$@"
+                    export PYTHONPATH=$PWD/src
+                    ${python} -m twisted.trial "$@"
                   '';
             };
           };
