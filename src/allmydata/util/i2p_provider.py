@@ -21,8 +21,9 @@ from ..listeners import ListenerConfig
 from ..interfaces import (
     IAddressFamily,
 )
+from ..node import _Config
 
-def create(reactor: Any, config: Any) -> IAddressFamily:
+def create(reactor: Any, config: _Config) -> IAddressFamily:
     """
     Create a new Provider service (this is an IService so must be
     hooked up to a parent or otherwise started).

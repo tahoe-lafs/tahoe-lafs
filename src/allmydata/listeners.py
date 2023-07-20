@@ -14,6 +14,7 @@ from twisted.python.usage import Options
 
 from .interfaces import IAddressFamily
 from .util.iputil import allocate_tcp_port
+from .node import _Config
 
 @frozen
 class ListenerConfig:
@@ -57,7 +58,7 @@ class Listener(Protocol):
             overall *tahoe.cfg* configuration file.
         """
 
-    def create(self, reactor: Any, config: Any) -> IAddressFamily:
+    def create(self, reactor: Any, config: _Config) -> IAddressFamily:
         """
         Instantiate this listener according to the given
         previously-generated configuration.
@@ -91,7 +92,7 @@ class TCPProvider:
 
         return ListenerConfig(tub_ports, tub_locations, {})
 
-    def create(self, reactor: Any, config: Any) -> IAddressFamily:
+    def create(self, reactor: Any, config: _Config) -> IAddressFamily:
         raise NotImplementedError()
 
 
@@ -116,5 +117,5 @@ class StaticProvider:
             return self._config
         return await self._config
 
-    def create(self, reactor: Any, config: Any) -> IAddressFamily:
+    def create(self, reactor: Any, config: _Config) -> IAddressFamily:
         return self._address
