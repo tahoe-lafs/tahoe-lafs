@@ -193,7 +193,14 @@
                 writeScript "unit-tests"
                   ''
                     export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
-                    ${makeTestEnv pyVersion}/bin/python -m twisted.trial "$@"
+                    if [ $(id -u) = "0" ]; then
+                      # The test suite assumes non-root permissions.  Get rid
+                      # of the root permissions we seem to have.
+                      SUDO="sudo -u nobody"
+                    else
+                      SUDO=""
+                    fi
+                    $SUDO ${makeTestEnv pyVersion}/bin/python -m twisted.trial "$@"
                   '';
             };
           };
