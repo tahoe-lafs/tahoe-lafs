@@ -10,7 +10,7 @@ V = TypeVar("V")
 
 def filter(pred: Callable[[V], bool], orig: dict[K, V]) -> dict[K, V]:
     """
-    Filter out key/value pairs that fail to match a predicate.
+    Filter out key/value pairs whose value fails to match a predicate.
     """
     return {
         k: v
