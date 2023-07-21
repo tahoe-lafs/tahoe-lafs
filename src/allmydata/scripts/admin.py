@@ -112,6 +112,9 @@ class AddGridManagerCertOptions(BaseOptions):
         return "Usage: tahoe [global-options] admin add-grid-manager-cert [options]"
 
     def postOptions(self) -> None:
+        assert self.parent is not None
+        assert self.parent.parent is not None
+
         if self['name'] is None:
             raise usage.UsageError(
                 "Must provide --name option"
@@ -123,8 +126,8 @@ class AddGridManagerCertOptions(BaseOptions):
 
         data: str
         if self['filename'] == '-':
-            print("reading certificate from stdin", file=self.parent.parent.stderr)
-            data = self.parent.parent.stdin.read()
+            print("reading certificate from stdin", file=self.parent.parent.stderr)  # type: ignore[attr-defined]
+            data = self.parent.parent.stdin.read()  # type: ignore[attr-defined]
             if len(data) == 0:
                 raise usage.UsageError(
                     "Reading certificate from stdin failed"
@@ -255,9 +258,9 @@ def do_admin(options):
     return f(so)
 
 
-subCommands = [
+subCommands : SubCommands = [
     ("admin", None, AdminCommand, "admin subcommands: use 'tahoe admin' for a list"),
-    ]  # type: SubCommands
+    ]
 
 dispatch = {
     "admin": do_admin,

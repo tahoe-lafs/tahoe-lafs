@@ -1,19 +1,8 @@
 """
 Ported to Python 3.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-from future.utils import PY2, bchr
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-try:
-    from allmydata.scripts.types_ import SubCommands
-except ImportError:
-    pass
+from future.utils import bchr
 
 import struct, time, os, sys
 
@@ -31,6 +20,7 @@ from allmydata.mutable.common import NeedMoreDataError
 from allmydata.immutable.layout import ReadBucketProxy
 from allmydata.util import base32
 from allmydata.util.encodingutil import quote_output
+from allmydata.scripts.types_ import SubCommands
 
 class DumpOptions(BaseOptions):
     def getSynopsis(self):
@@ -1076,9 +1066,9 @@ def do_debug(options):
     return f(so)
 
 
-subCommands = [
+subCommands : SubCommands = [
     ("debug", None, DebugCommand, "debug subcommands: use 'tahoe debug' for a list."),
-    ]  # type: SubCommands
+    ]
 
 dispatch = {
     "debug": do_debug,

@@ -1,5 +1,5 @@
 """
-Ported to Python 3.
+Functionality related to operating a Tahoe-LAFS node (client _or_ server).
 """
 from __future__ import annotations
 
@@ -7,10 +7,9 @@ import os
 import stat
 import time
 import weakref
-from typing import Optional
+from typing import Optional, Iterable
 from base64 import urlsafe_b64encode
 from functools import partial
-# On Python 2 this will be the backported package:
 from configparser import NoSectionError
 
 from foolscap.furl import (
@@ -47,7 +46,7 @@ from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.util.i2p_provider import create as create_i2p_provider
-from allmydata.util.tor_provider import create as create_tor_provider
+from allmydata.util.tor_provider import create as create_tor_provider, _Provider as TorProvider
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import (
@@ -175,8 +174,6 @@ class KeyGenerator(object):
         """I return a Deferred that fires with a (verifyingkey, signingkey)
         pair. The returned key will be 2048 bit"""
         keysize = 2048
-        # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
-        # secs
         signer, verifier = rsa.create_signing_keypair(keysize)
         return defer.succeed( (verifier, signer) )
 
@@ -191,7 +188,7 @@ class Terminator(service.Service):
         return service.Service.stopService(self)
 
 
-def read_config(basedir, portnumfile, generated_files=[]):
+def read_config(basedir, portnumfile, generated_files: Iterable=()):
     """
     Read and validate configuration for a client-style Node. See
     :method:`allmydata.node.read_config` for parameter meanings (the
@@ -270,7 +267,7 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
     introducer_clients = create_introducer_clients(config, main_tub, _introducer_factory)
     storage_broker = create_storage_farm_broker(
         config, default_connection_handlers, foolscap_connection_handlers,
-        tub_options, introducer_clients
+        tub_options, introducer_clients, tor_provider
     )
 
     client = _client_factory(
@@ -466,7 +463,7 @@ def create_introducer_clients(config, main_tub, _introducer_factory=None):
     return introducer_clients
 
 
-def create_storage_farm_broker(config: _Config, default_connection_handlers, foolscap_connection_handlers, tub_options, introducer_clients):
+def create_storage_farm_broker(config: _Config, default_connection_handlers, foolscap_connection_handlers, tub_options, introducer_clients, tor_provider: Optional[TorProvider]):
     """
     Create a StorageFarmBroker object, for use by Uploader/Downloader
     (and everybody else who wants to use storage servers)
@@ -502,6 +499,8 @@ def create_storage_farm_broker(config: _Config, default_connection_handlers, foo
         tub_maker=tub_creator,
         node_config=config,
         storage_client_config=storage_client_config,
+        default_connection_handlers=default_connection_handlers,
+        tor_provider=tor_provider,
     )
     for ic in introducer_clients:
         sb.use_introducer(ic)
@@ -838,7 +837,11 @@ class _Client(node.Node, pollmixin.PollMixin):
             if hasattr(self.tub.negotiationClass, "add_storage_server"):
                 nurls = self.tub.negotiationClass.add_storage_server(ss, swissnum.encode("ascii"))
                 self.storage_nurls = nurls
-                announcement[storage_client.ANONYMOUS_STORAGE_NURLS] = [n.to_text() for n in nurls]
+                # There is code in e.g. storage_client.py that checks if an
+                # announcement has changed. Since NURL order isn't meaningful,
+                # we don't want a change in the order to count as a change, so we
+                # send the NURLs as a set. CBOR supports sets, as does Foolscap.
+                announcement[storage_client.ANONYMOUS_STORAGE_NURLS] = {n.to_text() for n in nurls}
             announcement["anonymous-storage-FURL"] = furl
 
         enabled_storage_servers = self._enable_storage_servers(
@@ -1030,14 +1033,14 @@ class _Client(node.Node, pollmixin.PollMixin):
     def init_web(self, webport):
         self.log("init_web(webport=%s)", args=(webport,))
 
-        from allmydata.webish import WebishServer
+        from allmydata.webish import WebishServer, anonymous_tempfile_factory
         nodeurl_path = self.config.get_config_path("node.url")
         staticdir_config = self.config.get_config("node", "web.static", "public_html")
         staticdir = self.config.get_config_path(staticdir_config)
         ws = WebishServer(
             self,
             webport,
-            self._get_tempdir(),
+            anonymous_tempfile_factory(self._get_tempdir()),
             nodeurl_path,
             staticdir,
         )
@@ -1105,7 +1108,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         # may get an opaque node if there were any problems.
         return self.nodemaker.create_from_cap(write_uri, read_uri, deep_immutable=deep_immutable, name=name)
 
-    def create_dirnode(self, initial_children={}, version=None):
+    def create_dirnode(self, initial_children=None, version=None):
         d = self.nodemaker.create_new_mutable_directory(initial_children, version=version)
         return d
 

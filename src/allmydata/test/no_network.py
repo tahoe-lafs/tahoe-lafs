@@ -1,34 +1,23 @@
 """
-Ported to Python 3.
+This contains a test harness that creates a full Tahoe grid in a single
+process (actually in a single MultiService) which does not use the network.
+It does not use an Introducer, and there are no foolscap Tubs. Each storage
+server puts real shares on disk, but is accessed through loopback
+RemoteReferences instead of over serialized SSL. It is not as complete as
+the common.SystemTestMixin framework (which does use the network), but
+should be considerably faster: on my laptop, it takes 50-80ms to start up,
+whereas SystemTestMixin takes close to 2s.
+
+This should be useful for tests which want to examine and/or manipulate the
+uploaded shares, checker/verifier/repairer tests, etc. The clients have no
+Tubs, so it is not useful for tests that involve a Helper.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-# This contains a test harness that creates a full Tahoe grid in a single
-# process (actually in a single MultiService) which does not use the network.
-# It does not use an Introducer, and there are no foolscap Tubs. Each storage
-# server puts real shares on disk, but is accessed through loopback
-# RemoteReferences instead of over serialized SSL. It is not as complete as
-# the common.SystemTestMixin framework (which does use the network), but
-# should be considerably faster: on my laptop, it takes 50-80ms to start up,
-# whereas SystemTestMixin takes close to 2s.
+from __future__ import annotations
 
-# This should be useful for tests which want to examine and/or manipulate the
-# uploaded shares, checker/verifier/repairer tests, etc. The clients have no
-# Tubs, so it is not useful for tests that involve a Helper.
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-from past.builtins import unicode
 from six import ensure_text
 
-try:
-    from typing import Dict, Callable
-except ImportError:
-    pass
+from typing import Callable
 
 import os
 from base64 import b32encode
@@ -251,7 +240,7 @@ def create_no_network_client(basedir):
     :return: a Deferred yielding an instance of _Client subclass which
         does no actual networking but has the same API.
     """
-    basedir = abspath_expanduser_unicode(unicode(basedir))
+    basedir = abspath_expanduser_unicode(str(basedir))
     fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
 
     from allmydata.client import read_config
@@ -487,7 +476,7 @@ class GridTestMixin(object):
         ])
 
     def set_up_grid(self, num_clients=1, num_servers=10,
-                    client_config_hooks={}, oneshare=False):
+                    client_config_hooks=None, oneshare=False):
         """
         Create a Tahoe-LAFS storage grid.
 
@@ -500,6 +489,8 @@ class GridTestMixin(object):
 
         :return: ``None``
         """
+        if client_config_hooks is None:
+            client_config_hooks = {}
         # self.basedir must be set
         port_assigner = SameProcessStreamEndpointAssigner()
         port_assigner.setUp()
@@ -577,8 +568,7 @@ class GridTestMixin(object):
                     pass
         return sorted(shares)
 
-    def copy_shares(self, uri):
-        # type: (bytes) -> Dict[bytes, bytes]
+    def copy_shares(self, uri: bytes) -> dict[bytes, bytes]:
         """
         Read all of the share files for the given capability from the storage area
         of the storage servers created by ``set_up_grid``.
@@ -630,8 +620,7 @@ class GridTestMixin(object):
                 with open(i_sharefile, "wb") as f:
                     f.write(corruptdata)
 
-    def corrupt_all_shares(self, uri, corruptor, debug=False):
-        # type: (bytes, Callable[[bytes, bool], bytes], bool) -> None
+    def corrupt_all_shares(self, uri: bytes, corruptor: Callable[[bytes, bool], bytes], debug: bool=False):
         """
         Apply ``corruptor`` to the contents of all share files associated with a
         given capability and replace the share file contents with its result.

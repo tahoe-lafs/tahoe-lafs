@@ -8,7 +8,7 @@ import json
 import os
 from functools import partial
 from os.path import join
-from typing import Awaitable, Callable, Optional, Sequence, TypeVar, Union
+from typing import Callable, Optional, Sequence, TypeVar, Union, Coroutine, Any, Tuple, cast, Generator
 
 from twisted.internet import defer
 from twisted.trial import unittest
@@ -19,7 +19,8 @@ from ...util.jsonbytes import dumps_bytes
 from ..common_util import run_cli
 from ..no_network import GridTestMixin
 from .common import CLITestMixin
-from .wormholetesting import IWormhole, MemoryWormholeServer, TestingHelper, memory_server
+from .wormholetesting import MemoryWormholeServer, TestingHelper, memory_server, IWormhole
+
 
 # Logically:
 #   JSONable = dict[str, Union[JSONable, None, int, float, str, list[JSONable]]]
@@ -59,7 +60,7 @@ def make_simple_peer(
         server: MemoryWormholeServer,
         helper: TestingHelper,
         messages: Sequence[JSONable],
-) -> Callable[[], Awaitable[IWormhole]]:
+) -> Callable[[], Coroutine[defer.Deferred[IWormhole], Any, IWormhole]]:
     """
     Make a wormhole peer that just sends the given messages.
 
@@ -101,18 +102,24 @@ A = TypeVar("A")
 B = TypeVar("B")
 
 def concurrently(
-    client: Callable[[], Awaitable[A]],
-    server: Callable[[], Awaitable[B]],
-) -> defer.Deferred[tuple[A, B]]:
+    client: Callable[[], Union[
+        Coroutine[defer.Deferred[A], Any, A],
+        Generator[defer.Deferred[A], Any, A],
+    ]],
+    server: Callable[[], Union[
+        Coroutine[defer.Deferred[B], Any, B],
+        Generator[defer.Deferred[B], Any, B],
+    ]],
+) -> defer.Deferred[Tuple[A, B]]:
     """
     Run two asynchronous functions concurrently and asynchronously return a
     tuple of both their results.
     """
-    return defer.gatherResults([
+    result = defer.gatherResults([
         defer.Deferred.fromCoroutine(client()),
         defer.Deferred.fromCoroutine(server()),
-    ])
-
+    ]).addCallback(tuple)  # type: ignore
+    return cast(defer.Deferred[Tuple[A, B]], result)
 
 class Join(GridTestMixin, CLITestMixin, unittest.TestCase):
 

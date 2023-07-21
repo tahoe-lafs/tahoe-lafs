@@ -12,7 +12,7 @@ import sys
 import time
 import json
 from os import mkdir, environ
-from os.path import exists, join
+from os.path import exists, join, basename
 from io import StringIO, BytesIO
 from subprocess import check_output
 
@@ -127,7 +127,6 @@ class _CollectOutputProtocol(ProcessProtocol):
         self.output.write(data)
 
     def errReceived(self, data):
-        print("ERR: {!r}".format(data))
         if self.capture_stderr:
             self.output.write(data)
 
@@ -163,8 +162,9 @@ class _MagicTextProtocol(ProcessProtocol):
     and then .callback()s on self.done and .errback's if the process exits
     """
 
-    def __init__(self, magic_text):
+    def __init__(self, magic_text: str, name: str) -> None:
         self.magic_seen = Deferred()
+        self.name = f"{name}: "
         self.exited = Deferred()
         self._magic_text = magic_text
         self._output = StringIO()
@@ -174,7 +174,8 @@ class _MagicTextProtocol(ProcessProtocol):
 
     def outReceived(self, data):
         data = str(data, sys.stdout.encoding)
-        sys.stdout.write(data)
+        for line in data.splitlines():
+            sys.stdout.write(self.name + line + "\n")
         self._output.write(data)
         if not self.magic_seen.called and self._magic_text in self._output.getvalue():
             print("Saw '{}' in the logs".format(self._magic_text))
@@ -182,7 +183,8 @@ class _MagicTextProtocol(ProcessProtocol):
 
     def errReceived(self, data):
         data = str(data, sys.stderr.encoding)
-        sys.stdout.write(data)
+        for line in data.splitlines():
+            sys.stdout.write(self.name + line + "\n")
 
 
 def _cleanup_process_async(transport: IProcessTransport, allow_missing: bool) -> None:
@@ -317,7 +319,7 @@ def _run_node(reactor, node_dir, request, magic_text, finalize=True):
     """
     if magic_text is None:
         magic_text = "client running"
-    protocol = _MagicTextProtocol(magic_text)
+    protocol = _MagicTextProtocol(magic_text, basename(node_dir))
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
@@ -344,6 +346,36 @@ def _run_node(reactor, node_dir, request, magic_text, finalize=True):
     d = protocol.magic_seen
     d.addCallback(lambda ignored: tahoe_process)
     return d
+
+
+def basic_node_configuration(request, flog_gatherer, node_dir: str):
+    """
+    Setup common configuration options for a node, given a ``pytest`` request
+    fixture.
+    """
+    config_path = join(node_dir, 'tahoe.cfg')
+    config = get_config(config_path)
+    set_config(
+        config,
+        u'node',
+        u'log_gatherer.furl',
+        flog_gatherer,
+    )
+    force_foolscap = request.config.getoption("force_foolscap")
+    assert force_foolscap in (True, False)
+    set_config(
+        config,
+        'storage',
+        'force_foolscap',
+        str(force_foolscap),
+    )
+    set_config(
+        config,
+        'client',
+        'force_foolscap',
+        str(force_foolscap),
+    )
+    write_config(FilePath(config_path), config)
 
 
 def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, name, web_port,
@@ -386,29 +418,7 @@ def _create_node(reactor, request, temp_dir, introducer_furl, flog_gatherer, nam
         created_d = done_proto.done
 
         def created(_):
-            config_path = join(node_dir, 'tahoe.cfg')
-            config = get_config(config_path)
-            set_config(
-                config,
-                u'node',
-                u'log_gatherer.furl',
-                flog_gatherer,
-            )
-            force_foolscap = request.config.getoption("force_foolscap")
-            assert force_foolscap in (True, False)
-            set_config(
-                config,
-                'storage',
-                'force_foolscap',
-                str(force_foolscap),
-            )
-            set_config(
-                config,
-                'client',
-                'force_foolscap',
-                str(force_foolscap),
-            )
-            write_config(FilePath(config_path), config)
+            basic_node_configuration(request, flog_gatherer, node_dir)
         created_d.addCallback(created)
 
     d = Deferred()
@@ -463,6 +473,31 @@ class FileShouldVanishException(Exception):
         super(FileShouldVanishException, self).__init__(
             u"'{}' still exists after {}s".format(path, timeout),
         )
+
+
+def run_in_thread(f):
+    """Decorator for integration tests that runs code in a thread.
+
+    Because we're using pytest_twisted, tests that rely on the reactor are
+    expected to return a Deferred and use async APIs so the reactor can run.
+
+    In the case of the integration test suite, it launches nodes in the
+    background using Twisted APIs.  The nodes stdout and stderr is read via
+    Twisted code.  If the reactor doesn't run, reads don't happen, and
+    eventually the buffers fill up, and the nodes block when they try to flush
+    logs.
+
+    We can switch to Twisted APIs (treq instead of requests etc.), but
+    sometimes it's easier or expedient to just have a blocking test.  So this
+    decorator allows you to run the test in a thread, and the reactor can keep
+    running in the main thread.
+
+    See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3597 for tracking bug.
+    """
+    @wraps(f)
+    def test(*args, **kwargs):
+        return deferToThread(lambda: f(*args, **kwargs))
+    return test
 
 
 def await_file_contents(path, contents, timeout=15, error_if=None):
@@ -590,6 +625,7 @@ def web_post(tahoe, uri_fragment, **kwargs):
     return resp.content
 
 
+@run_in_thread
 def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_servers=1):
     """
     Uses the status API to wait for a client-type node (in `tahoe`, a
@@ -614,24 +650,25 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_serve
             print("waiting because '{}'".format(e))
             time.sleep(1)
             continue
+        servers = js['servers']
 
-        if len(js['servers']) < minimum_number_of_servers:
-            print("waiting because insufficient servers")
+        if len(servers) < minimum_number_of_servers:
+            print(f"waiting because {servers} is fewer than required ({minimum_number_of_servers})")
             time.sleep(1)
             continue
+
+        print(
+            f"Now: {time.ctime()}\n"
+            f"Server last-received-data: {[time.ctime(s['last_received_data']) for s in servers]}"
+        )
+
         server_times = [
             server['last_received_data']
-            for server in js['servers']
+            for server in servers
         ]
-        # if any times are null/None that server has never been
-        # contacted (so it's down still, probably)
-        if any(t is None for t in server_times):
-            print("waiting because at least one server not contacted")
-            time.sleep(1)
-            continue
-
-        # check that all times are 'recent enough'
-        if any([time.time() - t > liveness for t in server_times]):
+        # check that all times are 'recent enough' (it's OK if _some_ servers
+        # are down, we just want to make sure a sufficient number are up)
+        if len([time.time() - t <= liveness for t in server_times if t is not None]) < minimum_number_of_servers:
             print("waiting because at least one server too old")
             time.sleep(1)
             continue
@@ -656,30 +693,6 @@ def generate_ssh_key(path):
         s = "%s %s" % (key.get_name(), key.get_base64())
         f.write(s.encode("ascii"))
 
-
-def run_in_thread(f):
-    """Decorator for integration tests that runs code in a thread.
-
-    Because we're using pytest_twisted, tests that rely on the reactor are
-    expected to return a Deferred and use async APIs so the reactor can run.
-
-    In the case of the integration test suite, it launches nodes in the
-    background using Twisted APIs.  The nodes stdout and stderr is read via
-    Twisted code.  If the reactor doesn't run, reads don't happen, and
-    eventually the buffers fill up, and the nodes block when they try to flush
-    logs.
-
-    We can switch to Twisted APIs (treq instead of requests etc.), but
-    sometimes it's easier or expedient to just have a blocking test.  So this
-    decorator allows you to run the test in a thread, and the reactor can keep
-    running in the main thread.
-
-    See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3597 for tracking bug.
-    """
-    @wraps(f)
-    def test(*args, **kwargs):
-        return deferToThread(lambda: f(*args, **kwargs))
-    return test
 
 @frozen
 class CHK:
@@ -827,16 +840,11 @@ async def reconfigure(reactor, request, node: TahoeProcess,
             )
 
     if changed:
-        # TODO reconfigure() seems to have issues on Windows. If you need to
-        # use it there, delete this assert and try to figure out what's going
-        # on...
-        assert not sys.platform.startswith("win")
-
         # restart the node
         print(f"Restarting {node.node_dir} for ZFEC reconfiguration")
         await node.restart_async(reactor, request)
         print("Restarted.  Waiting for ready state.")
-        await_client_ready(node)
+        await await_client_ready(node)
         print("Ready.")
     else:
         print("Config unchanged, not restarting.")

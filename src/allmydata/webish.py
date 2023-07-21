@@ -4,7 +4,7 @@ General web server-related utilities.
 from __future__ import annotations
 
 from six import ensure_str
-
+from typing import IO, Callable, Optional
 import re, time, tempfile
 from urllib.parse import parse_qsl, urlencode
 
@@ -217,34 +217,50 @@ def censor(queryargs: bytes) -> bytes:
     return urlencode(result, safe="[]").encode("ascii")
 
 
+def anonymous_tempfile_factory(tempdir: bytes) -> Callable[[], IO[bytes]]:
+    """
+    Create a no-argument callable for creating a new temporary file in the
+    given directory.
+
+    :param tempdir: The directory in which temporary files with be created.
+
+    :return: The callable.
+    """
+    return lambda: tempfile.TemporaryFile(dir=tempdir)
+
+
 class TahoeLAFSSite(Site, object):
     """
     The HTTP protocol factory used by Tahoe-LAFS.
 
     Among the behaviors provided:
 
-    * A configurable temporary directory where large request bodies can be
-      written so they don't stay in memory.
+    * A configurable temporary file factory for large request bodies to avoid
+      keeping them in memory.
 
     * A log formatter that writes some access logs but omits capability
       strings to help keep them secret.
     """
     requestFactory = TahoeLAFSRequest
 
-    def __init__(self, tempdir, *args, **kwargs):
+    def __init__(self, make_tempfile: Callable[[], IO[bytes]], *args, **kwargs):
         Site.__init__(self, *args, logFormatter=_logFormatter, **kwargs)
-        self._tempdir = tempdir
+        assert callable(make_tempfile)
+        with make_tempfile():
+            pass
+        self._make_tempfile = make_tempfile
 
-    def getContentFile(self, length):
+    def getContentFile(self, length: Optional[int]) -> IO[bytes]:
         if length is None or length >= 1024 * 1024:
-            return tempfile.TemporaryFile(dir=self._tempdir)
+            return self._make_tempfile()
         return BytesIO()
 
-
 class WebishServer(service.MultiService):
-    name = "webish"
+    # The type in Twisted for services is wrong in 22.10...
+    # https://github.com/twisted/twisted/issues/10135
+    name = "webish"  # type: ignore[assignment]
 
-    def __init__(self, client, webport, tempdir, nodeurl_path=None, staticdir=None,
+    def __init__(self, client, webport, make_tempfile, nodeurl_path=None, staticdir=None,
                  clock=None, now_fn=time.time):
         service.MultiService.__init__(self)
         # the 'data' argument to all render() methods default to the Client
@@ -254,7 +270,7 @@ class WebishServer(service.MultiService):
         # time in a deterministic manner.
 
         self.root = root.Root(client, clock, now_fn)
-        self.buildServer(webport, tempdir, nodeurl_path, staticdir)
+        self.buildServer(webport, make_tempfile, nodeurl_path, staticdir)
 
         # If set, clock is a twisted.internet.task.Clock that the tests
         # use to test ophandle expiration.
@@ -264,9 +280,9 @@ class WebishServer(service.MultiService):
 
         self.root.putChild(b"storage-plugins", StoragePlugins(client))
 
-    def buildServer(self, webport, tempdir, nodeurl_path, staticdir):
+    def buildServer(self, webport, make_tempfile, nodeurl_path, staticdir):
         self.webport = webport
-        self.site = TahoeLAFSSite(tempdir, self.root)
+        self.site = TahoeLAFSSite(make_tempfile, self.root)
         self.staticdir = staticdir # so tests can check
         if staticdir:
             self.root.putChild(b"static", static.File(staticdir))
@@ -344,4 +360,4 @@ class IntroducerWebishServer(WebishServer):
     def __init__(self, introducer, webport, nodeurl_path=None, staticdir=None):
         service.MultiService.__init__(self)
         self.root = introweb.IntroducerRoot(introducer)
-        self.buildServer(webport, tempfile.tempdir, nodeurl_path, staticdir)
+        self.buildServer(webport, tempfile.TemporaryFile, nodeurl_path, staticdir)

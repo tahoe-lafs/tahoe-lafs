@@ -2,24 +2,13 @@
 Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import long
 from six import ensure_text
 
 import time, os.path, textwrap
-
-try:
-    from typing import Any, Dict, Union
-except ImportError:
-    pass
+from typing import Any, Union
 
 from zope.interface import implementer
 from twisted.application import service
@@ -79,10 +68,6 @@ def create_introducer(basedir=u"."):
         default_connection_handlers, foolscap_connection_handlers = create_connection_handlers(config, i2p_provider, tor_provider)
         tub_options = create_tub_options(config)
 
-        # we don't remember these because the Introducer doesn't make
-        # outbound connections.
-        i2p_provider = None
-        tor_provider = None
         main_tub = create_main_tub(
             config, tub_options, default_connection_handlers,
             foolscap_connection_handlers, i2p_provider, tor_provider,
@@ -94,6 +79,8 @@ def create_introducer(basedir=u"."):
             i2p_provider,
             tor_provider,
         )
+        i2p_provider.setServiceParent(node)
+        tor_provider.setServiceParent(node)
         return defer.succeed(node)
     except Exception:
         return Failure()
@@ -155,17 +142,20 @@ def stringify_remote_address(rref):
     return str(remote)
 
 
+# MyPy doesn't work well with remote interfaces...
 @implementer(RIIntroducerPublisherAndSubscriberService_v2)
-class IntroducerService(service.MultiService, Referenceable):
-    name = "introducer"
+class IntroducerService(service.MultiService, Referenceable):  # type: ignore[misc]
+    # The type in Twisted for services is wrong in 22.10...
+    # https://github.com/twisted/twisted/issues/10135
+    name = "introducer"  # type: ignore[assignment]
     # v1 is the original protocol, added in 1.0 (but only advertised starting
     # in 1.3), removed in 1.12. v2 is the new signed protocol, added in 1.10
     # TODO: reconcile bytes/str for keys
-    VERSION = {
+    VERSION : dict[Union[bytes, str], Any]= {
                 #"http://allmydata.org/tahoe/protocols/introducer/v1": { },
                 b"http://allmydata.org/tahoe/protocols/introducer/v2": { },
                 b"application-version": allmydata.__full_version__.encode("utf-8"),
-                }  # type: Dict[Union[bytes, str], Any]
+                }
 
     def __init__(self):
         service.MultiService.__init__(self)

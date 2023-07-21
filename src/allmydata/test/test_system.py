@@ -1,20 +1,13 @@
 """
 Ported to Python 3.
 """
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    # Don't import bytes since it causes issues on (so far unported) modules on Python 2.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min, str  # noqa: F401
+from __future__ import annotations
 
 from past.builtins import chr as byteschr, long
 from six import ensure_text
 
 import os, re, sys, time, json
+from typing import Optional
 
 from bs4 import BeautifulSoup
 
@@ -56,10 +49,12 @@ from .common_util import run_cli_unicode
 
 
 class RunBinTahoeMixin(object):
-    def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
+    def run_bintahoe(self, args, stdin=None, python_options:Optional[list[str]]=None, env=None):
         # test_runner.run_bintahoe has better unicode support but doesn't
         # support env yet and is also synchronous.  If we could get rid of
         # this in favor of that, though, it would probably be an improvement.
+        if python_options is None:
+            python_options = []
         command = sys.executable
         argv = python_options + ["-b", "-m", "allmydata.scripts.runner"] + args
 
@@ -787,7 +782,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
     def test_filesystem(self):
         self.data = LARGE_DATA
-        d = self.set_up_nodes()
+        d = self.set_up_nodes(2)
         def _new_happy_semantics(ign):
             for c in self.clients:
                 c.encoding_params['happy'] = 1
@@ -1088,7 +1083,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             headers["content-type"] = "multipart/form-data; boundary=%s" % str(sepbase, "ascii")
         return self.POST2(urlpath, body, headers, use_helper)
 
-    def POST2(self, urlpath, body=b"", headers={}, use_helper=False):
+    def POST2(self, urlpath, body=b"", headers=None, use_helper=False):
+        if headers is None:
+            headers = {}
         if use_helper:
             url = self.helper_webish_url + urlpath
         else:
@@ -1409,7 +1406,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             rc,out,err = yield run_cli(verb, *args, nodeargs=nodeargs, **kwargs)
             defer.returnValue((out,err))
 
-        def _check_ls(out_and_err, expected_children, unexpected_children=[]):
+        def _check_ls(out_and_err, expected_children, unexpected_children=()):
             (out, err) = out_and_err
             self.failUnlessEqual(err, "")
             for s in expected_children:
@@ -1748,6 +1745,10 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 ##         d.addCallback(_check_ls_missing)
 
         return d
+
+    # In CI this test can be very slow, so give it a longer timeout:
+    test_filesystem.timeout = 360  # type: ignore[attr-defined]
+
 
     def test_filesystem_with_cli_in_subprocess(self):
         # We do this in a separate test so that test_filesystem doesn't skip if we can't run bin/tahoe.

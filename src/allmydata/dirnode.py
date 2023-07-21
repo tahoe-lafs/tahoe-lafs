@@ -678,8 +678,10 @@ class DirectoryNode(object):
         return d
 
     # XXX: Too many arguments? Worthwhile to break into mutable/immutable?
-    def create_subdirectory(self, namex, initial_children={}, overwrite=True,
+    def create_subdirectory(self, namex, initial_children=None, overwrite=True,
                             mutable=True, mutable_version=None, metadata=None):
+        if initial_children is None:
+            initial_children = {}
         name = normalize(namex)
         if self.is_readonly():
             return defer.fail(NotWriteableError())

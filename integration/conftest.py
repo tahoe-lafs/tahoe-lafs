@@ -1,6 +1,10 @@
 """
 Ported to Python 3.
 """
+
+from __future__ import annotations
+
+import os
 import sys
 import shutil
 from time import sleep
@@ -19,6 +23,7 @@ from eliot import (
     log_call,
 )
 
+from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 from twisted.internet.defer import DeferredList
 from twisted.internet.error import (
@@ -45,7 +50,16 @@ from .util import (
     generate_ssh_key,
     block_with_timeout,
 )
+from allmydata.node import read_config
 
+# No reason for HTTP requests to take longer than four minutes in the
+# integration tests. See allmydata/scripts/common_http.py for usage.
+os.environ["__TAHOE_CLI_HTTP_TIMEOUT"] = "240"
+
+# Make Foolscap logging go into Twisted logging, so that integration test logs
+# include extra information
+# (https://github.com/warner/foolscap/blob/latest-release/doc/logging.rst):
+os.environ["FLOGTOTWISTED"] = "1"
 
 # pytest customization hooks
 
@@ -106,7 +120,7 @@ def reactor():
 
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:temp_dir", include_args=[])
-def temp_dir(request):
+def temp_dir(request) -> str:
     """
     Invoke like 'py.test --keep-tempdir ...' to avoid deleting the temp-dir
     """
@@ -148,11 +162,12 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
             '--location', 'tcp:localhost:3117',
             '--port', '3117',
             gather_dir,
-        )
+        ),
+        env=environ,
     )
     pytest_twisted.blockon(out_protocol.done)
 
-    twistd_protocol = _MagicTextProtocol("Gatherer waiting at")
+    twistd_protocol = _MagicTextProtocol("Gatherer waiting at", "gatherer")
     twistd_process = reactor.spawnProcess(
         twistd_protocol,
         which('twistd')[0],
@@ -161,6 +176,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
             join(gather_dir, 'gatherer.tac'),
         ),
         path=gather_dir,
+        env=environ,
     )
     pytest_twisted.blockon(twistd_protocol.magic_seen)
 
@@ -179,6 +195,7 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
             (
                 'flogtool', 'dump', join(temp_dir, 'flog_gather', flogs[0])
             ),
+            env=environ,
         )
         print("Waiting for flogtool to complete")
         try:
@@ -201,13 +218,6 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
     include_result=False,
 )
 def introducer(reactor, temp_dir, flog_gatherer, request):
-    config = '''
-[node]
-nickname = introducer0
-web.port = 4560
-log_gatherer.furl = {log_furl}
-'''.format(log_furl=flog_gatherer)
-
     intro_dir = join(temp_dir, 'introducer')
     print("making introducer", intro_dir)
 
@@ -227,13 +237,14 @@ log_gatherer.furl = {log_furl}
         )
         pytest_twisted.blockon(done_proto.done)
 
-    # over-write the config file with our stuff
-    with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
-        f.write(config)
+    config = read_config(intro_dir, "tub.port")
+    config.set_config("node", "nickname", "introducer-tor")
+    config.set_config("node", "web.port", "4562")
+    config.set_config("node", "log_gatherer.furl", flog_gatherer)
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
-    protocol = _MagicTextProtocol('introducer running')
+    protocol = _MagicTextProtocol('introducer running', "introducer")
     transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,
@@ -270,22 +281,16 @@ def introducer_furl(introducer, temp_dir):
     return furl
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 @log_call(
     action_type=u"integration:tor:introducer",
     include_args=["temp_dir", "flog_gatherer"],
     include_result=False,
 )
 def tor_introducer(reactor, temp_dir, flog_gatherer, request, tor_network):
-    config = '''
-[node]
-nickname = introducer_tor
-web.port = 4561
-log_gatherer.furl = {log_furl}
-'''.format(log_furl=flog_gatherer)
-
     intro_dir = join(temp_dir, 'introducer_tor')
-    print("making introducer", intro_dir)
+    print("making Tor introducer in {}".format(intro_dir))
+    print("(this can take tens of seconds to allocate Onion address)")
 
     if not exists(intro_dir):
         mkdir(intro_dir)
@@ -296,20 +301,25 @@ log_gatherer.furl = {log_furl}
             request,
             (
                 'create-introducer',
-                '--tor-control-port', 'tcp:localhost:8010',
+                # The control port should agree with the configuration of the
+                # Tor network we bootstrap with chutney.
+                '--tor-control-port', 'tcp:localhost:8007',
+                '--hide-ip',
                 '--listen=tor',
                 intro_dir,
             ),
         )
         pytest_twisted.blockon(done_proto.done)
 
-    # over-write the config file with our stuff
-    with open(join(intro_dir, 'tahoe.cfg'), 'w') as f:
-        f.write(config)
+    # adjust a few settings
+    config = read_config(intro_dir, "tub.port")
+    config.set_config("node", "nickname", "introducer-tor")
+    config.set_config("node", "web.port", "4561")
+    config.set_config("node", "log_gatherer.furl", flog_gatherer)
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
-    protocol = _MagicTextProtocol('introducer running')
+    protocol = _MagicTextProtocol('introducer running', "tor_introducer")
     transport = _tahoe_runner_optional_coverage(
         protocol,
         reactor,
@@ -328,17 +338,20 @@ log_gatherer.furl = {log_furl}
             pass
     request.addfinalizer(cleanup)
 
+    print("Waiting for introducer to be ready...")
     pytest_twisted.blockon(protocol.magic_seen)
+    print("Introducer ready.")
     return transport
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def tor_introducer_furl(tor_introducer, temp_dir):
     furl_fname = join(temp_dir, 'introducer_tor', 'private', 'introducer.furl')
     while not exists(furl_fname):
         print("Don't see {} yet".format(furl_fname))
         sleep(.1)
     furl = open(furl_fname, 'r').read()
+    print(f"Found Tor introducer furl: {furl} in {furl_fname}")
     return furl
 
 
@@ -390,12 +403,9 @@ def alice(
             reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
             web_port="tcp:9980:interface=localhost",
             storage=False,
-            # We're going to kill this ourselves, so no need for finalizer to
-            # do it:
-            finalize=False,
         )
     )
-    await_client_ready(process)
+    pytest_twisted.blockon(await_client_ready(process))
 
     # 1. Create a new RW directory cap:
     cli(process, "create-alias", "test")
@@ -426,7 +436,7 @@ alice-key ssh-rsa {ssh_public_key} {rwcap}
 
     # 4. Restart the node with new SFTP config.
     pytest_twisted.blockon(process.restart_async(reactor, request))
-    await_client_ready(process)
+    pytest_twisted.blockon(await_client_ready(process))
     print(f"Alice pid: {process.transport.pid}")
     return process
 
@@ -441,22 +451,37 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
             storage=False,
         )
     )
-    await_client_ready(process)
+    pytest_twisted.blockon(await_client_ready(process))
     return process
 
 
 @pytest.fixture(scope='session')
 @pytest.mark.skipif(sys.platform.startswith('win'),
                     'Tor tests are unstable on Windows')
-def chutney(reactor, temp_dir):
+def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
+    # Try to find Chutney already installed in the environment.
+    try:
+        import chutney
+    except ImportError:
+        # Nope, we'll get our own in a moment.
+        pass
+    else:
+        # We already have one, just use it.
+        return (
+            # from `checkout/lib/chutney/__init__.py` we want to get back to
+            # `checkout` because that's the parent of the directory with all
+            # of the network definitions.  So, great-grand-parent.
+            FilePath(chutney.__file__).parent().parent().parent().path,
+            # There's nothing to add to the environment.
+            {},
+        )
 
     chutney_dir = join(temp_dir, 'chutney')
     mkdir(chutney_dir)
 
-    # TODO:
-
-    # check for 'tor' binary explicitly and emit a "skip" if we can't
-    # find it
+    missing = [exe for exe in ["tor", "tor-gencert"] if not which(exe)]
+    if missing:
+        pytest.skip(f"Some command-line tools not found: {missing}")
 
     # XXX yuck! should add a setup.py to chutney so we can at least
     # "pip install <path to tarball>" and/or depend on chutney in "pip
@@ -468,7 +493,7 @@ def chutney(reactor, temp_dir):
         executable='git',
         argv=(
             'git', 'clone',
-            'https://git.torproject.org/chutney.git',
+            'https://gitlab.torproject.org/tpo/core/chutney.git',
             chutney_dir,
         ),
         env=environ,
@@ -483,79 +508,68 @@ def chutney(reactor, temp_dir):
         argv=(
             'git', '-C', chutney_dir,
             'reset', '--hard',
-            'c825cba0bcd813c644c6ac069deeb7347d3200ee'
+            'c4f6789ad2558dcbfeb7d024c6481d8112bfb6c2'
         ),
         env=environ,
         path=".",
     ))
 
-    return chutney_dir
+    return (chutney_dir, {"PYTHONPATH": join(chutney_dir, "lib")})
 
 
 @pytest.fixture(scope='session')
 @pytest.mark.skipif(sys.platform.startswith('win'),
                     reason='Tor tests are unstable on Windows')
 def tor_network(reactor, temp_dir, chutney, request):
+    """
+    Build a basic Tor network.
 
-    # this is the actual "chutney" script at the root of a chutney checkout
-    chutney_dir = chutney
-    chut = join(chutney_dir, 'chutney')
+    :param chutney: The root directory of a Chutney checkout and a dict of
+        additional environment variables to set so a Python process can use
+        it.
 
-    # now, as per Chutney's README, we have to create the network
-    # ./chutney configure networks/basic
-    # ./chutney start networks/basic
+    :return: None
+    """
+    chutney_root, chutney_env = chutney
+    basic_network = join(chutney_root, 'networks', 'basic')
 
     env = environ.copy()
-    env.update({"PYTHONPATH": join(chutney_dir, "lib")})
-    pytest_twisted.blockon(dump_python_output(
-        reactor,
-        argv=[
-            '-m', 'chutney.TorNet', 'configure',
-            join(chutney_dir, 'networks', 'basic'),
-        ],
-        path=join(chutney_dir),
-    ))
+    env.update(chutney_env)
+    env.update({
+        # default is 60, probably too short for reliable automated use.
+        "CHUTNEY_START_TIME": "600",
+    })
+    chutney_argv = (sys.executable, '-m', 'chutney.TorNet')
+    def chutney(argv):
+        proto = _DumpOutputProtocol(None)
+        reactor.spawnProcess(
+            proto,
+            sys.executable,
+            chutney_argv + argv,
+            path=join(chutney_root),
+            env=env,
+        )
+        return proto.done
 
-    pytest_twisted.blockon(dump_python_output(
-        reactor,
-        argv=[
-            '-m', 'chutney.TorNet', 'start',
-            join(chutney_dir, 'networks', 'basic'),
-        ],
-        path=join(chutney_dir),
-    ))
+    # now, as per Chutney's README, we have to create the network
+    pytest_twisted.blockon(chutney(("configure", basic_network)))
 
-    # print some useful stuff
-    d = dump_python_output(
-        reactor,
-        argv=[
-            '-m', 'chutney.TorNet', 'status',
-            join(chutney_dir, 'networks', 'basic'),
-        ],
-        path=join(chutney_dir),
-    )
-    try:
-        pytest_twisted.blockon(d)
-    except ProcessTerminated:
-        print("Chutney.TorNet status failed (continuing)")
-
+    # before we start the network, ensure we will tear down at the end
     def cleanup():
         print("Tearing down Chutney Tor network")
-        d = dump_python_output(
-            reactor,
-            argv=[
-                '-m', 'chutney.TorNet', 'stop',
-                join(chutney_dir, 'networks', 'basic'),
-            ],
-            path=join(chutney_dir),
-        )
         try:
-            block_with_timeout(d, reactor)
+            block_with_timeout(chutney(("stop", basic_network)), reactor)
         except ProcessTerminated:
             # If this doesn't exit cleanly, that's fine, that shouldn't fail
             # the test suite.
             pass
-
     request.addfinalizer(cleanup)
 
-    return chut
+    pytest_twisted.blockon(chutney(("start", basic_network)))
+    pytest_twisted.blockon(chutney(("wait_for_bootstrap", basic_network)))
+
+    # print some useful stuff
+    try:
+        pytest_twisted.blockon(chutney(("status", basic_network)))
+    except ProcessTerminated:
+        print("Chutney.TorNet status failed (continuing)")

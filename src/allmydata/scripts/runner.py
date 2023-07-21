@@ -1,21 +1,7 @@
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import os, sys
-from six.moves import StringIO
+from io import StringIO
 from past.builtins import unicode
 import six
-
-try:
-    from allmydata.scripts.types_ import SubCommands
-except ImportError:
-    pass
 
 from twisted.python import usage
 from twisted.internet import defer, task, threads
@@ -23,6 +9,7 @@ from twisted.internet import defer, task, threads
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, cli, \
     admin, tahoe_run, tahoe_invite
+from allmydata.scripts.types_ import SubCommands
 from allmydata.util.encodingutil import quote_local_unicode_path, argv_to_unicode
 from allmydata.util.eliotutil import (
     opt_eliot_destination,
@@ -47,9 +34,9 @@ if _default_nodedir:
     NODEDIR_HELP += " [default for most commands: " + quote_local_unicode_path(_default_nodedir) + "]"
 
 
-process_control_commands = [
+process_control_commands : SubCommands = [
     ("run", None, tahoe_run.RunOptions, "run a node without daemonizing"),
-]  # type: SubCommands
+]
 
 
 class Options(usage.Options):

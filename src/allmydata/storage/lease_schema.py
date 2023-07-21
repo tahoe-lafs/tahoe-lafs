@@ -2,19 +2,7 @@
 Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-try:
-    from typing import Union
-except ImportError:
-    pass
+from typing import Union
 
 import attr
 
@@ -68,7 +56,7 @@ class HashedLeaseSerializer(object):
         """
         Hash a lease secret for storage.
         """
-        return blake2b(secret, digest_size=32, encoder=RawEncoder())
+        return blake2b(secret, digest_size=32, encoder=RawEncoder)
 
     @classmethod
     def _hash_lease_info(cls, lease_info):
@@ -95,8 +83,7 @@ class HashedLeaseSerializer(object):
             cls._hash_secret,
         )
 
-    def serialize(self, lease):
-        # type: (Union[LeaseInfo, HashedLeaseInfo]) -> bytes
+    def serialize(self, lease: Union[LeaseInfo, HashedLeaseInfo]) -> bytes:
         if isinstance(lease, LeaseInfo):
             # v2 of the immutable schema stores lease secrets hashed.  If
             # we're given a LeaseInfo then it holds plaintext secrets.  Hash

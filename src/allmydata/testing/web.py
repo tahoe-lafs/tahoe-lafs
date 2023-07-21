@@ -276,6 +276,15 @@ class _SynchronousProducer(object):
         consumer.write(self.body)
         return succeed(None)
 
+    def stopProducing(self):
+        pass
+
+    def pauseProducing(self):
+        pass
+
+    def resumeProducing(self):
+        pass
+
 
 def create_tahoe_treq_client(root=None):
     """
