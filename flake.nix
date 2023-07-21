@@ -10,7 +10,7 @@
       url = github:NixOS/nixpkgs?ref=nixos-22.11;
     };
     "nixpkgs-23_05" = {
-      url = github:NixOS/nixpkgs?ref=release-23.05;
+      url = github:NixOS/nixpkgs?ref=nixos-23.05;
     };
 
     # We depend on a very new python-cryptography which is not yet available
