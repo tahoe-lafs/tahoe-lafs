@@ -57,8 +57,8 @@ class MergeConfigTests(unittest.TestCase):
         If there are any keys in the ``node_config`` of the left and right
         parameters that are shared then ``ValueError`` is raised.
         """
-        left = ListenerConfig([], [], {"foo": "bar"})
-        right = ListenerConfig([], [], {"foo": "baz"})
+        left = ListenerConfig([], [], {"foo": [("b", "ar")]})
+        right = ListenerConfig([], [], {"foo": [("ba", "z")]})
         self.assertRaises(ValueError, lambda: create_node.merge_config(left, right))
 
     def test_merge(self) -> None:
@@ -67,14 +67,22 @@ class MergeConfigTests(unittest.TestCase):
         all of the ports, locations, and node config from each of the two
         ``ListenerConfig`` values given.
         """
-        left = ListenerConfig(["left-port"], ["left-location"], {"left": "foo"})
-        right = ListenerConfig(["right-port"], ["right-location"], {"right": "bar"})
+        left = ListenerConfig(
+            ["left-port"],
+            ["left-location"],
+            {"left": [("f", "oo")]},
+        )
+        right = ListenerConfig(
+            ["right-port"],
+            ["right-location"],
+            {"right": [("ba", "r")]},
+        )
         result = create_node.merge_config(left, right)
         self.assertEqual(
             ListenerConfig(
                 ["left-port", "right-port"],
                 ["left-location", "right-location"],
-                {"left": "foo", "right": "bar"},
+                {"left": [("f", "oo")], "right": [("ba", "r")]},
             ),
             result,
         )
