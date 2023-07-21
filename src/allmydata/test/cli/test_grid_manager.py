@@ -222,7 +222,8 @@ class GridManagerCommandLine(TestCase):
                 result.output,
             )
 
-    @skipIf(not platform.isLinux(), "I only know how permissions work on linux")
+    @skipIf(platform.isWindows(), "We don't know how to set permissions on Windows.")
+    @skipIf(os.getuid() == 0, "cannot test as superuser with all permissions")
     def test_sign_bad_perms(self):
         """
         Error reported if we can't create certificate file
