@@ -130,6 +130,9 @@
         tahoe-lafs.passthru.extras.i2p ++
         tahoe-lafs.passthru.extras.tor
       )).overrideAttrs (old: {
+        # By default, withPackages gives us a derivation with a fairly generic
+        # name (like "python-env").  Put our name in there for legibility.
+        # See the similar override in makeTestEnv.
         name = packageName pyVersion;
       });
 
@@ -144,10 +147,15 @@
         tahoe-lafs.passthru.extras.tor ++
         tahoe-lafs.passthru.extras.unittest
       )).overrideAttrs (old: {
+        # See the similar override in makeRuntimeEnv'.
         name = packageName pyVersion;
       });
     in {
-      # A package set with out overlay on it.
+      # Include a package set with out overlay on it in our own output.  This
+      # is mainly a development/debugging convenience as it will expose all of
+      # our Python package overrides beneath it.  The magic name
+      # "legacyPackages" is copied from nixpkgs and has special support in the
+      # nix command line tool.
       legacyPackages = pkgs;
 
       # The flake's package outputs.  We'll define one version of the package
