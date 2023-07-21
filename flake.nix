@@ -2,10 +2,16 @@
   description = "Tahoe-LAFS, free and open decentralized data store";
 
   inputs = {
-    # Two alternate nixpkgs pins.  Ideally these could be selected easily from
-    # the command line but there seems to be no syntax/support for that.
+    # A couple possible nixpkgs pins.  Ideally these could be selected easily
+    # from the command line but there seems to be no syntax/support for that.
     # However, these at least cause certain revisions to be pinned in our lock
     # file where you *can* dig them out - and the CI configuration does.
+    #
+    # These are really just examples for the time being since neither of these
+    # releases contains a package set that is completely compatible with our
+    # requirements.  We could decide in the future that supporting multiple
+    # releases of NixOS at a time is worthwhile and then pins like these will
+    # help us test each of those releases.
     "nixpkgs-22_11" = {
       url = github:NixOS/nixpkgs?ref=nixos-22.11;
     };
