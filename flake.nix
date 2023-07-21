@@ -114,6 +114,12 @@
       # Make a singleton attribute set from the result of two functions.
       singletonOf = f: g: x: { ${f x} = g x; };
 
+      # [attrset] -> attrset
+      #
+      # Merge a list of attrset into a single attrset with overlap preferring
+      # rightmost values.
+      mergeAttrs = pkgs.lib.foldr pkgs.lib.mergeAttrs {};
+
       # makeRuntimeEnv :: string -> derivation
       #
       # Create a derivation that includes a Python runtime, Tahoe-LAFS, and
@@ -149,11 +155,11 @@
       # flake's "default" package at the derivation corresponding to the
       # default Python version we defined above.  The package consists of a
       # Python environment with Tahoe-LAFS available to it.
-      packages = with pkgs.lib;
-        foldr mergeAttrs {} ([
-          { default = self.packages.${system}.${packageName defaultPyVersion}; }
-        ] ++ (builtins.map makeRuntimeEnv pythonVersions)
-        ++ (builtins.map (singletonOf unitTestName makeTestEnv) pythonVersions)
+      packages =
+        mergeAttrs (
+          [ { default = self.packages.${system}.${packageName defaultPyVersion}; } ]
+          ++ (builtins.map makeRuntimeEnv pythonVersions)
+          ++ (builtins.map (singletonOf unitTestName makeTestEnv) pythonVersions)
         );
 
       # The flake's app outputs.  We'll define a version of an app for running
@@ -208,13 +214,11 @@
             };
           };
         in
-          with pkgs.lib;
           # Merge a default app definition with the rest of the apps.
-          foldr mergeAttrs
-            { default = self.apps.${system}."tahoe-python3"; }
-            (
-              (builtins.map makeUnitTestsApp pythonVersions) ++
-              (builtins.map makeTahoeApp pythonVersions)
-            );
+          mergeAttrs (
+            [ { default = self.apps.${system}."tahoe-python3"; } ]
+            ++ (builtins.map makeUnitTestsApp pythonVersions)
+            ++ (builtins.map makeTahoeApp pythonVersions)
+          );
     }));
 }
