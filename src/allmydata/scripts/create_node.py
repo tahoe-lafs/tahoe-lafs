@@ -273,9 +273,16 @@ def merge_config(
 
     If either is ``None`` then the result is ``None``.  This supports the
     "disable listeners" functionality.
+
+    :raise ValueError: If the keys in the node configs overlap.
     """
     if left is None or right is None:
         return None
+
+    overlap = set(left.node_config) & set(right.node_config)
+    if overlap:
+        raise ValueError(f"Node configs overlap: {overlap}")
+
     return ListenerConfig(
         list(left.tub_ports) + list(right.tub_ports),
         list(left.tub_locations) + list(right.tub_locations),

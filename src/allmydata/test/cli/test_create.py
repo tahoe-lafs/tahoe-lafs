@@ -25,6 +25,60 @@ def read_config(basedir):
     config = configutil.get_config(tahoe_cfg)
     return config
 
+class MergeConfigTests(unittest.TestCase):
+    """
+    Tests for ``create_node.merge_config``.
+    """
+    def test_disable_left(self) -> None:
+        """
+        If the left argument to ``create_node.merge_config`` is ``None``
+        then the return value is ``None``.
+        """
+        conf = ListenerConfig([], [], {})
+        self.assertEqual(None, create_node.merge_config(None, conf))
+
+    def test_disable_right(self) -> None:
+        """
+        If the right argument to ``create_node.merge_config`` is ``None``
+        then the return value is ``None``.
+        """
+        conf = ListenerConfig([], [], {})
+        self.assertEqual(None, create_node.merge_config(conf, None))
+
+    def test_disable_both(self) -> None:
+        """
+        If both arguments to ``create_node.merge_config`` are ``None``
+        then the return value is ``None``.
+        """
+        self.assertEqual(None, create_node.merge_config(None, None))
+
+    def test_overlapping_keys(self) -> None:
+        """
+        If there are any keys in the ``node_config`` of the left and right
+        parameters that are shared then ``ValueError`` is raised.
+        """
+        left = ListenerConfig([], [], {"foo": "bar"})
+        right = ListenerConfig([], [], {"foo": "baz"})
+        self.assertRaises(ValueError, lambda: create_node.merge_config(left, right))
+
+    def test_merge(self) -> None:
+        """
+        ``create_node.merge_config`` returns a ``ListenerConfig`` that has
+        all of the ports, locations, and node config from each of the two
+        ``ListenerConfig`` values given.
+        """
+        left = ListenerConfig(["left-port"], ["left-location"], {"left": "foo"})
+        right = ListenerConfig(["right-port"], ["right-location"], {"right": "bar"})
+        result = create_node.merge_config(left, right)
+        self.assertEqual(
+            ListenerConfig(
+                ["left-port", "right-port"],
+                ["left-location", "right-location"],
+                {"left": "foo", "right": "bar"},
+            ),
+            result,
+        )
+
 class Config(unittest.TestCase):
     def test_client_unrecognized_options(self):
         tests = [
