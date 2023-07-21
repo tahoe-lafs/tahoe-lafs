@@ -2,6 +2,23 @@
 Tools to mess with dicts.
 """
 
+from __future__ import annotations
+from typing import Callable, TypeVar
+
+K = TypeVar("K")
+V = TypeVar("V")
+
+def filter(pred: Callable[[V], bool], orig: dict[K, V]) -> dict[K, V]:
+    """
+    Filter out key/value pairs whose value fails to match a predicate.
+    """
+    return {
+        k: v
+        for (k, v)
+        in orig.items()
+        if pred(v)
+    }
+
 class DictOfSets(dict):
     def add(self, key, value):
         if key in self:
