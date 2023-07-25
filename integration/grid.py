@@ -226,7 +226,7 @@ class Client(object):
 #        return self.process.node_dir
 
     @inlineCallbacks
-    def reconfigure_zfec(self, reactor, request, zfec_params, convergence=None, max_segment_size=None):
+    def reconfigure_zfec(self, reactor, zfec_params, convergence=None, max_segment_size=None):
         """
         Reconfigure the ZFEC parameters for this node
         """

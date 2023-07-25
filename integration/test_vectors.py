@@ -38,7 +38,7 @@ async def test_capability(reactor, request, alice, case, expected):
     """
     # rewrite alice's config to match params and convergence
     await alice.reconfigure_zfec(
-        reactor, request, (1, case.params.required, case.params.total), case.convergence, case.segment_size)
+        reactor, (1, case.params.required, case.params.total), case.convergence, case.segment_size)
 
     # upload data in the correct format
     actual = upload(alice.process, case.fmt, case.data)
@@ -109,7 +109,6 @@ async def generate(
     for case in cases:
         await alice.reconfigure_zfec(
             reactor,
-            request,
             (happy, case.params.required, case.params.total),
             case.convergence,
             case.segment_size

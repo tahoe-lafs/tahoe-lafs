@@ -105,7 +105,6 @@ def test_upload_download_immutable_different_default_max_segment_size(alice, get
             reactor,
             lambda: alice.reconfigure_zfec(
                 reactor,
-                request,
                 (1, 1, 1),
                 None,
                 max_segment_size=segment_size

@@ -264,7 +264,7 @@ async def test_directory_deep_check(reactor, request, alice):
     required = 2
     total = 4
 
-    await alice.reconfigure_zfec(reactor, request, (happy, required, total), convergence=None)
+    await alice.reconfigure_zfec(reactor, (happy, required, total), convergence=None)
     await deferToThread(_test_directory_deep_check_blocking, alice)
 
 
