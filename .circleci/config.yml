@@ -87,8 +87,8 @@ workflows:
       - "oraclelinux-8":
           {}
 
-      - "nixos":
-          name: "<<matrix.pythonVersion>>"
+      - "unittest":
+          name: "<<matrix.pythonVersion>>-unittest"
           nixpkgs: "nixpkgs-unstable"
           matrix:
             parameters:
@@ -96,6 +96,14 @@ workflows:
                 - "python39"
                 - "python310"
                 - "python311"
+
+      - "integrationtest":
+          name: "<<matrix.pythonVersion>>-integrationtest"
+          nixpkgs: "nixpkgs-unstable"
+          matrix:
+            parameters:
+              pythonVersion:
+                - "python310"
 
       # Eventually, test against PyPy 3.8
       #- "pypy27-buster":
@@ -111,15 +119,6 @@ workflows:
       # Any locale other than C or UTF-8.
       - "another-locale":
           {}
-
-      - "integration":
-          # Run even the slow integration tests here.  We need the `--` to
-          # sneak past tox and get to pytest.
-          tox-args: "-- --runslow integration"
-          requires:
-            # If the unit test suite doesn't pass, don't bother running the
-            # integration tests.
-            - "debian-11"
 
       - "typechecks":
           {}
@@ -373,7 +372,45 @@ jobs:
         image: "tahoelafsci/fedora:35-py3"
         user: "nobody"
 
-  nixos:
+  # A parameterized job which runs the integration test suite in the
+  # Nix-defined environment.
+  integrationtest:
+    parameters:
+      nixpkgs:
+        description: >-
+          Reference the name of a flake-managed nixpkgs input (see `nix flake
+          metadata` and flake.nix)
+        type: "string"
+      pythonVersion:
+        description: >-
+          Reference the name of a Python package in nixpkgs to use.
+        type: "string"
+
+    executor: "nix"
+
+    steps:
+      - "nix-build":
+          nixpkgs: "<<parameters.nixpkgs>>"
+          pythonVersion: "<<parameters.pythonVersion>>"
+          buildSteps:
+            - "run":
+                name: "Integration Test"
+                command: |
+                  source .circleci/lib.sh
+
+                  # Translate the nixpkgs selection into a flake reference we
+                  # can use to override the default nixpkgs input.
+                  NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
+
+                  # Run even the slow integration tests here.  We need the `--` to
+                  # sneak past tox and get to pytest.
+                  cache_if_able nix run \
+                    --override-input nixpkgs "$NIXPKGS" \
+                    .#<<parameters.pythonVersion>>-integration
+
+  # A parameterized job which runs the unit test suite in the Nix-defined
+  # environment.
+  unittest:
     parameters:
       nixpkgs:
         description: >-
