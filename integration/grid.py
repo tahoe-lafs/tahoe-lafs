@@ -10,6 +10,7 @@ rely on 'the' global grid as provided by fixtures like 'alice' or
 
 from os import mkdir, listdir
 from os.path import join, exists
+from json import loads
 from tempfile import mktemp
 from time import sleep
 
@@ -26,6 +27,7 @@ from twisted.internet.defer import (
     inlineCallbacks,
     returnValue,
     maybeDeferred,
+    Deferred,
 )
 from twisted.internet.task import (
     deferLater,
@@ -54,19 +56,20 @@ from .util import (
     _tahoe_runner_optional_coverage,
     TahoeProcess,
     await_client_ready,
+    generate_ssh_key,
+    cli,
+    reconfigure,
 )
 
 import attr
 import pytest_twisted
 
 
-# further directions:
-# - "Grid" is unused, basically -- tie into the rest?
-#   - could make a Grid instance mandatory for create_* calls
-#   - could instead make create_* calls methods of Grid
-# - Bring more 'util' or 'conftest' code into here
-#    - stop()/start()/restart() methods on StorageServer etc
-#    - more-complex stuff like config changes (which imply a restart too)?
+# currently, we pass a "request" around a bunch but it seems to only
+# be for addfinalizer() calls.
+# - is "keeping" a request like that okay? What if it's a session-scoped one?
+#   (i.e. in Grid etc)
+# - maybe limit to "a callback to hang your cleanup off of" (instead of request)?
 
 
 @attr.s
@@ -170,6 +173,8 @@ class StorageServer(object):
         Note that self.process and self.protocol will be new instances
         after this.
         """
+        # XXX per review comments, _can_ we make this "return a new
+        # instance" instead of mutating?
         self.process.transport.signalProcess('TERM')
         yield self.protocol.exited
         self.process = yield _run_node(
@@ -213,6 +218,27 @@ class Client(object):
     protocol = attr.ib(
         validator=attr.validators.provides(IProcessProtocol)
     )
+    request = attr.ib()  # original request, for addfinalizer()
+
+## XXX convenience? or confusion?
+#    @property
+#    def node_dir(self):
+#        return self.process.node_dir
+
+    @inlineCallbacks
+    def reconfigure_zfec(self, reactor, request, zfec_params, convergence=None, max_segment_size=None):
+        """
+        Reconfigure the ZFEC parameters for this node
+        """
+        # XXX this is a stop-gap to keep tests running "as is"
+        # -> we should fix the tests so that they create a new client
+        #    in the grid with the required parameters, instead of
+        #    re-configuring Alice (or whomever)
+
+        rtn = yield Deferred.fromCoroutine(
+            reconfigure(reactor, self.request, self.process, zfec_params, convergence, max_segment_size)
+        )
+        return rtn
 
     @inlineCallbacks
     def restart(self, reactor, request, servers=1):
@@ -226,6 +252,8 @@ class Client(object):
         Note that self.process and self.protocol will be new instances
         after this.
         """
+        # XXX similar to above, can we make this return a new instance
+        # instead of mutating?
         self.process.transport.signalProcess('TERM')
         yield self.protocol.exited
         process = yield _run_node(
@@ -235,8 +263,55 @@ class Client(object):
         self.protocol = self.process.transport.proto
         yield await_client_ready(self.process, minimum_number_of_servers=servers)
 
-    # XXX add stop / start ?
-    # ...maybe "reconfig" of some kind?
+    @inlineCallbacks
+    def add_sftp(self, reactor, request):
+        """
+        """
+        # if other things need to add or change configuration, further
+        # refactoring could be useful here (i.e. move reconfigure
+        # parts to their own functions)
+
+        # XXX why do we need an alias?
+        # 1. Create a new RW directory cap:
+        cli(self.process, "create-alias", "test")
+        rwcap = loads(cli(self.process, "list-aliases", "--json"))["test"]["readwrite"]
+
+        # 2. Enable SFTP on the node:
+        host_ssh_key_path = join(self.process.node_dir, "private", "ssh_host_rsa_key")
+        sftp_client_key_path = join(self.process.node_dir, "private", "ssh_client_rsa_key")
+        accounts_path = join(self.process.node_dir, "private", "accounts")
+        with open(join(self.process.node_dir, "tahoe.cfg"), "a") as f:
+            f.write(
+                ("\n\n[sftpd]\n"
+                 "enabled = true\n"
+                 "port = tcp:8022:interface=127.0.0.1\n"
+                 "host_pubkey_file = {ssh_key_path}.pub\n"
+                 "host_privkey_file = {ssh_key_path}\n"
+                 "accounts.file = {accounts_path}\n").format(
+                     ssh_key_path=host_ssh_key_path,
+                     accounts_path=accounts_path,
+                 )
+            )
+        generate_ssh_key(host_ssh_key_path)
+
+        # 3. Add a SFTP access file with an SSH key for auth.
+        generate_ssh_key(sftp_client_key_path)
+        # Pub key format is "ssh-rsa <thekey> <username>". We want the key.
+        with open(sftp_client_key_path + ".pub") as pubkey_file:
+            ssh_public_key = pubkey_file.read().strip().split()[1]
+        with open(accounts_path, "w") as f:
+            f.write(
+                "alice-key ssh-rsa {ssh_public_key} {rwcap}\n".format(
+                    rwcap=rwcap,
+                    ssh_public_key=ssh_public_key,
+                )
+            )
+
+        # 4. Restart the node with new SFTP config.
+        print("restarting for SFTP")
+        yield self.restart(reactor, request)
+        print("restart done")
+        # XXX i think this is broken because we're "waiting for ready" during first bootstrap? or something?
 
 
 @inlineCallbacks
@@ -254,6 +329,7 @@ def create_client(reactor, request, temp_dir, introducer, flog_gatherer, name, w
         Client(
             process=node_process,
             protocol=node_process.transport.proto,
+            request=request,
         )
     )
 
@@ -370,7 +446,7 @@ class Grid(object):
     Represents an entire Tahoe Grid setup
 
     A Grid includes an Introducer, Flog Gatherer and some number of
-    Storage Servers.
+    Storage Servers. Optionally includes Clients.
     """
 
     _reactor = attr.ib()
@@ -434,7 +510,6 @@ class Grid(object):
         self.clients[name] = client
         yield await_client_ready(client.process)
         returnValue(client)
-
 
 
 # XXX THINK can we tie a whole *grid* to a single request? (I think

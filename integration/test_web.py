@@ -33,7 +33,7 @@ def test_index(alice):
     """
     we can download the index file
     """
-    util.web_get(alice, u"")
+    util.web_get(alice.process, u"")
 
 
 @run_in_thread
@@ -41,7 +41,7 @@ def test_index_json(alice):
     """
     we can download the index file as json
     """
-    data = util.web_get(alice, u"", params={u"t": u"json"})
+    data = util.web_get(alice.process, u"", params={u"t": u"json"})
     # it should be valid json
     json.loads(data)
 
@@ -55,7 +55,7 @@ def test_upload_download(alice):
     FILE_CONTENTS = u"some contents"
 
     readcap = util.web_post(
-        alice, u"uri",
+        alice.process, u"uri",
         data={
             u"t": u"upload",
             u"format": u"mdmf",
@@ -67,7 +67,7 @@ def test_upload_download(alice):
     readcap = readcap.strip()
 
     data = util.web_get(
-        alice, u"uri",
+        alice.process, u"uri",
         params={
             u"uri": readcap,
             u"filename": u"boom",
@@ -85,11 +85,11 @@ def test_put(alice):
     FILE_CONTENTS = b"added via PUT" * 20
 
     resp = requests.put(
-        util.node_url(alice.node_dir, u"uri"),
+        util.node_url(alice.process.node_dir, u"uri"),
         data=FILE_CONTENTS,
     )
     cap = allmydata.uri.from_string(resp.text.strip().encode('ascii'))
-    cfg = alice.get_config()
+    cfg = alice.process.get_config()
     assert isinstance(cap, allmydata.uri.CHKFileURI)
     assert cap.size == len(FILE_CONTENTS)
     assert cap.total_shares == int(cfg.get_config("client", "shares.total"))
@@ -116,7 +116,7 @@ def test_deep_stats(alice):
     URIs work
     """
     resp = requests.post(
-        util.node_url(alice.node_dir, "uri"),
+        util.node_url(alice.process.node_dir, "uri"),
         params={
             "format": "sdmf",
             "t": "mkdir",
@@ -130,7 +130,7 @@ def test_deep_stats(alice):
     uri = url_unquote(resp.url)
     assert 'URI:DIR2:' in uri
     dircap = uri[uri.find("URI:DIR2:"):].rstrip('/')
-    dircap_uri = util.node_url(alice.node_dir, "uri/{}".format(url_quote(dircap)))
+    dircap_uri = util.node_url(alice.process.node_dir, "uri/{}".format(url_quote(dircap)))
 
     # POST a file into this directory
     FILE_CONTENTS = u"a file in a directory"
@@ -176,7 +176,7 @@ def test_deep_stats(alice):
     while tries > 0:
         tries -= 1
         resp = requests.get(
-            util.node_url(alice.node_dir, u"operations/something_random"),
+            util.node_url(alice.process.node_dir, u"operations/something_random"),
         )
         d = json.loads(resp.content)
         if d['size-literal-files'] == len(FILE_CONTENTS):
@@ -201,21 +201,21 @@ def test_status(alice):
     FILE_CONTENTS = u"all the Important Data of alice\n" * 1200
 
     resp = requests.put(
-        util.node_url(alice.node_dir, u"uri"),
+        util.node_url(alice.process.node_dir, u"uri"),
         data=FILE_CONTENTS,
     )
     cap = resp.text.strip()
 
     print("Uploaded data, cap={}".format(cap))
     resp = requests.get(
-        util.node_url(alice.node_dir, u"uri/{}".format(url_quote(cap))),
+        util.node_url(alice.process.node_dir, u"uri/{}".format(url_quote(cap))),
     )
 
     print("Downloaded {} bytes of data".format(len(resp.content)))
     assert str(resp.content, "ascii") == FILE_CONTENTS
 
     resp = requests.get(
-        util.node_url(alice.node_dir, "status"),
+        util.node_url(alice.process.node_dir, "status"),
     )
     dom = html5lib.parse(resp.content)
 
@@ -229,7 +229,7 @@ def test_status(alice):
     for href in hrefs:
         if href == u"/" or not href:
             continue
-        resp = requests.get(util.node_url(alice.node_dir, href))
+        resp = requests.get(util.node_url(alice.process.node_dir, href))
         if href.startswith(u"/status/up"):
             assert b"File Upload Status" in resp.content
             if b"Total Size: %d" % (len(FILE_CONTENTS),) in resp.content:
@@ -241,7 +241,7 @@ def test_status(alice):
 
                 # download the specialized event information
                 resp = requests.get(
-                    util.node_url(alice.node_dir, u"{}/event_json".format(href)),
+                    util.node_url(alice.process.node_dir, u"{}/event_json".format(href)),
                 )
                 js = json.loads(resp.content)
                 # there's usually just one "read" operation, but this can handle many ..
@@ -264,14 +264,14 @@ async def test_directory_deep_check(reactor, request, alice):
     required = 2
     total = 4
 
-    await util.reconfigure(reactor, request, alice, (happy, required, total), convergence=None)
+    await alice.reconfigure_zfec(reactor, request, (happy, required, total), convergence=None)
     await deferToThread(_test_directory_deep_check_blocking, alice)
 
 
 def _test_directory_deep_check_blocking(alice):
     # create a directory
     resp = requests.post(
-        util.node_url(alice.node_dir, u"uri"),
+        util.node_url(alice.process.node_dir, u"uri"),
         params={
             u"t": u"mkdir",
             u"redirect_to_result": u"true",
@@ -320,7 +320,7 @@ def _test_directory_deep_check_blocking(alice):
     print("Uploaded data1, cap={}".format(cap1))
 
     resp = requests.get(
-        util.node_url(alice.node_dir, u"uri/{}".format(url_quote(cap0))),
+        util.node_url(alice.process.node_dir, u"uri/{}".format(url_quote(cap0))),
         params={u"t": u"info"},
     )
 
@@ -484,14 +484,14 @@ def test_mkdir_with_children(alice):
     # create a file to put in our directory
     FILE_CONTENTS = u"some file contents\n" * 500
     resp = requests.put(
-        util.node_url(alice.node_dir, u"uri"),
+        util.node_url(alice.process.node_dir, u"uri"),
         data=FILE_CONTENTS,
     )
     filecap = resp.content.strip()
 
     # create a (sub) directory to put in our directory
     resp = requests.post(
-        util.node_url(alice.node_dir, u"uri"),
+        util.node_url(alice.process.node_dir, u"uri"),
         params={
             u"t": u"mkdir",
         }
@@ -534,7 +534,7 @@ def test_mkdir_with_children(alice):
 
     # create a new directory with one file and one sub-dir (all-at-once)
     resp = util.web_post(
-        alice, u"uri",
+        alice.process, u"uri",
         params={u"t": "mkdir-with-children"},
         data=json.dumps(meta),
     )

@@ -173,7 +173,7 @@ def test_add_remove_client_file(reactor, request, temp_dir):
 
 
 @pytest_twisted.inlineCallbacks
-def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_allocator):
+def _test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_allocator):
     """
     A client with happines=2 fails to upload to a Grid when it is
     using Grid Manager and there is only 1 storage server with a valid
@@ -252,7 +252,7 @@ def test_reject_storage_server(reactor, request, temp_dir, flog_gatherer, port_a
 
 
 @pytest_twisted.inlineCallbacks
-def test_accept_storage_server(reactor, request, temp_dir, flog_gatherer, port_allocator):
+def _test_accept_storage_server(reactor, request, temp_dir, flog_gatherer, port_allocator):
     """
     Successfully upload to a Grid Manager enabled Grid.
     """

@@ -741,7 +741,6 @@ class SSK:
     def load(cls, params: dict) -> SSK:
         assert params.keys() == {"format", "mutable", "key"}
         return cls(params["format"], params["key"].encode("ascii"))
-
     def customize(self) -> SSK:
         """
         Return an SSK with a newly generated random RSA key.
@@ -780,7 +779,7 @@ def upload(alice: TahoeProcess, fmt: CHK | SSK, data: bytes) -> str:
         f.write(data)
         f.flush()
         with fmt.to_argv() as fmt_argv:
-            argv = [alice, "put"] + fmt_argv + [f.name]
+            argv = [alice.process, "put"] + fmt_argv + [f.name]
             return cli(*argv).decode("utf-8").strip()
 
 

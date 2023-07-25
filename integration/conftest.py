@@ -162,6 +162,10 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:grid", include_args=[])
 def grid(reactor, request, temp_dir, flog_gatherer, port_allocator):
+    # XXX think: this creates an "empty" grid (introducer, no nodes);
+    # do we want to ensure it has some minimum storage-nodes at least?
+    # (that is, semantically does it make sense that 'a grid' is
+    # essentially empty, or not?)
     g = pytest_twisted.blockon(
         create_grid(reactor, request, temp_dir, flog_gatherer, port_allocator)
     )
@@ -271,64 +275,17 @@ def storage_nodes(grid):
         assert ok, "Storage node creation failed: {}".format(value)
     return grid.storage_servers
 
-@pytest.fixture(scope="session")
-def alice_sftp_client_key_path(temp_dir):
-    # The client SSH key path is typically going to be somewhere else (~/.ssh,
-    # typically), but for convenience sake for testing we'll put it inside node.
-    return join(temp_dir, "alice", "private", "ssh_client_rsa_key")
 
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:alice", include_args=[], include_result=False)
-def alice(
-        reactor,
-        temp_dir,
-        introducer_furl,
-        flog_gatherer,
-        storage_nodes,
-        alice_sftp_client_key_path,
-        request,
-):
-    process = pytest_twisted.blockon(
-        _create_node(
-            reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
-            web_port="tcp:9980:interface=localhost",
-            storage=False,
-        )
-    )
-    pytest_twisted.blockon(await_client_ready(process))
-
-    # 1. Create a new RW directory cap:
-    cli(process, "create-alias", "test")
-    rwcap = loads(cli(process, "list-aliases", "--json"))["test"]["readwrite"]
-
-    # 2. Enable SFTP on the node:
-    host_ssh_key_path = join(process.node_dir, "private", "ssh_host_rsa_key")
-    accounts_path = join(process.node_dir, "private", "accounts")
-    with open(join(process.node_dir, "tahoe.cfg"), "a") as f:
-        f.write("""\
-[sftpd]
-enabled = true
-port = tcp:8022:interface=127.0.0.1
-host_pubkey_file = {ssh_key_path}.pub
-host_privkey_file = {ssh_key_path}
-accounts.file = {accounts_path}
-""".format(ssh_key_path=host_ssh_key_path, accounts_path=accounts_path))
-    generate_ssh_key(host_ssh_key_path)
-
-    # 3. Add a SFTP access file with an SSH key for auth.
-    generate_ssh_key(alice_sftp_client_key_path)
-    # Pub key format is "ssh-rsa <thekey> <username>". We want the key.
-    ssh_public_key = open(alice_sftp_client_key_path + ".pub").read().strip().split()[1]
-    with open(accounts_path, "w") as f:
-        f.write("""\
-alice-key ssh-rsa {ssh_public_key} {rwcap}
-""".format(rwcap=rwcap, ssh_public_key=ssh_public_key))
-
-    # 4. Restart the node with new SFTP config.
-    pytest_twisted.blockon(process.restart_async(reactor, request))
-    pytest_twisted.blockon(await_client_ready(process))
-    print(f"Alice pid: {process.transport.pid}")
-    return process
+def alice(reactor, request, grid, storage_nodes):
+    """
+    :returns grid.Client: the associated instance for Alice
+    """
+    alice = pytest_twisted.blockon(grid.add_client("alice"))
+    pytest_twisted.blockon(alice.add_sftp(reactor, request))
+    print(f"Alice pid: {alice.process.transport.pid}")
+    return alice
 
 
 @pytest.fixture(scope='session')
