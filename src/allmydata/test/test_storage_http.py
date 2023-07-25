@@ -172,7 +172,7 @@ class ExtractSecretsTests(SyncTestCase):
         ``ClientSecretsException``.
         """
         with self.assertRaises(ClientSecretsException):
-            _extract_secrets(["FOO eA=="], {})
+            _extract_secrets(["FOO eA=="], set())
 
     def test_bad_secret_not_base64(self):
         """
