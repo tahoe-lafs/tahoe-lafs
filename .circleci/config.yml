@@ -405,6 +405,8 @@ jobs:
                   # Run even the slow integration tests here.  We need the `--` to
                   # sneak past tox and get to pytest.
                   cache_if_able nix run \
+                    --verbose \
+                    --print-build-logs \
                     --override-input nixpkgs "$NIXPKGS" \
                     .#<<parameters.pythonVersion>>-integration
 
@@ -439,6 +441,8 @@ jobs:
                   NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
 
                   cache_if_able nix run \
+                    --verbose \
+                    --print-build-logs \
                     --override-input nixpkgs "$NIXPKGS" \
                     .#<<parameters.pythonVersion>>-unittest -- \
                     --jobs $UNITTEST_CORES \
