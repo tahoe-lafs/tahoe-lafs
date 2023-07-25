@@ -45,7 +45,7 @@ buildPythonPackage rec {
   doCheck = false;
 
   passthru = {
-    extras = with pythonPackages; {
+    extras = with pythonPackages; rec {
       tor = [
         txtorcon
       ];
@@ -61,7 +61,7 @@ buildPythonPackage rec {
         prometheus-client
         testtools
       ];
-      integrationtest = [
+      integrationtest = unittest ++ [
         pytest
         pytest-twisted
         paramiko
