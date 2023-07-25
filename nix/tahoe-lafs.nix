@@ -45,6 +45,8 @@ buildPythonPackage rec {
   doCheck = false;
 
   passthru = {
+    dependencies = propagatedBuildInputs;
+
     extras = with pythonPackages; rec {
       tor = [
         txtorcon
