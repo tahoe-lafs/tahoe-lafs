@@ -279,7 +279,7 @@ Such an announcement will resemble this::
 
   {
       "anonymous-storage-FURL": "pb://...",          # The old key
-      "gbs-anonymous-storage-url": "pb://...#v=1"    # The new key
+      "anonymous-storage-NURLs": ["pb://...#v=1"]    # The new keys
   }
 
 The transition process will proceed in three stages:
@@ -320,12 +320,7 @@ The follow sequence of events is likely:
 
 Ideally,
 the client would not rely on an update from the introducer to give it the GBS NURL for the updated storage server.
-Therefore,
-when an updated client connects to a storage server using Foolscap,
-it should request the server's version information.
-If this information indicates that GBS is supported then the client should cache this GBS information.
-On subsequent connection attempts,
-it should make use of this GBS information.
+In practice, we have decided not to implement this functionality.
 
 Server Details
 --------------
