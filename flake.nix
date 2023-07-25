@@ -302,16 +302,16 @@
                           ''
                             # Make sure there is recent generated-version
                             # information in the tree.
-                            ${pyVersion} setup.py update_version
+                            python setup.py update_version
 
                             # Use the source from the working tree for a
                             # development-friendly experience.
                             export PYTHONPATH=$PWD/src
 
                             if (( $# )) then
-                              ${pyVersion} -m pytest "$@"
+                              python -m pytest "$@"
                             else
-                              ${pyVersion} -m pytest -v --runslow integration
+                              python -m pytest -v --runslow integration
                             fi
                           '';
                       };
