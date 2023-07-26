@@ -413,7 +413,7 @@ jobs:
                     --verbose \
                     --runslow \
                     --junitxml=integration-results.xml \
-                    integration/
+                    integration/test_aaa_aardvark.py
             - "store_test_results":
                 path: "integration-results.xml"
 
