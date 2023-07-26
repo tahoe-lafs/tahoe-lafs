@@ -410,6 +410,7 @@ jobs:
                     --override-input nixpkgs "$NIXPKGS" \
                     .#<<parameters.pythonVersion>>-integration \
                     -- \
+                    --verbose \
                     --runslow \
                     --junitxml=integration-results.xml \
                     integration/
