@@ -293,7 +293,7 @@ class StorageFarmBroker(service.MultiService):
         connect to storage server over HTTP.
         """
         return not node_config.get_config(
-            "client", "force_foolscap", default=True, boolean=True,
+            "client", "force_foolscap", default=False, boolean=True,
         ) and len(announcement.get(ANONYMOUS_STORAGE_NURLS, [])) > 0
 
     @log_call(

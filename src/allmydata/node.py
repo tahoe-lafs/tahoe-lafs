@@ -959,11 +959,8 @@ def create_main_tub(config, tub_options,
         tub_options,
         default_connection_handlers,
         foolscap_connection_handlers,
-        # TODO eventually we will want the default to be False, but for now we
-        # don't want to enable HTTP by default.
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3934
         force_foolscap=config.get_config(
-            "storage", "force_foolscap", default=True, boolean=True
+            "storage", "force_foolscap", default=False, boolean=True
         ),
         handler_overrides=handler_overrides,
         certFile=certfile,
