@@ -404,7 +404,17 @@ jobs:
                   # can use to override the default nixpkgs input.
                   NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
 
-                  TESTS=$(circleci tests glob "integration/test_*.py" | circleci tests split --split-by=timings)
+                  # circleci "installs" circleci-agent directly into /bin.
+                  # That's not typically on our path but we can execute it
+                  # directly.  Docs suggest running `circleci`, from
+                  # `circleci-cli`, to invoke this behavior but then we'd have
+                  # to fiddle with PATH to make it work.  Let's avoid that and
+                  # call the agent executable directly.
+                  AGENT=/bin/circleci-agent
+                  TESTS=$(
+                    $AGENT tests glob "integration/test_*.py" |
+                    $AGENT tests split --split-by=timings
+                    )
                   echo $TESTS
 
                   # Run the integration tests, even the slow ones.  Generate
