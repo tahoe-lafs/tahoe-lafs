@@ -422,7 +422,7 @@ jobs:
                     --capture=no \
                     --circleci-parallelize \
                     --junitxml=integration-results.xml \
-                    $TESTS
+                    integration/
             - "store_test_results":
                 path: "integration-results.xml"
 
