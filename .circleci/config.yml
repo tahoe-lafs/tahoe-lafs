@@ -405,17 +405,9 @@ jobs:
                   NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
 
                   # circleci "installs" circleci-agent directly into /bin.
-                  # That's not typically on our path but we can execute it
-                  # directly.  Docs suggest running `circleci`, from
-                  # `circleci-cli`, to invoke this behavior but then we'd have
-                  # to fiddle with PATH to make it work.  Let's avoid that and
-                  # call the agent executable directly.
-                  AGENT=/bin/circleci-agent
-                  TESTS=$(
-                    $AGENT tests glob "integration/test_*.py" |
-                    $AGENT tests split --split-by=timings
-                    )
-                  echo $TESTS
+                  # That's not typically on our path but
+                  # pytest-circleci-parallelized wants to find it there.
+                  PATH=$PATH:/bin
 
                   # Run the integration tests, even the slow ones.  Generate
                   # junit xml results for CircleCI to ingest.
@@ -428,6 +420,7 @@ jobs:
                     --verbose \
                     --runslow \
                     --capture=no \
+                    --circleci-parallelize \
                     --junitxml=integration-results.xml \
                     $TESTS
             - "store_test_results":

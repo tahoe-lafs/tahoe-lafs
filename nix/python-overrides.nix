@@ -149,4 +149,7 @@ in {
 
   # CircleCI build systems don't have enough memory to run this test suite.
   lz4 = onPyPy dontCheck super.lz4;
+
+  # not packaged in nixpkgs
+  pytest-circleci-parallelized = self.callPackage ./pytest-circleci-parallelized.nix {};
 }

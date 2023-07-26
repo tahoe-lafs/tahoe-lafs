@@ -64,10 +64,11 @@ buildPythonPackage rec {
         testtools
       ];
       integrationtest = unittest ++ [
-        pytest
-        pytest-twisted
         paramiko
+        pytest
+        pytest-circleci-parallelized
         pytest-timeout
+        pytest-twisted
       ];
     };
   };
