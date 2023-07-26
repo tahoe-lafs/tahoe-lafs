@@ -388,6 +388,8 @@ jobs:
 
     executor: "nix"
 
+    parallelism: 4
+
     steps:
       - "nix-build":
           nixpkgs: "<<parameters.nixpkgs>>"
@@ -402,6 +404,9 @@ jobs:
                   # can use to override the default nixpkgs input.
                   NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
 
+                  TESTS=$(circleci tests glob "integration/test_*.py" | circleci tests split --split-by=timings)
+                  echo $TESTS
+
                   # Run the integration tests, even the slow ones.  Generate
                   # junit xml results for CircleCI to ingest.
                   cache_if_able nix run \
@@ -413,7 +418,7 @@ jobs:
                     --verbose \
                     --runslow \
                     --junitxml=integration-results.xml \
-                    integration/test_aaa_aardvark.py
+                    $TESTS
             - "store_test_results":
                 path: "integration-results.xml"
 
@@ -616,7 +621,11 @@ commands:
             # package build (only in CI environment setup) so the fact that
             # they float shouldn't hurt reproducibility.
             NIXPKGS="nixpkgs/nixos-23.05"
-            nix profile install $NIXPKGS#cachix $NIXPKGS#bash $NIXPKGS#jp
+            nix profile install \
+              $NIXPKGS#cachix \
+              $NIXPKGS#bash \
+              $NIXPKGS#jp \
+              $NIXPKGS#circleci-cli
 
             # Activate our cachix cache for "binary substitution".  This sets
             # up configuration tht lets Nix download something from the cache
