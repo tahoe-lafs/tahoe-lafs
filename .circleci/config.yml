@@ -402,13 +402,19 @@ jobs:
                   # can use to override the default nixpkgs input.
                   NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
 
-                  # Run even the slow integration tests here.  We need the `--` to
-                  # sneak past tox and get to pytest.
+                  # Run the integration tests, even the slow ones.  Generate
+                  # junit xml results for CircleCI to ingest.
                   cache_if_able nix run \
                     --verbose \
                     --print-build-logs \
                     --override-input nixpkgs "$NIXPKGS" \
-                    .#<<parameters.pythonVersion>>-integration
+                    .#<<parameters.pythonVersion>>-integration \
+                    -- \
+                    --runslow \
+                    --junitxml=integration-results.xml \
+                    integration/
+            - "store_test_results":
+                path: "integration-results.xml"
 
   # A parameterized job which runs the unit test suite in the Nix-defined
   # environment.
