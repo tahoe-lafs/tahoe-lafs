@@ -412,6 +412,7 @@ jobs:
                     -- \
                     --verbose \
                     --runslow \
+                    --capture=no \
                     --junitxml=integration-results.xml \
                     integration/
             - "store_test_results":
