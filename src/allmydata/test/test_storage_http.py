@@ -266,7 +266,7 @@ class TestApp(BaseApp):
     _add_error_handling(_app)
     _swissnum = SWISSNUM_FOR_TEST  # Match what the test client is using
 
-    @_authorized_route(_app, {}, "/noop", methods=["GET"])
+    @_authorized_route(_app, set(), "/noop", methods=["GET"])
     def noop(self, request, authorization):
         return "noop"
 

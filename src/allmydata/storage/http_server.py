@@ -4,7 +4,7 @@ HTTP server for storage.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Union, cast, Optional, TypeVar, Sequence
+from typing import Any, Callable, Union, cast, Optional, TypeVar, Sequence, Protocol
 from typing_extensions import ParamSpec, Concatenate
 from functools import wraps
 from base64 import b64decode
@@ -16,7 +16,7 @@ import mmap
 from eliot import start_action
 from cryptography.x509 import Certificate as CryptoCertificate
 from zope.interface import implementer
-from klein import Klein
+from klein import Klein, KleinRenderable
 from twisted.web import http
 from twisted.internet.interfaces import (
     IListeningPort,
@@ -104,15 +104,23 @@ def _extract_secrets(
     return result
 
 
+class BaseApp(Protocol):
+    """Protocol for ``HTTPServer`` and testing equivalent."""
+
+    _swissnum: bytes
+
+
 P = ParamSpec("P")
 T = TypeVar("T")
+SecretsDict = dict[Secrets, bytes]
+App = TypeVar("App", bound=BaseApp)
 
 
 def _authorization_decorator(
     required_secrets: set[Secrets],
 ) -> Callable[
-    [Callable[Concatenate[BaseApp, Request, dict[Secrets, bytes], P], T]],
-    Callable[Concatenate[BaseApp, Request, P], T],
+    [Callable[Concatenate[App, Request, SecretsDict, P], T]],
+    Callable[Concatenate[App, Request, P], T],
 ]:
     """
     1. Check the ``Authorization`` header matches server swissnum.
@@ -121,11 +129,14 @@ def _authorization_decorator(
     """
 
     def decorator(
-        f: Callable[Concatenate[BaseApp, Request, dict[Secrets, bytes], P], T]
-    ) -> Callable[Concatenate[BaseApp, Request, P], T]:
+        f: Callable[Concatenate[App, Request, SecretsDict, P], T]
+    ) -> Callable[Concatenate[App, Request, P], T]:
         @wraps(f)
         def route(
-            self: BaseApp, request: Request, *args: P.args, **kwargs: P.kwargs
+            self: App,
+            request: Request,
+            *args: P.args,
+            **kwargs: P.kwargs,
         ) -> T:
             # Don't set text/html content type by default.
             # None is actually supported, see https://github.com/twisted/twisted/issues/11902
@@ -179,7 +190,22 @@ def _authorization_decorator(
     return decorator
 
 
-def _authorized_route(app, required_secrets, *route_args, **route_kwargs):
+def _authorized_route(
+    klein_app: Klein,
+    required_secrets: set[Secrets],
+    url: str,
+    *route_args: Any,
+    branch: bool = False,
+    **route_kwargs: Any,
+) -> Callable[
+    [
+        Callable[
+            Concatenate[App, Request, SecretsDict, P],
+            KleinRenderable,
+        ]
+    ],
+    Callable[..., KleinRenderable],
+]:
     """
     Like Klein's @route, but with additional support for checking the
     ``Authorization`` header as well as ``X-Tahoe-Authorization`` headers.  The
@@ -189,12 +215,23 @@ def _authorized_route(app, required_secrets, *route_args, **route_kwargs):
     :param required_secrets: Set of required ``Secret`` types.
     """
 
-    def decorator(f):
-        @app.route(*route_args, **route_kwargs)
+    def decorator(
+        f: Callable[
+            Concatenate[App, Request, SecretsDict, P],
+            KleinRenderable,
+        ]
+    ) -> Callable[..., KleinRenderable]:
+        @klein_app.route(url, *route_args, branch=branch, **route_kwargs)  # type: ignore[arg-type]
         @_authorization_decorator(required_secrets)
         @wraps(f)
-        def handle_route(*args, **kwargs):
-            return f(*args, **kwargs)
+        def handle_route(
+            app: App,
+            request: Request,
+            secrets: SecretsDict,
+            *args: P.args,
+            **kwargs: P.kwargs,
+        ) -> KleinRenderable:
+            return f(app, request, secrets, *args, **kwargs)
 
         return handle_route
 
@@ -367,7 +404,7 @@ class _ReadAllProducer:
     start: int = field(default=0)
 
     @classmethod
-    def produce_to(cls, request: Request, read_data: ReadData) -> Deferred:
+    def produce_to(cls, request: Request, read_data: ReadData) -> Deferred[bytes]:
         """
         Create and register the producer, returning ``Deferred`` that should be
         returned from a HTTP server endpoint.
@@ -600,12 +637,6 @@ async def read_encoded(
     return cbor2.load(request.content)
 
 
-class BaseApp:
-    """Base class for ``HTTPServer`` and testing equivalent."""
-
-    _swissnum: bytes
-
-
 class HTTPServer(BaseApp):
     """
     A HTTP interface to the storage server.
@@ -637,7 +668,7 @@ class HTTPServer(BaseApp):
         """Return twisted.web ``Resource`` for this object."""
         return self._app.resource()
 
-    def _send_encoded(self, request, data):
+    def _send_encoded(self, request: Request, data: object) -> Deferred[bytes]:
         """
         Return encoded data suitable for writing as the HTTP body response, by
         default using CBOR.
@@ -666,7 +697,7 @@ class HTTPServer(BaseApp):
     ##### Generic APIs #####
 
     @_authorized_route(_app, set(), "/storage/v1/version", methods=["GET"])
-    def version(self, request, authorization):
+    def version(self, request: Request, authorization: SecretsDict) -> KleinRenderable:
         """Return version information."""
         return self._send_encoded(request, self._get_version())
 
@@ -698,7 +729,9 @@ class HTTPServer(BaseApp):
         methods=["POST"],
     )
     @async_to_deferred
-    async def allocate_buckets(self, request, authorization, storage_index):
+    async def allocate_buckets(
+        self, request: Request, authorization: SecretsDict, storage_index: bytes
+    ) -> KleinRenderable:
         """Allocate buckets."""
         upload_secret = authorization[Secrets.UPLOAD]
         # It's just a list of up to ~256 shares, shouldn't use many bytes.
