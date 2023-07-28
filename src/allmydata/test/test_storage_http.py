@@ -62,6 +62,7 @@ from ..storage.http_server import (
     _add_error_handling,
     read_encoded,
     _SCHEMAS as SERVER_SCHEMAS,
+    BaseApp,
 )
 from ..storage.http_client import (
     StorageClient,
@@ -257,7 +258,7 @@ def gen_bytes(length: int) -> bytes:
     return result
 
 
-class TestApp(object):
+class TestApp(BaseApp):
     """HTTP API for testing purposes."""
 
     clock: IReactorTime
