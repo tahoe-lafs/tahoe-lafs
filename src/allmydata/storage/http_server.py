@@ -4,7 +4,17 @@ HTTP server for storage.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Union, cast, Optional, TypeVar, Sequence, Protocol
+from typing import (
+    Any,
+    Callable,
+    Union,
+    cast,
+    Optional,
+    TypeVar,
+    Sequence,
+    Protocol,
+    Dict,
+)
 from typing_extensions import ParamSpec, Concatenate
 from functools import wraps
 from base64 import b64decode
@@ -115,7 +125,7 @@ class BaseApp(Protocol):
 
 P = ParamSpec("P")
 T = TypeVar("T")
-SecretsDict = dict[Secrets, bytes]
+SecretsDict = Dict[Secrets, bytes]
 App = TypeVar("App", bound=BaseApp)
 
 
