@@ -770,7 +770,13 @@ class HTTPServer(BaseApp):
         "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/abort",
         methods=["PUT"],
     )
-    def abort_share_upload(self, request, authorization, storage_index, share_number):
+    def abort_share_upload(
+        self,
+        request: Request,
+        authorization: SecretsDict,
+        storage_index: bytes,
+        share_number: int,
+    ) -> KleinRenderable:
         """Abort an in-progress immutable share upload."""
         try:
             bucket = self._uploads.get_write_bucket(
@@ -801,7 +807,13 @@ class HTTPServer(BaseApp):
         "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["PATCH"],
     )
-    def write_share_data(self, request, authorization, storage_index, share_number):
+    def write_share_data(
+        self,
+        request: Request,
+        authorization: SecretsDict,
+        storage_index: bytes,
+        share_number: int,
+    ) -> KleinRenderable:
         """Write data to an in-progress immutable upload."""
         content_range = parse_content_range_header(request.getHeader("content-range"))
         if content_range is None or content_range.units != "bytes":
@@ -811,14 +823,17 @@ class HTTPServer(BaseApp):
         bucket = self._uploads.get_write_bucket(
             storage_index, share_number, authorization[Secrets.UPLOAD]
         )
-        offset = content_range.start
-        remaining = content_range.stop - content_range.start
+        offset = content_range.start or 0
+        # We don't support an unspecified stop for the range:
+        assert content_range.stop is not None
+        # Missing body makes no sense:
+        assert request.content is not None
+        remaining = content_range.stop - offset
         finished = False
 
         while remaining > 0:
             data = request.content.read(min(remaining, 65536))
             assert data, "uploaded data length doesn't match range"
-
             try:
                 finished = bucket.write(offset, data)
             except ConflictingWriteError:
@@ -844,7 +859,9 @@ class HTTPServer(BaseApp):
         "/storage/v1/immutable/<storage_index:storage_index>/shares",
         methods=["GET"],
     )
-    def list_shares(self, request, authorization, storage_index):
+    def list_shares(
+        self, request: Request, authorization: SecretsDict, storage_index: bytes
+    ) -> KleinRenderable:
         """
         List shares for the given storage index.
         """
@@ -857,7 +874,13 @@ class HTTPServer(BaseApp):
         "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["GET"],
     )
-    def read_share_chunk(self, request, authorization, storage_index, share_number):
+    def read_share_chunk(
+        self,
+        request: Request,
+        authorization: SecretsDict,
+        storage_index: bytes,
+        share_number: int,
+    ) -> KleinRenderable:
         """Read a chunk for an already uploaded immutable."""
         request.setHeader("content-type", "application/octet-stream")
         try:
@@ -874,7 +897,9 @@ class HTTPServer(BaseApp):
         "/storage/v1/lease/<storage_index:storage_index>",
         methods=["PUT"],
     )
-    def add_or_renew_lease(self, request, authorization, storage_index):
+    def add_or_renew_lease(
+        self, request: Request, authorization: SecretsDict, storage_index: bytes
+    ) -> KleinRenderable:
         """Update the lease for an immutable or mutable share."""
         if not list(self._storage_server.get_shares(storage_index)):
             raise _HTTPError(http.NOT_FOUND)
@@ -897,8 +922,12 @@ class HTTPServer(BaseApp):
     )
     @async_to_deferred
     async def advise_corrupt_share_immutable(
-        self, request, authorization, storage_index, share_number
-    ):
+        self,
+        request: Request,
+        authorization: SecretsDict,
+        storage_index: bytes,
+        share_number: int,
+    ) -> KleinRenderable:
         """Indicate that given share is corrupt, with a text reason."""
         try:
             bucket = self._storage_server.get_buckets(storage_index)[share_number]
@@ -925,7 +954,9 @@ class HTTPServer(BaseApp):
         methods=["POST"],
     )
     @async_to_deferred
-    async def mutable_read_test_write(self, request, authorization, storage_index):
+    async def mutable_read_test_write(
+        self, request: Request, authorization: SecretsDict, storage_index: bytes
+    ) -> KleinRenderable:
         """Read/test/write combined operation for mutables."""
         rtw_request = await read_encoded(
             self._reactor,
@@ -967,7 +998,13 @@ class HTTPServer(BaseApp):
         "/storage/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["GET"],
     )
-    def read_mutable_chunk(self, request, authorization, storage_index, share_number):
+    def read_mutable_chunk(
+        self,
+        request: Request,
+        authorization: SecretsDict,
+        storage_index: bytes,
+        share_number: int,
+    ) -> KleinRenderable:
         """Read a chunk from a mutable."""
         request.setHeader("content-type", "application/octet-stream")
 
@@ -1007,8 +1044,12 @@ class HTTPServer(BaseApp):
     )
     @async_to_deferred
     async def advise_corrupt_share_mutable(
-        self, request, authorization, storage_index, share_number
-    ):
+        self,
+        request: Request,
+        authorization: SecretsDict,
+        storage_index: bytes,
+        share_number: int,
+    ) -> KleinRenderable:
         """Indicate that given share is corrupt, with a text reason."""
         if share_number not in {
             shnum for (shnum, _) in self._storage_server.get_shares(storage_index)
