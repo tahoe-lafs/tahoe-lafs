@@ -72,7 +72,7 @@ except ImportError:
         pass
 
 
-def _encode_si(si):  # type: (bytes) -> str
+def _encode_si(si: bytes) -> str:
     """Encode the storage index into Unicode string."""
     return str(si_b2a(si), "ascii")
 
@@ -80,7 +80,7 @@ def _encode_si(si):  # type: (bytes) -> str
 class ClientException(Exception):
     """An unexpected response code from the server."""
 
-    def __init__(self, code, *additional_args):
+    def __init__(self, code: int, *additional_args):
         Exception.__init__(self, code, *additional_args)
         self.code = code
 
@@ -93,7 +93,7 @@ register_exception_extractor(ClientException, lambda e: {"response_code": e.code
 # Tags are of the form #6.nnn, where the number is documented at
 # https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml. Notably, #6.258
 # indicates a set.
-_SCHEMAS = {
+_SCHEMAS : Mapping[str,Schema] = {
     "get_version": Schema(
         # Note that the single-quoted (`'`) string keys in this schema
         # represent *byte* strings - per the CDDL specification.  Text strings
@@ -155,7 +155,7 @@ class _LengthLimitedCollector:
     timeout_on_silence: IDelayedCall
     f: BytesIO = field(factory=BytesIO)
 
-    def __call__(self, data: bytes):
+    def __call__(self, data: bytes) -> None:
         self.timeout_on_silence.reset(60)
         self.remaining_length -= len(data)
         if self.remaining_length < 0:
@@ -164,7 +164,7 @@ class _LengthLimitedCollector:
 
 
 def limited_content(
-    response,
+    response: IResponse,
     clock: IReactorTime,
     max_length: int = 30 * 1024 * 1024,
 ) -> Deferred[BinaryIO]:
@@ -300,11 +300,11 @@ class _StorageClientHTTPSPolicy:
     expected_spki_hash: bytes
 
     # IPolicyForHTTPS
-    def creatorForNetloc(self, hostname, port):
+    def creatorForNetloc(self, hostname: str, port: int) -> _StorageClientHTTPSPolicy:
         return self
 
     # IOpenSSLClientConnectionCreator
-    def clientConnectionForTLS(self, tlsProtocol):
+    def clientConnectionForTLS(self, tlsProtocol: object) -> SSL.Connection:
         return SSL.Connection(
             _TLSContextFactory(self.expected_spki_hash).getContext(), None
         )
@@ -344,7 +344,7 @@ class StorageClientFactory:
         cls.TEST_MODE_REGISTER_HTTP_POOL = callback
 
     @classmethod
-    def stop_test_mode(cls):
+    def stop_test_mode(cls) -> None:
         """Stop testing mode."""
         cls.TEST_MODE_REGISTER_HTTP_POOL = None
 
@@ -437,7 +437,7 @@ class StorageClient(object):
         """Get a URL relative to the base URL."""
         return self._base_url.click(path)
 
-    def _get_headers(self, headers):  # type: (Optional[Headers]) -> Headers
+    def _get_headers(self, headers: Optional[Headers]) -> Headers:
         """Return the basic headers to be used by default."""
         if headers is None:
             headers = Headers()
@@ -565,7 +565,7 @@ class StorageClient(object):
                 ).read()
                 raise ClientException(response.code, response.phrase, data)
 
-    def shutdown(self) -> Deferred:
+    def shutdown(self) -> Deferred[object]:
         """Shutdown any connections."""
         return self._pool.closeCachedConnections()
 
