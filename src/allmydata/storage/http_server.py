@@ -17,11 +17,13 @@ from eliot import start_action
 from cryptography.x509 import Certificate as CryptoCertificate
 from zope.interface import implementer
 from klein import Klein, KleinRenderable
+from klein.resource import KleinResource
 from twisted.web import http
 from twisted.internet.interfaces import (
     IListeningPort,
     IStreamServerEndpoint,
     IPullProducer,
+    IProtocolFactory,
 )
 from twisted.internet.address import IPv4Address, IPv6Address
 from twisted.internet.defer import Deferred
@@ -668,7 +670,7 @@ class HTTPServer(BaseApp):
             self._uploads.remove_write_bucket
         )
 
-    def get_resource(self):
+    def get_resource(self) -> KleinResource:
         """Return twisted.web ``Resource`` for this object."""
         return self._app.resource()
 
@@ -1085,7 +1087,10 @@ class _TLSEndpointWrapper(object):
 
     @classmethod
     def from_paths(
-        cls, endpoint, private_key_path: FilePath, cert_path: FilePath
+        cls: type[_TLSEndpointWrapper],
+        endpoint: IStreamServerEndpoint,
+        private_key_path: FilePath,
+        cert_path: FilePath,
     ) -> "_TLSEndpointWrapper":
         """
         Create an endpoint with the given private key and certificate paths on
@@ -1100,7 +1105,7 @@ class _TLSEndpointWrapper(object):
         )
         return cls(endpoint=endpoint, context_factory=certificate_options)
 
-    def listen(self, factory):
+    def listen(self, factory: IProtocolFactory) -> Deferred[IListeningPort]:
         return self.endpoint.listen(
             TLSMemoryBIOFactory(self.context_factory, False, factory)
         )
