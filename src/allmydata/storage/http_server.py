@@ -31,6 +31,7 @@ from twisted.web.server import Site, Request
 from twisted.web.iweb import IRequest
 from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.python.filepath import FilePath
+from twisted.python.failure import Failure
 
 from attrs import define, field, Factory
 from werkzeug.http import (
@@ -287,7 +288,7 @@ class UploadsInProgress(object):
         except (KeyError, IndexError):
             raise _HTTPError(http.NOT_FOUND)
 
-    def remove_write_bucket(self, bucket: BucketWriter):
+    def remove_write_bucket(self, bucket: BucketWriter) -> None:
         """Stop tracking the given ``BucketWriter``."""
         try:
             storage_index, share_number = self._bucketwriters.pop(bucket)
@@ -303,7 +304,7 @@ class UploadsInProgress(object):
 
     def validate_upload_secret(
         self, storage_index: bytes, share_number: int, upload_secret: bytes
-    ):
+    ) -> None:
         """
         Raise an unauthorized-HTTP-response exception if the given
         storage_index+share_number have a different upload secret than the
@@ -325,7 +326,7 @@ class StorageIndexConverter(BaseConverter):
 
     regex = "[" + str(rfc3548_alphabet, "ascii") + "]{26}"
 
-    def to_python(self, value):
+    def to_python(self, value: str) -> bytes:
         try:
             return si_a2b(value.encode("ascii"))
         except (AssertionError, binascii.Error, ValueError):
@@ -413,7 +414,7 @@ class _ReadAllProducer:
         request.registerProducer(producer, False)
         return producer.result
 
-    def resumeProducing(self):
+    def resumeProducing(self) -> None:
         data = self.read_data(self.start, 65536)
         if not data:
             self.request.unregisterProducer()
@@ -424,10 +425,10 @@ class _ReadAllProducer:
         self.request.write(data)
         self.start += len(data)
 
-    def pauseProducing(self):
+    def pauseProducing(self) -> None:
         pass
 
-    def stopProducing(self):
+    def stopProducing(self) -> None:
         pass
 
 
@@ -445,7 +446,7 @@ class _ReadRangeProducer:
     start: int
     remaining: int
 
-    def resumeProducing(self):
+    def resumeProducing(self) -> None:
         if self.result is None or self.request is None:
             return
 
@@ -482,10 +483,10 @@ class _ReadRangeProducer:
         if self.remaining == 0:
             self.stopProducing()
 
-    def pauseProducing(self):
+    def pauseProducing(self) -> None:
         pass
 
-    def stopProducing(self):
+    def stopProducing(self) -> None:
         if self.request is not None:
             self.request.unregisterProducer()
             self.request = None
@@ -564,12 +565,13 @@ def read_range(
     return d
 
 
-def _add_error_handling(app: Klein):
+def _add_error_handling(app: Klein) -> None:
     """Add exception handlers to a Klein app."""
 
     @app.handle_errors(_HTTPError)
-    def _http_error(_, request, failure):
+    def _http_error(self: Any, request: IRequest, failure: Failure) -> KleinRenderable:
         """Handle ``_HTTPError`` exceptions."""
+        assert isinstance(failure.value, _HTTPError)
         request.setResponseCode(failure.value.code)
         if failure.value.body is not None:
             return failure.value.body
@@ -577,7 +579,9 @@ def _add_error_handling(app: Klein):
             return b""
 
     @app.handle_errors(CDDLValidationError)
-    def _cddl_validation_error(_, request, failure):
+    def _cddl_validation_error(
+        self: Any, request: IRequest, failure: Failure
+    ) -> KleinRenderable:
         """Handle CDDL validation errors."""
         request.setResponseCode(http.BAD_REQUEST)
         return str(failure.value).encode("utf-8")
