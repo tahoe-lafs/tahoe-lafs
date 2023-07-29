@@ -510,11 +510,16 @@ class Grid(object):
         returnValue(client)
 
 
-# XXX THINK can we tie a whole *grid* to a single request? (I think
-# that's all that makes sense)
+# A grid is now forever tied to its original 'request' which is where
+# it must hang finalizers off of. The "main" one is a session-level
+# fixture so it'll live the life of the tests but it could be
+# per-function Grid too.
 @inlineCallbacks
 def create_grid(reactor, request, temp_dir, flog_gatherer, port_allocator):
     """
+    Create a new grid. This will have one Introducer but zero
+    storage-servers or clients; those must be added by a test or
+    subsequent fixtures.
     """
     intro_port = yield port_allocator()
     introducer = yield create_introducer(reactor, request, temp_dir, flog_gatherer, intro_port)
@@ -527,46 +532,3 @@ def create_grid(reactor, request, temp_dir, flog_gatherer, port_allocator):
         flog_gatherer,
     )
     returnValue(grid)
-
-
-def create_port_allocator(reactor, start_port):
-    """
-    Returns a new port-allocator .. which is a zero-argument function
-    that returns Deferreds that fire with new, sequential ports
-    starting at `start_port` skipping any that already appear to have
-    a listener.
-
-    There can still be a race against other processes allocating ports
-    -- between the time when we check the status of the port and when
-    our subprocess starts up. This *could* be mitigated by instructing
-    the OS to not randomly-allocate ports in some range, and then
-    using that range here (explicitly, ourselves).
-
-    NB once we're Python3-only this could be an async-generator
-    """
-    port = [start_port - 1]
-
-    class NothingProtocol(Protocol):
-        """
-        I do nothing.
-        """
-
-    def port_generator():
-        print("Checking port {}".format(port))
-        port[0] += 1
-        ep = TCP4ServerEndpoint(reactor, port[0], interface="localhost")
-        d = ep.listen(Factory.forProtocol(NothingProtocol))
-
-        def good(listening_port):
-            unlisten_d = maybeDeferred(listening_port.stopListening)
-            def return_port(_):
-                return port[0]
-            unlisten_d.addBoth(return_port)
-            return unlisten_d
-
-        def try_again(fail):
-            return port_generator()
-
-        d.addCallbacks(good, try_again)
-        return d
-    return port_generator

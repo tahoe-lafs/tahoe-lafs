@@ -47,6 +47,7 @@ from .grid import (
     create_grid,
 )
 from allmydata.node import read_config
+from allmydata.util.iputil import allocate_tcp_port
 
 # No reason for HTTP requests to take longer than four minutes in the
 # integration tests. See allmydata/scripts/common_http.py for usage.
@@ -117,8 +118,6 @@ def reactor():
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:port_allocator", include_result=False)
 def port_allocator(reactor):
-    from allmydata.util.iputil import allocate_tcp_port
-
     # these will appear basically random, which can make especially
     # manual debugging harder but we're re-using code instead of
     # writing our own...so, win?
@@ -126,7 +125,6 @@ def port_allocator(reactor):
         port = allocate_tcp_port()
         return succeed(port)
     return allocate
-    #return create_port_allocator(reactor, start_port=45000)
 
 
 @pytest.fixture(scope='session')
