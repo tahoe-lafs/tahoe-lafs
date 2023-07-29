@@ -21,7 +21,7 @@ from eliot import (
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
-from twisted.internet.defer import DeferredList
+from twisted.internet.defer import DeferredList, succeed
 from twisted.internet.error import (
     ProcessExitedAlready,
     ProcessTerminated,
@@ -117,7 +117,16 @@ def reactor():
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:port_allocator", include_result=False)
 def port_allocator(reactor):
-    return create_port_allocator(reactor, start_port=45000)
+    from allmydata.util.iputil import allocate_tcp_port
+
+    # these will appear basically random, which can make especially
+    # manual debugging harder but we're re-using code instead of
+    # writing our own...so, win?
+    def allocate():
+        port = allocate_tcp_port()
+        return succeed(port)
+    return allocate
+    #return create_port_allocator(reactor, start_port=45000)
 
 
 @pytest.fixture(scope='session')
