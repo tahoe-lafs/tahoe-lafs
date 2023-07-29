@@ -173,8 +173,6 @@ class StorageServer(object):
         Note that self.process and self.protocol will be new instances
         after this.
         """
-        # XXX per review comments, _can_ we make this "return a new
-        # instance" instead of mutating?
         self.process.transport.signalProcess('TERM')
         yield self.protocol.exited
         self.process = yield _run_node(
