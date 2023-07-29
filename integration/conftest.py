@@ -266,8 +266,7 @@ def storage_nodes(grid):
     nodes_d = []
     # start all 5 nodes in parallel
     for x in range(5):
-        #nodes_d.append(grid.add_storage_node())
-        pytest_twisted.blockon(grid.add_storage_node())
+        nodes_d.append(grid.add_storage_node())
 
     nodes_status = pytest_twisted.blockon(DeferredList(nodes_d))
     for ok, value in nodes_status:
