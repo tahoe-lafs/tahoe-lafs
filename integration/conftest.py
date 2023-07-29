@@ -12,7 +12,6 @@ from time import sleep
 from os import mkdir, environ
 from os.path import join, exists
 from tempfile import mkdtemp
-from json import loads
 
 from eliot import (
     to_file,
@@ -37,12 +36,9 @@ from .util import (
     _create_node,
     _tahoe_runner_optional_coverage,
     await_client_ready,
-    cli,
-    generate_ssh_key,
     block_with_timeout,
 )
 from .grid import (
-    create_port_allocator,
     create_flog_gatherer,
     create_grid,
 )

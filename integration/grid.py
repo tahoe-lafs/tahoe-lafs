@@ -26,7 +26,6 @@ from twisted.python.procutils import which
 from twisted.internet.defer import (
     inlineCallbacks,
     returnValue,
-    maybeDeferred,
     Deferred,
 )
 from twisted.internet.task import (
@@ -35,13 +34,6 @@ from twisted.internet.task import (
 from twisted.internet.interfaces import (
     IProcessTransport,
     IProcessProtocol,
-)
-from twisted.internet.endpoints import (
-    TCP4ServerEndpoint,
-)
-from twisted.internet.protocol import (
-    Factory,
-    Protocol,
 )
 from twisted.internet.error import ProcessTerminated
 

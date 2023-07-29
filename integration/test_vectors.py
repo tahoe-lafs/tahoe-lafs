@@ -15,7 +15,7 @@ from pytest_twisted import ensureDeferred
 
 from . import vectors
 from .vectors import parameters
-from .util import reconfigure, upload
+from .util import upload
 from .grid import Client
 
 @mark.parametrize('convergence', parameters.CONVERGENCE_SECRETS)
