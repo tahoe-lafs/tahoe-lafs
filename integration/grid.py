@@ -529,7 +529,7 @@ def create_grid(reactor, request, temp_dir, flog_gatherer, port_allocator):
     returnValue(grid)
 
 
-def create_port_allocator(start_port):
+def create_port_allocator(reactor, start_port):
     """
     Returns a new port-allocator .. which is a zero-argument function
     that returns Deferreds that fire with new, sequential ports
@@ -545,11 +545,6 @@ def create_port_allocator(start_port):
     NB once we're Python3-only this could be an async-generator
     """
     port = [start_port - 1]
-
-    # import stays here to not interfere with reactor selection -- but
-    # maybe this function should be arranged to be called once from a
-    # fixture (with the reactor)?
-    from twisted.internet import reactor
 
     class NothingProtocol(Protocol):
         """

@@ -117,7 +117,7 @@ def reactor():
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:port_allocator", include_result=False)
 def port_allocator(reactor):
-    return create_port_allocator(start_port=45000)
+    return create_port_allocator(reactor, start_port=45000)
 
 
 @pytest.fixture(scope='session')
