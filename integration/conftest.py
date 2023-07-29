@@ -391,9 +391,7 @@ class ChutneyTorNetwork:
 
     @property
     def client_control_endpoint(self) -> str:
-        print("CONTROL", "tcp:localhost:{}".format(self.client_control_port))
         return "tcp:localhost:{}".format(self.client_control_port)
-
 
 
 @pytest.fixture(scope='session')
