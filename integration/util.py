@@ -659,7 +659,7 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_serve
 
         print(
             f"Now: {time.ctime()}\n"
-            f"Server last-received-data: {[time.ctime(s['last_received_data']) for s in servers]}"
+            f"Server last-received-data: {[s['last_received_data'] for s in servers]}"
         )
 
         server_times = [

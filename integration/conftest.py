@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 import sys
 import shutil
+from attr import define
 from time import sleep
 from os import mkdir, environ
 from os.path import join, exists
@@ -189,7 +190,7 @@ def introducer_furl(introducer, temp_dir):
     include_args=["temp_dir", "flog_gatherer"],
     include_result=False,
 )
-def tor_introducer(reactor, temp_dir, flog_gatherer, request):
+def tor_introducer(reactor, temp_dir, flog_gatherer, request, tor_network):
     intro_dir = join(temp_dir, 'introducer_tor')
     print("making Tor introducer in {}".format(intro_dir))
     print("(this can take tens of seconds to allocate Onion address)")
@@ -203,9 +204,7 @@ def tor_introducer(reactor, temp_dir, flog_gatherer, request):
             request,
             (
                 'create-introducer',
-                # The control port should agree with the configuration of the
-                # Tor network we bootstrap with chutney.
-                '--tor-control-port', 'tcp:localhost:8007',
+                '--tor-control-port', tor_network.client_control_endpoint,
                 '--hide-ip',
                 '--listen=tor',
                 intro_dir,
@@ -306,6 +305,21 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
 @pytest.mark.skipif(sys.platform.startswith('win'),
                     'Tor tests are unstable on Windows')
 def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
+    """
+    Instantiate the "networks/hs-v3" Chutney configuration for a local
+    Tor network.
+
+    This provides a small, local Tor network that can run v3 Onion
+    Services. This has 10 tor processes: 3 authorities, 5
+    exits+relays, a client (and one service-hosting node we don't use).
+
+    We pin a Chutney revision, so things shouldn't change. Currently,
+    the ONLY node that exposes a valid SocksPort is "008c" (the
+    client) on 9008.
+
+    The control ports start at 8000 (so the ControlPort for the one
+    client node is 8008).
+    """
     # Try to find Chutney already installed in the environment.
     try:
         import chutney
@@ -363,7 +377,24 @@ def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
     )
     pytest_twisted.blockon(proto.done)
 
-    return (chutney_dir, {"PYTHONPATH": join(chutney_dir, "lib")})
+    return chutney_dir, {"PYTHONPATH": join(chutney_dir, "lib")}
+
+
+@define
+class ChutneyTorNetwork:
+    """
+    Represents a running Chutney (tor) network. Returned by the
+    "tor_network" fixture.
+    """
+    dir: FilePath
+    environ: dict
+    client_control_port: int
+
+    @property
+    def client_control_endpoint(self) -> str:
+        print("CONTROL", "tcp:localhost:{}".format(self.client_control_port))
+        return "tcp:localhost:{}".format(self.client_control_port)
+
 
 
 @pytest.fixture(scope='session')
@@ -422,3 +453,11 @@ def tor_network(reactor, temp_dir, chutney, request):
         pytest_twisted.blockon(chutney(("status", basic_network)))
     except ProcessTerminated:
         print("Chutney.TorNet status failed (continuing)")
+
+    # the "8008" comes from configuring "networks/basic" in chutney
+    # and then examining "net/nodes/008c/torrc" for ControlPort value
+    return ChutneyTorNetwork(
+        chutney_root,
+        chutney_env,
+        8008,
+    )

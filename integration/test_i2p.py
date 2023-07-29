@@ -132,8 +132,8 @@ def i2p_introducer_furl(i2p_introducer, temp_dir):
 @pytest_twisted.inlineCallbacks
 @pytest.mark.skip("I2P tests are not functioning at all, for unknown reasons")
 def test_i2p_service_storage(reactor, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl):
-    yield _create_anonymous_node(reactor, 'carol_i2p', 8008, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl)
-    yield _create_anonymous_node(reactor, 'dave_i2p', 8009, request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl)
+    yield _create_anonymous_node(reactor, 'carol_i2p', request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl)
+    yield _create_anonymous_node(reactor, 'dave_i2p', request, temp_dir, flog_gatherer, i2p_network, i2p_introducer_furl)
     # ensure both nodes are connected to "a grid" by uploading
     # something via carol, and retrieve it using dave.
     gold_path = join(temp_dir, "gold")
@@ -179,9 +179,8 @@ def test_i2p_service_storage(reactor, request, temp_dir, flog_gatherer, i2p_netw
 
 
 @pytest_twisted.inlineCallbacks
-def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_gatherer, i2p_network, introducer_furl):
+def _create_anonymous_node(reactor, name, request, temp_dir, flog_gatherer, i2p_network, introducer_furl):
     node_dir = FilePath(temp_dir).child(name)
-    web_port = "tcp:{}:interface=localhost".format(control_port + 2000)
 
     print("creating", node_dir.path)
     node_dir.makedirs()
