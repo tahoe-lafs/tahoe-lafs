@@ -57,6 +57,20 @@ The key-value store is implemented by a grid of Tahoe-LAFS storage servers --
 user-space processes. Tahoe-LAFS storage clients communicate with the storage
 servers over TCP.
 
+There are two supported protocols:
+
+* Foolscap, the only supported protocol in release before v1.19.
+* HTTPS, new in v1.19.
+
+By default HTTPS is disabled (this will change in
+https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4041). When HTTPS is enabled on
+the server, the server transparently listens for both Foolscap and HTTPS on the
+same port. Clients can use either; by default they will only use Foolscap, but
+when configured appropriately they will use HTTPS when possible (this will
+change in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4041). At this time the
+only limitations of HTTPS is that I2P is not supported, so any usage of I2P only
+uses Foolscap.
+
 Storage servers hold data in the form of "shares". Shares are encoded pieces
 of files. There are a configurable number of shares for each file, 10 by
 default. Normally, each share is stored on a separate server, but in some
