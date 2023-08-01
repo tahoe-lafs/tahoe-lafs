@@ -1428,7 +1428,7 @@ class _FakeRemoteReference(object):
             result = yield getattr(self.local_object, action)(*args, **kwargs)
             defer.returnValue(result)
         except HTTPClientException as e:
-            raise RemoteException(e.args)
+            raise RemoteException((e.code, e.message, e.body))
 
 
 @attr.s

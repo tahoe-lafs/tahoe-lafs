@@ -81,9 +81,13 @@ def _encode_si(si: bytes) -> str:
 class ClientException(Exception):
     """An unexpected response code from the server."""
 
-    def __init__(self, code: int, *additional_args):
-        Exception.__init__(self, code, *additional_args)
+    def __init__(
+        self, code: int, message: Optional[str] = None, body: Optional[bytes] = None
+    ):
+        Exception.__init__(self, code, message, body)
         self.code = code
+        self.message = message
+        self.body = body
 
 
 register_exception_extractor(ClientException, lambda e: {"response_code": e.code})
@@ -94,7 +98,7 @@ register_exception_extractor(ClientException, lambda e: {"response_code": e.code
 # Tags are of the form #6.nnn, where the number is documented at
 # https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml. Notably, #6.258
 # indicates a set.
-_SCHEMAS : Mapping[str,Schema] = {
+_SCHEMAS: Mapping[str, Schema] = {
     "get_version": Schema(
         # Note that the single-quoted (`'`) string keys in this schema
         # represent *byte* strings - per the CDDL specification.  Text strings
@@ -305,7 +309,9 @@ class _StorageClientHTTPSPolicy:
         return self
 
     # IOpenSSLClientConnectionCreator
-    def clientConnectionForTLS(self, tlsProtocol: TLSMemoryBIOProtocol) -> SSL.Connection:
+    def clientConnectionForTLS(
+        self, tlsProtocol: TLSMemoryBIOProtocol
+    ) -> SSL.Connection:
         return SSL.Connection(
             _TLSContextFactory(self.expected_spki_hash).getContext(), None
         )
