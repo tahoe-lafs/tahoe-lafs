@@ -309,6 +309,11 @@ class TestApp(object):
     @_authorized_route(_app, set(), "/read_body", methods=["POST"])
     @async_to_deferred
     async def read_body(self, request, authorization):
+        """
+        Accept an advise_corrupt_share message, return the reason.
+
+        I.e. exercise codepaths used for reading CBOR from the body.
+        """
         data = await read_encoded(
             self.clock, request, SERVER_SCHEMAS["advise_corrupt_share"]
         )
