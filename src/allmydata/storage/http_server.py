@@ -530,6 +530,60 @@ def _add_error_handling(app: Klein):
         return str(failure.value).encode("utf-8")
 
 
+async def read_encoded(
+    reactor, request, schema: Schema, max_size: int = 1024 * 1024
+) -> Any:
+    """
+    Read encoded request body data, decoding it with CBOR by default.
+
+    Somewhat arbitrarily, limit body size to 1MiB by default.
+    """
+    content_type = get_content_type(request.requestHeaders)
+    if content_type is None:
+        content_type = CBOR_MIME_TYPE
+    if content_type != CBOR_MIME_TYPE:
+        raise _HTTPError(http.UNSUPPORTED_MEDIA_TYPE)
+
+    # Make sure it's not too large:
+    request.content.seek(0, SEEK_END)
+    size = request.content.tell()
+    if size > max_size:
+        raise _HTTPError(http.REQUEST_ENTITY_TOO_LARGE)
+    request.content.seek(0, SEEK_SET)
+
+    # We don't want to load the whole message into memory, cause it might
+    # be quite large. The CDDL validator takes a read-only bytes-like
+    # thing. Luckily, for large request bodies twisted.web will buffer the
+    # data in a file, so we can use mmap() to get a memory view. The CDDL
+    # validator will not make a copy, so it won't increase memory usage
+    # beyond that.
+    try:
+        fd = request.content.fileno()
+    except (ValueError, OSError):
+        fd = -1
+    if fd >= 0:
+        # It's a file, so we can use mmap() to save memory.
+        message = mmap.mmap(fd, 0, access=mmap.ACCESS_READ)
+    else:
+        message = request.content.read()
+
+    # Pycddl will release the GIL when validating larger documents, so
+    # let's take advantage of multiple CPUs:
+    if size > 10_000:
+        await defer_to_thread(reactor, schema.validate_cbor, message)
+    else:
+        schema.validate_cbor(message)
+
+    # The CBOR parser will allocate more memory, but at least we can feed
+    # it the file-like object, so that if it's large it won't be make two
+    # copies.
+    request.content.seek(SEEK_SET, 0)
+    # Typically deserialization to Python will not release the GIL, and
+    # indeed as of Jan 2023 cbor2 didn't have any code to release the GIL
+    # in the decode path. As such, running it in a different thread has no benefit.
+    return cbor2.load(request.content)
+
+
 class HTTPServer(object):
     """
     A HTTP interface to the storage server.
@@ -587,56 +641,6 @@ class HTTPServer(object):
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3861
             raise _HTTPError(http.NOT_ACCEPTABLE)
 
-    async def _read_encoded(
-        self, request, schema: Schema, max_size: int = 1024 * 1024
-    ) -> Any:
-        """
-        Read encoded request body data, decoding it with CBOR by default.
-
-        Somewhat arbitrarily, limit body size to 1MiB by default.
-        """
-        content_type = get_content_type(request.requestHeaders)
-        if content_type != CBOR_MIME_TYPE:
-            raise _HTTPError(http.UNSUPPORTED_MEDIA_TYPE)
-
-        # Make sure it's not too large:
-        request.content.seek(0, SEEK_END)
-        size = request.content.tell()
-        if size > max_size:
-            raise _HTTPError(http.REQUEST_ENTITY_TOO_LARGE)
-        request.content.seek(0, SEEK_SET)
-
-        # We don't want to load the whole message into memory, cause it might
-        # be quite large. The CDDL validator takes a read-only bytes-like
-        # thing. Luckily, for large request bodies twisted.web will buffer the
-        # data in a file, so we can use mmap() to get a memory view. The CDDL
-        # validator will not make a copy, so it won't increase memory usage
-        # beyond that.
-        try:
-            fd = request.content.fileno()
-        except (ValueError, OSError):
-            fd = -1
-        if fd >= 0:
-            # It's a file, so we can use mmap() to save memory.
-            message = mmap.mmap(fd, 0, access=mmap.ACCESS_READ)
-        else:
-            message = request.content.read()
-
-        # Pycddl will release the GIL when validating larger documents, so
-        # let's take advantage of multiple CPUs:
-        if size > 10_000:
-            await defer_to_thread(self._reactor, schema.validate_cbor, message)
-        else:
-            schema.validate_cbor(message)
-
-        # The CBOR parser will allocate more memory, but at least we can feed
-        # it the file-like object, so that if it's large it won't be make two
-        # copies.
-        request.content.seek(SEEK_SET, 0)
-        # Typically deserialization to Python will not release the GIL, and
-        # indeed as of Jan 2023 cbor2 didn't have any code to release the GIL
-        # in the decode path. As such, running it in a different thread has no benefit.
-        return cbor2.load(request.content)
 
     ##### Generic APIs #####
 
@@ -677,8 +681,8 @@ class HTTPServer(object):
         """Allocate buckets."""
         upload_secret = authorization[Secrets.UPLOAD]
         # It's just a list of up to ~256 shares, shouldn't use many bytes.
-        info = await self._read_encoded(
-            request, _SCHEMAS["allocate_buckets"], max_size=8192
+        info = await read_encoded(
+            self._reactor, request, _SCHEMAS["allocate_buckets"], max_size=8192
         )
 
         # We do NOT validate the upload secret for existing bucket uploads.
@@ -849,7 +853,8 @@ class HTTPServer(object):
 
         # The reason can be a string with explanation, so in theory it could be
         # longish?
-        info = await self._read_encoded(
+        info = await read_encoded(
+            self._reactor,
             request,
             _SCHEMAS["advise_corrupt_share"],
             max_size=32768,
@@ -868,8 +873,8 @@ class HTTPServer(object):
     @async_to_deferred
     async def mutable_read_test_write(self, request, authorization, storage_index):
         """Read/test/write combined operation for mutables."""
-        rtw_request = await self._read_encoded(
-            request, _SCHEMAS["mutable_read_test_write"], max_size=2**48
+        rtw_request = await read_encoded(
+            self._reactor, request, _SCHEMAS["mutable_read_test_write"], max_size=2**48
         )
         secrets = (
             authorization[Secrets.WRITE_ENABLER],
@@ -955,8 +960,8 @@ class HTTPServer(object):
 
         # The reason can be a string with explanation, so in theory it could be
         # longish?
-        info = await self._read_encoded(
-            request, _SCHEMAS["advise_corrupt_share"], max_size=32768
+        info = await read_encoded(
+            self._reactor, request, _SCHEMAS["advise_corrupt_share"], max_size=32768
         )
         self._storage_server.advise_corrupt_share(
             b"mutable", storage_index, share_number, info["reason"].encode("utf-8")
