@@ -89,20 +89,12 @@ workflows:
 
       - "nixos":
           name: "<<matrix.pythonVersion>>"
-          nixpkgs: "22.11"
+          nixpkgs: "nixpkgs-unstable"
           matrix:
             parameters:
               pythonVersion:
-                - "python38"
                 - "python39"
                 - "python310"
-
-      - "nixos":
-          name: "<<matrix.pythonVersion>>"
-          nixpkgs: "unstable"
-          matrix:
-            parameters:
-              pythonVersion:
                 - "python311"
 
       # Eventually, test against PyPy 3.8
@@ -385,8 +377,8 @@ jobs:
     parameters:
       nixpkgs:
         description: >-
-          Reference the name of a niv-managed nixpkgs source (see `niv show`
-          and nix/sources.json)
+          Reference the name of a flake-managed nixpkgs input (see `nix flake
+          metadata` and flake.nix)
         type: "string"
       pythonVersion:
         description: >-
@@ -403,14 +395,17 @@ jobs:
             - "run":
                 name: "Unit Test"
                 command: |
-                  # The dependencies are all built so we can allow more
-                  # parallelism here.
                   source .circleci/lib.sh
-                  cache_if_able nix-build \
-                    --cores 8 \
-                    --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
-                    --argstr pythonVersion "<<parameters.pythonVersion>>" \
-                    nix/tests.nix
+
+                  # Translate the nixpkgs selection into a flake reference we
+                  # can use to override the default nixpkgs input.
+                  NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
+
+                  cache_if_able nix run \
+                    --override-input nixpkgs "$NIXPKGS" \
+                    .#<<parameters.pythonVersion>>-unittest -- \
+                    --jobs $UNITTEST_CORES \
+                    allmydata
 
   typechecks:
     docker:
@@ -536,20 +531,23 @@ executors:
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
-        image: "nixos/nix:2.10.3"
+        image: "nixos/nix:2.16.1"
     environment:
       # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and allows us
       # to push to CACHIX_NAME.  CACHIX_NAME tells cachix which cache to push
       # to.
       CACHIX_NAME: "tahoe-lafs-opensource"
+      # Let us use features marked "experimental".  For example, most/all of
+      # the `nix <subcommand>` forms.
+      NIX_CONFIG: "experimental-features = nix-command flakes"
 
 commands:
   nix-build:
     parameters:
       nixpkgs:
         description: >-
-          Reference the name of a niv-managed nixpkgs source (see `niv show`
-          and nix/sources.json)
+          Reference the name of a flake-managed nixpkgs input (see `nix flake
+          metadata` and flake.nix)
         type: "string"
       pythonVersion:
         description: >-
@@ -565,15 +563,17 @@ commands:
           # Get cachix for Nix-friendly caching.
           name: "Install Basic Dependencies"
           command: |
-            NIXPKGS="https://github.com/nixos/nixpkgs/archive/nixos-<<parameters.nixpkgs>>.tar.gz"
-            nix-env \
-              --file $NIXPKGS \
-              --install \
-              -A cachix bash
-              # Activate it for "binary substitution".  This sets up
-              # configuration tht lets Nix download something from the cache
-              # instead of building it locally, if possible.
-              cachix use "${CACHIX_NAME}"
+            # Get some build environment dependencies and let them float on a
+            # certain release branch.  These aren't involved in the actual
+            # package build (only in CI environment setup) so the fact that
+            # they float shouldn't hurt reproducibility.
+            NIXPKGS="nixpkgs/nixos-23.05"
+            nix profile install $NIXPKGS#cachix $NIXPKGS#bash $NIXPKGS#jp
+
+            # Activate our cachix cache for "binary substitution".  This sets
+            # up configuration tht lets Nix download something from the cache
+            # instead of building it locally, if possible.
+            cachix use "${CACHIX_NAME}"
 
       - "checkout"
 
@@ -586,31 +586,15 @@ commands:
               --run 'python setup.py update_version'
 
       - "run":
-          name: "Build Dependencies"
-          command: |
-            # CircleCI build environment looks like it has a zillion and a
-            # half cores.  Don't let Nix autodetect this high core count
-            # because it blows up memory usage and fails the test run.  Pick a
-            # number of cores that suits the build environment we're paying
-            # for (the free one!).
-            source .circleci/lib.sh
-            # nix-shell will build all of the dependencies of the target but
-            # not the target itself.
-            cache_if_able nix-shell \
-              --run "" \
-              --cores 3 \
-              --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
-              --argstr pythonVersion "<<parameters.pythonVersion>>" \
-              ./default.nix
-
-      - "run":
           name: "Build Package"
           command: |
             source .circleci/lib.sh
-            cache_if_able nix-build \
-              --cores 4 \
-              --argstr pkgsVersion "nixpkgs-<<parameters.nixpkgs>>" \
-              --argstr pythonVersion "<<parameters.pythonVersion>>" \
-              ./default.nix
+            NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
+            cache_if_able nix build \
+              --verbose \
+              --print-build-logs \
+              --cores "$DEPENDENCY_CORES" \
+              --override-input nixpkgs "$NIXPKGS" \
+              .#<<parameters.pythonVersion>>-tahoe-lafs
 
       - steps: "<<parameters.buildSteps>>"

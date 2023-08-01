@@ -1,3 +1,13 @@
+# CircleCI build environment looks like it has a zillion and a half cores.
+# Don't let Nix autodetect this high core count because it blows up memory
+# usage and fails the test run.  Pick a number of cores that suits the build
+# environment we're paying for (the free one!).
+DEPENDENCY_CORES=3
+
+# Once dependencies are built, we can allow some more concurrency for our own
+# test suite.
+UNITTEST_CORES=8
+
 # Run a command, enabling cache writes to cachix if possible.  The command is
 # accepted as a variable number of positional arguments (like argv).
 function cache_if_able() {
@@ -116,4 +126,23 @@ function describe_build() {
     else
 	echo "Cache not writeable."
     fi
+}
+
+# Inspect the flake input metadata for an input of a given name and return the
+# revision at which that input is pinned.  If the input does not exist then
+# return garbage (probably "null").
+read_input_revision() {
+    input_name=$1
+    shift
+
+    nix flake metadata --json | jp --unquoted 'locks.nodes."'"$input_name"'".locked.rev'
+}
+
+# Return a flake reference that refers to a certain revision of nixpkgs.  The
+# certain revision is the revision to which the specified input is pinned.
+nixpkgs_flake_reference() {
+    input_name=$1
+    shift
+
+    echo "github:NixOS/nixpkgs?rev=$(read_input_revision $input_name)"
 }
