@@ -18,8 +18,7 @@ RUN apt-get --quiet update && \
         libffi-dev \
         libssl-dev \
         libyaml-dev \
-        virtualenv \
-        tor
+        virtualenv
 
 # Get the project source.  This is better than it seems.  CircleCI will
 # *update* this checkout on each job run, saving us more time per-job.
