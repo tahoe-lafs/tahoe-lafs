@@ -175,7 +175,14 @@
       # all of its dependencies.  This is suitable for running the integration
       # tests, which expect to find `tahoe` on PATH.
       makeIntegrationTestEnv = pyVersion: (pkgs.${pyVersion}.withPackages (ps:
-        [ ps.tahoe-lafs ] ++
+        [
+          ps.tahoe-lafs
+
+          # chutney is here instead of in the integrationtest extra because
+          # it's not properly packaged and pip can't install it.
+          ps.chutney
+
+        ] ++
         (extraRequirements ps.tahoe-lafs ["i2p" "tor" "integrationtest"])
       )).overrideAttrs (old: {
         # See the similar override in makeRuntimeEnv'.
@@ -307,6 +314,8 @@
                             # Use the source from the working tree for a
                             # development-friendly experience.
                             export PYTHONPATH=$PWD/src
+
+                            export CHUTNEY_DATA_DIR=$PWD/chutney-net
 
                             if (( $# )) then
                               python -m pytest "$@"

@@ -149,4 +149,8 @@ in {
 
   # CircleCI build systems don't have enough memory to run this test suite.
   lz4 = onPyPy dontCheck super.lz4;
+
+  # Chutney isn't in nixpkgs at all, so supply it.  This is a dependency of
+  # the integration test suite.
+  chutney = self.callPackage ./chutney.nix {};
 }
