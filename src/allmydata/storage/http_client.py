@@ -41,6 +41,7 @@ from twisted.internet.interfaces import (
     IDelayedCall,
 )
 from twisted.internet.ssl import CertificateOptions
+from twisted.protocols.tls import TLSMemoryBIOProtocol
 from twisted.web.client import Agent, HTTPConnectionPool
 from zope.interface import implementer
 from hyperlink import DecodedURL
@@ -304,7 +305,7 @@ class _StorageClientHTTPSPolicy:
         return self
 
     # IOpenSSLClientConnectionCreator
-    def clientConnectionForTLS(self, tlsProtocol: object) -> SSL.Connection:
+    def clientConnectionForTLS(self, tlsProtocol: TLSMemoryBIOProtocol) -> SSL.Connection:
         return SSL.Connection(
             _TLSContextFactory(self.expected_spki_hash).getContext(), None
         )
