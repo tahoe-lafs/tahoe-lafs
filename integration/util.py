@@ -622,8 +622,9 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_serve
             time.sleep(1)
             continue
 
+        now = time.time()
         print(
-            f"Now: {time.ctime()}\n"
+            f"Now: {time.ctime(now)}\n"
             f"Server last-received-data: {[time.ctime(s['last_received_data']) for s in servers]}"
         )
 
@@ -633,7 +634,7 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_serve
         ]
         # check that all times are 'recent enough' (it's OK if _some_ servers
         # are down, we just want to make sure a sufficient number are up)
-        if len([time.time() - t <= liveness for t in server_times if t is not None]) < minimum_number_of_servers:
+        if len([now - t <= liveness for t in server_times if t is not None]) < minimum_number_of_servers:
             print("waiting because at least one server too old")
             time.sleep(1)
             continue
