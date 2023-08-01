@@ -64,7 +64,7 @@ There are two supported protocols:
 
 By default HTTPS is disabled (this will change in
 https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4041). When HTTPS is enabled on
-the server, the server transparently listens for both Foolscap and HTTP on the
+the server, the server transparently listens for both Foolscap and HTTPS on the
 same port. Clients can use either; by default they will only use Foolscap, but
 when configured appropriately they will use HTTPS when possible (this will
 change in https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4041). At this time the
