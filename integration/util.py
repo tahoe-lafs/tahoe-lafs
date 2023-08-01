@@ -638,8 +638,12 @@ def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_serve
 
         # check that all times are 'recent enough' (it's OK if _some_ servers
         # are down, we just want to make sure a sufficient number are up)
-        if len([now - t <= liveness for t in server_times]) < minimum_number_of_servers:
-            print("waiting because at least one server too old")
+        alive = [t for t in server_times if now - t <= liveness]
+        if len(alive) < minimum_number_of_servers:
+            print(
+                f"waiting because we found {len(alive)} servers "
+                f"and want {minimum_number_of_servers}"
+            )
             time.sleep(1)
             continue
 
