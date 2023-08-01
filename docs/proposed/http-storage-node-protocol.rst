@@ -278,8 +278,8 @@ This NURL will be announced alongside their existing Foolscap-based server's fUR
 Such an announcement will resemble this::
 
   {
-      "anonymous-storage-FURL": "pb://...",          # The old key
-      "anonymous-storage-NURLs": ["pb://...#v=1"]    # The new keys
+      "anonymous-storage-FURL": "pb://...",          # The old entry
+      "anonymous-storage-NURLs": ["pb://...#v=1"]    # The new, additional entry
   }
 
 The transition process will proceed in three stages:
