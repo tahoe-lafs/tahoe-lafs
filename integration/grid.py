@@ -116,13 +116,14 @@ def create_flog_gatherer(reactor, request, temp_dir, flog_binary):
         flogs = [x for x in listdir(flog_dir) if x.endswith('.flog')]
 
         print("Dumping {} flogtool logfiles to '{}'".format(len(flogs), flog_file))
-        reactor.spawnProcess(
-            flog_protocol,
-            flog_binary,
-            (
-                'flogtool', 'dump', join(temp_dir, 'flog_gather', flogs[0])
-            ),
-        )
+        for flog_path in flogs:
+            reactor.spawnProcess(
+                flog_protocol,
+                flog_binary,
+                (
+                    'flogtool', 'dump', join(temp_dir, 'flog_gather', flog_path)
+                ),
+            )
         print("Waiting for flogtool to complete")
         try:
             pytest_twisted.blockon(flog_protocol.done)
