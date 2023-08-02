@@ -38,8 +38,9 @@ from os import urandom
 import re
 import time
 import hashlib
-
+from io import StringIO
 from configparser import NoSectionError
+import json
 
 import attr
 from hyperlink import DecodedURL
@@ -74,7 +75,7 @@ from allmydata.interfaces import (
     VersionMessage
 )
 from allmydata.grid_manager import (
-    create_grid_manager_verifier,
+    create_grid_manager_verifier, SignedCertificate
 )
 from allmydata.crypto import (
     ed25519,
@@ -317,8 +318,8 @@ class StorageFarmBroker(service.MultiService):
         assert isinstance(server_id, bytes)
         gm_verifier = create_grid_manager_verifier(
             self.storage_client_config.grid_manager_keys,
-            server["ann"].get("grid-manager-certificates", []),
-            "pub-{}".format(str(server_id, "ascii")),  # server_id is v0-<key> not pub-v0-key .. for reasons?
+            [SignedCertificate.load(StringIO(json.dumps(data))) for data in server["ann"].get("grid-manager-certificates", [])],
+            "pub-{}".format(str(server_id, "ascii")).encode("ascii"),  # server_id is v0-<key> not pub-v0-key .. for reasons?
         )
 
         if self._should_we_use_http(self.node_config, server["ann"]):
