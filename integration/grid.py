@@ -32,7 +32,6 @@ from twisted.internet.task import (
     deferLater,
 )
 from twisted.internet.protocol import ProcessProtocol  # see ticket 4056
-from twisted.internet.process import Process  # see ticket 4056
 from twisted.internet.error import ProcessTerminated
 
 from allmydata.node import read_config
@@ -75,9 +74,7 @@ class FlogGatherer(object):
     # our own "provides" as part of
     # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4056#ticket
     # insisting on a subclass is narrower than necessary
-    process = attr.ib(
-        validator=attr.validators.instance_of(Process)
-    )
+    process = attr.ib()
     protocol = attr.ib(
         validator=attr.validators.instance_of(ProcessProtocol)
     )
