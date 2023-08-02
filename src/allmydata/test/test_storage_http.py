@@ -42,6 +42,7 @@ from werkzeug.exceptions import NotFound as WNotFound
 from testtools.matchers import Equals
 from zope.interface import implementer
 
+from ..util.deferredutil import async_to_deferred
 from .common import SyncTestCase
 from ..storage.http_common import (
     get_content_type,
@@ -59,6 +60,9 @@ from ..storage.http_server import (
     _authorized_route,
     StorageIndexConverter,
     _add_error_handling,
+    read_encoded,
+    _SCHEMAS as SERVER_SCHEMAS,
+    BaseApp,
 )
 from ..storage.http_client import (
     StorageClient,
@@ -172,7 +176,7 @@ class ExtractSecretsTests(SyncTestCase):
         ``ClientSecretsException``.
         """
         with self.assertRaises(ClientSecretsException):
-            _extract_secrets(["FOO eA=="], {})
+            _extract_secrets(["FOO eA=="], set())
 
     def test_bad_secret_not_base64(self):
         """
@@ -254,7 +258,7 @@ def gen_bytes(length: int) -> bytes:
     return result
 
 
-class TestApp(object):
+class TestApp(BaseApp):
     """HTTP API for testing purposes."""
 
     clock: IReactorTime
@@ -262,7 +266,7 @@ class TestApp(object):
     _add_error_handling(_app)
     _swissnum = SWISSNUM_FOR_TEST  # Match what the test client is using
 
-    @_authorized_route(_app, {}, "/noop", methods=["GET"])
+    @_authorized_route(_app, set(), "/noop", methods=["GET"])
     def noop(self, request, authorization):
         return "noop"
 
@@ -303,6 +307,19 @@ class TestApp(object):
         request.transport.loseConnection()
         return Deferred()
 
+    @_authorized_route(_app, set(), "/read_body", methods=["POST"])
+    @async_to_deferred
+    async def read_body(self, request, authorization):
+        """
+        Accept an advise_corrupt_share message, return the reason.
+
+        I.e. exercise codepaths used for reading CBOR from the body.
+        """
+        data = await read_encoded(
+            self.clock, request, SERVER_SCHEMAS["advise_corrupt_share"]
+        )
+        return data["reason"]
+
 
 def result_of(d):
     """
@@ -319,6 +336,7 @@ def result_of(d):
         "We expected given Deferred to have result already, but it wasn't. "
         + "This is probably a test design issue."
     )
+
 
 class CustomHTTPServerTests(SyncTestCase):
     """
@@ -503,6 +521,40 @@ class CustomHTTPServerTests(SyncTestCase):
         with self.assertRaises(ValueError):
             result_of(d)
         self.assertEqual(len(self._http_server.clock.getDelayedCalls()), 0)
+
+    def test_request_with_no_content_type_same_as_cbor(self):
+        """
+        If no ``Content-Type`` header is set when sending a body, it is assumed
+        to be CBOR.
+        """
+        response = result_of(
+            self.client.request(
+                "POST",
+                DecodedURL.from_text("http://127.0.0.1/read_body"),
+                data=dumps({"reason": "test"}),
+            )
+        )
+        self.assertEqual(
+            result_of(limited_content(response, self._http_server.clock, 100)).read(),
+            b"test",
+        )
+
+    def test_request_with_wrong_content(self):
+        """
+        If a non-CBOR ``Content-Type`` header is set when sending a body, the
+        server complains appropriatly.
+        """
+        headers = Headers()
+        headers.setRawHeaders("content-type", ["some/value"])
+        response = result_of(
+            self.client.request(
+                "POST",
+                DecodedURL.from_text("http://127.0.0.1/read_body"),
+                data=dumps({"reason": "test"}),
+                headers=headers,
+            )
+        )
+        self.assertEqual(response.code, http.UNSUPPORTED_MEDIA_TYPE)
 
 
 @implementer(IReactorFromThreads)

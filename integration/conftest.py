@@ -446,6 +446,32 @@ def tor_network(reactor, temp_dir, chutney, request):
     request.addfinalizer(cleanup)
 
     pytest_twisted.blockon(chutney(("start", basic_network)))
+
+    # Wait for the nodes to "bootstrap" - ie, form a network among themselves.
+    # Successful bootstrap is reported with a message something like:
+    #
+    # Everything bootstrapped after 151 sec
+    # Bootstrap finished: 151 seconds
+    # Node status:
+    # test000a     :  100, done                     , Done
+    # test001a     :  100, done                     , Done
+    # test002a     :  100, done                     , Done
+    # test003r     :  100, done                     , Done
+    # test004r     :  100, done                     , Done
+    # test005r     :  100, done                     , Done
+    # test006r     :  100, done                     , Done
+    # test007r     :  100, done                     , Done
+    # test008c     :  100, done                     , Done
+    # test009c     :  100, done                     , Done
+    # Published dir info:
+    # test000a     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test001a     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test002a     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test003r     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test004r     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test005r     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test006r     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test007r     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
     pytest_twisted.blockon(chutney(("wait_for_bootstrap", basic_network)))
 
     # print some useful stuff
