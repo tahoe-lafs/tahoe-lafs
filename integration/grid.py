@@ -51,6 +51,7 @@ from .util import (
     generate_ssh_key,
     cli,
     reconfigure,
+    _create_node,
 )
 
 import attr
@@ -181,7 +182,6 @@ def create_storage_server(reactor, request, temp_dir, introducer, flog_gatherer,
     """
     Create a new storage server
     """
-    from .util import _create_node
     node_process = yield _create_node(
         reactor, request, temp_dir, introducer.furl, flog_gatherer,
         name, web_port, storage=True, needed=needed, happy=happy, total=total,
