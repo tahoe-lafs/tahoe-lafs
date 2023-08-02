@@ -389,7 +389,7 @@ class ChutneyTorNetwork:
     "tor_network" fixture.
     """
     dir: FilePath
-    environ: dict
+    environ: Mapping[str, str]
     client_control_port: int
 
     @property
