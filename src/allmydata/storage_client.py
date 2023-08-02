@@ -88,6 +88,7 @@ from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
 from allmydata.util.deferredutil import async_to_deferred, race
+from allmydata.util.attr_provides import provides
 from allmydata.storage.http_client import (
     StorageClient, StorageClientImmutables, StorageClientGeneral,
     ClientException as HTTPClientException, StorageClientMutables,
@@ -659,7 +660,7 @@ class _FoolscapStorage(object):
     permutation_seed = attr.ib()
     tubid = attr.ib()
 
-    storage_server = attr.ib(validator=attr.validators.provides(IStorageServer))
+    storage_server = attr.ib(validator=provides(IStorageServer))
 
     _furl = attr.ib()
     _short_description = attr.ib()
