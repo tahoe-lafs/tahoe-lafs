@@ -5,8 +5,8 @@
     # Supply configuration for the build cache updated by our CI system.  This
     # should allow most users to avoid having to build a large number of
     # packages (otherwise necessary due to our Python package overrides).
-    substituters = ["https://tahoe-lafs-opensource.cachix.org"];
-    trusted-public-keys = ["tahoe-lafs-opensource.cachix.org-1:eIKCHOPJYceJ2gb74l6e0mayuSdXqiavxYeAio0LFGo="];
+    extra-substituters = ["https://tahoe-lafs-opensource.cachix.org"];
+    extra-trusted-public-keys = ["tahoe-lafs-opensource.cachix.org-1:eIKCHOPJYceJ2gb74l6e0mayuSdXqiavxYeAio0LFGo="];
   };
 
   inputs = {
