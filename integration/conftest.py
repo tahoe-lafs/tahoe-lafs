@@ -375,14 +375,14 @@ def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
     return chutney_dir, {"PYTHONPATH": join(chutney_dir, "lib")}
 
 
-@define
+@frozen
 class ChutneyTorNetwork:
     """
     Represents a running Chutney (tor) network. Returned by the
     "tor_network" fixture.
     """
     dir: FilePath
-    environ: dict
+    environ: Mapping[str, str]
     client_control_port: int
 
     @property
