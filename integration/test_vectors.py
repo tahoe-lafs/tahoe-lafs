@@ -41,7 +41,7 @@ async def test_capability(reactor, request, alice, case, expected):
         reactor, (1, case.params.required, case.params.total), case.convergence, case.segment_size)
 
     # upload data in the correct format
-    actual = upload(alice.process, case.fmt, case.data)
+    actual = upload(alice, case.fmt, case.data)
 
     # compare the resulting cap to the expected result
     assert actual == expected
