@@ -308,19 +308,10 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
                     'Tor tests are unstable on Windows')
 def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
     """
-    Instantiate the "networks/hs-v3" Chutney configuration for a local
-    Tor network.
+    Install the Chutney software that is required to run a small local Tor grid.
 
-    This provides a small, local Tor network that can run v3 Onion
-    Services. This has 10 tor processes: 3 authorities, 5
-    exits+relays, a client (and one service-hosting node we don't use).
-
-    We pin a Chutney revision, so things shouldn't change. Currently,
-    the ONLY node that exposes a valid SocksPort is "008c" (the
-    client) on 9008.
-
-    The control ports start at 8000 (so the ControlPort for the one
-    client node is 8008).
+    (Chutney lacks the normal "python stuff" so we can't just declare
+    it in Tox or similar dependencies)
     """
     # Try to find Chutney already installed in the environment.
     try:
@@ -403,6 +394,20 @@ class ChutneyTorNetwork:
 def tor_network(reactor, temp_dir, chutney, request):
     """
     Build a basic Tor network.
+
+    Instantiate the "networks/basic" Chutney configuration for a local
+    Tor network.
+
+    This provides a small, local Tor network that can run v3 Onion
+    Services. It has 3 authorities, 5 relays and 2 clients.
+
+    The 'chutney' fixture pins a Chutney git qrevision, so things
+    shouldn't change. This network has two clients which are the only
+    nodes with valid SocksPort configuration ("008c" and "009c" 9008
+    and 9009)
+
+    The control ports start at 8000 (so the ControlPort for the client
+    nodes are 8008 and 8009).
 
     :param chutney: The root directory of a Chutney checkout and a dict of
         additional environment variables to set so a Python process can use
