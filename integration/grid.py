@@ -31,10 +31,8 @@ from twisted.internet.defer import (
 from twisted.internet.task import (
     deferLater,
 )
-from twisted.internet.interfaces import (
-    IProcessTransport,
-    IProcessProtocol,
-)
+from twisted.internet.protocol import ProcessProtocol  # see ticket 4056
+from twisted.internet.process import Process  # see ticket 4056
 from twisted.internet.error import ProcessTerminated
 
 from allmydata.node import read_config
@@ -71,11 +69,17 @@ class FlogGatherer(object):
     Flog Gatherer process.
     """
 
+    # it would be best to use attr.validators.provides() here with the
+    # corresponding Twisted interface (IProcessTransport,
+    # IProcessProtocol) but that is deprecated; please replace with
+    # our own "provides" as part of
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4056#ticket
+    # insisting on a subclass is narrower than necessary
     process = attr.ib(
-        validator=attr.validators.provides(IProcessTransport)
+        validator=attr.validators.instance_of(Process)
     )
     protocol = attr.ib(
-        validator=attr.validators.provides(IProcessProtocol)
+        validator=attr.validators.instance_of(ProcessProtocol)
     )
     furl = attr.ib()
 
@@ -155,7 +159,7 @@ class StorageServer(object):
         validator=attr.validators.instance_of(TahoeProcess)
     )
     protocol = attr.ib(
-        validator=attr.validators.provides(IProcessProtocol)
+        validator=attr.validators.instance_of(ProcessProtocol)
     )
 
     @inlineCallbacks
@@ -207,7 +211,7 @@ class Client(object):
         validator=attr.validators.instance_of(TahoeProcess)
     )
     protocol = attr.ib(
-        validator=attr.validators.provides(IProcessProtocol)
+        validator=attr.validators.instance_of(ProcessProtocol)
     )
     request = attr.ib()  # original request, for addfinalizer()
 
@@ -335,7 +339,7 @@ class Introducer(object):
         validator=attr.validators.instance_of(TahoeProcess)
     )
     protocol = attr.ib(
-        validator=attr.validators.provides(IProcessProtocol)
+        validator=attr.validators.instance_of(ProcessProtocol)
     )
     furl = attr.ib()
 
