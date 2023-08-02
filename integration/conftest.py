@@ -166,10 +166,12 @@ def flog_gatherer(reactor, temp_dir, flog_binary, request):
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:grid", include_args=[])
 def grid(reactor, request, temp_dir, flog_gatherer, port_allocator):
-    # XXX think: this creates an "empty" grid (introducer, no nodes);
-    # do we want to ensure it has some minimum storage-nodes at least?
-    # (that is, semantically does it make sense that 'a grid' is
-    # essentially empty, or not?)
+    """
+    Provides a new Grid with a single Introducer and flog-gathering process.
+
+    Notably does _not_ provide storage servers; use the storage_nodes
+    fixture if your tests need a Grid that can be used for puts / gets.
+    """
     g = pytest_twisted.blockon(
         create_grid(reactor, request, temp_dir, flog_gatherer, port_allocator)
     )
