@@ -7,7 +7,7 @@ from __future__ import annotations
 import os
 import sys
 import shutil
-from attr import define
+from attr import frozen
 from time import sleep
 from os import mkdir, environ
 from os.path import join, exists
@@ -28,6 +28,7 @@ from twisted.internet.error import (
 
 import pytest
 import pytest_twisted
+from typing import Mapping
 
 from .util import (
     _MagicTextProtocol,
