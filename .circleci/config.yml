@@ -531,6 +531,12 @@ jobs:
   #     PYTHON_VERSION: "2"
 
 executors:
+  windows:
+    # Choose a Windows environment that closest matches our testing
+    # requirements and goals.
+    # https://circleci.com/developer/orbs/orb/circleci/windows#executors-server-2022
+    executor: "win/server-2022@2023.06.1"
+
   nix:
     docker:
       # Run in a highly Nix-capable environment.
