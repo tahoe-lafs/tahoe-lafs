@@ -171,15 +171,16 @@ jobs:
 
       - "run":
           name: "Run Unit Tests"
-          environment:
-            TEST_SUITE: "allmydata.test.test_uri"
           command: |
             python -m tox -e py311-coverage
 
       - "run":
           name: "Upload Coverage"
+          environment:
+            COVERALLS_REPO_TOKEN: "JPf16rLB7T2yjgATIxFzTsEgMdN1UNq6o"
           command: |
             python -m pip install coveralls
+            python -m coveralls debug
             python -m coveralls
 
   pyinstaller:
