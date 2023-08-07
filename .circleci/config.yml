@@ -172,7 +172,7 @@ jobs:
       - "run":
           name: "Run Unit Tests"
           command: |
-            python -m tox
+            python -m tox -e py311-coverage
 
   pyinstaller:
     docker:
