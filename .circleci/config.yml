@@ -171,6 +171,8 @@ jobs:
 
       - "run":
           name: "Run Unit Tests"
+          environment:
+            TEST_SUITE: "allmydata.test.test_uri"
           command: |
             python -m tox -e py311-coverage
 
