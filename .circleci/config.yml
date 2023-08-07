@@ -11,6 +11,10 @@
 #
 version: 2.1
 
+orbs:
+  # Pull in CircleCI support for a Windows executor
+  windows: "circleci/windows@5.0.0"
+
 # Every job that pushes a Docker image from Docker Hub must authenticate to
 # it.  Define a couple yaml anchors that can be used to supply the necessary
 # credentials.
