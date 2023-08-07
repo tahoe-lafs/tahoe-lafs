@@ -161,6 +161,16 @@ jobs:
       - "run":
           <<: *INSTALL_TOX
 
+      - "run":
+          name: "Display tool versions"
+          command: |
+            python misc/build_helpers/show-tool-versions.py
+
+      - "run":
+          name: "Run Unit Tests"
+          command: |
+            python -m tox
+
   pyinstaller:
     docker:
       - <<: *DOCKERHUB_AUTH
