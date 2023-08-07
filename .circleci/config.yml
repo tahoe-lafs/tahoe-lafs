@@ -135,14 +135,6 @@ workflows:
     when: "<< pipeline.parameters.build-images >>"
 
 jobs:
-  windows-server-2022:
-    executor: "windows"
-    steps:
-      - "checkout"
-
-      - "run":
-          <<: *INSTALL_TOX
-
   codechecks:
     docker:
       - <<: *DOCKERHUB_AUTH
@@ -160,6 +152,14 @@ jobs:
           name: "Static-ish code checks"
           command: |
             ~/.local/bin/tox -e codechecks
+
+  windows-server-2022:
+    executor: "windows"
+    steps:
+      - "checkout"
+
+      - "run":
+          <<: *INSTALL_TOX
 
   pyinstaller:
     docker:
