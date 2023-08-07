@@ -557,7 +557,7 @@ executors:
     machine:
       image: "windows-server-2022-gui:2023.06.1"
       shell: "powershell.exe -ExecutionPolicy Bypass"
-    resource_class: "windows.medium"
+    resource_class: "windows.large"
 
   nix:
     docker:
