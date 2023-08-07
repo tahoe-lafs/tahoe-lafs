@@ -116,6 +116,8 @@ workflows:
       - "another-locale":
           {}
 
+      - "windows-server-2022"
+
       - "integration":
           # Run even the slow integration tests here.  We need the `--` to
           # sneak past tox and get to pytest.
@@ -137,6 +139,11 @@ workflows:
     when: "<< pipeline.parameters.build-images >>"
 
 jobs:
+  windows-server-2022:
+    steps:
+      - "run": |
+          Write-Host 'Hello, world.'
+
   codechecks:
     docker:
       - <<: *DOCKERHUB_AUTH
