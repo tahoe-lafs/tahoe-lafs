@@ -138,8 +138,10 @@ jobs:
   windows-server-2022:
     executor: "windows"
     steps:
-      - "run": |
-          Write-Host 'Hello, world.'
+      - "checkout"
+
+      - "run":
+          <<: *INSTALL_TOX
 
   codechecks:
     docker:
