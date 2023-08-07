@@ -136,10 +136,7 @@ workflows:
 
 jobs:
   windows-server-2022:
-    machine:
-      image: "windows-server-2022-gui:2023.06.1"
-      shell: "powershell.exe -ExecutionPolicy Bypass"
-    resource_class: "windows.medium"
+    executor: "windows"
     steps:
       - "run": |
           Write-Host 'Hello, world.'
@@ -543,7 +540,9 @@ executors:
     # requirements and goals.
     # https://circleci.com/developer/orbs/orb/circleci/windows#executors-server-2022
     machine:
-      image: "windows-server-2022-gui:current"
+      image: "windows-server-2022-gui:2023.06.1"
+      shell: "powershell.exe -ExecutionPolicy Bypass"
+    resource_class: "windows.medium"
 
   nix:
     docker:
