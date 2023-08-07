@@ -155,6 +155,9 @@ jobs:
 
   windows-server-2022:
     executor: "windows"
+    environment:
+      TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
+
     steps:
       - "checkout"
 
