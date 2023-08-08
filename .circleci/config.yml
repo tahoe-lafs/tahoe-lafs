@@ -199,9 +199,6 @@ jobs:
       - "checkout"
 
       - "run":
-          <<: *INSTALL_TOX
-
-      - "run":
           name: "Display tool versions"
           command: |
             py -<<parameters.pythonVersion>> misc/build_helpers/show-tool-versions.py
