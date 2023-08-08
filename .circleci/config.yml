@@ -195,7 +195,7 @@ jobs:
           command: |
             Get-Content -Path test-results.subunit2 -Raw | subunit2junitxml | Out-File -FilePath test-results.xml
 
-      - "store_test_results:
+      - "store_test_results":
           path: "test-results.xml"
 
       - "store_artifacts":
