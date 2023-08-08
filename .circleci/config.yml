@@ -112,7 +112,13 @@ workflows:
       - "another-locale":
           {}
 
-      - "windows-server-2022"
+      - "windows-server-2022":
+          name: "Windows Server 2022, Python <<matrix.pythonVersion>>"
+          matrix:
+            parameters:
+              pythonVersion:
+                - "3.9"
+                - "3.11"
 
       - "integration":
           # Run even the slow integration tests here.  We need the `--` to
@@ -154,6 +160,13 @@ jobs:
             ~/.local/bin/tox -e codechecks
 
   windows-server-2022:
+    parameters:
+      pythonVersion:
+        description: >-
+          An argument to pass to the `py` launcher to choose a Python version.
+        type: "string"
+        default: ""
+
     executor: "windows"
     environment:
       TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
@@ -167,12 +180,12 @@ jobs:
       - "run":
           name: "Display tool versions"
           command: |
-            python misc/build_helpers/show-tool-versions.py
+            py -<<parameters.pythonVersion>> misc/build_helpers/show-tool-versions.py
 
       - "run":
           name: "Install Dependencies"
           command: |
-            python -m pip install .[testenv] .[test]
+            py -<<parameters.pythonVersion>> -m pip install .[testenv] .[test]
 
       - "run":
           name: "Run Unit Tests"
@@ -180,15 +193,15 @@ jobs:
             SUBUNITREPORTER_OUTPUT_PATH: "test-results.subunit2"
             PYTHONUNBUFFERED: "1"
           command: |
-            python -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata
+            py -<<parameters.pythonVersion>> -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata
 
       - "run":
           name: "Upload Coverage"
           environment:
             COVERALLS_REPO_TOKEN: "JPf16rLB7T2yjgATIxFzTsEgMdN1UNq6o"
           command: |
-            python -m pip install coveralls
-            python -m coveralls
+            py -<<parameters.pythonVersion>> -m pip install coveralls
+            py -<<parameters.pythonVersion>> -m coveralls
 
       - "run":
           name: "Convert Result Log"
