@@ -235,6 +235,10 @@ jobs:
       - "run":
           name: "Convert Result Log"
           command: |
+            # The Python for which we installed subunit is not necessarily on
+            # %PATH% so (possibly) re-install it with the default Python.
+            python -m pip install subunit2junitxml junitxml
+
             Start-Process subunit2junitxml -Wait -RedirectStandardInput test-results.subunit2 -RedirectStandardOutput test-results.xml
 
       - "store_test_results":
