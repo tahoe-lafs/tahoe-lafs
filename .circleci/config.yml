@@ -180,7 +180,7 @@ jobs:
             SUBUNITREPORTER_OUTPUT_PATH: "test-results.subunit2"
             PYTHONUNBUFFERED: "1"
           command: |
-            python -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata
+            python -X utf8 -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata
 
       - "run":
           name: "Upload Coverage"
