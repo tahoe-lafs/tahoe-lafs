@@ -199,7 +199,10 @@ jobs:
           path: "test-results.xml"
 
       - "store_artifacts":
-          path: "test-results.xml"
+          path: "_trial_temp/test.log"
+
+      - "store_artifacts":
+          path: "eliot.log"
 
   pyinstaller:
     docker:
