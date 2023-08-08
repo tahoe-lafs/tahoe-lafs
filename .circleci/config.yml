@@ -170,9 +170,17 @@ jobs:
             python misc/build_helpers/show-tool-versions.py
 
       - "run":
-          name: "Run Unit Tests"
+          name: "Install Dependencies"
           command: |
-            python -m tox -e py311-coverage
+            python -m pip install .[testenv] .[test]
+
+      - "run":
+          name: "Run Unit Tests"
+          environment:
+            SUBUNITREPORTER_OUTPUT_PATH: "test-results.subunit2"
+            PYTHONUNBUFFERED: "1"
+          command: |
+            python -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata
 
       - "run":
           name: "Upload Coverage"
@@ -181,6 +189,14 @@ jobs:
           command: |
             python -m pip install coveralls
             python -m coveralls
+
+      - "run":
+          name: "Convert Result Log"
+          command: |
+            Get-Content -Path test-results.subunit2 -Raw | subunit2junitxml | Out-File -FilePath test-results.xml
+
+      - "store_artifacts":
+          path: "test-results.xml"
 
   pyinstaller:
     docker:
