@@ -237,7 +237,7 @@ jobs:
           command: |
             # The Python for which we installed subunit is not necessarily on
             # %PATH% so (possibly) re-install it with the default Python.
-            python -m pip install subunit2junitxml junitxml
+            python -m pip install subunit junitxml
 
             Start-Process subunit2junitxml -Wait -RedirectStandardInput test-results.subunit2 -RedirectStandardOutput test-results.xml
 
