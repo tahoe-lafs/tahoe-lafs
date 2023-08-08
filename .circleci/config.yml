@@ -193,7 +193,7 @@ jobs:
       - "run":
           name: "Convert Result Log"
           command: |
-            Get-Content -Path test-results.subunit2 -Raw | subunit2junitxml | Out-File -FilePath test-results.xml
+            subunit2junitxml <test-results.subunit2 >test-results.xml
 
       - "store_test_results":
           path: "test-results.xml"
