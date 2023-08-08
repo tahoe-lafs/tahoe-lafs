@@ -180,7 +180,7 @@ jobs:
             SUBUNITREPORTER_OUTPUT_PATH: "test-results.subunit2"
             PYTHONUNBUFFERED: "1"
           command: |
-            python -X utf8 -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata
+            python -X utf8 -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata.test.test_uri
 
       - "run":
           name: "Upload Coverage"
@@ -193,7 +193,7 @@ jobs:
       - "run":
           name: "Convert Result Log"
           command: |
-            subunit2junitxml <test-results.subunit2 >test-results.xml
+            Start-Process subunit2junitxml -Wait -RedirectStandardInput test-results.subunit2 -RedirectStandardOutput test-results.xml
 
       - "store_test_results":
           path: "test-results.xml"
