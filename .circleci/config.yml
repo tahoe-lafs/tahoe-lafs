@@ -24,6 +24,11 @@ version: 2.1
 dockerhub-context-template: &DOCKERHUB_CONTEXT
   context: "dockerhub-auth"
 
+# Required environment for using the coveralls tool to upload partial coverage
+# reports and then finish the process.
+coveralls-environment: &COVERALLS_ENVIRONMENT
+  COVERALLS_REPO_TOKEN: "JPf16rLB7T2yjgATIxFzTsEgMdN1UNq6o"
+
 # Next is a Docker executor template that gets the credentials from the
 # environment and supplies them to the executor.
 dockerhub-auth-template: &DOCKERHUB_AUTH
@@ -134,6 +139,11 @@ workflows:
       - "docs":
           {}
 
+      - "finish-coverage-report":
+          requires:
+            - "Windows Server 2022, Python 3.9"
+            - "Windows Server 2022, Python 3.11"
+
   images:
     <<: *IMAGES
 
@@ -141,6 +151,20 @@ workflows:
     when: "<< pipeline.parameters.build-images >>"
 
 jobs:
+  finish-coverage-report:
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "python:3-slim"
+
+    steps:
+      - run:
+          name: "Indicate completion to coveralls.io"
+          environment:
+            <<: *COVERALLS_ENVIRONMENT
+          command: |
+            pip install coveralls==3.2.0
+            python -m coveralls --finish
+
   codechecks:
     docker:
       - <<: *DOCKERHUB_AUTH
@@ -198,7 +222,15 @@ jobs:
       - "run":
           name: "Upload Coverage"
           environment:
-            COVERALLS_REPO_TOKEN: "JPf16rLB7T2yjgATIxFzTsEgMdN1UNq6o"
+            <<: *COVERALLS_ENVIRONMENT
+            # Mark the data as just one piece of many because we have more
+            # than one instance of this job (two on Windows now, some on other
+            # platforms later) which collects and reports coverage.  This is
+            # necessary to cause Coveralls to merge multiple coverage results
+            # into a single report.  Note the merge only happens when we
+            # "finish" a particular build, as identified by its "build_num"
+            # (aka "service_number").
+            COVERALLS_PARALLEL: "true"
           command: |
             py -<<parameters.pythonVersion>> -m pip install coveralls
             py -<<parameters.pythonVersion>> -m coveralls
