@@ -237,6 +237,7 @@ jobs:
           command: |
             # The Python for which we installed subunit is not necessarily on
             # %PATH% so (possibly) re-install it with the default Python.
+            Set-PSDebug -Trace 2
             python -m pip install subunit junitxml
             subunit2junitxml --output-to=test-results.xml test-results.subunit2
 
