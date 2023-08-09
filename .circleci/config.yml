@@ -197,7 +197,11 @@ jobs:
 
     executor: "windows"
     environment:
+      # Tweak Hypothesis to make its behavior more suitable for the CI
+      # environment.  This should improve reproducibility and lessen the
+      # effects of variable compute resources.
       TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
+
       # Tell pip where its download cache lives.  This must agree with the
       # "save_cache" step below or caching won't really work right.
       PIP_CACHE_DIR: "pip-cache"
@@ -205,6 +209,8 @@ jobs:
     steps:
       - "checkout"
 
+      # If possible, restore a pip download cache to save us from having to
+      # download all our Python dependencies from PyPI.
       - "restore_cache":
           keys:
             - "pip-packages-v1-{{ checksum \"setup.py\" }}"
