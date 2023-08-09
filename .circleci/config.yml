@@ -276,6 +276,9 @@ jobs:
       - "store_artifacts":
           path: "eliot.log"
 
+      - "store_artifacts":
+          path: ".coverage"
+
   pyinstaller:
     docker:
       - <<: *DOCKERHUB_AUTH
