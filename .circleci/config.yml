@@ -215,7 +215,7 @@ jobs:
             # install.  Note we carefully construct the string so that
             # $env:PATH is not substituted now but $p and $q are.  ` is the
             # PowerShell string escape character.
-            Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$p;$q;`$env:PATH`"'
+            Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$p;$q;`$env:PATH`"
 
       - "run":
           name: "Reveal $env:PATH"
