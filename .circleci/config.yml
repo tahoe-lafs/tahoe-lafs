@@ -215,9 +215,18 @@ jobs:
       - "run":
           name: "Run Unit Tests"
           environment:
+            # Configure the results location for the subunitv2-file reporter
+            # from subunitreporter
             SUBUNITREPORTER_OUTPUT_PATH: "test-results.subunit2"
+
+            # Try to get prompt output from the reporter to avoid no-output
+            # timeouts.
             PYTHONUNBUFFERED: "1"
+
           command: |
+            # Run the test suite under coverage measurement using the
+            # parameterized version of Python, writing subunitv2-format
+            # results to the file given in the environment.
             py -<<parameters.pythonVersion>> -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata
 
       - "run":
