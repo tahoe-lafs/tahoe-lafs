@@ -258,14 +258,15 @@ jobs:
           name: "Convert Result Log"
           command: |
             # The Python for which we installed subunit is not necessarily on
-            # %PATH% so (possibly) re-install it with the default Python.
-            python -m pip install python-subunit junitxml
+            # %PATH% so put it there.
+            $p = py -<<parameters.pythonVersion>> -c "import sys; print(sys.prefix)"
+            $env:PATH = "$env:PATH;$p\Scripts"
 
             # subunit2junitxml exits with error if the result stream it is
             # converting has test failures in it!  So this step might fail.
             # Since the step in which we actually _ran_ the tests won't fail
             # even if there are test failures, this is a good thing for now.
-            subunit2junitxml --output-to=test-results.xml test-results.subunit2
+            subunit2junitxml.exe --output-to=test-results.xml test-results.subunit2
 
       - "store_test_results":
           path: "test-results.xml"
