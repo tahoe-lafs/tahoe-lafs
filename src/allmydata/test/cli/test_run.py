@@ -276,5 +276,4 @@ class RunTests(SyncTestCase):
         pidfile.setContent(content.encode("utf8"))
 
         with self.assertRaises(InvalidPidFile):
-            with check_pid_process(pidfile):
-                pass
+            check_pid_process(pidfile)
