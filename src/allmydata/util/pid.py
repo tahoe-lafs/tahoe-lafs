@@ -4,6 +4,8 @@ import psutil
 # or UnixFileLock depending upon the platform we're currently on
 from filelock import FileLock, Timeout
 
+from twisted.python.filepath import FilePath
+
 
 class ProcessInTheWay(Exception):
     """
@@ -31,10 +33,12 @@ def _pidfile_to_lockpath(pidfile):
     return pidfile.sibling("{}.lock".format(pidfile.basename()))
 
 
-def parse_pidfile(pidfile):
+def parse_pidfile(pidfile: FilePath) -> tuple[int, float]:
     """
-    :param FilePath pidfile:
-    :returns tuple: 2-tuple of pid, creation-time as int, float
+    :param pidfile: The path to the file to parse.
+
+    :return: 2-tuple of pid, creation-time as int, float
+
     :raises InvalidPidFile: on error
     """
     with pidfile.open("r") as f:
@@ -49,6 +53,8 @@ def parse_pidfile(pidfile):
                 pidfile
             )
         )
+    if pid <= 0 or starttime < 0:
+        raise InvalidPidFile(f"Found value out of bounds: pid={pid} time={starttime}")
     return pid, starttime
 
 

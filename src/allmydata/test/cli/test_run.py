@@ -5,11 +5,12 @@ Tests for ``allmydata.scripts.tahoe_run``.
 from __future__ import annotations
 
 import re
+from sys import float_info
 from six.moves import (
     StringIO,
 )
 
-from hypothesis.strategies import text
+from hypothesis.strategies import text, floats, integers, one_of
 from hypothesis import given, assume
 
 from testtools.matchers import (
@@ -264,16 +265,44 @@ class RunTests(SyncTestCase):
         self.assertThat(runs, Equals([]))
         self.assertThat(result_code, Equals(1))
 
-    good_file_content_re = re.compile(r"\w[0-9]*\w[0-9]*\w")
+    good_file_content_re = re.compile(
+        r"^"                 # start at the beginning
+        r"\w*"               # any amount of whitespace
+        r"[1-9][0-9]*"       # a pid is a positive integer
+        r"\w+"               # any amount of whitespace separates the two fields
 
-    @given(text())
+        r"[0-9]+(\.[0-9]*)?" # a time is a base ten floating point
+                             # representation that's an integer-like sequence
+                             # optionally followed by a decimal point and
+                             # another integer-like sequence.  0.0 is allowed
+                             # so there is no requirement for the integer-like
+                             # sequences to begin with non-zero.
+
+        r"\w*"               # any amount of whitespace
+        r"$"                 # stop at the end
+    )
+
+    @given(one_of(
+        # Search the whole space for an input that will trip us up
+        text().filter(
+            # But we're testing the exception path so exclude strings we
+            # specifically know are valid.
+            lambda s, re=good_file_content_re: re.search(s) is None
+        ),
+        # Also try some more focused strategies where at least the structure
+        # and one field are valid.
+        integers(max_value=0).map(lambda p: f"{p} 123.45"),
+        floats(max_value=-float_info.min).map(lambda t: f"123 {t}"),
+     ))
     def test_pidfile_contents(self, content):
         """
         invalid contents for a pidfile raise errors
         """
-        assume(not self.good_file_content_re.match(content))
         pidfile = FilePath("pidfile")
         pidfile.setContent(content.encode("utf8"))
 
+        # Since we've excluded structurally invalid values from the serialized
+        # string as well as syntactically invalid strings the only possible
+        # result should be InvalidPidFile.
         with self.assertRaises(InvalidPidFile):
             check_pid_process(pidfile)
