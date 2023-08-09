@@ -203,14 +203,25 @@ jobs:
       - "checkout"
 
       - "run":
+          name: "Fix $env:PATH"
+          command: |
+            # The Python for which we installed subunit is not necessarily on
+            # %PATH% so put it there.
+            # gets tools from packages we install.
+            $p = py -<<parameters.pythonVersion>> -c "import sys; print(sys.prefix)"
+            New-Item $Profile.CurrentUserAllHosts -Force
+            # $p gets "python" on PATH and $p\Scripts
+            Add-Content -Path $Profile.CurrentUserAllHosts -Value '$env:PATH = "$p;$p\Scripts;$env:PATH"'
+
+      - "run":
           name: "Display tool versions"
           command: |
-            py -<<parameters.pythonVersion>> misc/build_helpers/show-tool-versions.py
+            python misc/build_helpers/show-tool-versions.py
 
       - "run":
           name: "Install Dependencies"
           command: |
-            py -<<parameters.pythonVersion>> -m pip install .[testenv] .[test]
+            python -m pip install .[testenv] .[test]
 
       - "run":
           name: "Run Unit Tests"
@@ -227,7 +238,7 @@ jobs:
             # Run the test suite under coverage measurement using the
             # parameterized version of Python, writing subunitv2-format
             # results to the file given in the environment.
-            py -<<parameters.pythonVersion>> -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata.test.test_uri
+            python -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata.test.test_uri
 
       - "run":
           name: "Upload Coverage"
@@ -242,26 +253,21 @@ jobs:
             # (aka "service_number").
             COVERALLS_PARALLEL: "true"
           command: |
-            py -<<parameters.pythonVersion>> -m pip install coveralls==3.3.1
+            python -m pip install coveralls==3.3.1
 
             # .coveragerc sets parallel = True so we don't have a `.coverage`
             # file but a `.coverage.<unique stuff>` file (or maybe more than
             # one, but probably not).  coveralls can't work with these so
             # merge them before invoking it.
-            py -<<parameters.pythonVersion>> -m coverage combine
+            python -m coverage combine
 
             # Now coveralls will be able to find the data, so have it do the
             # upload.
-            py -<<parameters.pythonVersion>> -m coveralls
+            python -m coveralls
 
       - "run":
           name: "Convert Result Log"
           command: |
-            # The Python for which we installed subunit is not necessarily on
-            # %PATH% so put it there.
-            $p = py -<<parameters.pythonVersion>> -c "import sys; print(sys.prefix)"
-            $env:PATH = "$env:PATH;$p\Scripts"
-
             # subunit2junitxml exits with error if the result stream it is
             # converting has test failures in it!  So this step might fail.
             # Since the step in which we actually _ran_ the tests won't fail
