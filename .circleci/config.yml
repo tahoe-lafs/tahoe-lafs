@@ -221,11 +221,6 @@ jobs:
             Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$p;$q;`$env:PATH`""
 
       - "run":
-          name: "Reveal $env:PATH"
-          command: |
-            $env:PATH
-
-      - "run":
           name: "Display tool versions"
           command: |
             python misc/build_helpers/show-tool-versions.py
