@@ -214,7 +214,6 @@ jobs:
       - "restore_cache":
           keys:
             - "pip-packages-v1-{{ checksum \"setup.py\" }}"
-            - "pip-packages-v1-"
 
       - "run":
           name: "Fix $env:PATH"
