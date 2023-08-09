@@ -243,6 +243,7 @@ jobs:
             COVERALLS_PARALLEL: "true"
           command: |
             py -<<parameters.pythonVersion>> -m pip install coveralls==3.3.1
+            py -<<parameters.pythonVersion>> -m coveralls debug
             py -<<parameters.pythonVersion>> -m coveralls
 
       - "run":
