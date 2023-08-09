@@ -207,11 +207,15 @@ jobs:
           command: |
             # The Python for which we installed subunit is not necessarily on
             # %PATH% so put it there.
-            # gets tools from packages we install.
             $p = py -<<parameters.pythonVersion>> -c "import sys; print(sys.prefix)"
+            $q = py -<<parameters.pythonVersion>> -c "import sysconfig; print(sysconfig.get_path('scripts'))"
+
             New-Item $Profile.CurrentUserAllHosts -Force
-            # $p gets "python" on PATH and $p\Scripts
-            Add-Content -Path $Profile.CurrentUserAllHosts -Value '$env:PATH = "$p;$p\Scripts;$env:PATH"'
+            # $p gets "python" on PATH and $q gets tools from packages we
+            # install.  Note we carefully construct the string so that
+            # $env:PATH is not substituted now but $p and $q are.  ` is the
+            # PowerShell string escape character.
+            Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$p;$q;`$env:PATH`"'
 
       - "run":
           name: "Reveal $env:PATH"
