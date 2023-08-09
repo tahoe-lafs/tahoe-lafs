@@ -166,7 +166,7 @@ jobs:
           environment:
             <<: *COVERALLS_ENVIRONMENT
           command: |
-            pip install coveralls==3.2.0
+            pip install coveralls==3.3.1
             python -m coveralls --finish
 
   codechecks:
@@ -233,7 +233,7 @@ jobs:
             # (aka "service_number").
             COVERALLS_PARALLEL: "true"
           command: |
-            py -<<parameters.pythonVersion>> -m pip install coveralls
+            py -<<parameters.pythonVersion>> -m pip install coveralls==3.3.1
             py -<<parameters.pythonVersion>> -m coveralls
 
       - "run":
