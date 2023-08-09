@@ -198,9 +198,17 @@ jobs:
     executor: "windows"
     environment:
       TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
+      # Tell pip where its download cache lives.  This must agree with the
+      # "save_cache" step below or caching won't really work right.
+      PIP_CACHE_DIR: "pip-cache"
 
     steps:
       - "checkout"
+
+      - "restore_cache":
+          keys:
+            - "pip-packages-v1-{{ checksum \"setup.py\" }}"
+            - "pip-packages-v1-"
 
       - "run":
           name: "Fix $env:PATH"
@@ -229,6 +237,12 @@ jobs:
           name: "Install Dependencies"
           command: |
             python -m pip install .[testenv] .[test]
+
+      - "save_cache":
+          paths:
+            # Make sure this agrees with PIP_CACHE_DIR in the environment.
+            - "pip-cache"
+          key: "pip-packages-v1-{{ checksum \"setup.py\" }}"
 
       - "run":
           name: "Run Unit Tests"
