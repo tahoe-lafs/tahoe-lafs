@@ -227,7 +227,7 @@ jobs:
             # Run the test suite under coverage measurement using the
             # parameterized version of Python, writing subunitv2-format
             # results to the file given in the environment.
-            py -<<parameters.pythonVersion>> -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata
+            py -<<parameters.pythonVersion>> -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata.test.test_uri
 
       - "run":
           name: "Upload Coverage"
