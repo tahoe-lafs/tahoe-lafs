@@ -17,11 +17,13 @@ if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, range, max, min  # noqa: F401
 
 from past.builtins import long
+from typing import Dict
 
 from zope.interface import Interface, Attribute
 from twisted.plugin import (
     IPlugin,
 )
+from twisted.internet.defer import Deferred
 from foolscap.api import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
      ChoiceOf, IntegerConstraint, Any, RemoteInterface, Referenceable
 
@@ -41,7 +43,8 @@ URI = StringConstraint(300) # kind of arbitrary
 
 MAX_BUCKETS = 256  # per peer -- zfec offers at most 256 shares per file
 
-DEFAULT_MAX_SEGMENT_SIZE = 128*1024
+# The default size for segments of new CHK ("immutable") uploads.
+DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE = 1024*1024
 
 ShareData = StringConstraint(None)
 URIExtensionData = StringConstraint(1000)
@@ -306,12 +309,15 @@ class RIStorageServer(RemoteInterface):
         store that on disk.
         """
 
+# The result of IStorageServer.get_version():
+VersionMessage = Dict[bytes, object]
+
 
 class IStorageServer(Interface):
     """
     An object capable of storing shares for a storage client.
     """
-    def get_version():
+    def get_version() -> Deferred[VersionMessage]:
         """
         :see: ``RIStorageServer.get_version``
         """
@@ -492,47 +498,6 @@ class IStorageBroker(Interface):
         @return: unicode nickname, or None
         """
 
-    # methods moved from IntroducerClient, need review
-    def get_all_connections():
-        """Return a frozenset of (nodeid, service_name, rref) tuples, one for
-        each active connection we've established to a remote service. This is
-        mostly useful for unit tests that need to wait until a certain number
-        of connections have been made."""
-
-    def get_all_connectors():
-        """Return a dict that maps from (nodeid, service_name) to a
-        RemoteServiceConnector instance for all services that we are actively
-        trying to connect to. Each RemoteServiceConnector has the following
-        public attributes::
-
-          service_name: the type of service provided, like 'storage'
-          last_connect_time: when we last established a connection
-          last_loss_time: when we last lost a connection
-
-          version: the peer's version, from the most recent connection
-          oldest_supported: the peer's oldest supported version, same
-
-          rref: the RemoteReference, if connected, otherwise None
-
-        This method is intended for monitoring interfaces, such as a web page
-        that describes connecting and connected peers.
-        """
-
-    def get_all_peerids():
-        """Return a frozenset of all peerids to whom we have a connection (to
-        one or more services) established. Mostly useful for unit tests."""
-
-    def get_all_connections_for(service_name):
-        """Return a frozenset of (nodeid, service_name, rref) tuples, one
-        for each active connection that provides the given SERVICE_NAME."""
-
-    def get_permuted_peers(service_name, key):
-        """Returns an ordered list of (peerid, rref) tuples, selecting from
-        the connections that provide SERVICE_NAME, using a hash-based
-        permutation keyed by KEY. This randomizes the service list in a
-        repeatable way, to distribute load over many peers.
-        """
-
 
 class IDisplayableServer(Interface):
     def get_nickname():
@@ -550,14 +515,10 @@ class IServer(IDisplayableServer):
     def start_connecting(trigger_cb):
         pass
 
-    def get_rref():
-        """Obsolete.  Use ``get_storage_server`` instead.
-
-        Once a server is connected, I return a RemoteReference.
-        Before a server is connected for the first time, I return None.
-
-        Note that the rref I return will start producing DeadReferenceErrors
-        once the connection is lost.
+    def upload_permitted():
+        """
+        :return: True if we should use this server for uploads, False
+            otherwise.
         """
 
     def get_storage_server():
@@ -568,8 +529,6 @@ class IServer(IDisplayableServer):
         Note that the ``IStorageServer`` I return will start producing
         DeadReferenceErrors once the connection is lost.
         """
-
-
 
 
 class IMutableSlotWriter(Interface):
@@ -1442,7 +1401,7 @@ class IDirectoryNode(IFilesystemNode):
         is a file, or if must_be_file is True and the child is a directory,
         I raise ChildOfWrongTypeError."""
 
-    def create_subdirectory(name, initial_children={}, overwrite=True,
+    def create_subdirectory(name, initial_children=None, overwrite=True,
                             mutable=True, mutable_version=None, metadata=None):
         """I create and attach a directory at the given name. The new
         directory can be empty, or it can be populated with children
@@ -2581,7 +2540,7 @@ class IClient(Interface):
         @return: a Deferred that fires with an IMutableFileNode instance.
         """
 
-    def create_dirnode(initial_children={}):
+    def create_dirnode(initial_children=None):
         """Create a new unattached dirnode, possibly with initial children.
 
         @param initial_children: dict with keys that are unicode child names,
@@ -2636,7 +2595,7 @@ class INodeMaker(Interface):
         for use by unit tests, to create mutable files that are smaller than
         usual."""
 
-    def create_new_mutable_directory(initial_children={}):
+    def create_new_mutable_directory(initial_children=None):
         """I create a new mutable directory, and return a Deferred that will
         fire with the IDirectoryNode instance when it is ready. If
         initial_children= is provided (a dict mapping unicode child name to

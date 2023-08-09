@@ -117,6 +117,10 @@ from subprocess import (
     PIPE,
 )
 
+# Is the process running as an OS user with elevated privileges (ie, root)?
+# We only know how to determine this for POSIX systems.
+superuser = getattr(os, "getuid", lambda: -1)() == 0
+
 EMPTY_CLIENT_CONFIG = config_from_string(
     "/dev/null",
     "tub.port",

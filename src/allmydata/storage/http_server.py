@@ -4,30 +4,46 @@ HTTP server for storage.
 
 from __future__ import annotations
 
-from typing import Dict, List, Set, Tuple, Any, Callable, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Union,
+    cast,
+    Optional,
+    TypeVar,
+    Sequence,
+    Protocol,
+    Dict,
+)
+from typing_extensions import ParamSpec, Concatenate
 from functools import wraps
 from base64 import b64decode
 import binascii
 from tempfile import TemporaryFile
 from os import SEEK_END, SEEK_SET
 import mmap
-from importlib.metadata import version as get_package_version, PackageNotFoundError
 
+from eliot import start_action
 from cryptography.x509 import Certificate as CryptoCertificate
 from zope.interface import implementer
-from klein import Klein
+from klein import Klein, KleinRenderable
+from klein.resource import KleinResource
 from twisted.web import http
 from twisted.internet.interfaces import (
     IListeningPort,
     IStreamServerEndpoint,
     IPullProducer,
+    IProtocolFactory,
 )
 from twisted.internet.address import IPv4Address, IPv6Address
 from twisted.internet.defer import Deferred
 from twisted.internet.ssl import CertificateOptions, Certificate, PrivateCertificate
+from twisted.internet.interfaces import IReactorFromThreads
 from twisted.web.server import Site, Request
+from twisted.web.iweb import IRequest
 from twisted.protocols.tls import TLSMemoryBIOFactory
 from twisted.python.filepath import FilePath
+from twisted.python.failure import Failure
 
 from attrs import define, field, Factory
 from werkzeug.http import (
@@ -57,21 +73,9 @@ from .common import si_a2b
 from .immutable import BucketWriter, ConflictingWriteError
 from ..util.hashutil import timing_safe_compare
 from ..util.base32 import rfc3548_alphabet
+from ..util.deferredutil import async_to_deferred
+from ..util.cputhreadpool import defer_to_thread
 from allmydata.interfaces import BadWriteEnablerError
-
-
-# Until we figure out Nix (https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3963),
-# need to support old pycddl which can only take bytes:
-from distutils.version import LooseVersion
-
-try:
-    PYCDDL_BYTES_ONLY = LooseVersion(get_package_version("pycddl")) < LooseVersion(
-        "0.4"
-    )
-except PackageNotFoundError:
-    # This can happen when building PyInstaller distribution. We'll just assume
-    # you installed a modern pycddl, cause why wouldn't you?
-    PYCDDL_BYTES_ONLY = False
 
 
 class ClientSecretsException(Exception):
@@ -79,14 +83,14 @@ class ClientSecretsException(Exception):
 
 
 def _extract_secrets(
-    header_values, required_secrets
-):  # type: (List[str], Set[Secrets]) -> Dict[Secrets, bytes]
+    header_values: Sequence[str], required_secrets: set[Secrets]
+) -> dict[Secrets, bytes]:
     """
     Given list of values of ``X-Tahoe-Authorization`` headers, and required
     secrets, return dictionary mapping secrets to decoded values.
 
     If too few secrets were given, or too many, a ``ClientSecretsException`` is
-    raised.
+    raised; its text is sent in the HTTP response.
     """
     string_key_to_enum = {e.value: e for e in Secrets}
     result = {}
@@ -95,6 +99,10 @@ def _extract_secrets(
             string_key, string_value = header_value.strip().split(" ", 1)
             key = string_key_to_enum[string_key]
             value = b64decode(string_value)
+            if value == b"":
+                raise ClientSecretsException(
+                    "Failed to decode secret {}".format(string_key)
+                )
             if key in (Secrets.LEASE_CANCEL, Secrets.LEASE_RENEW) and len(value) != 32:
                 raise ClientSecretsException("Lease secrets must be 32 bytes long")
             result[key] = value
@@ -102,44 +110,115 @@ def _extract_secrets(
         raise ClientSecretsException("Bad header value(s): {}".format(header_values))
     if result.keys() != required_secrets:
         raise ClientSecretsException(
-            "Expected {} secrets, got {}".format(required_secrets, result.keys())
+            "Expected {} in X-Tahoe-Authorization headers, got {}".format(
+                [r.value for r in required_secrets], list(result.keys())
+            )
         )
     return result
 
 
-def _authorization_decorator(required_secrets):
+class BaseApp(Protocol):
+    """Protocol for ``HTTPServer`` and testing equivalent."""
+
+    _swissnum: bytes
+
+
+P = ParamSpec("P")
+T = TypeVar("T")
+SecretsDict = Dict[Secrets, bytes]
+App = TypeVar("App", bound=BaseApp)
+
+
+def _authorization_decorator(
+    required_secrets: set[Secrets],
+) -> Callable[
+    [Callable[Concatenate[App, Request, SecretsDict, P], T]],
+    Callable[Concatenate[App, Request, P], T],
+]:
     """
-    Check the ``Authorization`` header, and extract ``X-Tahoe-Authorization``
-    headers and pass them in.
+    1. Check the ``Authorization`` header matches server swissnum.
+    2. Extract ``X-Tahoe-Authorization`` headers and pass them in.
+    3. Log the request and response.
     """
 
-    def decorator(f):
+    def decorator(
+        f: Callable[Concatenate[App, Request, SecretsDict, P], T]
+    ) -> Callable[Concatenate[App, Request, P], T]:
         @wraps(f)
-        def route(self, request, *args, **kwargs):
-            if not timing_safe_compare(
-                request.requestHeaders.getRawHeaders("Authorization", [""])[0].encode(
-                    "utf-8"
-                ),
-                swissnum_auth_header(self._swissnum),
-            ):
-                request.setResponseCode(http.UNAUTHORIZED)
-                return b""
-            authorization = request.requestHeaders.getRawHeaders(
-                "X-Tahoe-Authorization", []
-            )
-            try:
-                secrets = _extract_secrets(authorization, required_secrets)
-            except ClientSecretsException:
-                request.setResponseCode(http.BAD_REQUEST)
-                return b"Missing required secrets"
-            return f(self, request, secrets, *args, **kwargs)
+        def route(
+            self: App,
+            request: Request,
+            *args: P.args,
+            **kwargs: P.kwargs,
+        ) -> T:
+            # Don't set text/html content type by default.
+            # None is actually supported, see https://github.com/twisted/twisted/issues/11902
+            request.defaultContentType = None  # type: ignore[assignment]
+
+            with start_action(
+                action_type="allmydata:storage:http-server:handle-request",
+                method=request.method,
+                path=request.path,
+            ) as ctx:
+                try:
+                    # Check Authorization header:
+                    try:
+                        auth_header = request.requestHeaders.getRawHeaders(
+                            "Authorization", [""]
+                        )[0].encode("utf-8")
+                    except UnicodeError:
+                        raise _HTTPError(http.BAD_REQUEST, "Bad Authorization header")
+                    if not timing_safe_compare(
+                        auth_header,
+                        swissnum_auth_header(self._swissnum),
+                    ):
+                        raise _HTTPError(
+                            http.UNAUTHORIZED, "Wrong Authorization header"
+                        )
+
+                    # Check secrets:
+                    authorization = request.requestHeaders.getRawHeaders(
+                        "X-Tahoe-Authorization", []
+                    )
+                    try:
+                        secrets = _extract_secrets(authorization, required_secrets)
+                    except ClientSecretsException as e:
+                        raise _HTTPError(http.BAD_REQUEST, str(e))
+
+                    # Run the business logic:
+                    result = f(self, request, secrets, *args, **kwargs)
+                except _HTTPError as e:
+                    # This isn't an error necessarily for logging purposes,
+                    # it's an implementation detail, an easier way to set
+                    # response codes.
+                    ctx.add_success_fields(response_code=e.code)
+                    ctx.finish()
+                    raise
+                else:
+                    ctx.add_success_fields(response_code=request.code)
+                    return result
 
         return route
 
     return decorator
 
 
-def _authorized_route(app, required_secrets, *route_args, **route_kwargs):
+def _authorized_route(
+    klein_app: Klein,
+    required_secrets: set[Secrets],
+    url: str,
+    *route_args: Any,
+    branch: bool = False,
+    **route_kwargs: Any,
+) -> Callable[
+    [
+        Callable[
+            Concatenate[App, Request, SecretsDict, P],
+            KleinRenderable,
+        ]
+    ],
+    Callable[..., KleinRenderable],
+]:
     """
     Like Klein's @route, but with additional support for checking the
     ``Authorization`` header as well as ``X-Tahoe-Authorization`` headers.  The
@@ -149,12 +228,23 @@ def _authorized_route(app, required_secrets, *route_args, **route_kwargs):
     :param required_secrets: Set of required ``Secret`` types.
     """
 
-    def decorator(f):
-        @app.route(*route_args, **route_kwargs)
+    def decorator(
+        f: Callable[
+            Concatenate[App, Request, SecretsDict, P],
+            KleinRenderable,
+        ]
+    ) -> Callable[..., KleinRenderable]:
+        @klein_app.route(url, *route_args, branch=branch, **route_kwargs)  # type: ignore[arg-type]
         @_authorization_decorator(required_secrets)
         @wraps(f)
-        def handle_route(*args, **kwargs):
-            return f(*args, **kwargs)
+        def handle_route(
+            app: App,
+            request: Request,
+            secrets: SecretsDict,
+            *args: P.args,
+            **kwargs: P.kwargs,
+        ) -> KleinRenderable:
+            return f(app, request, secrets, *args, **kwargs)
 
         return handle_route
 
@@ -185,7 +275,7 @@ class UploadsInProgress(object):
     _uploads: dict[bytes, StorageIndexUploads] = Factory(dict)
 
     # Map BucketWriter to (storage index, share number)
-    _bucketwriters: dict[BucketWriter, Tuple[bytes, int]] = Factory(dict)
+    _bucketwriters: dict[BucketWriter, tuple[bytes, int]] = Factory(dict)
 
     def add_write_bucket(
         self,
@@ -210,7 +300,7 @@ class UploadsInProgress(object):
         except (KeyError, IndexError):
             raise _HTTPError(http.NOT_FOUND)
 
-    def remove_write_bucket(self, bucket: BucketWriter):
+    def remove_write_bucket(self, bucket: BucketWriter) -> None:
         """Stop tracking the given ``BucketWriter``."""
         try:
             storage_index, share_number = self._bucketwriters.pop(bucket)
@@ -226,7 +316,7 @@ class UploadsInProgress(object):
 
     def validate_upload_secret(
         self, storage_index: bytes, share_number: int, upload_secret: bytes
-    ):
+    ) -> None:
         """
         Raise an unauthorized-HTTP-response exception if the given
         storage_index+share_number have a different upload secret than the
@@ -248,7 +338,7 @@ class StorageIndexConverter(BaseConverter):
 
     regex = "[" + str(rfc3548_alphabet, "ascii") + "]{26}"
 
-    def to_python(self, value):
+    def to_python(self, value: str) -> bytes:
         try:
             return si_a2b(value.encode("ascii"))
         except (AssertionError, binascii.Error, ValueError):
@@ -260,8 +350,10 @@ class _HTTPError(Exception):
     Raise from ``HTTPServer`` endpoint to return the given HTTP response code.
     """
 
-    def __init__(self, code: int):
+    def __init__(self, code: int, body: Optional[str] = None):
+        Exception.__init__(self, (code, body))
         self.code = code
+        self.body = body
 
 
 # CDDL schemas.
@@ -285,7 +377,7 @@ _SCHEMAS = {
     "advise_corrupt_share": Schema(
         """
     request = {
-      reason: tstr
+      reason: tstr .size (1..32765)
     }
     """
     ),
@@ -325,7 +417,7 @@ class _ReadAllProducer:
     start: int = field(default=0)
 
     @classmethod
-    def produce_to(cls, request: Request, read_data: ReadData) -> Deferred:
+    def produce_to(cls, request: Request, read_data: ReadData) -> Deferred[bytes]:
         """
         Create and register the producer, returning ``Deferred`` that should be
         returned from a HTTP server endpoint.
@@ -334,7 +426,7 @@ class _ReadAllProducer:
         request.registerProducer(producer, False)
         return producer.result
 
-    def resumeProducing(self):
+    def resumeProducing(self) -> None:
         data = self.read_data(self.start, 65536)
         if not data:
             self.request.unregisterProducer()
@@ -345,10 +437,10 @@ class _ReadAllProducer:
         self.request.write(data)
         self.start += len(data)
 
-    def pauseProducing(self):
+    def pauseProducing(self) -> None:
         pass
 
-    def stopProducing(self):
+    def stopProducing(self) -> None:
         pass
 
 
@@ -360,13 +452,16 @@ class _ReadRangeProducer:
     a request.
     """
 
-    request: Request
+    request: Optional[Request]
     read_data: ReadData
-    result: Deferred
+    result: Optional[Deferred[bytes]]
     start: int
     remaining: int
 
-    def resumeProducing(self):
+    def resumeProducing(self) -> None:
+        if self.result is None or self.request is None:
+            return
+
         to_read = min(self.remaining, 65536)
         data = self.read_data(self.start, to_read)
         assert len(data) <= to_read
@@ -400,10 +495,10 @@ class _ReadRangeProducer:
         if self.remaining == 0:
             self.stopProducing()
 
-    def pauseProducing(self):
+    def pauseProducing(self) -> None:
         pass
 
-    def stopProducing(self):
+    def stopProducing(self) -> None:
         if self.request is not None:
             self.request.unregisterProducer()
             self.request = None
@@ -415,7 +510,7 @@ class _ReadRangeProducer:
 
 def read_range(
     request: Request, read_data: ReadData, share_length: int
-) -> Union[Deferred, bytes]:
+) -> Union[Deferred[bytes], bytes]:
     """
     Read an optional ``Range`` header, reads data appropriately via the given
     callable, writes the data to the request.
@@ -452,6 +547,8 @@ def read_range(
         raise _HTTPError(http.REQUESTED_RANGE_NOT_SATISFIABLE)
 
     offset, end = range_header.ranges[0]
+    assert end is not None  # should've exited in block above this if so
+
     # If we're being ask to read beyond the length of the share, just read
     # less:
     end = min(end, share_length)
@@ -470,7 +567,7 @@ def read_range(
         ContentRange("bytes", offset, end).to_header(),
     )
 
-    d = Deferred()
+    d: Deferred[bytes] = Deferred()
     request.registerProducer(
         _ReadRangeProducer(
             request, read_data_with_error_handling, d, offset, end - offset
@@ -480,29 +577,98 @@ def read_range(
     return d
 
 
-class HTTPServer(object):
+def _add_error_handling(app: Klein) -> None:
+    """Add exception handlers to a Klein app."""
+
+    @app.handle_errors(_HTTPError)
+    def _http_error(self: Any, request: IRequest, failure: Failure) -> KleinRenderable:
+        """Handle ``_HTTPError`` exceptions."""
+        assert isinstance(failure.value, _HTTPError)
+        request.setResponseCode(failure.value.code)
+        if failure.value.body is not None:
+            return failure.value.body
+        else:
+            return b""
+
+    @app.handle_errors(CDDLValidationError)
+    def _cddl_validation_error(
+        self: Any, request: IRequest, failure: Failure
+    ) -> KleinRenderable:
+        """Handle CDDL validation errors."""
+        request.setResponseCode(http.BAD_REQUEST)
+        return str(failure.value).encode("utf-8")
+
+
+async def read_encoded(
+    reactor, request, schema: Schema, max_size: int = 1024 * 1024
+) -> Any:
+    """
+    Read encoded request body data, decoding it with CBOR by default.
+
+    Somewhat arbitrarily, limit body size to 1MiB by default.
+    """
+    content_type = get_content_type(request.requestHeaders)
+    if content_type is None:
+        content_type = CBOR_MIME_TYPE
+    if content_type != CBOR_MIME_TYPE:
+        raise _HTTPError(http.UNSUPPORTED_MEDIA_TYPE)
+
+    # Make sure it's not too large:
+    request.content.seek(0, SEEK_END)
+    size = request.content.tell()
+    if size > max_size:
+        raise _HTTPError(http.REQUEST_ENTITY_TOO_LARGE)
+    request.content.seek(0, SEEK_SET)
+
+    # We don't want to load the whole message into memory, cause it might
+    # be quite large. The CDDL validator takes a read-only bytes-like
+    # thing. Luckily, for large request bodies twisted.web will buffer the
+    # data in a file, so we can use mmap() to get a memory view. The CDDL
+    # validator will not make a copy, so it won't increase memory usage
+    # beyond that.
+    try:
+        fd = request.content.fileno()
+    except (ValueError, OSError):
+        fd = -1
+    if fd >= 0:
+        # It's a file, so we can use mmap() to save memory.
+        message = mmap.mmap(fd, 0, access=mmap.ACCESS_READ)
+    else:
+        message = request.content.read()
+
+    # Pycddl will release the GIL when validating larger documents, so
+    # let's take advantage of multiple CPUs:
+    if size > 10_000:
+        await defer_to_thread(reactor, schema.validate_cbor, message)
+    else:
+        schema.validate_cbor(message)
+
+    # The CBOR parser will allocate more memory, but at least we can feed
+    # it the file-like object, so that if it's large it won't be make two
+    # copies.
+    request.content.seek(SEEK_SET, 0)
+    # Typically deserialization to Python will not release the GIL, and
+    # indeed as of Jan 2023 cbor2 didn't have any code to release the GIL
+    # in the decode path. As such, running it in a different thread has no benefit.
+    return cbor2.load(request.content)
+
+
+class HTTPServer(BaseApp):
     """
     A HTTP interface to the storage server.
     """
 
     _app = Klein()
     _app.url_map.converters["storage_index"] = StorageIndexConverter
-
-    @_app.handle_errors(_HTTPError)
-    def _http_error(self, request, failure):
-        """Handle ``_HTTPError`` exceptions."""
-        request.setResponseCode(failure.value.code)
-        return b""
-
-    @_app.handle_errors(CDDLValidationError)
-    def _cddl_validation_error(self, request, failure):
-        """Handle CDDL validation errors."""
-        request.setResponseCode(http.BAD_REQUEST)
-        return str(failure.value).encode("utf-8")
+    _add_error_handling(_app)
 
     def __init__(
-        self, storage_server, swissnum
-    ):  # type: (StorageServer, bytes) -> None
+        self,
+        reactor: IReactorFromThreads,
+        storage_server: StorageServer,
+        swissnum: bytes,
+    ):
+        self._reactor = reactor
         self._storage_server = storage_server
         self._swissnum = swissnum
         # Maps storage index to StorageIndexUploads:
@@ -514,11 +680,11 @@ class HTTPServer(object):
             self._uploads.remove_write_bucket
         )
 
-    def get_resource(self):
+    def get_resource(self) -> KleinResource:
         """Return twisted.web ``Resource`` for this object."""
         return self._app.resource()
 
-    def _send_encoded(self, request, data):
+    def _send_encoded(self, request: Request, data: object) -> Deferred[bytes]:
         """
         Return encoded data suitable for writing as the HTTP body response, by
         default using CBOR.
@@ -544,53 +710,31 @@ class HTTPServer(object):
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3861
             raise _HTTPError(http.NOT_ACCEPTABLE)
 
-    def _read_encoded(
-        self, request, schema: Schema, max_size: int = 1024 * 1024
-    ) -> Any:
-        """
-        Read encoded request body data, decoding it with CBOR by default.
-
-        Somewhat arbitrarily, limit body size to 1MiB by default.
-        """
-        content_type = get_content_type(request.requestHeaders)
-        if content_type != CBOR_MIME_TYPE:
-            raise _HTTPError(http.UNSUPPORTED_MEDIA_TYPE)
-
-        # Make sure it's not too large:
-        request.content.seek(SEEK_END, 0)
-        if request.content.tell() > max_size:
-            raise _HTTPError(http.REQUEST_ENTITY_TOO_LARGE)
-        request.content.seek(SEEK_SET, 0)
-
-        # We don't want to load the whole message into memory, cause it might
-        # be quite large. The CDDL validator takes a read-only bytes-like
-        # thing. Luckily, for large request bodies twisted.web will buffer the
-        # data in a file, so we can use mmap() to get a memory view. The CDDL
-        # validator will not make a copy, so it won't increase memory usage
-        # beyond that.
-        try:
-            fd = request.content.fileno()
-        except (ValueError, OSError):
-            fd = -1
-        if fd >= 0 and not PYCDDL_BYTES_ONLY:
-            # It's a file, so we can use mmap() to save memory.
-            message = mmap.mmap(fd, 0, access=mmap.ACCESS_READ)
-        else:
-            message = request.content.read()
-        schema.validate_cbor(message)
-
-        # The CBOR parser will allocate more memory, but at least we can feed
-        # it the file-like object, so that if it's large it won't be make two
-        # copies.
-        request.content.seek(SEEK_SET, 0)
-        return cbor2.load(request.content)
-
     ##### Generic APIs #####
 
     @_authorized_route(_app, set(), "/storage/v1/version", methods=["GET"])
-    def version(self, request, authorization):
+    def version(self, request: Request, authorization: SecretsDict) -> KleinRenderable:
         """Return version information."""
-        return self._send_encoded(request, self._storage_server.get_version())
+        return self._send_encoded(request, self._get_version())
+
+    def _get_version(self) -> dict[bytes, Any]:
+        """
+        Get the HTTP version of the storage server's version response.
+
+        This differs from the Foolscap version by omitting certain obsolete
+        fields.
+        """
+        v = self._storage_server.get_version()
+        v1_identifier = b"http://allmydata.org/tahoe/protocols/storage/v1"
+        v1 = v[v1_identifier]
+        return {
+            v1_identifier: {
+                b"maximum-immutable-share-size": v1[b"maximum-immutable-share-size"],
+                b"maximum-mutable-share-size": v1[b"maximum-mutable-share-size"],
+                b"available-space": v1[b"available-space"],
+            },
+            b"application-version": v[b"application-version"],
+        }
 
     ##### Immutable APIs #####
 
@@ -600,10 +744,16 @@ class HTTPServer(object):
         "/storage/v1/immutable/<storage_index:storage_index>",
         methods=["POST"],
     )
-    def allocate_buckets(self, request, authorization, storage_index):
+    @async_to_deferred
+    async def allocate_buckets(
+        self, request: Request, authorization: SecretsDict, storage_index: bytes
+    ) -> KleinRenderable:
         """Allocate buckets."""
         upload_secret = authorization[Secrets.UPLOAD]
-        info = self._read_encoded(request, _SCHEMAS["allocate_buckets"])
+        # It's just a list of up to ~256 shares, shouldn't use many bytes.
+        info = await read_encoded(
+            self._reactor, request, _SCHEMAS["allocate_buckets"], max_size=8192
+        )
 
         # We do NOT validate the upload secret for existing bucket uploads.
         # Another upload may be happening in parallel, with a different upload
@@ -625,7 +775,7 @@ class HTTPServer(object):
                 storage_index, share_number, upload_secret, bucket
             )
 
-        return self._send_encoded(
+        return await self._send_encoded(
             request,
             {"already-have": set(already_got), "allocated": set(sharenum_to_bucket)},
         )
@@ -636,7 +786,13 @@ class HTTPServer(object):
         "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/abort",
         methods=["PUT"],
     )
-    def abort_share_upload(self, request, authorization, storage_index, share_number):
+    def abort_share_upload(
+        self,
+        request: Request,
+        authorization: SecretsDict,
+        storage_index: bytes,
+        share_number: int,
+    ) -> KleinRenderable:
         """Abort an in-progress immutable share upload."""
         try:
             bucket = self._uploads.get_write_bucket(
@@ -667,7 +823,13 @@ class HTTPServer(object):
         "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["PATCH"],
     )
-    def write_share_data(self, request, authorization, storage_index, share_number):
+    def write_share_data(
+        self,
+        request: Request,
+        authorization: SecretsDict,
+        storage_index: bytes,
+        share_number: int,
+    ) -> KleinRenderable:
         """Write data to an in-progress immutable upload."""
         content_range = parse_content_range_header(request.getHeader("content-range"))
         if content_range is None or content_range.units != "bytes":
@@ -677,14 +839,17 @@ class HTTPServer(object):
         bucket = self._uploads.get_write_bucket(
             storage_index, share_number, authorization[Secrets.UPLOAD]
         )
-        offset = content_range.start
-        remaining = content_range.stop - content_range.start
+        offset = content_range.start or 0
+        # We don't support an unspecified stop for the range:
+        assert content_range.stop is not None
+        # Missing body makes no sense:
+        assert request.content is not None
+        remaining = content_range.stop - offset
         finished = False
 
         while remaining > 0:
             data = request.content.read(min(remaining, 65536))
             assert data, "uploaded data length doesn't match range"
-
             try:
                 finished = bucket.write(offset, data)
             except ConflictingWriteError:
@@ -710,7 +875,9 @@ class HTTPServer(object):
         "/storage/v1/immutable/<storage_index:storage_index>/shares",
         methods=["GET"],
     )
-    def list_shares(self, request, authorization, storage_index):
+    def list_shares(
+        self, request: Request, authorization: SecretsDict, storage_index: bytes
+    ) -> KleinRenderable:
         """
         List shares for the given storage index.
         """
@@ -723,8 +890,15 @@ class HTTPServer(object):
         "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["GET"],
     )
-    def read_share_chunk(self, request, authorization, storage_index, share_number):
+    def read_share_chunk(
+        self,
+        request: Request,
+        authorization: SecretsDict,
+        storage_index: bytes,
+        share_number: int,
+    ) -> KleinRenderable:
         """Read a chunk for an already uploaded immutable."""
+        request.setHeader("content-type", "application/octet-stream")
         try:
             bucket = self._storage_server.get_buckets(storage_index)[share_number]
         except KeyError:
@@ -739,7 +913,9 @@ class HTTPServer(object):
         "/storage/v1/lease/<storage_index:storage_index>",
         methods=["PUT"],
     )
-    def add_or_renew_lease(self, request, authorization, storage_index):
+    def add_or_renew_lease(
+        self, request: Request, authorization: SecretsDict, storage_index: bytes
+    ) -> KleinRenderable:
         """Update the lease for an immutable or mutable share."""
         if not list(self._storage_server.get_shares(storage_index)):
             raise _HTTPError(http.NOT_FOUND)
@@ -760,16 +936,28 @@ class HTTPServer(object):
         "/storage/v1/immutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
         methods=["POST"],
     )
-    def advise_corrupt_share_immutable(
-        self, request, authorization, storage_index, share_number
-    ):
+    @async_to_deferred
+    async def advise_corrupt_share_immutable(
+        self,
+        request: Request,
+        authorization: SecretsDict,
+        storage_index: bytes,
+        share_number: int,
+    ) -> KleinRenderable:
         """Indicate that given share is corrupt, with a text reason."""
         try:
             bucket = self._storage_server.get_buckets(storage_index)[share_number]
         except KeyError:
             raise _HTTPError(http.NOT_FOUND)
 
-        info = self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
+        # The reason can be a string with explanation, so in theory it could be
+        # longish?
+        info = await read_encoded(
+            self._reactor,
+            request,
+            _SCHEMAS["advise_corrupt_share"],
+            max_size=32768,
+        )
         bucket.advise_corrupt_share(info["reason"].encode("utf-8"))
         return b""
 
@@ -781,10 +969,16 @@ class HTTPServer(object):
         "/storage/v1/mutable/<storage_index:storage_index>/read-test-write",
         methods=["POST"],
     )
-    def mutable_read_test_write(self, request, authorization, storage_index):
+    @async_to_deferred
+    async def mutable_read_test_write(
+        self, request: Request, authorization: SecretsDict, storage_index: bytes
+    ) -> KleinRenderable:
         """Read/test/write combined operation for mutables."""
-        rtw_request = self._read_encoded(
-            request, _SCHEMAS["mutable_read_test_write"], max_size=2**48
+        rtw_request = await read_encoded(
+            self._reactor,
+            request,
+            _SCHEMAS["mutable_read_test_write"],
+            max_size=2**48,
         )
         secrets = (
             authorization[Secrets.WRITE_ENABLER],
@@ -810,7 +1004,9 @@ class HTTPServer(object):
             )
         except BadWriteEnablerError:
             raise _HTTPError(http.UNAUTHORIZED)
-        return self._send_encoded(request, {"success": success, "data": read_data})
+        return await self._send_encoded(
+            request, {"success": success, "data": read_data}
+        )
 
     @_authorized_route(
         _app,
@@ -818,8 +1014,15 @@ class HTTPServer(object):
         "/storage/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>",
         methods=["GET"],
     )
-    def read_mutable_chunk(self, request, authorization, storage_index, share_number):
+    def read_mutable_chunk(
+        self,
+        request: Request,
+        authorization: SecretsDict,
+        storage_index: bytes,
+        share_number: int,
+    ) -> KleinRenderable:
         """Read a chunk from a mutable."""
+        request.setHeader("content-type", "application/octet-stream")
 
         try:
             share_length = self._storage_server.get_mutable_share_length(
@@ -855,16 +1058,25 @@ class HTTPServer(object):
         "/storage/v1/mutable/<storage_index:storage_index>/<int(signed=False):share_number>/corrupt",
         methods=["POST"],
     )
-    def advise_corrupt_share_mutable(
-        self, request, authorization, storage_index, share_number
-    ):
+    @async_to_deferred
+    async def advise_corrupt_share_mutable(
+        self,
+        request: Request,
+        authorization: SecretsDict,
+        storage_index: bytes,
+        share_number: int,
+    ) -> KleinRenderable:
         """Indicate that given share is corrupt, with a text reason."""
         if share_number not in {
             shnum for (shnum, _) in self._storage_server.get_shares(storage_index)
         }:
             raise _HTTPError(http.NOT_FOUND)
 
-        info = self._read_encoded(request, _SCHEMAS["advise_corrupt_share"])
+        # The reason can be a string with explanation, so in theory it could be
+        # longish?
+        info = await read_encoded(
+            self._reactor, request, _SCHEMAS["advise_corrupt_share"], max_size=32768
+        )
         self._storage_server.advise_corrupt_share(
             b"mutable", storage_index, share_number, info["reason"].encode("utf-8")
         )
@@ -885,7 +1097,10 @@ class _TLSEndpointWrapper(object):
 
     @classmethod
     def from_paths(
-        cls, endpoint, private_key_path: FilePath, cert_path: FilePath
+        cls: type[_TLSEndpointWrapper],
+        endpoint: IStreamServerEndpoint,
+        private_key_path: FilePath,
+        cert_path: FilePath,
     ) -> "_TLSEndpointWrapper":
         """
         Create an endpoint with the given private key and certificate paths on
@@ -900,20 +1115,27 @@ class _TLSEndpointWrapper(object):
         )
         return cls(endpoint=endpoint, context_factory=certificate_options)
 
-    def listen(self, factory):
+    def listen(self, factory: IProtocolFactory) -> Deferred[IListeningPort]:
         return self.endpoint.listen(
             TLSMemoryBIOFactory(self.context_factory, False, factory)
         )
 
 
 def build_nurl(
-    hostname: str, port: int, swissnum: str, certificate: CryptoCertificate
+    hostname: str,
+    port: int,
+    swissnum: str,
+    certificate: CryptoCertificate,
+    subscheme: Optional[str] = None,
 ) -> DecodedURL:
     """
     Construct a HTTPS NURL, given the hostname, port, server swissnum, and x509
     certificate for the server.  Clients can then connect to the server using
     this NURL.
     """
+    scheme = "pb"
+    if subscheme is not None:
+        scheme = f"{scheme}+{subscheme}"
     return DecodedURL().replace(
         fragment="v=1",  # how we know this NURL is HTTP-based (i.e. not Foolscap)
         host=hostname,
@@ -925,7 +1147,7 @@ def build_nurl(
                 "ascii",
             ),
         ),
-        scheme="pb",
+        scheme=scheme,
     )
 
 
@@ -935,7 +1157,7 @@ def listen_tls(
     endpoint: IStreamServerEndpoint,
     private_key_path: FilePath,
     cert_path: FilePath,
-) -> Deferred[Tuple[DecodedURL, IListeningPort]]:
+) -> Deferred[tuple[DecodedURL, IListeningPort]]:
     """
     Start a HTTPS storage server on the given port, return the NURL and the
     listening port.

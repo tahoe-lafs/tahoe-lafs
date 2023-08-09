@@ -4,12 +4,27 @@ HTTP client that talks to the HTTP storage server.
 
 from __future__ import annotations
 
-from typing import Union, Optional, Sequence, Mapping, BinaryIO
+
+from typing import (
+    Union,
+    Optional,
+    Sequence,
+    Mapping,
+    BinaryIO,
+    cast,
+    TypedDict,
+    Set,
+    Dict,
+    Callable,
+    ClassVar,
+)
 from base64 import b64encode
 from io import BytesIO
 from os import SEEK_END
 
 from attrs import define, asdict, frozen, field
+from eliot import start_action, register_exception_extractor
+from eliot.twisted import DeferredContext
 
 # TODO Make sure to import Python version?
 from cbor2 import loads, dumps
@@ -18,14 +33,15 @@ from collections_extended import RangeMap
 from werkzeug.datastructures import Range, ContentRange
 from twisted.web.http_headers import Headers
 from twisted.web import http
-from twisted.web.iweb import IPolicyForHTTPS
-from twisted.internet.defer import inlineCallbacks, returnValue, fail, Deferred, succeed
+from twisted.web.iweb import IPolicyForHTTPS, IResponse, IAgent
+from twisted.internet.defer import Deferred, succeed
 from twisted.internet.interfaces import (
     IOpenSSLClientConnectionCreator,
     IReactorTime,
     IDelayedCall,
 )
 from twisted.internet.ssl import CertificateOptions
+from twisted.protocols.tls import TLSMemoryBIOProtocol
 from twisted.web.client import Agent, HTTPConnectionPool
 from zope.interface import implementer
 from hyperlink import DecodedURL
@@ -33,7 +49,6 @@ import treq
 from treq.client import HTTPClient
 from treq.testing import StubTreq
 from OpenSSL import SSL
-from cryptography.hazmat.bindings.openssl.binding import Binding
 from werkzeug.http import parse_content_range_header
 
 from .http_common import (
@@ -42,15 +57,23 @@ from .http_common import (
     get_content_type,
     CBOR_MIME_TYPE,
     get_spki_hash,
+    response_is_not_html,
 )
-from .common import si_b2a
+from ..interfaces import VersionMessage
+from .common import si_b2a, si_to_human_readable
 from ..util.hashutil import timing_safe_compare
 from ..util.deferredutil import async_to_deferred
+from ..util.tor_provider import _Provider as TorProvider
 
-_OPENSSL = Binding().lib
+try:
+    from txtorcon import Tor  # type: ignore
+except ImportError:
+
+    class Tor:  # type: ignore[no-redef]
+        pass
 
 
-def _encode_si(si):  # type: (bytes) -> str
+def _encode_si(si: bytes) -> str:
     """Encode the storage index into Unicode string."""
     return str(si_b2a(si), "ascii")
 
@@ -58,9 +81,16 @@ def _encode_si(si):  # type: (bytes) -> str
 class ClientException(Exception):
     """An unexpected response code from the server."""
 
-    def __init__(self, code, *additional_args):
-        Exception.__init__(self, code, *additional_args)
+    def __init__(
+        self, code: int, message: Optional[str] = None, body: Optional[bytes] = None
+    ):
+        Exception.__init__(self, code, message, body)
         self.code = code
+        self.message = message
+        self.body = body
+
+
+register_exception_extractor(ClientException, lambda e: {"response_code": e.code})
 
 
 # Schemas for server responses.
@@ -68,17 +98,16 @@ class ClientException(Exception):
 # Tags are of the form #6.nnn, where the number is documented at
 # https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml. Notably, #6.258
 # indicates a set.
-_SCHEMAS = {
+_SCHEMAS: Mapping[str, Schema] = {
     "get_version": Schema(
+        # Note that the single-quoted (`'`) string keys in this schema
+        # represent *byte* strings - per the CDDL specification.  Text strings
+        # are represented using strings with *double* quotes (`"`).
         """
         response = {'http://allmydata.org/tahoe/protocols/storage/v1' => {
                  'maximum-immutable-share-size' => uint
                  'maximum-mutable-share-size' => uint
                  'available-space' => uint
-                 'tolerates-immutable-read-overrun' => bool
-                 'delete-mutable-shares-with-zero-length-writev' => bool
-                 'fills-holes-with-zero-bytes' => bool
-                 'prevents-read-past-end-of-share-data' => bool
                  }
                  'application-version' => bstr
               }
@@ -131,7 +160,7 @@ class _LengthLimitedCollector:
     timeout_on_silence: IDelayedCall
     f: BytesIO = field(factory=BytesIO)
 
-    def __call__(self, data: bytes):
+    def __call__(self, data: bytes) -> None:
         self.timeout_on_silence.reset(60)
         self.remaining_length -= len(data)
         if self.remaining_length < 0:
@@ -140,7 +169,7 @@ class _LengthLimitedCollector:
 
 
 def limited_content(
-    response,
+    response: IResponse,
     clock: IReactorTime,
     max_length: int = 30 * 1024 * 1024,
 ) -> Deferred[BinaryIO]:
@@ -156,15 +185,24 @@ def limited_content(
     This will time out if no data is received for 60 seconds; so long as a
     trickle of data continues to arrive, it will continue to run.
     """
-    d = succeed(None)
-    timeout = clock.callLater(60, d.cancel)
+    result_deferred = succeed(None)
+
+    # Sadly, addTimeout() won't work because we need access to the IDelayedCall
+    # in order to reset it on each data chunk received.
+    timeout = clock.callLater(60, result_deferred.cancel)
     collector = _LengthLimitedCollector(max_length, timeout)
+
+    with start_action(
+        action_type="allmydata:storage:http-client:limited-content",
+        max_length=max_length,
+    ).context():
+        d = DeferredContext(result_deferred)
 
     # Make really sure everything gets called in Deferred context, treq might
     # call collector directly...
     d.addCallback(lambda _: treq.collect(response, collector))
 
-    def done(_):
+    def done(_: object) -> BytesIO:
         timeout.cancel()
         collector.f.seek(0)
         return collector.f
@@ -174,7 +212,8 @@ def limited_content(
             timeout.cancel()
         return f
 
-    return d.addCallbacks(done, failed)
+    result = d.addCallbacks(done, failed)
+    return result.addActionFinish()
 
 
 @define
@@ -231,11 +270,11 @@ class _TLSContextFactory(CertificateOptions):
             # not the usual TLS concerns about invalid CAs or revoked
             # certificates.
             things_are_ok = (
-                _OPENSSL.X509_V_OK,
-                _OPENSSL.X509_V_ERR_CERT_NOT_YET_VALID,
-                _OPENSSL.X509_V_ERR_CERT_HAS_EXPIRED,
-                _OPENSSL.X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT,
-                _OPENSSL.X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN,
+                SSL.X509VerificationCodes.OK,
+                SSL.X509VerificationCodes.ERR_CERT_NOT_YET_VALID,
+                SSL.X509VerificationCodes.ERR_CERT_HAS_EXPIRED,
+                SSL.X509VerificationCodes.ERR_DEPTH_ZERO_SELF_SIGNED_CERT,
+                SSL.X509VerificationCodes.ERR_SELF_SIGNED_CERT_IN_CHAIN,
             )
             # TODO can we do this once instead of multiple times?
             if errno in things_are_ok and timing_safe_compare(
@@ -266,28 +305,42 @@ class _StorageClientHTTPSPolicy:
     expected_spki_hash: bytes
 
     # IPolicyForHTTPS
-    def creatorForNetloc(self, hostname, port):
+    def creatorForNetloc(self, hostname: str, port: int) -> _StorageClientHTTPSPolicy:
         return self
 
     # IOpenSSLClientConnectionCreator
-    def clientConnectionForTLS(self, tlsProtocol):
+    def clientConnectionForTLS(
+        self, tlsProtocol: TLSMemoryBIOProtocol
+    ) -> SSL.Connection:
         return SSL.Connection(
             _TLSContextFactory(self.expected_spki_hash).getContext(), None
         )
 
 
-@define(hash=True)
-class StorageClient(object):
+@define
+class StorageClientFactory:
     """
-    Low-level HTTP client that talks to the HTTP storage server.
+    Create ``StorageClient`` instances, using appropriate
+    ``twisted.web.iweb.IAgent`` for different connection methods: normal TCP,
+    Tor, and eventually I2P.
+
+    There is some caching involved since there might be shared setup work, e.g.
+    connecting to the local Tor service only needs to happen once.
     """
 
-    # If set, we're doing unit testing and we should call this with
-    # HTTPConnectionPool we create.
-    TEST_MODE_REGISTER_HTTP_POOL = None
+    _default_connection_handlers: dict[str, str]
+    _tor_provider: Optional[TorProvider]
+    # Cache the Tor instance created by the provider, if relevant.
+    _tor_instance: Optional[Tor] = None
+
+    # If set, we're doing unit testing and we should call this with any
+    # HTTPConnectionPool that gets passed/created to ``create_agent()``.
+    TEST_MODE_REGISTER_HTTP_POOL: ClassVar[
+        Optional[Callable[[HTTPConnectionPool], None]]
+    ] = None
 
     @classmethod
-    def start_test_mode(cls, callback):
+    def start_test_mode(cls, callback: Callable[[HTTPConnectionPool], None]) -> None:
         """Switch to testing mode.
 
         In testing mode we register the pool with test system using the given
@@ -298,52 +351,100 @@ class StorageClient(object):
         cls.TEST_MODE_REGISTER_HTTP_POOL = callback
 
     @classmethod
-    def stop_test_mode(cls):
+    def stop_test_mode(cls) -> None:
         """Stop testing mode."""
         cls.TEST_MODE_REGISTER_HTTP_POOL = None
 
-    # The URL is a HTTPS URL ("https://...").  To construct from a NURL, use
-    # ``StorageClient.from_nurl()``.
+    async def _create_agent(
+        self,
+        nurl: DecodedURL,
+        reactor: object,
+        tls_context_factory: IPolicyForHTTPS,
+        pool: HTTPConnectionPool,
+    ) -> IAgent:
+        """Create a new ``IAgent``, possibly using Tor."""
+        if self.TEST_MODE_REGISTER_HTTP_POOL is not None:
+            self.TEST_MODE_REGISTER_HTTP_POOL(pool)
+
+        # TODO default_connection_handlers should really be an object, not a
+        # dict, so we can ask "is this using Tor" without poking at a
+        # dictionary with arbitrary strings... See
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4032
+        handler = self._default_connection_handlers["tcp"]
+
+        if handler == "tcp":
+            return Agent(reactor, tls_context_factory, pool=pool)
+        if handler == "tor" or nurl.scheme == "pb+tor":
+            assert self._tor_provider is not None
+            if self._tor_instance is None:
+                self._tor_instance = await self._tor_provider.get_tor_instance(reactor)
+            return self._tor_instance.web_agent(
+                pool=pool, tls_context_factory=tls_context_factory
+            )
+        else:
+            # I2P support will be added here. See
+            # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4037
+            raise RuntimeError(f"Unsupported tcp connection handler: {handler}")
+
+    async def create_storage_client(
+        self,
+        nurl: DecodedURL,
+        reactor: IReactorTime,
+        pool: Optional[HTTPConnectionPool] = None,
+    ) -> StorageClient:
+        """Create a new ``StorageClient`` for the given NURL."""
+        assert nurl.fragment == "v=1"
+        assert nurl.scheme in ("pb", "pb+tor")
+        if pool is None:
+            pool = HTTPConnectionPool(reactor)
+            pool.maxPersistentPerHost = 10
+
+        certificate_hash = nurl.user.encode("ascii")
+        agent = await self._create_agent(
+            nurl,
+            reactor,
+            _StorageClientHTTPSPolicy(expected_spki_hash=certificate_hash),
+            pool,
+        )
+        treq_client = HTTPClient(agent)
+        https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
+        swissnum = nurl.path[0].encode("ascii")
+        response_check = lambda _: None
+        if self.TEST_MODE_REGISTER_HTTP_POOL is not None:
+            response_check = response_is_not_html
+
+        return StorageClient(
+            https_url,
+            swissnum,
+            treq_client,
+            pool,
+            reactor,
+            response_check,
+        )
+
+
+@define(hash=True)
+class StorageClient(object):
+    """
+    Low-level HTTP client that talks to the HTTP storage server.
+
+    Create using a ``StorageClientFactory`` instance.
+    """
+
+    # The URL should be a HTTPS URL ("https://...")
     _base_url: DecodedURL
     _swissnum: bytes
     _treq: Union[treq, StubTreq, HTTPClient]
+    _pool: HTTPConnectionPool
     _clock: IReactorTime
+    # Are we running unit tests?
+    _analyze_response: Callable[[IResponse], None] = lambda _: None
 
-    @classmethod
-    def from_nurl(
-        cls,
-        nurl: DecodedURL,
-        reactor,
-    ) -> StorageClient:
-        """
-        Create a ``StorageClient`` for the given NURL.
-        """
-        assert nurl.fragment == "v=1"
-        assert nurl.scheme == "pb"
-        swissnum = nurl.path[0].encode("ascii")
-        certificate_hash = nurl.user.encode("ascii")
-        pool = HTTPConnectionPool(reactor)
-        pool.maxPersistentPerHost = 20
-
-        if cls.TEST_MODE_REGISTER_HTTP_POOL is not None:
-            cls.TEST_MODE_REGISTER_HTTP_POOL(pool)
-
-        treq_client = HTTPClient(
-            Agent(
-                reactor,
-                _StorageClientHTTPSPolicy(expected_spki_hash=certificate_hash),
-                pool=pool,
-            )
-        )
-
-        https_url = DecodedURL().replace(scheme="https", host=nurl.host, port=nurl.port)
-        return cls(https_url, swissnum, treq_client, reactor)
-
-    def relative_url(self, path):
+    def relative_url(self, path: str) -> DecodedURL:
         """Get a URL relative to the base URL."""
         return self._base_url.click(path)
 
-    def _get_headers(self, headers):  # type: (Optional[Headers]) -> Headers
+    def _get_headers(self, headers: Optional[Headers]) -> Headers:
         """Return the basic headers to be used by default."""
         if headers is None:
             headers = Headers()
@@ -353,19 +454,20 @@ class StorageClient(object):
         )
         return headers
 
-    def request(
+    @async_to_deferred
+    async def request(
         self,
-        method,
-        url,
-        lease_renew_secret=None,
-        lease_cancel_secret=None,
-        upload_secret=None,
-        write_enabler_secret=None,
-        headers=None,
-        message_to_serialize=None,
+        method: str,
+        url: DecodedURL,
+        lease_renew_secret: Optional[bytes] = None,
+        lease_cancel_secret: Optional[bytes] = None,
+        upload_secret: Optional[bytes] = None,
+        write_enabler_secret: Optional[bytes] = None,
+        headers: Optional[Headers] = None,
+        message_to_serialize: object = None,
         timeout: float = 60,
         **kwargs,
-    ):
+    ) -> IResponse:
         """
         Like ``treq.request()``, but with optional secrets that get translated
         into corresponding HTTP headers.
@@ -375,6 +477,41 @@ class StorageClient(object):
 
         Default timeout is 60 seconds.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:request",
+            method=method,
+            url=url.to_text(),
+            timeout=timeout,
+        ) as ctx:
+            response = await self._request(
+                method,
+                url,
+                lease_renew_secret,
+                lease_cancel_secret,
+                upload_secret,
+                write_enabler_secret,
+                headers,
+                message_to_serialize,
+                timeout,
+                **kwargs,
+            )
+            ctx.add_success_fields(response_code=response.code)
+            return response
+
+    async def _request(
+        self,
+        method: str,
+        url: DecodedURL,
+        lease_renew_secret: Optional[bytes] = None,
+        lease_cancel_secret: Optional[bytes] = None,
+        upload_secret: Optional[bytes] = None,
+        write_enabler_secret: Optional[bytes] = None,
+        headers: Optional[Headers] = None,
+        message_to_serialize: object = None,
+        timeout: float = 60,
+        **kwargs,
+    ) -> IResponse:
+        """The implementation of request()."""
         headers = self._get_headers(headers)
 
         # Add secrets:
@@ -405,28 +542,39 @@ class StorageClient(object):
             kwargs["data"] = dumps(message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
-        return self._treq.request(
+        response = await self._treq.request(
             method, url, headers=headers, timeout=timeout, **kwargs
         )
+        self._analyze_response(response)
 
-    def decode_cbor(self, response, schema: Schema):
+        return response
+
+    async def decode_cbor(self, response: IResponse, schema: Schema) -> object:
         """Given HTTP response, return decoded CBOR body."""
-
-        def got_content(f: BinaryIO):
-            data = f.read()
-            schema.validate_cbor(data)
-            return loads(data)
-
-        if response.code > 199 and response.code < 300:
-            content_type = get_content_type(response.headers)
-            if content_type == CBOR_MIME_TYPE:
-                return limited_content(response, self._clock).addCallback(got_content)
+        with start_action(action_type="allmydata:storage:http-client:decode-cbor"):
+            if response.code > 199 and response.code < 300:
+                content_type = get_content_type(response.headers)
+                if content_type == CBOR_MIME_TYPE:
+                    f = await limited_content(response, self._clock)
+                    data = f.read()
+                    schema.validate_cbor(data)
+                    return loads(data)
+                else:
+                    raise ClientException(
+                        -1,
+                        "Server didn't send CBOR, content type is {}".format(
+                            content_type
+                        ),
+                    )
             else:
-                raise ClientException(-1, "Server didn't send CBOR")
-        else:
-            return treq.content(response).addCallback(
-                lambda data: fail(ClientException(response.code, response.phrase, data))
-            )
+                data = (
+                    await limited_content(response, self._clock, max_length=10_000)
+                ).read()
+                raise ClientException(response.code, response.phrase, data)
+
+    def shutdown(self) -> Deferred[object]:
+        """Shutdown any connections."""
+        return self._pool.closeCachedConnections()
 
 
 @define(hash=True)
@@ -437,32 +585,65 @@ class StorageClientGeneral(object):
 
     _client: StorageClient
 
-    @inlineCallbacks
-    def get_version(self):
+    @async_to_deferred
+    async def get_version(self) -> VersionMessage:
         """
         Return the version metadata for the server.
         """
-        url = self._client.relative_url("/storage/v1/version")
-        response = yield self._client.request("GET", url)
-        decoded_response = yield self._client.decode_cbor(
-            response, _SCHEMAS["get_version"]
-        )
-        returnValue(decoded_response)
+        with start_action(
+            action_type="allmydata:storage:http-client:get-version",
+        ):
+            return await self._get_version()
 
-    @inlineCallbacks
-    def add_or_renew_lease(
+    async def _get_version(self) -> VersionMessage:
+        """Implementation of get_version()."""
+        url = self._client.relative_url("/storage/v1/version")
+        response = await self._client.request("GET", url)
+        decoded_response = cast(
+            Dict[bytes, object],
+            await self._client.decode_cbor(response, _SCHEMAS["get_version"]),
+        )
+        # Add some features we know are true because the HTTP API
+        # specification requires them and because other parts of the storage
+        # client implementation assumes they will be present.
+        cast(
+            Dict[bytes, object],
+            decoded_response[b"http://allmydata.org/tahoe/protocols/storage/v1"],
+        ).update(
+            {
+                b"tolerates-immutable-read-overrun": True,
+                b"delete-mutable-shares-with-zero-length-writev": True,
+                b"fills-holes-with-zero-bytes": True,
+                b"prevents-read-past-end-of-share-data": True,
+            }
+        )
+        return decoded_response
+
+    @async_to_deferred
+    async def add_or_renew_lease(
         self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
-    ) -> Deferred[None]:
+    ) -> None:
         """
         Add or renew a lease.
 
         If the renewal secret matches an existing lease, it is renewed.
         Otherwise a new lease is added.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:add-or-renew-lease",
+            storage_index=si_to_human_readable(storage_index),
+        ):
+            return await self._add_or_renew_lease(
+                storage_index, renew_secret, cancel_secret
+            )
+
+    async def _add_or_renew_lease(
+        self, storage_index: bytes, renew_secret: bytes, cancel_secret: bytes
+    ) -> None:
         url = self._client.relative_url(
             "/storage/v1/lease/{}".format(_encode_si(storage_index))
         )
-        response = yield self._client.request(
+        response = await self._client.request(
             "PUT",
             url,
             lease_renew_secret=renew_secret,
@@ -487,15 +668,15 @@ class UploadProgress(object):
     required: RangeMap
 
 
-@inlineCallbacks
-def read_share_chunk(
+@async_to_deferred
+async def read_share_chunk(
     client: StorageClient,
     share_type: str,
     storage_index: bytes,
     share_number: int,
     offset: int,
     length: int,
-) -> Deferred[bytes]:
+) -> bytes:
     """
     Download a chunk of data from a share.
 
@@ -516,7 +697,7 @@ def read_share_chunk(
     # The default 60 second timeout is for getting the response, so it doesn't
     # include the time it takes to download the body... so we will will deal
     # with that later, via limited_content().
-    response = yield client.request(
+    response = await client.request(
         "GET",
         url,
         headers=Headers(
@@ -529,6 +710,12 @@ def read_share_chunk(
 
     if response.code == http.NO_CONTENT:
         return b""
+
+    content_type = get_content_type(response.headers)
+    if content_type != "application/octet-stream":
+        raise ValueError(
+            f"Content-type was wrong: {content_type}, should be application/octet-stream"
+        )
 
     if response.code == http.PARTIAL_CONTENT:
         content_range = parse_content_range_header(
@@ -547,7 +734,7 @@ def read_share_chunk(
             raise ValueError("Server sent more than we asked for?!")
         # It might also send less than we asked for. That's (probably) OK, e.g.
         # if we went past the end of the file.
-        body = yield limited_content(response, client._clock, supposed_length)
+        body = await limited_content(response, client._clock, supposed_length)
         body.seek(0, SEEK_END)
         actual_length = body.tell()
         if actual_length != supposed_length:
@@ -573,7 +760,7 @@ async def advise_corrupt_share(
     storage_index: bytes,
     share_number: int,
     reason: str,
-):
+) -> None:
     assert isinstance(reason, str)
     url = client.relative_url(
         "/storage/v1/{}/{}/{}/corrupt".format(
@@ -598,16 +785,16 @@ class StorageClientImmutables(object):
 
     _client: StorageClient
 
-    @inlineCallbacks
-    def create(
+    @async_to_deferred
+    async def create(
         self,
-        storage_index,
-        share_numbers,
-        allocated_size,
-        upload_secret,
-        lease_renew_secret,
-        lease_cancel_secret,
-    ):  # type: (bytes, set[int], int, bytes, bytes, bytes) -> Deferred[ImmutableCreateResult]
+        storage_index: bytes,
+        share_numbers: set[int],
+        allocated_size: int,
+        upload_secret: bytes,
+        lease_renew_secret: bytes,
+        lease_cancel_secret: bytes,
+    ) -> ImmutableCreateResult:
         """
         Create a new storage index for an immutable.
 
@@ -621,12 +808,41 @@ class StorageClientImmutables(object):
         Result fires when creating the storage index succeeded, if creating the
         storage index failed the result will fire with an exception.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:create",
+            storage_index=si_to_human_readable(storage_index),
+            share_numbers=share_numbers,
+            allocated_size=allocated_size,
+        ) as ctx:
+            result = await self._create(
+                storage_index,
+                share_numbers,
+                allocated_size,
+                upload_secret,
+                lease_renew_secret,
+                lease_cancel_secret,
+            )
+            ctx.add_success_fields(
+                already_have=result.already_have, allocated=result.allocated
+            )
+            return result
+
+    async def _create(
+        self,
+        storage_index: bytes,
+        share_numbers: set[int],
+        allocated_size: int,
+        upload_secret: bytes,
+        lease_renew_secret: bytes,
+        lease_cancel_secret: bytes,
+    ) -> ImmutableCreateResult:
+        """Implementation of create()."""
         url = self._client.relative_url(
             "/storage/v1/immutable/" + _encode_si(storage_index)
         )
         message = {"share-numbers": share_numbers, "allocated-size": allocated_size}
 
-        response = yield self._client.request(
+        response = await self._client.request(
             "POST",
             url,
             lease_renew_secret=lease_renew_secret,
@@ -634,27 +850,37 @@ class StorageClientImmutables(object):
             upload_secret=upload_secret,
             message_to_serialize=message,
         )
-        decoded_response = yield self._client.decode_cbor(
-            response, _SCHEMAS["allocate_buckets"]
+        decoded_response = cast(
+            Mapping[str, Set[int]],
+            await self._client.decode_cbor(response, _SCHEMAS["allocate_buckets"]),
         )
-        returnValue(
-            ImmutableCreateResult(
-                already_have=decoded_response["already-have"],
-                allocated=decoded_response["allocated"],
-            )
+        return ImmutableCreateResult(
+            already_have=decoded_response["already-have"],
+            allocated=decoded_response["allocated"],
         )
 
-    @inlineCallbacks
-    def abort_upload(
+    @async_to_deferred
+    async def abort_upload(
         self, storage_index: bytes, share_number: int, upload_secret: bytes
-    ) -> Deferred[None]:
+    ) -> None:
         """Abort the upload."""
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:abort-upload",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+        ):
+            return await self._abort_upload(storage_index, share_number, upload_secret)
+
+    async def _abort_upload(
+        self, storage_index: bytes, share_number: int, upload_secret: bytes
+    ) -> None:
+        """Implementation of ``abort_upload()``."""
         url = self._client.relative_url(
             "/storage/v1/immutable/{}/{}/abort".format(
                 _encode_si(storage_index), share_number
             )
         )
-        response = yield self._client.request(
+        response = await self._client.request(
             "PUT",
             url,
             upload_secret=upload_secret,
@@ -667,10 +893,15 @@ class StorageClientImmutables(object):
                 response.code,
             )
 
-    @inlineCallbacks
-    def write_share_chunk(
-        self, storage_index, share_number, upload_secret, offset, data
-    ):  # type: (bytes, int, bytes, int, bytes) -> Deferred[UploadProgress]
+    @async_to_deferred
+    async def write_share_chunk(
+        self,
+        storage_index: bytes,
+        share_number: int,
+        upload_secret: bytes,
+        offset: int,
+        data: bytes,
+    ) -> UploadProgress:
         """
         Upload a chunk of data for a specific share.
 
@@ -683,12 +914,34 @@ class StorageClientImmutables(object):
         whether the _complete_ share (i.e. all chunks, not just this one) has
         been uploaded.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:write-share-chunk",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            offset=offset,
+            data_len=len(data),
+        ) as ctx:
+            result = await self._write_share_chunk(
+                storage_index, share_number, upload_secret, offset, data
+            )
+            ctx.add_success_fields(finished=result.finished)
+            return result
+
+    async def _write_share_chunk(
+        self,
+        storage_index: bytes,
+        share_number: int,
+        upload_secret: bytes,
+        offset: int,
+        data: bytes,
+    ) -> UploadProgress:
+        """Implementation of ``write_share_chunk()``."""
         url = self._client.relative_url(
             "/storage/v1/immutable/{}/{}".format(
                 _encode_si(storage_index), share_number
             )
         )
-        response = yield self._client.request(
+        response = await self._client.request(
             "PATCH",
             url,
             upload_secret=upload_secret,
@@ -712,52 +965,84 @@ class StorageClientImmutables(object):
             raise ClientException(
                 response.code,
             )
-        body = yield self._client.decode_cbor(
-            response, _SCHEMAS["immutable_write_share_chunk"]
+        body = cast(
+            Mapping[str, Sequence[Mapping[str, int]]],
+            await self._client.decode_cbor(
+                response, _SCHEMAS["immutable_write_share_chunk"]
+            ),
         )
         remaining = RangeMap()
         for chunk in body["required"]:
             remaining.set(True, chunk["begin"], chunk["end"])
-        returnValue(UploadProgress(finished=finished, required=remaining))
+        return UploadProgress(finished=finished, required=remaining)
 
-    def read_share_chunk(
-        self, storage_index, share_number, offset, length
-    ):  # type: (bytes, int, int, int) -> Deferred[bytes]
+    @async_to_deferred
+    async def read_share_chunk(
+        self, storage_index: bytes, share_number: int, offset: int, length: int
+    ) -> bytes:
         """
         Download a chunk of data from a share.
         """
-        return read_share_chunk(
-            self._client, "immutable", storage_index, share_number, offset, length
-        )
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:read-share-chunk",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            offset=offset,
+            length=length,
+        ) as ctx:
+            result = await read_share_chunk(
+                self._client, "immutable", storage_index, share_number, offset, length
+            )
+            ctx.add_success_fields(data_len=len(result))
+            return result
 
-    @inlineCallbacks
-    def list_shares(self, storage_index: bytes) -> Deferred[set[int]]:
+    @async_to_deferred
+    async def list_shares(self, storage_index: bytes) -> Set[int]:
         """
         Return the set of shares for a given storage index.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:list-shares",
+            storage_index=si_to_human_readable(storage_index),
+        ) as ctx:
+            result = await self._list_shares(storage_index)
+            ctx.add_success_fields(shares=result)
+            return result
+
+    async def _list_shares(self, storage_index: bytes) -> Set[int]:
+        """Implementation of ``list_shares()``."""
         url = self._client.relative_url(
             "/storage/v1/immutable/{}/shares".format(_encode_si(storage_index))
         )
-        response = yield self._client.request(
+        response = await self._client.request(
             "GET",
             url,
         )
         if response.code == http.OK:
-            body = yield self._client.decode_cbor(response, _SCHEMAS["list_shares"])
-            returnValue(set(body))
+            return cast(
+                Set[int],
+                await self._client.decode_cbor(response, _SCHEMAS["list_shares"]),
+            )
         else:
             raise ClientException(response.code)
 
-    def advise_corrupt_share(
+    @async_to_deferred
+    async def advise_corrupt_share(
         self,
         storage_index: bytes,
         share_number: int,
         reason: str,
-    ):
+    ) -> None:
         """Indicate a share has been corrupted, with a human-readable message."""
-        return advise_corrupt_share(
-            self._client, "immutable", storage_index, share_number, reason
-        )
+        with start_action(
+            action_type="allmydata:storage:http-client:immutable:advise-corrupt-share",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            reason=reason,
+        ):
+            await advise_corrupt_share(
+                self._client, "immutable", storage_index, share_number, reason
+            )
 
 
 @frozen
@@ -814,6 +1099,13 @@ class ReadTestWriteResult:
     reads: Mapping[int, Sequence[bytes]]
 
 
+# Result type for mutable read/test/write HTTP response. Can't just use
+# dict[int,list[bytes]] because on Python 3.8 that will error out.
+MUTABLE_RTW = TypedDict(
+    "MUTABLE_RTW", {"success": bool, "data": Mapping[int, Sequence[bytes]]}
+)
+
+
 @frozen
 class StorageClientMutables:
     """
@@ -841,6 +1133,29 @@ class StorageClientMutables:
         Given a mapping between share numbers and test/write vectors, the tests
         are done and if they are valid the writes are done.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:mutable:read-test-write",
+            storage_index=si_to_human_readable(storage_index),
+        ):
+            return await self._read_test_write_chunks(
+                storage_index,
+                write_enabler_secret,
+                lease_renew_secret,
+                lease_cancel_secret,
+                testwrite_vectors,
+                read_vector,
+            )
+
+    async def _read_test_write_chunks(
+        self,
+        storage_index: bytes,
+        write_enabler_secret: bytes,
+        lease_renew_secret: bytes,
+        lease_cancel_secret: bytes,
+        testwrite_vectors: dict[int, TestWriteVectors],
+        read_vector: list[ReadVector],
+    ) -> ReadTestWriteResult:
+        """Implementation of ``read_test_write_chunks()``."""
         url = self._client.relative_url(
             "/storage/v1/mutable/{}/read-test-write".format(_encode_si(storage_index))
         )
@@ -860,50 +1175,83 @@ class StorageClientMutables:
             message_to_serialize=message,
         )
         if response.code == http.OK:
-            result = await self._client.decode_cbor(
-                response, _SCHEMAS["mutable_read_test_write"]
+            result = cast(
+                MUTABLE_RTW,
+                await self._client.decode_cbor(
+                    response, _SCHEMAS["mutable_read_test_write"]
+                ),
             )
             return ReadTestWriteResult(success=result["success"], reads=result["data"])
         else:
             raise ClientException(response.code, (await response.content()))
 
-    def read_share_chunk(
+    @async_to_deferred
+    async def read_share_chunk(
         self,
         storage_index: bytes,
         share_number: int,
         offset: int,
         length: int,
-    ) -> Deferred[bytes]:
+    ) -> bytes:
         """
         Download a chunk of data from a share.
         """
-        return read_share_chunk(
-            self._client, "mutable", storage_index, share_number, offset, length
-        )
+        with start_action(
+            action_type="allmydata:storage:http-client:mutable:read-share-chunk",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            offset=offset,
+            length=length,
+        ) as ctx:
+            result = await read_share_chunk(
+                self._client, "mutable", storage_index, share_number, offset, length
+            )
+            ctx.add_success_fields(data_len=len(result))
+            return result
 
     @async_to_deferred
-    async def list_shares(self, storage_index: bytes) -> set[int]:
+    async def list_shares(self, storage_index: bytes) -> Set[int]:
         """
         List the share numbers for a given storage index.
         """
+        with start_action(
+            action_type="allmydata:storage:http-client:mutable:list-shares",
+            storage_index=si_to_human_readable(storage_index),
+        ) as ctx:
+            result = await self._list_shares(storage_index)
+            ctx.add_success_fields(shares=result)
+            return result
+
+    async def _list_shares(self, storage_index: bytes) -> Set[int]:
+        """Implementation of ``list_shares()``."""
         url = self._client.relative_url(
             "/storage/v1/mutable/{}/shares".format(_encode_si(storage_index))
         )
         response = await self._client.request("GET", url)
         if response.code == http.OK:
-            return await self._client.decode_cbor(
-                response, _SCHEMAS["mutable_list_shares"]
+            return cast(
+                Set[int],
+                await self._client.decode_cbor(
+                    response, _SCHEMAS["mutable_list_shares"]
+                ),
             )
         else:
             raise ClientException(response.code)
 
-    def advise_corrupt_share(
+    @async_to_deferred
+    async def advise_corrupt_share(
         self,
         storage_index: bytes,
         share_number: int,
         reason: str,
-    ):
+    ) -> None:
         """Indicate a share has been corrupted, with a human-readable message."""
-        return advise_corrupt_share(
-            self._client, "mutable", storage_index, share_number, reason
-        )
+        with start_action(
+            action_type="allmydata:storage:http-client:mutable:advise-corrupt-share",
+            storage_index=si_to_human_readable(storage_index),
+            share_number=share_number,
+            reason=reason,
+        ):
+            await advise_corrupt_share(
+                self._client, "mutable", storage_index, share_number, reason
+            )

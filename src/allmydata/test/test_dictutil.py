@@ -1,17 +1,9 @@
 """
 Tests for allmydata.util.dictutil.
-
-Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
 from future.utils import PY2, PY3
-if PY2:
-    # dict omitted to match dictutil.py.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, list, object, range, str, max, min  # noqa: F401
 
 from unittest import skipIf
 
@@ -168,3 +160,18 @@ class TypedKeyDictPython2(unittest.TestCase):
         # Demonstration of how bytes and unicode can be mixed:
         d = {u"abc": 1}
         self.assertEqual(d[b"abc"], 1)
+
+
+class FilterTests(unittest.TestCase):
+    """
+    Tests for ``dictutil.filter``.
+    """
+    def test_filter(self) -> None:
+        """
+        ``dictutil.filter`` returns a ``dict`` that contains the key/value
+        pairs for which the value is matched by the given predicate.
+        """
+        self.assertEqual(
+            {1: 2},
+            dictutil.filter(lambda v: v == 2, {1: 2, 2: 3}),
+        )

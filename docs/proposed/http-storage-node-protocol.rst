@@ -3,7 +3,7 @@
 Storage Node Protocol ("Great Black Swamp", "GBS")
 ==================================================
 
-The target audience for this document is Tahoe-LAFS developers.
+The target audience for this document is developers working on Tahoe-LAFS or on an alternate implementation intended to be interoperable.
 After reading this document,
 one should expect to understand how Tahoe-LAFS clients interact over the network with Tahoe-LAFS storage nodes.
 
@@ -64,6 +64,10 @@ Glossary
    lease renew secret
      a short secret string which storage servers required to be presented before allowing a particular lease to be renewed
 
+The key words
+"MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL"
+in this document are to be interpreted as described in RFC 2119.
+
 Motivation
 ----------
 
@@ -119,8 +123,8 @@ An HTTP-based protocol can make use of TLS in largely the same way to provide th
 Provision of these properties *is* dependant on implementers following Great Black Swamp's rules for x509 certificate validation
 (rather than the standard "web" rules for validation).
 
-Requirements
-------------
+Design Requirements
+-------------------
 
 Security
 ~~~~~~~~
@@ -189,6 +193,9 @@ Solutions
 An HTTP-based protocol, dubbed "Great Black Swamp" (or "GBS"), is described below.
 This protocol aims to satisfy the above requirements at a lower level of complexity than the current Foolscap-based protocol.
 
+Summary (Non-normative)
+~~~~~~~~~~~~~~~~~~~~~~~
+
 Communication with the storage node will take place using TLS.
 The TLS version and configuration will be dictated by an ongoing understanding of best practices.
 The storage node will present an x509 certificate during the TLS handshake.
@@ -237,10 +244,10 @@ When Bob's client issues HTTP requests to Alice's storage node it includes the *
 .. note::
 
    Foolscap TubIDs are 20 bytes (SHA1 digest of the certificate).
-   They are encoded with Base32 for a length of 32 bytes.
+   They are encoded with `Base32`_ for a length of 32 bytes.
    SPKI information discussed here is 32 bytes (SHA256 digest).
-   They would be encoded in Base32 for a length of 52 bytes.
-   `base64url`_ provides a more compact encoding of the information while remaining URL-compatible.
+   They would be encoded in `Base32`_ for a length of 52 bytes.
+   `unpadded base64url`_ provides a more compact encoding of the information while remaining URL-compatible.
    This would encode the SPKI information for a length of merely 43 bytes.
    SHA1,
    the current Foolscap hash function,
@@ -271,8 +278,8 @@ This NURL will be announced alongside their existing Foolscap-based server's fUR
 Such an announcement will resemble this::
 
   {
-      "anonymous-storage-FURL": "pb://...",          # The old key
-      "gbs-anonymous-storage-url": "pb://...#v=1"    # The new key
+      "anonymous-storage-FURL": "pb://...",          # The old entry
+      "anonymous-storage-NURLs": ["pb://...#v=1"]    # The new, additional entry
   }
 
 The transition process will proceed in three stages:
@@ -313,12 +320,7 @@ The follow sequence of events is likely:
 
 Ideally,
 the client would not rely on an update from the introducer to give it the GBS NURL for the updated storage server.
-Therefore,
-when an updated client connects to a storage server using Foolscap,
-it should request the server's version information.
-If this information indicates that GBS is supported then the client should cache this GBS information.
-On subsequent connection attempts,
-it should make use of this GBS information.
+In practice, we have decided not to implement this functionality.
 
 Server Details
 --------------
@@ -329,15 +331,117 @@ and shares.
 A particular resource is addressed by the HTTP request path.
 Details about the interface are encoded in the HTTP message body.
 
+String Encoding
+~~~~~~~~~~~~~~~
+
+.. _Base32:
+
+Base32
+!!!!!!
+
+Where the specification refers to Base32 the meaning is *unpadded* Base32 encoding as specified by `RFC 4648`_ using a *lowercase variation* of the alphabet from Section 6.
+
+That is, the alphabet is:
+
+.. list-table:: Base32 Alphabet
+   :header-rows: 1
+
+   * - Value
+     - Encoding
+     - Value
+     - Encoding
+     - Value
+     - Encoding
+     - Value
+     - Encoding
+
+   * - 0
+     - a
+     - 9
+     - j
+     - 18
+     - s
+     - 27
+     - 3
+   * - 1
+     - b
+     - 10
+     - k
+     - 19
+     - t
+     - 28
+     - 4
+   * - 2
+     - c
+     - 11
+     - l
+     - 20
+     - u
+     - 29
+     - 5
+   * - 3
+     - d
+     - 12
+     - m
+     - 21
+     - v
+     - 30
+     - 6
+   * - 4
+     - e
+     - 13
+     - n
+     - 22
+     - w
+     - 31
+     - 7
+   * - 5
+     - f
+     - 14
+     - o
+     - 23
+     - x
+     -
+     -
+   * - 6
+     - g
+     - 15
+     - p
+     - 24
+     - y
+     -
+     -
+   * - 7
+     - h
+     - 16
+     - q
+     - 25
+     - z
+     -
+     -
+   * - 8
+     - i
+     - 17
+     - r
+     - 26
+     - 2
+     -
+     -
+
 Message Encoding
 ~~~~~~~~~~~~~~~~
 
-The preferred encoding for HTTP message bodies is `CBOR`_.
-A request may be submitted using an alternate encoding by declaring this in the ``Content-Type`` header.
-A request may indicate its preference for an alternate encoding in the response using the ``Accept`` header.
-These two headers are used in the typical way for an HTTP application.
+Clients and servers MUST use the ``Content-Type`` and ``Accept`` header fields as specified in `RFC 9110`_ for message body negotiation.
 
-The only other encoding support for which is currently recommended is JSON.
+The encoding for HTTP message bodies SHOULD be `CBOR`_.
+Clients submitting requests using this encoding MUST include a ``Content-Type: application/cbor`` request header field.
+A request MAY be submitted using an alternate encoding by declaring this in the ``Content-Type`` header field.
+A request MAY indicate its preference for an alternate encoding in the response using the ``Accept`` header field.
+A request which includes no ``Accept`` header field MUST be interpreted in the same way as a request including a ``Accept: application/cbor`` header field.
+
+Clients and servers MAY support additional request and response message body encodings.
+
+Clients and servers SHOULD support ``application/json`` request and response message body encoding.
 For HTTP messages carrying binary share data,
 this is expected to be a particularly poor encoding.
 However,
@@ -350,10 +454,23 @@ Because of the simple types used throughout
 and the equivalence described in `RFC 7049`_
 these examples should be representative regardless of which of these two encodings is chosen.
 
-The one exception is sets.
-For CBOR messages, any sequence that is semantically a set (i.e. no repeated values allowed, order doesn't matter, and elements are hashable in Python) should be sent as a set.
-Tag 6.258 is used to indicate sets in CBOR; see `the CBOR registry <https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml>`_ for more details.
-Sets will be represented as JSON lists in examples because JSON doesn't support sets.
+There are two exceptions to this rule.
+
+1. Sets
+!!!!!!!
+
+For CBOR messages,
+any sequence that is semantically a set (i.e. no repeated values allowed, order doesn't matter, and elements are hashable in Python) should be sent as a set.
+Tag 6.258 is used to indicate sets in CBOR;
+see `the CBOR registry <https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml>`_ for more details.
+The JSON encoding does not support sets.
+Sets MUST be represented as arrays in JSON-encoded messages.
+
+2. Bytes
+!!!!!!!!
+
+The CBOR encoding natively supports a bytes type while the JSON encoding does not.
+Bytes MUST be represented as strings giving the `Base64`_ representation of the original bytes value.
 
 HTTP Design
 ~~~~~~~~~~~
@@ -368,29 +485,50 @@ one branch contains all of the share data;
 another branch contains all of the lease data;
 etc.
 
-An ``Authorization`` header in requests is required for all endpoints.
-The standard HTTP authorization protocol is used.
-The authentication *type* used is ``Tahoe-LAFS``.
-The swissnum from the NURL used to locate the storage service is used as the *credentials*.
-If credentials are not presented or the swissnum is not associated with a storage service then no storage processing is performed and the request receives an ``401 UNAUTHORIZED`` response.
+Clients and servers MUST use the ``Authorization`` header field,
+as specified in `RFC 9110`_,
+for authorization of all requests to all endpoints specified here.
+The authentication *type* MUST be ``Tahoe-LAFS``.
+Clients MUST present the `Base64`_-encoded representation of the swissnum from the NURL used to locate the storage service as the *credentials*.
 
-There are also, for some endpoints, secrets sent via ``X-Tahoe-Authorization`` headers.
-If these are:
+If credentials are not presented or the swissnum is not associated with a storage service then the server MUST issue a ``401 UNAUTHORIZED`` response and perform no other processing of the message.
+
+Requests to certain endpoints MUST include additional secrets in the ``X-Tahoe-Authorization`` headers field.
+The endpoints which require these secrets are:
+
+* ``PUT /storage/v1/lease/:storage_index``:
+  The secrets included MUST be ``lease-renew-secret`` and ``lease-cancel-secret``.
+
+* ``POST /storage/v1/immutable/:storage_index``:
+  The secrets included MUST be ``lease-renew-secret``, ``lease-cancel-secret``, and ``upload-secret``.
+
+* ``PATCH /storage/v1/immutable/:storage_index/:share_number``:
+  The secrets included MUST be ``upload-secret``.
+
+* ``PUT /storage/v1/immutable/:storage_index/:share_number/abort``:
+  The secrets included MUST be ``upload-secret``.
+
+* ``POST /storage/v1/mutable/:storage_index/read-test-write``:
+  The secrets included MUST be ``lease-renew-secret``, ``lease-cancel-secret``, and ``write-enabler``.
+
+If these secrets are:
 
 1. Missing.
 2. The wrong length.
 3. Not the expected kind of secret.
 4. They are otherwise unparseable before they are actually semantically used.
 
-the server will respond with ``400 BAD REQUEST``.
+the server MUST respond with ``400 BAD REQUEST`` and perform no other processing of the message.
 401 is not used because this isn't an authorization problem, this is a "you sent garbage and should know better" bug.
 
-If authorization using the secret fails, then a ``401 UNAUTHORIZED`` response should be sent.
+If authorization using the secret fails,
+then the server MUST send a ``401 UNAUTHORIZED`` response and perform no other processing of the message.
 
 Encoding
 ~~~~~~~~
 
-* ``storage_index`` should be base32 encoded (RFC3548) in URLs.
+* ``storage_index`` MUST be `Base32`_ encoded in URLs.
+* ``share_number`` MUST be a decimal representation
 
 General
 ~~~~~~~
@@ -398,21 +536,27 @@ General
 ``GET /storage/v1/version``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Retrieve information about the version of the storage server.
-Information is returned as an encoded mapping.
-For example::
+This endpoint allows clients to retrieve some basic metadata about a storage server from the storage service.
+The response MUST validate against this CDDL schema::
 
-  { "http://allmydata.org/tahoe/protocols/storage/v1" :
-    { "maximum-immutable-share-size": 1234,
-      "maximum-mutable-share-size": 1235,
-      "available-space": 123456,
-      "tolerates-immutable-read-overrun": true,
-      "delete-mutable-shares-with-zero-length-writev": true,
-      "fills-holes-with-zero-bytes": true,
-      "prevents-read-past-end-of-share-data": true
-      },
-    "application-version": "1.13.0"
-    }
+  {'http://allmydata.org/tahoe/protocols/storage/v1' => {
+      'maximum-immutable-share-size' => uint
+      'maximum-mutable-share-size' => uint
+      'available-space' => uint
+      }
+   'application-version' => bstr
+  }
+
+The server SHOULD populate as many fields as possible with accurate information about its behavior.
+
+For fields which relate to a specific API
+the semantics are documented below in the section for that API.
+For fields that are more general than a single API the semantics are as follows:
+
+* available-space:
+  The server SHOULD use this field to advertise the amount of space that it currently considers unused and is willing to allocate for client requests.
+  The value is a number of bytes.
+
 
 ``PUT /storage/v1/lease/:storage_index``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -471,21 +615,37 @@ Writing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Initialize an immutable storage index with some buckets.
-The buckets may have share data written to them once.
-A lease is also created for the shares.
+The server MUST allow share data to be written to the buckets at most one time.
+The server MAY create a lease for the buckets.
 Details of the buckets to create are encoded in the request body.
+The request body MUST validate against this CDDL schema::
+
+  {
+    share-numbers: #6.258([0*256 uint])
+    allocated-size: uint
+  }
+
 For example::
 
   {"share-numbers": [1, 7, ...], "allocated-size": 12345}
 
-The request must include ``X-Tahoe-Authorization`` HTTP headers that set the various secrets—upload, lease renewal, lease cancellation—that will be later used to authorize various operations.
+The server SHOULD accept a value for **allocated-size** that is less than or equal to the lesser of the values of the server's version message's **maximum-immutable-share-size** or **available-space** values.
+
+The request MUST include ``X-Tahoe-Authorization`` HTTP headers that set the various secrets—upload, lease renewal, lease cancellation—that will be later used to authorize various operations.
 For example::
 
    X-Tahoe-Authorization: lease-renew-secret <base64-lease-renew-secret>
    X-Tahoe-Authorization: lease-cancel-secret <base64-lease-cancel-secret>
    X-Tahoe-Authorization: upload-secret <base64-upload-secret>
 
-The response body includes encoded information about the created buckets.
+The response body MUST include encoded information about the created buckets.
+The response body MUST validate against this CDDL schema::
+
+  {
+    already-have: #6.258([0*256 uint])
+    allocated: #6.258([0*256 uint])
+  }
+
 For example::
 
   {"already-have": [1, ...], "allocated": [7, ...]}
@@ -542,27 +702,35 @@ Rejected designs for upload secrets:
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Write data for the indicated share.
-The share number must belong to the storage index.
-The request body is the raw share data (i.e., ``application/octet-stream``).
-*Content-Range* requests are required; for large transfers this allows partially complete uploads to be resumed.
+The share number MUST belong to the storage index.
+The request body MUST be the raw share data (i.e., ``application/octet-stream``).
+The request MUST include a *Content-Range* header field;
+for large transfers this allows partially complete uploads to be resumed.
+
 For example,
 a 1MiB share can be divided in to eight separate 128KiB chunks.
 Each chunk can be uploaded in a separate request.
 Each request can include a *Content-Range* value indicating its placement within the complete share.
 If any one of these requests fails then at most 128KiB of upload work needs to be retried.
 
-The server must recognize when all of the data has been received and mark the share as complete
+The server MUST recognize when all of the data has been received and mark the share as complete
 (which it can do because it was informed of the size when the storage index was initialized).
 
-The request must include a ``X-Tahoe-Authorization`` header that includes the upload secret::
+The request MUST include a ``X-Tahoe-Authorization`` header that includes the upload secret::
 
     X-Tahoe-Authorization: upload-secret <base64-upload-secret>
 
 Responses:
 
-* When a chunk that does not complete the share is successfully uploaded the response is ``OK``.
-  The response body indicates the range of share data that has yet to be uploaded.
-  That is::
+* When a chunk that does not complete the share is successfully uploaded the response MUST be ``OK``.
+  The response body MUST indicate the range of share data that has yet to be uploaded.
+  The response body MUST validate against this CDDL schema::
+
+    {
+      required: [0* {begin: uint, end: uint}]
+    }
+
+  For example::
 
     { "required":
       [ { "begin": <byte position, inclusive>
@@ -573,11 +741,12 @@ Responses:
       ]
     }
 
-* When the chunk that completes the share is successfully uploaded the response is ``CREATED``.
+* When the chunk that completes the share is successfully uploaded the response MUST be ``CREATED``.
 * If the *Content-Range* for a request covers part of the share that has already,
   and the data does not match already written data,
-  the response is ``CONFLICT``.
-  At this point the only thing to do is abort the upload and start from scratch (see below).
+  the response MUST be ``CONFLICT``.
+  In this case the client MUST abort the upload.
+  The client MAY then restart the upload from scratch.
 
 Discussion
 ``````````
@@ -603,34 +772,42 @@ From RFC 7231::
 
 This cancels an *in-progress* upload.
 
-The request must include a ``X-Tahoe-Authorization`` header that includes the upload secret::
+The request MUST include a ``X-Tahoe-Authorization`` header that includes the upload secret::
 
     X-Tahoe-Authorization: upload-secret <base64-upload-secret>
 
-The response code:
+If there is an incomplete upload with a matching upload-secret then the server MUST consider the abort to have succeeded.
+In this case the response MUST be ``OK``.
+The server MUST respond to all future requests as if the operations related to this upload did not take place.
 
-* When the upload is still in progress and therefore the abort has succeeded,
-  the response is ``OK``.
-  Future uploads can start from scratch with no pre-existing upload state stored on the server.
-* If the uploaded has already finished, the response is 405 (Method Not Allowed)
-  and no change is made.
-
+If there is no incomplete upload with a matching upload-secret then the server MUST respond with ``Method Not Allowed`` (405).
+The server MUST make no client-visible changes to its state in this case.
 
 ``POST /storage/v1/immutable/:storage_index/:share_number/corrupt``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Advise the server the data read from the indicated share was corrupt. The
-request body includes an human-meaningful text string with details about the
-corruption. It also includes potentially important details about the share.
+Advise the server the data read from the indicated share was corrupt.
+The request body includes an human-meaningful text string with details about the corruption.
+It also includes potentially important details about the share.
+The request body MUST validate against this CDDL schema::
+
+  {
+    reason: tstr .size (1..32765)
+  }
 
 For example::
 
   {"reason": "expected hash abcd, got hash efgh"}
 
-.. share-type, storage-index, and share-number are inferred from the URL
+The report pertains to the immutable share with a **storage index** and **share number** given in the request path.
+If the identified **storage index** and **share number** are known to the server then the response SHOULD be accepted and made available to server administrators.
+In this case the response SHOULD be ``OK``.
+If the response is not accepted then the response SHOULD be ``Not Found`` (404).
 
-The response code is OK (200) by default, or NOT FOUND (404) if the share
-couldn't be found.
+Discussion
+``````````
+
+The seemingly odd length limit on ``reason`` is chosen so that the *encoded* representation of the message is limited to 32768.
 
 Reading
 ~~~~~~~
@@ -638,26 +815,36 @@ Reading
 ``GET /storage/v1/immutable/:storage_index/shares``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Retrieve a list (semantically, a set) indicating all shares available for the
-indicated storage index. For example::
+Retrieve a list (semantically, a set) indicating all shares available for the indicated storage index.
+The response body MUST validate against this CDDL schema::
+
+  #6.258([0*256 uint])
+
+For example::
 
   [1, 5]
 
-An unknown storage index results in an empty list.
+If the **storage index** in the request path is not known to the server then the response MUST include an empty list.
 
 ``GET /storage/v1/immutable/:storage_index/:share_number``
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Read a contiguous sequence of bytes from one share in one bucket.
-The response body is the raw share data (i.e., ``application/octet-stream``).
-The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
-Interpretation and response behavior is as specified in RFC 7233 § 4.1.
-Multiple ranges in a single request are *not* supported; open-ended ranges are also not supported.
+The response body MUST be the raw share data (i.e., ``application/octet-stream``).
+The ``Range`` header MAY be used to request exactly one ``bytes`` range,
+in which case the response code MUST be ``Partial Content`` (206).
+Interpretation and response behavior MUST be as specified in RFC 7233 § 4.1.
+Multiple ranges in a single request are *not* supported;
+open-ended ranges are also not supported.
+Clients MUST NOT send requests using these features.
 
-If the response reads beyond the end of the data, the response may be shorter than the requested range.
-The resulting ``Content-Range`` header will be consistent with the returned data.
+If the response reads beyond the end of the data,
+the response MUST be shorter than the requested range.
+It MUST contain all data up to the end of the share and then end.
+The resulting ``Content-Range`` header MUST be consistent with the returned data.
 
-If the response to a query is an empty range, the ``NO CONTENT`` (204) response code will be used.
+If the response to a query is an empty range,
+the server MUST send a ``No Content`` (204) response.
 
 Discussion
 ``````````
@@ -696,13 +883,27 @@ The first write operation on a mutable storage index creates it
 (that is,
 there is no separate "create this storage index" operation as there is for the immutable storage index type).
 
-The request must include ``X-Tahoe-Authorization`` headers with write enabler and lease secrets::
+The request MUST include ``X-Tahoe-Authorization`` headers with write enabler and lease secrets::
 
     X-Tahoe-Authorization: write-enabler <base64-write-enabler-secret>
     X-Tahoe-Authorization: lease-cancel-secret <base64-lease-cancel-secret>
     X-Tahoe-Authorization: lease-renew-secret <base64-lease-renew-secret>
 
-The request body includes test, read, and write vectors for the operation.
+The request body MUST include test, read, and write vectors for the operation.
+The request body MUST validate against this CDDL schema::
+
+  {
+    "test-write-vectors": {
+      0*256 share_number : {
+        "test": [0*30 {"offset": uint, "size": uint, "specimen": bstr}]
+        "write": [* {"offset": uint, "data": bstr}]
+        "new-length": uint / null
+      }
+    }
+    "read-vector": [0*30 {"offset": uint, "size": uint}]
+  }
+  share_number = uint
+
 For example::
 
    {
@@ -725,6 +926,14 @@ For example::
 
 The response body contains a boolean indicating whether the tests all succeed
 (and writes were applied) and a mapping giving read data (pre-write).
+The response body MUST validate against this CDDL schema::
+
+  {
+    "success": bool,
+    "data": {0*256 share_number: [0* bstr]}
+  }
+  share_number = uint
+
 For example::
 
   {
@@ -736,8 +945,17 @@ For example::
       }
   }
 
-A test vector or read vector that read beyond the boundaries of existing data will return nothing for any bytes past the end.
-As a result, if there is no data at all, an empty bytestring is returned no matter what the offset or length.
+A client MAY send a test vector or read vector to bytes beyond the end of existing data.
+In this case a server MUST behave as if the test or read vector referred to exactly as much data exists.
+
+For example,
+consider the case where the server has 5 bytes of data for a particular share.
+If a client sends a read vector with an ``offset`` of 1 and a ``size`` of 4 then the server MUST respond with all of the data except the first byte.
+If a client sends a read vector with the same ``offset`` and a ``size`` of 5 (or any larger value) then the server MUST respond in the same way.
+
+Similarly,
+if there is no data at all,
+an empty byte string is returned no matter what the offset or length.
 
 Reading
 ~~~~~~~
@@ -746,23 +964,34 @@ Reading
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 Retrieve a set indicating all shares available for the indicated storage index.
-For example (this is shown as list, since it will be list for JSON, but will be set for CBOR)::
+The response body MUST validate against this CDDL schema::
+
+  #6.258([0*256 uint])
+
+For example::
 
   [1, 5]
 
 ``GET /storage/v1/mutable/:storage_index/:share_number``
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-Read data from the indicated mutable shares, just like ``GET /storage/v1/immutable/:storage_index``
+Read data from the indicated mutable shares, just like ``GET /storage/v1/immutable/:storage_index``.
 
-The ``Range`` header may be used to request exactly one ``bytes`` range, in which case the response code will be 206 (partial content).
-Interpretation and response behavior is as specified in RFC 7233 § 4.1.
-Multiple ranges in a single request are *not* supported; open-ended ranges are also not supported.
+The response body MUST be the raw share data (i.e., ``application/octet-stream``).
+The ``Range`` header MAY be used to request exactly one ``bytes`` range,
+in which case the response code MUST be ``Partial Content`` (206).
+Interpretation and response behavior MUST be specified in RFC 7233 § 4.1.
+Multiple ranges in a single request are *not* supported;
+open-ended ranges are also not supported.
+Clients MUST NOT send requests using these features.
 
-If the response reads beyond the end of the data, the response may be shorter than the requested range.
-The resulting ``Content-Range`` header will be consistent with the returned data.
+If the response reads beyond the end of the data,
+the response MUST be shorter than the requested range.
+It MUST contain all data up to the end of the share and then end.
+The resulting ``Content-Range`` header MUST be consistent with the returned data.
 
-If the response to a query is an empty range, the ``NO CONTENT`` (204) response code will be used.
+If the response to a query is an empty range,
+the server MUST send a ``No Content`` (204) response.
 
 
 ``POST /storage/v1/mutable/:storage_index/:share_number/corrupt``
@@ -773,6 +1002,9 @@ Just like the immutable version.
 
 Sample Interactions
 -------------------
+
+This section contains examples of client/server interactions to help illuminate the above specification.
+This section is non-normative.
 
 Immutable Data
 ~~~~~~~~~~~~~~
@@ -926,9 +1158,15 @@ otherwise it will read a byte which won't match `b""`::
 
      204 NO CONTENT
 
+.. _Base64: https://www.rfc-editor.org/rfc/rfc4648#section-4
+
+.. _RFC 4648: https://tools.ietf.org/html/rfc4648
+
 .. _RFC 7469: https://tools.ietf.org/html/rfc7469#section-2.4
 
 .. _RFC 7049: https://tools.ietf.org/html/rfc7049#section-4
+
+.. _RFC 9110: https://tools.ietf.org/html/rfc9110
 
 .. _CBOR: http://cbor.io/
 
@@ -974,7 +1212,7 @@ otherwise it will read a byte which won't match `b""`::
         spki_encoded = urlsafe_b64encode(spki_sha256)
         assert spki_encoded == tub_id
 
-   Note we use `base64url`_ rather than the Foolscap- and Tahoe-LAFS-preferred Base32.
+   Note we use `unpadded base64url`_ rather than the Foolscap- and Tahoe-LAFS-preferred Base32.
 
 .. [#]
    https://www.cvedetails.com/cve/CVE-2017-5638/
@@ -985,6 +1223,6 @@ otherwise it will read a byte which won't match `b""`::
 .. [#]
    https://efail.de/
 
-.. _base64url: https://tools.ietf.org/html/rfc7515#appendix-C
+.. _unpadded base64url: https://tools.ietf.org/html/rfc7515#appendix-C
 
 .. _attacking SHA1: https://en.wikipedia.org/wiki/SHA-1#Attacks

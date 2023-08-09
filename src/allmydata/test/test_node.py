@@ -1,14 +1,4 @@
-"""
-Ported to Python 3.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 import base64
 import os
@@ -31,6 +21,7 @@ from unittest import skipIf
 from twisted.python.filepath import (
     FilePath,
 )
+from twisted.python.runtime import platform
 from twisted.trial import unittest
 from twisted.internet import defer
 
@@ -71,6 +62,7 @@ from .common import (
     ConstantAddresses,
     SameProcessStreamEndpointAssigner,
     UseNode,
+    superuser,
 )
 
 def port_numbers():
@@ -261,6 +253,20 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         with self.assertRaises(MissingConfigEntry):
             config.get_config("node", "log_gatherer.furl")
 
+    def test_missing_config_section(self):
+        """
+        Enumerating a missing section returns empty dict
+        """
+        basedir = self.mktemp()
+        fileutil.make_dirs(basedir)
+        with open(os.path.join(basedir, 'tahoe.cfg'), 'w'):
+            pass
+        config = read_config(basedir, "")
+        self.assertEquals(
+            config.enumerate_section("not-a-section"),
+            {}
+        )
+
     def test_config_required(self):
         """
         Asking for missing (but required) configuration is an error
@@ -319,10 +325,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         default = [("hello", "world")]
         self.assertEqual(config.items("nosuch", default), default)
 
-    @skipIf(
-        "win32" in sys.platform.lower() or "cygwin" in sys.platform.lower(),
-        "We don't know how to set permissions on Windows.",
-    )
+    @skipIf(platform.isWindows(), "We don't know how to set permissions on Windows.")
+    @skipIf(superuser, "cannot test as superuser with all permissions")
     def test_private_config_unreadable(self):
         """
         Asking for inaccessible private config is an error
@@ -337,10 +341,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         with self.assertRaises(Exception):
             config.get_or_create_private_config("foo")
 
-    @skipIf(
-        "win32" in sys.platform.lower() or "cygwin" in sys.platform.lower(),
-        "We don't know how to set permissions on Windows.",
-    )
+    @skipIf(platform.isWindows(), "We don't know how to set permissions on Windows.")
+    @skipIf(superuser, "cannot test as superuser with all permissions")
     def test_private_config_unreadable_preexisting(self):
         """
         error if reading private config data fails
@@ -397,6 +399,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         self.assertEqual(len(counter), 1) # don't call unless necessary
         self.assertEqual(value, "newer")
 
+    @skipIf(superuser, "cannot test as superuser with all permissions")
     def test_write_config_unwritable_file(self):
         """
         Existing behavior merely logs any errors upon writing

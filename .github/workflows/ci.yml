@@ -44,19 +44,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - windows-latest
-          - ubuntu-latest
-        python-version:
-          - "3.8"
-          - "3.9"
-          - "3.10"
         include:
           # On macOS don't bother with 3.8, just to get faster builds.
-          - os: macos-latest
+          - os: macos-12
             python-version: "3.9"
-          - os: macos-latest
-            python-version: "3.10"
+          - os: macos-12
+            python-version: "3.11"
           # We only support PyPy on Linux at the moment.
           - os: ubuntu-latest
             python-version: "pypy-3.8"
@@ -79,7 +72,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade codecov "tox<4" tox-gh-actions setuptools
+          pip install --upgrade "tox<4" tox-gh-actions setuptools
           pip list
 
       - name: Display tool versions
@@ -164,18 +157,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: macos-latest
-            python-version: "3.9"
-            force-foolscap: false
-          - os: windows-latest
-            python-version: "3.9"
-            force-foolscap: false
+        os:
           # 22.04 has some issue with Tor at the moment:
           # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3943
+          - ubuntu-20.04
+          - macos-12
+          - windows-latest
+        python-version:
+          - "3.11"
+        force-foolscap:
+          - false
+        include:
           - os: ubuntu-20.04
-            python-version: "3.9"
-            force-foolscap: false
+            python-version: "3.10"
+            force-foolscap: true
     steps:
 
       - name: Install Tor [Ubuntu]
@@ -248,7 +243,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-10.15
+          - macos-12
           - windows-latest
           - ubuntu-latest
         python-version:

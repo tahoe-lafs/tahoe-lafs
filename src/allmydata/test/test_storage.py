@@ -21,7 +21,11 @@ from functools import partial
 from uuid import uuid4
 
 from testtools.matchers import (
+    Equals,
+    NotEquals,
+    Contains,
     HasLength,
+    IsInstance,
 )
 
 from twisted.trial import unittest
@@ -75,7 +79,9 @@ from .common import (
     ShouldFailMixin,
     FakeDisk,
     SyncTestCase,
+    AsyncTestCase,
 )
+
 from .common_util import FakeCanary
 from .common_storage import (
     upload_immutable,
@@ -87,23 +93,23 @@ from .strategies import (
 )
 
 
-class UtilTests(unittest.TestCase):
+class UtilTests(SyncTestCase):
     """Tests for allmydata.storage.common and .shares."""
 
     def test_encoding(self):
         """b2a/a2b are the same as base32."""
         s = b"\xFF HELLO \xF3"
         result = si_b2a(s)
-        self.assertEqual(base32.b2a(s), result)
-        self.assertEqual(si_a2b(result), s)
+        self.assertThat(base32.b2a(s), Equals(result))
+        self.assertThat(si_a2b(result), Equals(s))
 
     def test_storage_index_to_dir(self):
         """storage_index_to_dir creates a native string path."""
         s = b"\xFF HELLO \xF3"
         path = storage_index_to_dir(s)
         parts = os.path.split(path)
-        self.assertEqual(parts[0], parts[1][:2])
-        self.assertIsInstance(path, native_str)
+        self.assertThat(parts[0], Equals(parts[1][:2]))
+        self.assertThat(path, IsInstance(native_str))
 
     def test_get_share_file_mutable(self):
         """A mutable share is identified by get_share_file()."""
@@ -111,16 +117,16 @@ class UtilTests(unittest.TestCase):
         msf = MutableShareFile(path)
         msf.create(b"12", b"abc")  # arbitrary values
         loaded = get_share_file(path)
-        self.assertIsInstance(loaded, MutableShareFile)
-        self.assertEqual(loaded.home, path)
+        self.assertThat(loaded, IsInstance(MutableShareFile))
+        self.assertThat(loaded.home, Equals(path))
 
     def test_get_share_file_immutable(self):
         """An immutable share is identified by get_share_file()."""
         path = self.mktemp()
         _ = ShareFile(path, max_size=1000, create=True)
         loaded = get_share_file(path)
-        self.assertIsInstance(loaded, ShareFile)
-        self.assertEqual(loaded.home, path)
+        self.assertThat(loaded, IsInstance(ShareFile))
+        self.assertThat(loaded.home, Equals(path))
 
 
 class FakeStatsProvider(object):
@@ -130,7 +136,7 @@ class FakeStatsProvider(object):
         pass
 
 
-class Bucket(unittest.TestCase):
+class Bucket(SyncTestCase):
     def make_workdir(self, name):
         basedir = os.path.join("storage", "Bucket", name)
         incoming = os.path.join(basedir, "tmp", "bucket")
@@ -173,9 +179,9 @@ class Bucket(unittest.TestCase):
 
         # now read from it
         br = BucketReader(self, bw.finalhome)
-        self.failUnlessEqual(br.read(0, 25), b"a"*25)
-        self.failUnlessEqual(br.read(25, 25), b"b"*25)
-        self.failUnlessEqual(br.read(50, 7), b"c"*7)
+        self.assertThat(br.read(0, 25), Equals(b"a"*25))
+        self.assertThat(br.read(25, 25), Equals(b"b"*25))
+        self.assertThat(br.read(50, 7), Equals(b"c"*7))
 
     def test_write_past_size_errors(self):
         """Writing beyond the size of the bucket throws an exception."""
@@ -333,16 +339,16 @@ class Bucket(unittest.TestCase):
         # Now read from it.
         br = BucketReader(mockstorageserver, final)
 
-        self.failUnlessEqual(br.read(0, len(share_data)), share_data)
+        self.assertThat(br.read(0, len(share_data)), Equals(share_data))
 
         # Read past the end of share data to get the cancel secret.
         read_length = len(share_data) + len(ownernumber) + len(renewsecret) + len(cancelsecret)
 
         result_of_read = br.read(0, read_length)
-        self.failUnlessEqual(result_of_read, share_data)
+        self.assertThat(result_of_read, Equals(share_data))
 
         result_of_read = br.read(0, len(share_data)+1)
-        self.failUnlessEqual(result_of_read, share_data)
+        self.assertThat(result_of_read, Equals(share_data))
 
     def _assert_timeout_only_after_30_minutes(self, clock, bw):
         """
@@ -425,7 +431,7 @@ class RemoteBucket(object):
         return defer.maybeDeferred(_call)
 
 
-class BucketProxy(unittest.TestCase):
+class BucketProxy(AsyncTestCase):
     def make_bucket(self, name, size):
         basedir = os.path.join("storage", "BucketProxy", name)
         incoming = os.path.join(basedir, "tmp", "bucket")
@@ -459,7 +465,7 @@ class BucketProxy(unittest.TestCase):
                               num_segments=5,
                               num_share_hashes=3,
                               uri_extension_size=500)
-        self.failUnless(interfaces.IStorageBucketWriter.providedBy(bp), bp)
+        self.assertTrue(interfaces.IStorageBucketWriter.providedBy(bp), bp)
 
     def _do_test_readwrite(self, name, header_size, wbp_class, rbp_class):
         # Let's pretend each share has 100 bytes of data, and that there are
@@ -508,8 +514,8 @@ class BucketProxy(unittest.TestCase):
             rb = RemoteBucket(FoolscapBucketReader(br))
             server = NoNetworkServer(b"abc", None)
             rbp = rbp_class(rb, server, storage_index=b"")
-            self.failUnlessIn("to peer", repr(rbp))
-            self.failUnless(interfaces.IStorageBucketReader.providedBy(rbp), rbp)
+            self.assertThat(repr(rbp), Contains("to peer"))
+            self.assertTrue(interfaces.IStorageBucketReader.providedBy(rbp), rbp)
 
             d1 = rbp.get_block_data(0, 25, 25)
             d1.addCallback(lambda res: self.failUnlessEqual(res, b"a"*25))
@@ -545,14 +551,14 @@ class BucketProxy(unittest.TestCase):
         return self._do_test_readwrite("test_readwrite_v2",
                                        0x44, WriteBucketProxy_v2, ReadBucketProxy)
 
-class Server(unittest.TestCase):
+class Server(AsyncTestCase):
 
     def setUp(self):
+        super(Server, self).setUp()
         self.sparent = LoggingServiceParent()
         self.sparent.startService()
         self._lease_secret = itertools.count()
-    def tearDown(self):
-        return self.sparent.stopService()
+        self.addCleanup(self.sparent.stopService)
 
     def workdir(self, name):
         basedir = os.path.join("storage", "Server", name)
@@ -575,20 +581,20 @@ class Server(unittest.TestCase):
         ss = self.create("test_declares_fixed_1528")
         ver = ss.get_version()
         sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
-        self.failUnless(sv1.get(b'prevents-read-past-end-of-share-data'), sv1)
+        self.assertTrue(sv1.get(b'prevents-read-past-end-of-share-data'), sv1)
 
     def test_declares_maximum_share_sizes(self):
         ss = self.create("test_declares_maximum_share_sizes")
         ver = ss.get_version()
         sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
-        self.failUnlessIn(b'maximum-immutable-share-size', sv1)
-        self.failUnlessIn(b'maximum-mutable-share-size', sv1)
+        self.assertThat(sv1, Contains(b'maximum-immutable-share-size'))
+        self.assertThat(sv1, Contains(b'maximum-mutable-share-size'))
 
     def test_declares_available_space(self):
         ss = self.create("test_declares_available_space")
         ver = ss.get_version()
         sv1 = ver[b'http://allmydata.org/tahoe/protocols/storage/v1']
-        self.failUnlessIn(b'available-space', sv1)
+        self.assertThat(sv1, Contains(b'available-space'))
 
     def allocate(self, ss, storage_index, sharenums, size, renew_leases=True):
         """
@@ -618,8 +624,8 @@ class Server(unittest.TestCase):
         ss = self.create("test_large_share")
 
         already,writers = self.allocate(ss, b"allocate", [0], 2**32+2)
-        self.failUnlessEqual(already, set())
-        self.failUnlessEqual(set(writers.keys()), set([0]))
+        self.assertThat(set(), Equals(already))
+        self.assertThat(set([0]), Equals(set(writers.keys())))
 
         shnum, bucket = list(writers.items())[0]
         # This test is going to hammer your filesystem if it doesn't make a sparse file for this.  :-(
@@ -628,7 +634,7 @@ class Server(unittest.TestCase):
 
         readers = ss.get_buckets(b"allocate")
         reader = readers[shnum]
-        self.failUnlessEqual(reader.read(2**32, 2), b"ab")
+        self.assertThat(b"ab", Equals(reader.read(2**32, 2)))
 
     def test_dont_overfill_dirs(self):
         """
@@ -654,7 +660,7 @@ class Server(unittest.TestCase):
         storedir = os.path.join(self.workdir("test_dont_overfill_dirs"),
                                 "shares")
         new_children_of_storedir = set(os.listdir(storedir))
-        self.failUnlessEqual(children_of_storedir, new_children_of_storedir)
+        self.assertThat(new_children_of_storedir, Equals(children_of_storedir))
 
     def test_remove_incoming(self):
         ss = self.create("test_remove_incoming")
@@ -666,9 +672,9 @@ class Server(unittest.TestCase):
         incoming_bucket_dir = os.path.dirname(incoming_share_dir)
         incoming_prefix_dir = os.path.dirname(incoming_bucket_dir)
         incoming_dir = os.path.dirname(incoming_prefix_dir)
-        self.failIf(os.path.exists(incoming_bucket_dir), incoming_bucket_dir)
-        self.failIf(os.path.exists(incoming_prefix_dir), incoming_prefix_dir)
-        self.failUnless(os.path.exists(incoming_dir), incoming_dir)
+        self.assertFalse(os.path.exists(incoming_bucket_dir), incoming_bucket_dir)
+        self.assertFalse(os.path.exists(incoming_prefix_dir), incoming_prefix_dir)
+        self.assertTrue(os.path.exists(incoming_dir), incoming_dir)
 
     def test_abort(self):
         # remote_abort, when called on a writer, should make sure that
@@ -676,12 +682,12 @@ class Server(unittest.TestCase):
         # server when accounting for space.
         ss = self.create("test_abort")
         already, writers = self.allocate(ss, b"allocate", [0, 1, 2], 150)
-        self.failIfEqual(ss.allocated_size(), 0)
+        self.assertThat(ss.allocated_size(), NotEquals(0))
 
         # Now abort the writers.
         for writer in writers.values():
             writer.abort()
-        self.failUnlessEqual(ss.allocated_size(), 0)
+        self.assertThat(ss.allocated_size(), Equals(0))
 
     def test_immutable_length(self):
         """
@@ -693,20 +699,20 @@ class Server(unittest.TestCase):
         bucket = writers[22]
         bucket.write(0, b"X" * 75)
         bucket.close()
-        self.assertEqual(ss.get_immutable_share_length(b"allocate", 22), 75)
-        self.assertEqual(ss.get_buckets(b"allocate")[22].get_length(), 75)
+        self.assertThat(ss.get_immutable_share_length(b"allocate", 22), Equals(75))
+        self.assertThat(ss.get_buckets(b"allocate")[22].get_length(), Equals(75))
 
     def test_allocate(self):
         ss = self.create("test_allocate")
 
-        self.failUnlessEqual(ss.get_buckets(b"allocate"), {})
+        self.assertThat(ss.get_buckets(b"allocate"), Equals({}))
 
         already,writers = self.allocate(ss, b"allocate", [0,1,2], 75)
-        self.failUnlessEqual(already, set())
-        self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
+        self.assertThat(already, Equals(set()))
+        self.assertThat(set(writers.keys()), Equals(set([0,1,2])))
 
         # while the buckets are open, they should not count as readable
-        self.failUnlessEqual(ss.get_buckets(b"allocate"), {})
+        self.assertThat(ss.get_buckets(b"allocate"), Equals({}))
 
         # close the buckets
         for i,wb in writers.items():
@@ -717,32 +723,32 @@ class Server(unittest.TestCase):
 
         # now they should be readable
         b = ss.get_buckets(b"allocate")
-        self.failUnlessEqual(set(b.keys()), set([0,1,2]))
-        self.failUnlessEqual(b[0].read(0, 25), b"%25d" % 0)
+        self.assertThat(set(b.keys()), Equals(set([0,1,2])))
+        self.assertThat(b[0].read(0, 25), Equals(b"%25d" % 0))
         b_str = str(b[0])
-        self.failUnlessIn("BucketReader", b_str)
-        self.failUnlessIn("mfwgy33dmf2g 0", b_str)
+        self.assertThat(b_str, Contains("BucketReader"))
+        self.assertThat(b_str, Contains("mfwgy33dmf2g 0"))
 
         # now if we ask about writing again, the server should offer those
         # three buckets as already present. It should offer them even if we
         # don't ask about those specific ones.
         already,writers = self.allocate(ss, b"allocate", [2,3,4], 75)
-        self.failUnlessEqual(already, set([0,1,2]))
-        self.failUnlessEqual(set(writers.keys()), set([3,4]))
+        self.assertThat(already, Equals(set([0,1,2])))
+        self.assertThat(set(writers.keys()), Equals(set([3,4])))
 
         # while those two buckets are open for writing, the server should
         # refuse to offer them to uploaders
 
         already2,writers2 = self.allocate(ss, b"allocate", [2,3,4,5], 75)
-        self.failUnlessEqual(already2, set([0,1,2]))
-        self.failUnlessEqual(set(writers2.keys()), set([5]))
+        self.assertThat(already2, Equals(set([0,1,2])))
+        self.assertThat(set(writers2.keys()), Equals(set([5])))
 
         # aborting the writes should remove the tempfiles
         for i,wb in writers2.items():
             wb.abort()
         already2,writers2 = self.allocate(ss, b"allocate", [2,3,4,5], 75)
-        self.failUnlessEqual(already2, set([0,1,2]))
-        self.failUnlessEqual(set(writers2.keys()), set([5]))
+        self.assertThat(already2, Equals(set([0,1,2])))
+        self.assertThat(set(writers2.keys()), Equals(set([5])))
 
         for i,wb in writers2.items():
             wb.abort()
@@ -798,13 +804,13 @@ class Server(unittest.TestCase):
 
         # The first share's lease expiration time is unchanged.
         shares = dict(ss.get_shares(storage_index))
-        self.assertEqual(
+        self.assertThat(
             [first_lease],
-            list(
+            Equals(list(
                 lease.get_grant_renew_time_time()
                 for lease
                 in ShareFile(shares[0]).get_leases()
-            ),
+            )),
         )
 
     def test_bad_container_version(self):
@@ -823,9 +829,9 @@ class Server(unittest.TestCase):
 
         e = self.failUnlessRaises(UnknownImmutableContainerVersionError,
                                   ss.get_buckets, b"si1")
-        self.assertEqual(e.filename, fn)
-        self.assertEqual(e.version, 0)
-        self.assertIn("had unexpected version 0", str(e))
+        self.assertThat(e.filename, Equals(fn))
+        self.assertThat(e.version, Equals(0))
+        self.assertThat(str(e), Contains("had unexpected version 0"))
 
     def test_disconnect(self):
         # simulate a disconnection
@@ -841,8 +847,8 @@ class Server(unittest.TestCase):
             allocated_size=75,
             canary=canary,
         )
-        self.failUnlessEqual(already, set())
-        self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
+        self.assertThat(already, Equals(set()))
+        self.assertThat(set(writers.keys()), Equals(set([0,1,2])))
         for (f,args,kwargs) in list(canary.disconnectors.values()):
             f(*args, **kwargs)
         del already
@@ -850,8 +856,8 @@ class Server(unittest.TestCase):
 
         # that ought to delete the incoming shares
         already,writers = self.allocate(ss, b"disconnect", [0,1,2], 75)
-        self.failUnlessEqual(already, set())
-        self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
+        self.assertThat(already, Equals(set()))
+        self.assertThat(set(writers.keys()), Equals(set([0,1,2])))
 
     def test_reserved_space_immutable_lease(self):
         """
@@ -949,22 +955,22 @@ class Server(unittest.TestCase):
             allocated_size=1000,
             canary=canary,
         )
-        self.failUnlessEqual(len(writers), 3)
+        self.assertThat(writers, HasLength(3))
         # now the StorageServer should have 3000 bytes provisionally
         # allocated, allowing only 2000 more to be claimed
-        self.failUnlessEqual(len(ss._server._bucket_writers), 3)
+        self.assertThat(ss._server._bucket_writers, HasLength(3))
 
         # allocating 1001-byte shares only leaves room for one
         canary2 = FakeCanary()
         already2, writers2 = self.allocate(ss, b"vid2", [0,1,2], 1001, canary2)
-        self.failUnlessEqual(len(writers2), 1)
-        self.failUnlessEqual(len(ss._server._bucket_writers), 4)
+        self.assertThat(writers2, HasLength(1))
+        self.assertThat(ss._server._bucket_writers, HasLength(4))
 
         # we abandon the first set, so their provisional allocation should be
         # returned
         canary.disconnected()
 
-        self.failUnlessEqual(len(ss._server._bucket_writers), 1)
+        self.assertThat(ss._server._bucket_writers, HasLength(1))
         # now we have a provisional allocation of 1001 bytes
 
         # and we close the second set, so their provisional allocation should
@@ -973,7 +979,7 @@ class Server(unittest.TestCase):
         for bw in writers2.values():
             bw.write(0, b"a"*25)
             bw.close()
-        self.failUnlessEqual(len(ss._server._bucket_writers), 0)
+        self.assertThat(ss._server._bucket_writers, HasLength(0))
 
         # this also changes the amount reported as available by call_get_disk_stats
         allocated = 1001 + OVERHEAD + LEASE_SIZE
@@ -989,12 +995,12 @@ class Server(unittest.TestCase):
             allocated_size=100,
             canary=canary3,
         )
-        self.failUnlessEqual(len(writers3), 39)
-        self.failUnlessEqual(len(ss._server._bucket_writers), 39)
+        self.assertThat(writers3, HasLength(39))
+        self.assertThat(ss._server._bucket_writers, HasLength(39))
 
         canary3.disconnected()
 
-        self.failUnlessEqual(len(ss._server._bucket_writers), 0)
+        self.assertThat(ss._server._bucket_writers, HasLength(0))
         ss._server.disownServiceParent()
         del ss
 
@@ -1013,9 +1019,9 @@ class Server(unittest.TestCase):
         f.write(b"100")
         f.close()
         filelen = os.stat(filename)[stat.ST_SIZE]
-        self.failUnlessEqual(filelen, 100+3)
+        self.assertThat(filelen, Equals(100+3))
         f2 = open(filename, "rb")
-        self.failUnlessEqual(f2.read(5), b"start")
+        self.assertThat(f2.read(5), Equals(b"start"))
 
     def create_bucket_5_shares(
             self, ss, storage_index, expected_already=0, expected_writers=5
@@ -1032,8 +1038,8 @@ class Server(unittest.TestCase):
                    hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
         already, writers = ss.allocate_buckets(storage_index, rs, cs,
                                                sharenums, size)
-        self.failUnlessEqual(len(already), expected_already)
-        self.failUnlessEqual(len(writers), expected_writers)
+        self.assertThat(already, HasLength(expected_already))
+        self.assertThat(writers, HasLength(expected_writers))
         for wb in writers.values():
             wb.close()
         return rs, cs
@@ -1069,11 +1075,11 @@ class Server(unittest.TestCase):
         self.assertTrue(lease3.is_renew_secret(rs2a))
 
         # add-lease on a missing storage index is silently ignored
-        self.assertIsNone(ss.add_lease(b"si18", b"", b""))
+        self.assertThat(ss.add_lease(b"si18", b"", b""), Equals(None))
 
         # check that si0 is readable
         readers = ss.get_buckets(b"si0")
-        self.failUnlessEqual(len(readers), 5)
+        self.assertThat(readers, HasLength(5))
 
         # renew the first lease. Only the proper renew_secret should work
         ss.renew_lease(b"si0", rs0)
@@ -1082,11 +1088,11 @@ class Server(unittest.TestCase):
 
         # check that si0 is still readable
         readers = ss.get_buckets(b"si0")
-        self.failUnlessEqual(len(readers), 5)
+        self.assertThat(readers, HasLength(5))
 
         # There is no such method as remote_cancel_lease for now -- see
         # ticket #1528.
-        self.failIf(hasattr(FoolscapStorageServer(ss), 'remote_cancel_lease'), \
+        self.assertFalse(hasattr(FoolscapStorageServer(ss), 'remote_cancel_lease'), \
                     "ss should not have a 'remote_cancel_lease' method/attribute")
 
         # test overlapping uploads
@@ -1096,25 +1102,25 @@ class Server(unittest.TestCase):
                    hashutil.my_cancel_secret_hash(b"%d" % next(self._lease_secret)))
         already,writers = ss.allocate_buckets(b"si3", rs3, cs3,
                                               sharenums, size)
-        self.failUnlessEqual(len(already), 0)
-        self.failUnlessEqual(len(writers), 5)
+        self.assertThat(already, HasLength(0))
+        self.assertThat(writers, HasLength(5))
         already2,writers2 = ss.allocate_buckets(b"si3", rs4, cs4,
                                                 sharenums, size)
-        self.failUnlessEqual(len(already2), 0)
-        self.failUnlessEqual(len(writers2), 0)
+        self.assertThat(already2, HasLength(0))
+        self.assertThat(writers2, HasLength(0))
         for wb in writers.values():
             wb.close()
 
         leases = list(ss.get_leases(b"si3"))
-        self.failUnlessEqual(len(leases), 1)
+        self.assertThat(leases, HasLength(1))
 
         already3,writers3 = ss.allocate_buckets(b"si3", rs4, cs4,
                                                 sharenums, size)
-        self.failUnlessEqual(len(already3), 5)
-        self.failUnlessEqual(len(writers3), 0)
+        self.assertThat(already3, HasLength(5))
+        self.assertThat(writers3, HasLength(0))
 
         leases = list(ss.get_leases(b"si3"))
-        self.failUnlessEqual(len(leases), 2)
+        self.assertThat(leases, HasLength(2))
 
     def test_immutable_add_lease_renews(self):
         """
@@ -1128,7 +1134,7 @@ class Server(unittest.TestCase):
         # Start out with single lease created with bucket:
         renewal_secret, cancel_secret = self.create_bucket_5_shares(ss, b"si0")
         [lease] = ss.get_leases(b"si0")
-        self.assertEqual(lease.get_expiration_time(), 123 + DEFAULT_RENEWAL_TIME)
+        self.assertThat(lease.get_expiration_time(), Equals(123 + DEFAULT_RENEWAL_TIME))
 
         # Time passes:
         clock.advance(123456)
@@ -1136,7 +1142,7 @@ class Server(unittest.TestCase):
         # Adding a lease with matching renewal secret just renews it:
         ss.add_lease(b"si0", renewal_secret, cancel_secret)
         [lease] = ss.get_leases(b"si0")
-        self.assertEqual(lease.get_expiration_time(), 123 + 123456 + DEFAULT_RENEWAL_TIME)
+        self.assertThat(lease.get_expiration_time(), Equals(123 + 123456 + DEFAULT_RENEWAL_TIME))
 
     def test_have_shares(self):
         """By default the StorageServer has no shares."""
@@ -1150,15 +1156,15 @@ class Server(unittest.TestCase):
         ss.setServiceParent(self.sparent)
 
         already,writers = self.allocate(ss, b"vid", [0,1,2], 75)
-        self.failUnlessEqual(already, set())
-        self.failUnlessEqual(writers, {})
+        self.assertThat(already, Equals(set()))
+        self.assertThat(writers, Equals({}))
 
         stats = ss.get_stats()
-        self.failUnlessEqual(stats["storage_server.accepting_immutable_shares"], 0)
+        self.assertThat(stats["storage_server.accepting_immutable_shares"], Equals(0))
         if "storage_server.disk_avail" in stats:
             # Some platforms may not have an API to get disk stats.
             # But if there are stats, readonly_storage means disk_avail=0
-            self.failUnlessEqual(stats["storage_server.disk_avail"], 0)
+            self.assertThat(stats["storage_server.disk_avail"], Equals(0))
 
     def test_discard(self):
         # discard is really only used for other tests, but we test it anyways
@@ -1167,8 +1173,8 @@ class Server(unittest.TestCase):
         ss.setServiceParent(self.sparent)
 
         already,writers = self.allocate(ss, b"vid", [0,1,2], 75)
-        self.failUnlessEqual(already, set())
-        self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
+        self.assertThat(already, Equals(set()))
+        self.assertThat(set(writers.keys()), Equals(set([0,1,2])))
         for i,wb in writers.items():
             wb.write(0, b"%25d" % i)
             wb.close()
@@ -1176,8 +1182,8 @@ class Server(unittest.TestCase):
         # Since we write with some seeks, the data we read back will be all
         # zeros.
         b = ss.get_buckets(b"vid")
-        self.failUnlessEqual(set(b.keys()), set([0,1,2]))
-        self.failUnlessEqual(b[0].read(0, 25), b"\x00" * 25)
+        self.assertThat(set(b.keys()), Equals(set([0,1,2])))
+        self.assertThat(b[0].read(0, 25), Equals(b"\x00" * 25))
 
     def test_reserved_space_advise_corruption(self):
         """
@@ -1195,9 +1201,9 @@ class Server(unittest.TestCase):
         ss.advise_corrupt_share(b"immutable", b"si0", 0,
                                 b"This share smells funny.\n")
 
-        self.assertEqual(
+        self.assertThat(
             [],
-            os.listdir(ss.corruption_advisory_dir),
+            Equals(os.listdir(ss.corruption_advisory_dir)),
         )
 
     def test_advise_corruption(self):
@@ -1211,39 +1217,39 @@ class Server(unittest.TestCase):
                                 b"This share smells funny.\n")
         reportdir = os.path.join(workdir, "corruption-advisories")
         reports = os.listdir(reportdir)
-        self.failUnlessEqual(len(reports), 1)
+        self.assertThat(reports, HasLength(1))
         report_si0 = reports[0]
-        self.failUnlessIn(ensure_str(si0_s), report_si0)
+        self.assertThat(report_si0, Contains(ensure_str(si0_s)))
         f = open(os.path.join(reportdir, report_si0), "rb")
         report = f.read()
         f.close()
-        self.failUnlessIn(b"type: immutable", report)
-        self.failUnlessIn(b"storage_index: %s" % si0_s, report)
-        self.failUnlessIn(b"share_number: 0", report)
-        self.failUnlessIn(b"This share smells funny.", report)
+        self.assertThat(report, Contains(b"type: immutable"))
+        self.assertThat(report, Contains(b"storage_index: %s" % si0_s))
+        self.assertThat(report, Contains(b"share_number: 0"))
+        self.assertThat(report, Contains(b"This share smells funny."))
 
         # test the RIBucketWriter version too
         si1_s = base32.b2a(b"si1")
         already,writers = self.allocate(ss, b"si1", [1], 75)
-        self.failUnlessEqual(already, set())
-        self.failUnlessEqual(set(writers.keys()), set([1]))
+        self.assertThat(already, Equals(set()))
+        self.assertThat(set(writers.keys()), Equals(set([1])))
         writers[1].write(0, b"data")
         writers[1].close()
 
         b = ss.get_buckets(b"si1")
-        self.failUnlessEqual(set(b.keys()), set([1]))
+        self.assertThat(set(b.keys()), Equals(set([1])))
         b[1].advise_corrupt_share(b"This share tastes like dust.\n")
 
         reports = os.listdir(reportdir)
-        self.failUnlessEqual(len(reports), 2)
+        self.assertThat(reports, HasLength(2))
         report_si1 = [r for r in reports if bytes_to_native_str(si1_s) in r][0]
         f = open(os.path.join(reportdir, report_si1), "rb")
         report = f.read()
         f.close()
-        self.failUnlessIn(b"type: immutable", report)
-        self.failUnlessIn(b"storage_index: %s" % si1_s, report)
-        self.failUnlessIn(b"share_number: 1", report)
-        self.failUnlessIn(b"This share tastes like dust.", report)
+        self.assertThat(report, Contains(b"type: immutable"))
+        self.assertThat(report, Contains(b"storage_index: %s" % si1_s))
+        self.assertThat(report, Contains(b"share_number: 1"))
+        self.assertThat(report, Contains(b"This share tastes like dust."))
 
     def test_advise_corruption_missing(self):
         """
@@ -1261,19 +1267,19 @@ class Server(unittest.TestCase):
         ss.advise_corrupt_share(b"immutable", b"si0", 1,
                                 b"This share smells funny.\n")
 
-        self.assertEqual(
+        self.assertThat(
             [],
-            os.listdir(ss.corruption_advisory_dir),
+            Equals(os.listdir(ss.corruption_advisory_dir)),
         )
 
 
-class MutableServer(unittest.TestCase):
+class MutableServer(SyncTestCase):
 
     def setUp(self):
+        super(MutableServer, self).setUp()
         self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
-    def tearDown(self):
-        return self.sparent.stopService()
+        self.addCleanup(self.sparent.stopService)
 
     def workdir(self, name):
         basedir = os.path.join("storage", "MutableServer", name)
@@ -1297,13 +1303,13 @@ class MutableServer(unittest.TestCase):
     def renew_secret(self, tag):
         if isinstance(tag, int):
             tag = b"%d" % (tag,)
-        assert isinstance(tag, bytes)
+        self.assertThat(tag, IsInstance(bytes))
         return hashutil.tagged_hash(b"renew_blah", tag)
 
     def cancel_secret(self, tag):
         if isinstance(tag, int):
             tag = b"%d" % (tag,)
-        assert isinstance(tag, bytes)
+        self.assertThat(tag, IsInstance(bytes))
         return hashutil.tagged_hash(b"cancel_blah", tag)
 
     def allocate(self, ss, storage_index, we_tag, lease_tag, sharenums, size):
@@ -1319,9 +1325,9 @@ class MutableServer(unittest.TestCase):
                      testandwritev,
                      readv)
         (did_write, readv_data) = rc
-        self.failUnless(did_write)
-        self.failUnless(isinstance(readv_data, dict))
-        self.failUnlessEqual(len(readv_data), 0)
+        self.assertTrue(did_write)
+        self.assertThat(readv_data, IsInstance(dict))
+        self.assertThat(readv_data, HasLength(0))
 
     def test_enumerate_mutable_shares(self):
         """
@@ -1343,9 +1349,9 @@ class MutableServer(unittest.TestCase):
                    self.cancel_secret(b"le1"))
         ss.slot_testv_and_readv_and_writev(b"si1", secrets, {2: ([], [], 0)}, [])
         shares0_1_4 = ss.enumerate_mutable_shares(b"si1")
-        self.assertEqual(
+        self.assertThat(
             (empty, shares0_1_2_4, shares0_1_4),
-            (set(), {0, 1, 2, 4}, {0, 1, 4})
+            Equals((set(), {0, 1, 2, 4}, {0, 1, 4}))
         )
 
     def test_mutable_share_length(self):
@@ -1359,7 +1365,7 @@ class MutableServer(unittest.TestCase):
             {16: ([], [(0, b"x" * 23)], None)},
             []
         )
-        self.assertEqual(ss.get_mutable_share_length(b"si1", 16), 23)
+        self.assertThat(ss.get_mutable_share_length(b"si1", 16), Equals(23))
 
     def test_mutable_share_length_unknown(self):
         """
@@ -1392,10 +1398,10 @@ class MutableServer(unittest.TestCase):
         read = ss.slot_readv
         e = self.failUnlessRaises(UnknownMutableContainerVersionError,
                                   read, b"si1", [0], [(0,10)])
-        self.assertEqual(e.filename, fn)
+        self.assertThat(e.filename, Equals(fn))
         self.assertTrue(e.version.startswith(b"BAD MAGIC"))
-        self.assertIn("had unexpected version", str(e))
-        self.assertIn("BAD MAGIC", str(e))
+        self.assertThat(str(e), Contains("had unexpected version"))
+        self.assertThat(str(e), Contains("BAD MAGIC"))
 
     def test_container_size(self):
         ss = self.create("test_container_size")
@@ -1410,7 +1416,7 @@ class MutableServer(unittest.TestCase):
         answer = rstaraw(b"si1", secrets,
                          {0: ([], [(0,data)], len(data)+12)},
                          [])
-        self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
+        self.assertThat(answer, Equals((True, {0:[],1:[],2:[]})))
 
         # Trying to make the container too large (by sending a write vector
         # whose offset is too high) will raise an exception.
@@ -1423,10 +1429,10 @@ class MutableServer(unittest.TestCase):
         answer = rstaraw(b"si1", secrets,
                          {0: ([], [(0,data)], None)},
                          [])
-        self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
+        self.assertThat(answer, Equals((True, {0:[],1:[],2:[]})))
 
         read_answer = read(b"si1", [0], [(0,10)])
-        self.failUnlessEqual(read_answer, {0: [data[:10]]})
+        self.assertThat(read_answer, Equals({0: [data[:10]]}))
 
         # Sending a new_length shorter than the current length truncates the
         # data.
@@ -1434,7 +1440,7 @@ class MutableServer(unittest.TestCase):
                          {0: ([], [], 9)},
                          [])
         read_answer = read(b"si1", [0], [(0,10)])
-        self.failUnlessEqual(read_answer, {0: [data[:9]]})
+        self.assertThat(read_answer, Equals({0: [data[:9]]}))
 
         # Sending a new_length longer than the current length doesn't change
         # the data.
@@ -1443,7 +1449,7 @@ class MutableServer(unittest.TestCase):
                          [])
         assert answer == (True, {0:[],1:[],2:[]})
         read_answer = read(b"si1", [0], [(0, 20)])
-        self.failUnlessEqual(read_answer, {0: [data[:9]]})
+        self.assertThat(read_answer, Equals({0: [data[:9]]}))
 
         # Sending a write vector whose start is after the end of the current
         # data doesn't reveal "whatever was there last time" (palimpsest),
@@ -1465,7 +1471,7 @@ class MutableServer(unittest.TestCase):
         answer = rstaraw(b"si1", secrets,
                          {0: ([], [], None)},
                          [(20, 1980)])
-        self.failUnlessEqual(answer, (True, {0:[b''],1:[b''],2:[b'']}))
+        self.assertThat(answer, Equals((True, {0:[b''],1:[b''],2:[b'']})))
 
         # Then the extend the file by writing a vector which starts out past
         # the end...
@@ -1478,22 +1484,22 @@ class MutableServer(unittest.TestCase):
         answer = rstaraw(b"si1", secrets,
                          {0: ([], [], None)},
                          [(20, 30)])
-        self.failUnlessEqual(answer, (True, {0:[b'\x00'*30],1:[b''],2:[b'']}))
+        self.assertThat(answer, Equals((True, {0:[b'\x00'*30],1:[b''],2:[b'']})))
 
         # Also see if the server explicitly declares that it supports this
         # feature.
         ver = ss.get_version()
         storage_v1_ver = ver[b"http://allmydata.org/tahoe/protocols/storage/v1"]
-        self.failUnless(storage_v1_ver.get(b"fills-holes-with-zero-bytes"))
+        self.assertTrue(storage_v1_ver.get(b"fills-holes-with-zero-bytes"))
 
         # If the size is dropped to zero the share is deleted.
         answer = rstaraw(b"si1", secrets,
                          {0: ([], [(0,data)], 0)},
                          [])
-        self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
+        self.assertThat(answer, Equals((True, {0:[],1:[],2:[]})))
 
         read_answer = read(b"si1", [0], [(0,10)])
-        self.failUnlessEqual(read_answer, {})
+        self.assertThat(read_answer, Equals({}))
 
     def test_allocate(self):
         ss = self.create("test_allocate")
@@ -1501,12 +1507,12 @@ class MutableServer(unittest.TestCase):
                       set([0,1,2]), 100)
 
         read = ss.slot_readv
-        self.failUnlessEqual(read(b"si1", [0], [(0, 10)]),
-                             {0: [b""]})
-        self.failUnlessEqual(read(b"si1", [], [(0, 10)]),
-                             {0: [b""], 1: [b""], 2: [b""]})
-        self.failUnlessEqual(read(b"si1", [0], [(100, 10)]),
-                             {0: [b""]})
+        self.assertThat(read(b"si1", [0], [(0, 10)]),
+                             Equals({0: [b""]}))
+        self.assertThat(read(b"si1", [], [(0, 10)]),
+                             Equals({0: [b""], 1: [b""], 2: [b""]}))
+        self.assertThat(read(b"si1", [0], [(100, 10)]),
+                             Equals({0: [b""]}))
 
         # try writing to one
         secrets = ( self.write_enabler(b"we1"),
@@ -1517,19 +1523,19 @@ class MutableServer(unittest.TestCase):
         answer = write(b"si1", secrets,
                        {0: ([], [(0,data)], None)},
                        [])
-        self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
+        self.assertThat(answer, Equals((True, {0:[],1:[],2:[]})))
 
-        self.failUnlessEqual(read(b"si1", [0], [(0,20)]),
-                             {0: [b"00000000001111111111"]})
-        self.failUnlessEqual(read(b"si1", [0], [(95,10)]),
-                             {0: [b"99999"]})
+        self.assertThat(read(b"si1", [0], [(0,20)]),
+                             Equals({0: [b"00000000001111111111"]}))
+        self.assertThat(read(b"si1", [0], [(95,10)]),
+                             Equals({0: [b"99999"]}))
         #self.failUnlessEqual(s0.get_length(), 100)
 
         bad_secrets = (b"bad write enabler", secrets[1], secrets[2])
         f = self.failUnlessRaises(BadWriteEnablerError,
                                   write, b"si1", bad_secrets,
                                   {}, [])
-        self.failUnlessIn("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.", str(f))
+        self.assertThat(str(f), Contains("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'."))
 
         # this testv should fail
         answer = write(b"si1", secrets,
@@ -1541,12 +1547,12 @@ class MutableServer(unittest.TestCase):
                         },
                        [(0,12), (20,5)],
                        )
-        self.failUnlessEqual(answer, (False,
+        self.assertThat(answer, Equals((False,
                                       {0: [b"000000000011", b"22222"],
                                        1: [b"", b""],
                                        2: [b"", b""],
-                                       }))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
+                                       })))
+        self.assertThat(read(b"si1", [0], [(0,100)]), Equals({0: [data]}))
 
     def test_operators(self):
         # test operators, the data we're comparing is '11111' in all cases.
@@ -1573,8 +1579,8 @@ class MutableServer(unittest.TestCase):
                                             [(0, b"x"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
+        self.assertThat(answer, Equals((False, {0: [b"11111"]})))
+        self.assertThat(read(b"si1", [0], [(0,100)]), Equals({0: [data]}))
         reset()
 
         answer = write(b"si1", secrets, {0: ([(10, 5, b"eq", b"11111"),
@@ -1582,8 +1588,8 @@ class MutableServer(unittest.TestCase):
                                             [(0, b"y"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (True, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [b"y"*100]})
+        self.assertThat(answer, Equals((True, {0: [b"11111"]})))
+        self.assertThat(read(b"si1", [0], [(0,100)]), Equals({0: [b"y"*100]}))
         reset()
 
         # finally, test some operators against empty shares
@@ -1592,8 +1598,8 @@ class MutableServer(unittest.TestCase):
                                             [(0, b"x"*100)],
                                             None,
                                             )}, [(10,5)])
-        self.failUnlessEqual(answer, (False, {0: [b"11111"]}))
-        self.failUnlessEqual(read(b"si1", [0], [(0,100)]), {0: [data]})
+        self.assertThat(answer, Equals((False, {0: [b"11111"]})))
+        self.assertThat(read(b"si1", [0], [(0,100)]), Equals({0: [data]}))
         reset()
 
     def test_readv(self):
@@ -1610,12 +1616,12 @@ class MutableServer(unittest.TestCase):
                     1: ([], [(0,data[1])], None),
                     2: ([], [(0,data[2])], None),
                     }, [])
-        self.failUnlessEqual(rc, (True, {}))
+        self.assertThat(rc, Equals((True, {})))
 
         answer = read(b"si1", [], [(0, 10)])
-        self.failUnlessEqual(answer, {0: [b"0"*10],
+        self.assertThat(answer, Equals({0: [b"0"*10],
                                       1: [b"1"*10],
-                                      2: [b"2"*10]})
+                                      2: [b"2"*10]}))
 
     def compare_leases_without_timestamps(self, leases_a, leases_b):
         """
@@ -1632,11 +1638,11 @@ class MutableServer(unittest.TestCase):
             # non-equal inputs (expiration timestamp aside).  It seems
             # reasonably safe to use `renew` to make _one_ of the timestamps
             # equal to the other though.
-            self.assertEqual(
+            self.assertThat(
                 a.renew(b.get_expiration_time()),
-                b,
+                Equals(b),
             )
-        self.assertEqual(len(leases_a), len(leases_b))
+        self.assertThat(len(leases_a), Equals(len(leases_b)))
 
     def test_leases(self):
         ss = self.create("test_leases")
@@ -1648,7 +1654,7 @@ class MutableServer(unittest.TestCase):
         write = ss.slot_testv_and_readv_and_writev
         read = ss.slot_readv
         rc = write(b"si1", secrets(0), {0: ([], [(0,data)], None)}, [])
-        self.failUnlessEqual(rc, (True, {}))
+        self.assertThat(rc, Equals((True, {})))
 
         # create a random non-numeric file in the bucket directory, to
         # exercise the code that's supposed to ignore those.
@@ -1659,32 +1665,32 @@ class MutableServer(unittest.TestCase):
         f.close()
 
         s0 = MutableShareFile(os.path.join(bucket_dir, "0"))
-        self.failUnlessEqual(len(list(s0.get_leases())), 1)
+        self.assertThat(list(s0.get_leases()), HasLength(1))
 
         # add-lease on a missing storage index is silently ignored
-        self.failUnlessEqual(ss.add_lease(b"si18", b"", b""), None)
+        self.assertThat(ss.add_lease(b"si18", b"", b""), Equals(None))
 
         # re-allocate the slots and use the same secrets, that should update
         # the lease
         write(b"si1", secrets(0), {0: ([], [(0,data)], None)}, [])
-        self.failUnlessEqual(len(list(s0.get_leases())), 1)
+        self.assertThat(list(s0.get_leases()), HasLength(1))
 
         # renew it directly
         ss.renew_lease(b"si1", secrets(0)[1])
-        self.failUnlessEqual(len(list(s0.get_leases())), 1)
+        self.assertThat(list(s0.get_leases()), HasLength(1))
 
         # now allocate them with a bunch of different secrets, to trigger the
         # extended lease code. Use add_lease for one of them.
         write(b"si1", secrets(1), {0: ([], [(0,data)], None)}, [])
-        self.failUnlessEqual(len(list(s0.get_leases())), 2)
+        self.assertThat(list(s0.get_leases()), HasLength(2))
         secrets2 = secrets(2)
         ss.add_lease(b"si1", secrets2[1], secrets2[2])
-        self.failUnlessEqual(len(list(s0.get_leases())), 3)
+        self.assertThat(list(s0.get_leases()), HasLength(3))
         write(b"si1", secrets(3), {0: ([], [(0,data)], None)}, [])
         write(b"si1", secrets(4), {0: ([], [(0,data)], None)}, [])
         write(b"si1", secrets(5), {0: ([], [(0,data)], None)}, [])
 
-        self.failUnlessEqual(len(list(s0.get_leases())), 6)
+        self.assertThat(list(s0.get_leases()), HasLength(6))
 
         all_leases = list(s0.get_leases())
         # and write enough data to expand the container, forcing the server
@@ -1714,15 +1720,15 @@ class MutableServer(unittest.TestCase):
                                   ss.renew_lease, b"si1",
                                   secrets(20)[1])
         e_s = str(e)
-        self.failUnlessIn("Unable to renew non-existent lease", e_s)
-        self.failUnlessIn("I have leases accepted by nodeids:", e_s)
-        self.failUnlessIn("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' .", e_s)
+        self.assertThat(e_s, Contains("Unable to renew non-existent lease"))
+        self.assertThat(e_s, Contains("I have leases accepted by nodeids:"))
+        self.assertThat(e_s, Contains("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' ."))
 
-        self.assertEqual(all_leases, list(s0.get_leases()))
+        self.assertThat(all_leases, Equals(list(s0.get_leases())))
 
         # reading shares should not modify the timestamp
         read(b"si1", [], [(0,200)])
-        self.assertEqual(all_leases, list(s0.get_leases()))
+        self.assertThat(all_leases, Equals(list(s0.get_leases())))
 
         write(b"si1", secrets(0),
               {0: ([], [(200, b"make me bigger")], None)}, [])
@@ -1750,13 +1756,13 @@ class MutableServer(unittest.TestCase):
         write_enabler, renew_secret, cancel_secret = secrets(0)
         rc = write(b"si1", (write_enabler, renew_secret, cancel_secret),
                    {0: ([], [(0,data)], None)}, [])
-        self.failUnlessEqual(rc, (True, {}))
+        self.assertThat(rc, Equals((True, {})))
 
         bucket_dir = os.path.join(self.workdir("test_mutable_add_lease_renews"),
                                   "shares", storage_index_to_dir(b"si1"))
         s0 = MutableShareFile(os.path.join(bucket_dir, "0"))
         [lease] = s0.get_leases()
-        self.assertEqual(lease.get_expiration_time(), 235 + DEFAULT_RENEWAL_TIME)
+        self.assertThat(lease.get_expiration_time(), Equals(235 + DEFAULT_RENEWAL_TIME))
 
         # Time passes...
         clock.advance(835)
@@ -1764,8 +1770,8 @@ class MutableServer(unittest.TestCase):
         # Adding a lease renews it:
         ss.add_lease(b"si1", renew_secret, cancel_secret)
         [lease] = s0.get_leases()
-        self.assertEqual(lease.get_expiration_time(),
-                         235 + 835 + DEFAULT_RENEWAL_TIME)
+        self.assertThat(lease.get_expiration_time(),
+                         Equals(235 + 835 + DEFAULT_RENEWAL_TIME))
 
     def test_remove(self):
         ss = self.create("test_remove")
@@ -1782,26 +1788,26 @@ class MutableServer(unittest.TestCase):
                         [])
         # the answer should mention all the shares that existed before the
         # write
-        self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
+        self.assertThat(answer, Equals((True, {0:[],1:[],2:[]})))
         # but a new read should show only sh1 and sh2
-        self.failUnlessEqual(readv(b"si1", [], [(0,10)]),
-                             {1: [b""], 2: [b""]})
+        self.assertThat(readv(b"si1", [], [(0,10)]),
+                             Equals({1: [b""], 2: [b""]}))
 
         # delete sh1 by setting its size to zero
         answer = writev(b"si1", secrets,
                         {1: ([], [], 0)},
                         [])
-        self.failUnlessEqual(answer, (True, {1:[],2:[]}) )
-        self.failUnlessEqual(readv(b"si1", [], [(0,10)]),
-                             {2: [b""]})
+        self.assertThat(answer, Equals((True, {1:[],2:[]})))
+        self.assertThat(readv(b"si1", [], [(0,10)]),
+                             Equals({2: [b""]}))
 
         # delete sh2 by setting its size to zero
         answer = writev(b"si1", secrets,
                         {2: ([], [], 0)},
                         [])
-        self.failUnlessEqual(answer, (True, {2:[]}) )
-        self.failUnlessEqual(readv(b"si1", [], [(0,10)]),
-                             {})
+        self.assertThat(answer, Equals((True, {2:[]})))
+        self.assertThat(readv(b"si1", [], [(0,10)]),
+                             Equals({}))
         # and the bucket directory should now be gone
         si = base32.b2a(b"si1")
         # note: this is a detail of the storage server implementation, and
@@ -1810,8 +1816,8 @@ class MutableServer(unittest.TestCase):
         prefix = si[:2]
         prefixdir = os.path.join(self.workdir("test_remove"), "shares", prefix)
         bucketdir = os.path.join(prefixdir, si)
-        self.failUnless(os.path.exists(prefixdir), prefixdir)
-        self.failIf(os.path.exists(bucketdir), bucketdir)
+        self.assertTrue(os.path.exists(prefixdir), prefixdir)
+        self.assertFalse(os.path.exists(bucketdir), bucketdir)
 
     def test_writev_without_renew_lease(self):
         """
@@ -1840,7 +1846,7 @@ class MutableServer(unittest.TestCase):
             renew_leases=False,
         )
         leases = list(ss.get_slot_leases(storage_index))
-        self.assertEqual([], leases)
+        self.assertThat([], Equals(leases))
 
     def test_get_slot_leases_empty_slot(self):
         """
@@ -1848,9 +1854,9 @@ class MutableServer(unittest.TestCase):
         shares, it returns an empty iterable.
         """
         ss = self.create("test_get_slot_leases_empty_slot")
-        self.assertEqual(
+        self.assertThat(
             list(ss.get_slot_leases(b"si1")),
-            [],
+            Equals([]),
         )
 
     def test_remove_non_present(self):
@@ -1886,11 +1892,12 @@ class MutableServer(unittest.TestCase):
         )
 
         self.assertTrue(testv_is_good)
-        self.assertEqual({}, read_data)
+        self.assertThat({}, Equals(read_data))
 
 
-class MDMFProxies(unittest.TestCase, ShouldFailMixin):
+class MDMFProxies(AsyncTestCase, ShouldFailMixin):
     def setUp(self):
+        super(MDMFProxies, self).setUp()
         self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
         self.ss = self.create("MDMFProxies storage test server")
@@ -1921,6 +1928,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def tearDown(self):
+        super(MDMFProxies, self).tearDown()
         self.sparent.stopService()
         shutil.rmtree(self.workdir("MDMFProxies storage test server"))
 
@@ -2070,7 +2078,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         tws[0] = (testvs, [(0, data)], None)
         readv = [(0, 1)]
         results = write(storage_index, self.secrets, tws, readv)
-        self.failUnless(results[0])
+        self.assertTrue(results[0])
 
 
     def build_test_sdmf_share(self, empty=False):
@@ -2136,7 +2144,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         tws[0] = (testvs, [(0, share)], None)
         readv = []
         results = write(storage_index, self.secrets, tws, readv)
-        self.failUnless(results[0])
+        self.assertTrue(results[0])
 
 
     def test_read(self):
@@ -2146,8 +2154,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d = defer.succeed(None)
         def _check_block_and_salt(block_and_salt):
             (block, salt) = block_and_salt
-            self.failUnlessEqual(block, self.block)
-            self.failUnlessEqual(salt, self.salt)
+            self.assertThat(block, Equals(self.block))
+            self.assertThat(salt, Equals(self.salt))
 
         for i in range(6):
             d.addCallback(lambda ignored, i=i:
@@ -2157,57 +2165,57 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda ignored:
             mr.get_encprivkey())
         d.addCallback(lambda encprivkey:
-            self.failUnlessEqual(self.encprivkey, encprivkey))
+            self.assertThat(self.encprivkey, Equals(encprivkey)))
 
         d.addCallback(lambda ignored:
             mr.get_blockhashes())
         d.addCallback(lambda blockhashes:
-            self.failUnlessEqual(self.block_hash_tree, blockhashes))
+            self.assertThat(self.block_hash_tree, Equals(blockhashes)))
 
         d.addCallback(lambda ignored:
             mr.get_sharehashes())
         d.addCallback(lambda sharehashes:
-            self.failUnlessEqual(self.share_hash_chain, sharehashes))
+            self.assertThat(self.share_hash_chain, Equals(sharehashes)))
 
         d.addCallback(lambda ignored:
             mr.get_signature())
         d.addCallback(lambda signature:
-            self.failUnlessEqual(signature, self.signature))
+            self.assertThat(signature, Equals(self.signature)))
 
         d.addCallback(lambda ignored:
             mr.get_verification_key())
         d.addCallback(lambda verification_key:
-            self.failUnlessEqual(verification_key, self.verification_key))
+            self.assertThat(verification_key, Equals(self.verification_key)))
 
         d.addCallback(lambda ignored:
             mr.get_seqnum())
         d.addCallback(lambda seqnum:
-            self.failUnlessEqual(seqnum, 0))
+            self.assertThat(seqnum, Equals(0)))
 
         d.addCallback(lambda ignored:
             mr.get_root_hash())
         d.addCallback(lambda root_hash:
-            self.failUnlessEqual(self.root_hash, root_hash))
+            self.assertThat(self.root_hash, Equals(root_hash)))
 
         d.addCallback(lambda ignored:
             mr.get_seqnum())
         d.addCallback(lambda seqnum:
-            self.failUnlessEqual(0, seqnum))
+            self.assertThat(seqnum, Equals(0)))
 
         d.addCallback(lambda ignored:
             mr.get_encoding_parameters())
         def _check_encoding_parameters(args):
             (k, n, segsize, datalen) = args
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
-            self.failUnlessEqual(segsize, 6)
-            self.failUnlessEqual(datalen, 36)
+            self.assertThat(k, Equals(3))
+            self.assertThat(n, Equals(10))
+            self.assertThat(segsize, Equals(6))
+            self.assertThat(datalen, Equals(36))
         d.addCallback(_check_encoding_parameters)
 
         d.addCallback(lambda ignored:
             mr.get_checkstring())
         d.addCallback(lambda checkstring:
-            self.failUnlessEqual(checkstring, checkstring))
+            self.assertThat(checkstring, Equals(checkstring)))
         return d
 
 
@@ -2217,8 +2225,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d = mr.get_block_and_salt(5)
         def _check_tail_segment(results):
             block, salt = results
-            self.failUnlessEqual(len(block), 1)
-            self.failUnlessEqual(block, b"a")
+            self.assertThat(block, HasLength(1))
+            self.assertThat(block, Equals(b"a"))
         d.addCallback(_check_tail_segment)
         return d
 
@@ -2240,10 +2248,10 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d = mr.get_encoding_parameters()
         def _check_encoding_parameters(args):
             (k, n, segment_size, datalen) = args
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
-            self.failUnlessEqual(segment_size, 6)
-            self.failUnlessEqual(datalen, 36)
+            self.assertThat(k, Equals(3))
+            self.assertThat(n, Equals(10))
+            self.assertThat(segment_size, Equals(6))
+            self.assertThat(datalen, Equals(36))
         d.addCallback(_check_encoding_parameters)
         return d
 
@@ -2253,7 +2261,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.get_seqnum()
         d.addCallback(lambda seqnum:
-            self.failUnlessEqual(seqnum, 0))
+            self.assertThat(seqnum, Equals(0)))
         return d
 
 
@@ -2262,7 +2270,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.get_root_hash()
         d.addCallback(lambda root_hash:
-            self.failUnlessEqual(root_hash, self.root_hash))
+            self.assertThat(root_hash, Equals(self.root_hash)))
         return d
 
 
@@ -2271,7 +2279,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.get_checkstring()
         d.addCallback(lambda checkstring:
-            self.failUnlessEqual(checkstring, self.checkstring))
+            self.assertThat(checkstring, Equals(self.checkstring)))
         return d
 
 
@@ -2293,22 +2301,22 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         mw.put_verification_key(self.verification_key)
         d = mw.finish_publishing()
         def _then(results):
-            self.failUnless(len(results), 2)
+            self.assertThat(results, HasLength(2))
             result, readv = results
-            self.failUnless(result)
-            self.failIf(readv)
+            self.assertTrue(result)
+            self.assertFalse(readv)
             self.old_checkstring = mw.get_checkstring()
             mw.set_checkstring(b"")
         d.addCallback(_then)
         d.addCallback(lambda ignored:
             mw.finish_publishing())
         def _then_again(results):
-            self.failUnlessEqual(len(results), 2)
+            self.assertThat(results, HasLength(2))
             result, readvs = results
-            self.failIf(result)
-            self.failUnlessIn(0, readvs)
+            self.assertFalse(result)
+            self.assertThat(readvs, Contains(0))
             readv = readvs[0][0]
-            self.failUnlessEqual(readv, self.old_checkstring)
+            self.assertThat(readv, Equals(self.old_checkstring))
         d.addCallback(_then_again)
         # The checkstring remains the same for the rest of the process.
         return d
@@ -2369,11 +2377,11 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
         def _check_success(results):
             result, readvs = results
-            self.failUnless(result)
+            self.assertTrue(result)
 
         def _check_failure(results):
             result, readvs = results
-            self.failIf(result)
+            self.assertFalse(result)
 
         def _write_share(mw):
             for i in range(6):
@@ -2417,14 +2425,14 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # any point during the process, it should fail to write when we
         # tell it to write.
         def _check_failure(results):
-            self.failUnlessEqual(len(results), 2)
+            self.assertThat(results, HasLength(2))
             res, d = results
-            self.failIf(res)
+            self.assertFalse(res)
 
         def _check_success(results):
-            self.failUnlessEqual(len(results), 2)
+            self.assertThat(results, HasLength(2))
             res, d = results
-            self.failUnless(results)
+            self.assertTrue(results)
 
         mw = self._make_new_mw(b"si1", 0)
         mw.set_checkstring(b"this is a lie")
@@ -2481,100 +2489,100 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         mw.put_verification_key(self.verification_key)
         d = mw.finish_publishing()
         def _check_publish(results):
-            self.failUnlessEqual(len(results), 2)
+            self.assertThat(results, HasLength(2))
             result, ign = results
-            self.failUnless(result, "publish failed")
+            self.assertTrue(result, "publish failed")
             for i in range(6):
-                self.failUnlessEqual(read(b"si1", [0], [(expected_sharedata_offset + (i * written_block_size), written_block_size)]),
-                                {0: [written_block]})
+                self.assertThat(read(b"si1", [0], [(expected_sharedata_offset + (i * written_block_size), written_block_size)]),
+                                Equals({0: [written_block]}))
 
-            self.failUnlessEqual(len(self.encprivkey), 7)
-            self.failUnlessEqual(read(b"si1", [0], [(expected_private_key_offset, 7)]),
-                                 {0: [self.encprivkey]})
+            self.assertThat(self.encprivkey, HasLength(7))
+            self.assertThat(read(b"si1", [0], [(expected_private_key_offset, 7)]),
+                                 Equals({0: [self.encprivkey]}))
 
             expected_block_hash_offset = expected_sharedata_offset + \
                         (6 * written_block_size)
-            self.failUnlessEqual(len(self.block_hash_tree_s), 32 * 6)
-            self.failUnlessEqual(read(b"si1", [0], [(expected_block_hash_offset, 32 * 6)]),
-                                 {0: [self.block_hash_tree_s]})
+            self.assertThat(self.block_hash_tree_s, HasLength(32 * 6))
+            self.assertThat(read(b"si1", [0], [(expected_block_hash_offset, 32 * 6)]),
+                                 Equals({0: [self.block_hash_tree_s]}))
 
             expected_share_hash_offset = expected_private_key_offset + len(self.encprivkey)
-            self.failUnlessEqual(read(b"si1", [0],[(expected_share_hash_offset, (32 + 2) * 6)]),
-                                 {0: [self.share_hash_chain_s]})
+            self.assertThat(read(b"si1", [0],[(expected_share_hash_offset, (32 + 2) * 6)]),
+                                 Equals({0: [self.share_hash_chain_s]}))
 
-            self.failUnlessEqual(read(b"si1", [0], [(9, 32)]),
-                                 {0: [self.root_hash]})
+            self.assertThat(read(b"si1", [0], [(9, 32)]),
+                                 Equals({0: [self.root_hash]}))
             expected_signature_offset = expected_share_hash_offset + \
                 len(self.share_hash_chain_s)
-            self.failUnlessEqual(len(self.signature), 9)
-            self.failUnlessEqual(read(b"si1", [0], [(expected_signature_offset, 9)]),
-                                 {0: [self.signature]})
+            self.assertThat(self.signature, HasLength(9))
+            self.assertThat(read(b"si1", [0], [(expected_signature_offset, 9)]),
+                                 Equals({0: [self.signature]}))
 
             expected_verification_key_offset = expected_signature_offset + len(self.signature)
-            self.failUnlessEqual(len(self.verification_key), 6)
-            self.failUnlessEqual(read(b"si1", [0], [(expected_verification_key_offset, 6)]),
-                                 {0: [self.verification_key]})
+            self.assertThat(self.verification_key, HasLength(6))
+            self.assertThat(read(b"si1", [0], [(expected_verification_key_offset, 6)]),
+                                 Equals({0: [self.verification_key]}))
 
             signable = mw.get_signable()
             verno, seq, roothash, k, n, segsize, datalen = \
                                             struct.unpack(">BQ32sBBQQ",
                                                           signable)
-            self.failUnlessEqual(verno, 1)
-            self.failUnlessEqual(seq, 0)
-            self.failUnlessEqual(roothash, self.root_hash)
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
-            self.failUnlessEqual(segsize, 6)
-            self.failUnlessEqual(datalen, 36)
+            self.assertThat(verno, Equals(1))
+            self.assertThat(seq, Equals(0))
+            self.assertThat(roothash, Equals(self.root_hash))
+            self.assertThat(k, Equals(3))
+            self.assertThat(n, Equals(10))
+            self.assertThat(segsize, Equals(6))
+            self.assertThat(datalen, Equals(36))
             expected_eof_offset = expected_block_hash_offset + \
                 len(self.block_hash_tree_s)
 
             # Check the version number to make sure that it is correct.
             expected_version_number = struct.pack(">B", 1)
-            self.failUnlessEqual(read(b"si1", [0], [(0, 1)]),
-                                 {0: [expected_version_number]})
+            self.assertThat(read(b"si1", [0], [(0, 1)]),
+                                 Equals({0: [expected_version_number]}))
             # Check the sequence number to make sure that it is correct
             expected_sequence_number = struct.pack(">Q", 0)
-            self.failUnlessEqual(read(b"si1", [0], [(1, 8)]),
-                                 {0: [expected_sequence_number]})
+            self.assertThat(read(b"si1", [0], [(1, 8)]),
+                                 Equals({0: [expected_sequence_number]}))
             # Check that the encoding parameters (k, N, segement size, data
             # length) are what they should be. These are  3, 10, 6, 36
             expected_k = struct.pack(">B", 3)
-            self.failUnlessEqual(read(b"si1", [0], [(41, 1)]),
-                                 {0: [expected_k]})
+            self.assertThat(read(b"si1", [0], [(41, 1)]),
+                                 Equals({0: [expected_k]}))
             expected_n = struct.pack(">B", 10)
-            self.failUnlessEqual(read(b"si1", [0], [(42, 1)]),
-                                 {0: [expected_n]})
+            self.assertThat(read(b"si1", [0], [(42, 1)]),
+                                 Equals({0: [expected_n]}))
             expected_segment_size = struct.pack(">Q", 6)
-            self.failUnlessEqual(read(b"si1", [0], [(43, 8)]),
-                                 {0: [expected_segment_size]})
+            self.assertThat(read(b"si1", [0], [(43, 8)]),
+                                 Equals({0: [expected_segment_size]}))
             expected_data_length = struct.pack(">Q", 36)
-            self.failUnlessEqual(read(b"si1", [0], [(51, 8)]),
-                                 {0: [expected_data_length]})
+            self.assertThat(read(b"si1", [0], [(51, 8)]),
+                                 Equals({0: [expected_data_length]}))
             expected_offset = struct.pack(">Q", expected_private_key_offset)
-            self.failUnlessEqual(read(b"si1", [0], [(59, 8)]),
-                                 {0: [expected_offset]})
+            self.assertThat(read(b"si1", [0], [(59, 8)]),
+                                 Equals({0: [expected_offset]}))
             expected_offset = struct.pack(">Q", expected_share_hash_offset)
-            self.failUnlessEqual(read(b"si1", [0], [(67, 8)]),
-                                 {0: [expected_offset]})
+            self.assertThat(read(b"si1", [0], [(67, 8)]),
+                                 Equals({0: [expected_offset]}))
             expected_offset = struct.pack(">Q", expected_signature_offset)
-            self.failUnlessEqual(read(b"si1", [0], [(75, 8)]),
-                                 {0: [expected_offset]})
+            self.assertThat(read(b"si1", [0], [(75, 8)]),
+                                 Equals({0: [expected_offset]}))
             expected_offset = struct.pack(">Q", expected_verification_key_offset)
-            self.failUnlessEqual(read(b"si1", [0], [(83, 8)]),
-                                 {0: [expected_offset]})
+            self.assertThat(read(b"si1", [0], [(83, 8)]),
+                                 Equals({0: [expected_offset]}))
             expected_offset = struct.pack(">Q", expected_verification_key_offset + len(self.verification_key))
-            self.failUnlessEqual(read(b"si1", [0], [(91, 8)]),
-                                 {0: [expected_offset]})
+            self.assertThat(read(b"si1", [0], [(91, 8)]),
+                                 Equals({0: [expected_offset]}))
             expected_offset = struct.pack(">Q", expected_sharedata_offset)
-            self.failUnlessEqual(read(b"si1", [0], [(99, 8)]),
-                                 {0: [expected_offset]})
+            self.assertThat(read(b"si1", [0], [(99, 8)]),
+                                 Equals({0: [expected_offset]}))
             expected_offset = struct.pack(">Q", expected_block_hash_offset)
-            self.failUnlessEqual(read(b"si1", [0], [(107, 8)]),
-                                 {0: [expected_offset]})
+            self.assertThat(read(b"si1", [0], [(107, 8)]),
+                                 Equals({0: [expected_offset]}))
             expected_offset = struct.pack(">Q", expected_eof_offset)
-            self.failUnlessEqual(read(b"si1", [0], [(115, 8)]),
-                                 {0: [expected_offset]})
+            self.assertThat(read(b"si1", [0], [(115, 8)]),
+                                 Equals({0: [expected_offset]}))
         d.addCallback(_check_publish)
         return d
 
@@ -2789,8 +2797,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         def _check_block_and_salt(block_and_salt):
             (block, salt) = block_and_salt
-            self.failUnlessEqual(block, self.block)
-            self.failUnlessEqual(salt, self.salt)
+            self.assertThat(block, Equals(self.block))
+            self.assertThat(salt, Equals(self.salt))
 
         for i in range(6):
             d.addCallback(lambda ignored, i=i:
@@ -2800,52 +2808,52 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda ignored:
             mr.get_encprivkey())
         d.addCallback(lambda encprivkey:
-            self.failUnlessEqual(self.encprivkey, encprivkey))
+            self.assertThat(self.encprivkey, Equals(encprivkey)))
 
         d.addCallback(lambda ignored:
             mr.get_blockhashes())
         d.addCallback(lambda blockhashes:
-            self.failUnlessEqual(self.block_hash_tree, blockhashes))
+            self.assertThat(self.block_hash_tree, Equals(blockhashes)))
 
         d.addCallback(lambda ignored:
             mr.get_sharehashes())
         d.addCallback(lambda sharehashes:
-            self.failUnlessEqual(self.share_hash_chain, sharehashes))
+            self.assertThat(self.share_hash_chain, Equals(sharehashes)))
 
         d.addCallback(lambda ignored:
             mr.get_signature())
         d.addCallback(lambda signature:
-            self.failUnlessEqual(signature, self.signature))
+            self.assertThat(signature, Equals(self.signature)))
 
         d.addCallback(lambda ignored:
             mr.get_verification_key())
         d.addCallback(lambda verification_key:
-            self.failUnlessEqual(verification_key, self.verification_key))
+            self.assertThat(verification_key, Equals(self.verification_key)))
 
         d.addCallback(lambda ignored:
             mr.get_seqnum())
         d.addCallback(lambda seqnum:
-            self.failUnlessEqual(seqnum, 0))
+            self.assertThat(seqnum, Equals(0)))
 
         d.addCallback(lambda ignored:
             mr.get_root_hash())
         d.addCallback(lambda root_hash:
-            self.failUnlessEqual(self.root_hash, root_hash))
+            self.assertThat(self.root_hash, Equals(root_hash)))
 
         d.addCallback(lambda ignored:
             mr.get_encoding_parameters())
         def _check_encoding_parameters(args):
             (k, n, segsize, datalen) = args
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
-            self.failUnlessEqual(segsize, 6)
-            self.failUnlessEqual(datalen, 36)
+            self.assertThat(k, Equals(3))
+            self.assertThat(n, Equals(10))
+            self.assertThat(segsize, Equals(6))
+            self.assertThat(datalen, Equals(36))
         d.addCallback(_check_encoding_parameters)
 
         d.addCallback(lambda ignored:
             mr.get_checkstring())
         d.addCallback(lambda checkstring:
-            self.failUnlessEqual(checkstring, mw.get_checkstring()))
+            self.assertThat(checkstring, Equals(mw.get_checkstring())))
         return d
 
 
@@ -2857,7 +2865,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         mr = MDMFSlotReadProxy(self.storage_server, b"si1", 0)
         d = mr.is_sdmf()
         d.addCallback(lambda issdmf:
-            self.failUnless(issdmf))
+            self.assertTrue(issdmf))
         return d
 
 
@@ -2870,7 +2878,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda ignored:
             mr.is_sdmf())
         d.addCallback(lambda issdmf:
-            self.failUnless(issdmf))
+            self.assertTrue(issdmf))
 
         # What do we need to read?
         #  - The sharedata
@@ -2883,51 +2891,51 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             # bytes in size. The share is composed entirely of the
             # letter a. self.block contains 2 as, so 6 * self.block is
             # what we are looking for.
-            self.failUnlessEqual(block, self.block * 6)
-            self.failUnlessEqual(salt, self.salt)
+            self.assertThat(block, Equals(self.block * 6))
+            self.assertThat(salt, Equals(self.salt))
         d.addCallback(_check_block_and_salt)
 
         #  - The blockhashes
         d.addCallback(lambda ignored:
             mr.get_blockhashes())
         d.addCallback(lambda blockhashes:
-            self.failUnlessEqual(self.block_hash_tree,
-                                 blockhashes,
+            self.assertThat(self.block_hash_tree,
+                                 Equals(blockhashes),
                                  blockhashes))
         #  - The sharehashes
         d.addCallback(lambda ignored:
             mr.get_sharehashes())
         d.addCallback(lambda sharehashes:
-            self.failUnlessEqual(self.share_hash_chain,
-                                 sharehashes))
+            self.assertThat(self.share_hash_chain,
+                                 Equals(sharehashes)))
         #  - The keys
         d.addCallback(lambda ignored:
             mr.get_encprivkey())
         d.addCallback(lambda encprivkey:
-            self.failUnlessEqual(encprivkey, self.encprivkey, encprivkey))
+            self.assertThat(encprivkey, Equals(self.encprivkey), encprivkey))
         d.addCallback(lambda ignored:
             mr.get_verification_key())
         d.addCallback(lambda verification_key:
-            self.failUnlessEqual(verification_key,
-                                 self.verification_key,
+            self.assertThat(verification_key,
+                                 Equals(self.verification_key),
                                  verification_key))
         #  - The signature
         d.addCallback(lambda ignored:
             mr.get_signature())
         d.addCallback(lambda signature:
-            self.failUnlessEqual(signature, self.signature, signature))
+            self.assertThat(signature, Equals(self.signature), signature))
 
         #  - The sequence number
         d.addCallback(lambda ignored:
             mr.get_seqnum())
         d.addCallback(lambda seqnum:
-            self.failUnlessEqual(seqnum, 0, seqnum))
+            self.assertThat(seqnum, Equals(0), seqnum))
 
         #  - The root hash
         d.addCallback(lambda ignored:
             mr.get_root_hash())
         d.addCallback(lambda root_hash:
-            self.failUnlessEqual(root_hash, self.root_hash, root_hash))
+            self.assertThat(root_hash, Equals(self.root_hash), root_hash))
         return d
 
 
@@ -2941,7 +2949,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda ignored:
             mr.is_sdmf())
         d.addCallback(lambda issdmf:
-            self.failUnless(issdmf))
+            self.assertTrue(issdmf))
         d.addCallback(lambda ignored:
             self.shouldFail(LayoutInvalid, "test bad segment",
                             None,
@@ -2969,8 +2977,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda mr:
             mr.get_verinfo())
         def _check_verinfo(verinfo):
-            self.failUnless(verinfo)
-            self.failUnlessEqual(len(verinfo), 9)
+            self.assertTrue(verinfo)
+            self.assertThat(verinfo, HasLength(9))
             (seqnum,
              root_hash,
              salt_hash,
@@ -2980,12 +2988,12 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
              n,
              prefix,
              offsets) = verinfo
-            self.failUnlessEqual(seqnum, 0)
-            self.failUnlessEqual(root_hash, self.root_hash)
-            self.failUnlessEqual(segsize, 6)
-            self.failUnlessEqual(datalen, 36)
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
+            self.assertThat(seqnum, Equals(0))
+            self.assertThat(root_hash, Equals(self.root_hash))
+            self.assertThat(segsize, Equals(6))
+            self.assertThat(datalen, Equals(36))
+            self.assertThat(k, Equals(3))
+            self.assertThat(n, Equals(10))
             expected_prefix = struct.pack(MDMFSIGNABLEHEADER,
                                           1,
                                           seqnum,
@@ -2994,8 +3002,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                                           n,
                                           segsize,
                                           datalen)
-            self.failUnlessEqual(expected_prefix, prefix)
-            self.failUnlessEqual(self.rref.read_count, 0)
+            self.assertThat(expected_prefix, Equals(prefix))
+            self.assertThat(self.rref.read_count, Equals(0))
         d.addCallback(_check_verinfo)
         # This is not enough data to read a block and a share, so the
         # wrapper should attempt to read this from the remote server.
@@ -3004,9 +3012,9 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             mr.get_block_and_salt(0))
         def _check_block_and_salt(block_and_salt):
             (block, salt) = block_and_salt
-            self.failUnlessEqual(block, self.block)
-            self.failUnlessEqual(salt, self.salt)
-            self.failUnlessEqual(self.rref.read_count, 1)
+            self.assertThat(block, Equals(self.block))
+            self.assertThat(salt, Equals(self.salt))
+            self.assertThat(self.rref.read_count, Equals(1))
         # This should be enough data to read one block.
         d.addCallback(_make_mr, 123 + PRIVATE_KEY_SIZE + SIGNATURE_SIZE + VERIFICATION_KEY_SIZE + SHARE_HASH_CHAIN_SIZE + 140)
         d.addCallback(lambda mr:
@@ -3030,8 +3038,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda mr:
             mr.get_verinfo())
         def _check_verinfo(verinfo):
-            self.failUnless(verinfo)
-            self.failUnlessEqual(len(verinfo), 9)
+            self.assertTrue(verinfo)
+            self.assertThat(verinfo, HasLength(9))
             (seqnum,
              root_hash,
              salt,
@@ -3041,13 +3049,13 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
              n,
              prefix,
              offsets) = verinfo
-            self.failUnlessEqual(seqnum, 0)
-            self.failUnlessEqual(root_hash, self.root_hash)
-            self.failUnlessEqual(salt, self.salt)
-            self.failUnlessEqual(segsize, 36)
-            self.failUnlessEqual(datalen, 36)
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
+            self.assertThat(seqnum, Equals(0))
+            self.assertThat(root_hash, Equals(self.root_hash))
+            self.assertThat(salt, Equals(self.salt))
+            self.assertThat(segsize, Equals(36))
+            self.assertThat(datalen, Equals(36))
+            self.assertThat(k, Equals(3))
+            self.assertThat(n, Equals(10))
             expected_prefix = struct.pack(SIGNED_PREFIX,
                                           0,
                                           seqnum,
@@ -3057,8 +3065,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                                           n,
                                           segsize,
                                           datalen)
-            self.failUnlessEqual(expected_prefix, prefix)
-            self.failUnlessEqual(self.rref.read_count, 0)
+            self.assertThat(expected_prefix, Equals(prefix))
+            self.assertThat(self.rref.read_count, Equals(0))
         d.addCallback(_check_verinfo)
         # This shouldn't be enough to read any share data.
         d.addCallback(_make_mr, 123)
@@ -3066,11 +3074,11 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             mr.get_block_and_salt(0))
         def _check_block_and_salt(block_and_salt):
             (block, salt) = block_and_salt
-            self.failUnlessEqual(block, self.block * 6)
-            self.failUnlessEqual(salt, self.salt)
+            self.assertThat(block, Equals(self.block * 6))
+            self.assertThat(salt, Equals(self.salt))
             # TODO: Fix the read routine so that it reads only the data
             #       that it has cached if it can't read all of it.
-            self.failUnlessEqual(self.rref.read_count, 2)
+            self.assertThat(self.rref.read_count, Equals(2))
 
         # This should be enough to read share data.
         d.addCallback(_make_mr, self.offsets['share_data'])
@@ -3092,12 +3100,12 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda ignored:
             mr.get_encoding_parameters())
         def _check_encoding_parameters(params):
-            self.failUnlessEqual(len(params), 4)
+            self.assertThat(params, HasLength(4))
             k, n, segsize, datalen = params
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
-            self.failUnlessEqual(segsize, 0)
-            self.failUnlessEqual(datalen, 0)
+            self.assertThat(k, Equals(3))
+            self.assertThat(n, Equals(10))
+            self.assertThat(segsize, Equals(0))
+            self.assertThat(datalen, Equals(0))
         d.addCallback(_check_encoding_parameters)
 
         # We should not be able to fetch a block, since there are no
@@ -3118,12 +3126,12 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda ignored:
             mr.get_encoding_parameters())
         def _check_encoding_parameters(params):
-            self.failUnlessEqual(len(params), 4)
+            self.assertThat(params, HasLength(4))
             k, n, segsize, datalen = params
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
-            self.failUnlessEqual(segsize, 0)
-            self.failUnlessEqual(datalen, 0)
+            self.assertThat(k, Equals(3))
+            self.assertThat(n, Equals(10))
+            self.assertThat(segsize, Equals(0))
+            self.assertThat(datalen, Equals(0))
         d.addCallback(_check_encoding_parameters)
 
         # It does not make sense to get a block in this format, so we
@@ -3143,8 +3151,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda ignored:
             mr.get_verinfo())
         def _check_verinfo(verinfo):
-            self.failUnless(verinfo)
-            self.failUnlessEqual(len(verinfo), 9)
+            self.assertTrue(verinfo)
+            self.assertThat(verinfo, HasLength(9))
             (seqnum,
              root_hash,
              salt,
@@ -3154,13 +3162,13 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
              n,
              prefix,
              offsets) = verinfo
-            self.failUnlessEqual(seqnum, 0)
-            self.failUnlessEqual(root_hash, self.root_hash)
-            self.failUnlessEqual(salt, self.salt)
-            self.failUnlessEqual(segsize, 36)
-            self.failUnlessEqual(datalen, 36)
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
+            self.assertThat(seqnum, Equals(0))
+            self.assertThat(root_hash, Equals(self.root_hash))
+            self.assertThat(salt, Equals(self.salt))
+            self.assertThat(segsize, Equals(36))
+            self.assertThat(datalen, Equals(36))
+            self.assertThat(k, Equals(3))
+            self.assertThat(n, Equals(10))
             expected_prefix = struct.pack(">BQ32s16s BBQQ",
                                           0,
                                           seqnum,
@@ -3170,8 +3178,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                                           n,
                                           segsize,
                                           datalen)
-            self.failUnlessEqual(prefix, expected_prefix)
-            self.failUnlessEqual(offsets, self.offsets)
+            self.assertThat(prefix, Equals(expected_prefix))
+            self.assertThat(offsets, Equals(self.offsets))
         d.addCallback(_check_verinfo)
         return d
 
@@ -3183,8 +3191,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda ignored:
             mr.get_verinfo())
         def _check_verinfo(verinfo):
-            self.failUnless(verinfo)
-            self.failUnlessEqual(len(verinfo), 9)
+            self.assertTrue(verinfo)
+            self.assertThat(verinfo, HasLength(9))
             (seqnum,
              root_hash,
              IV,
@@ -3194,13 +3202,13 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
              n,
              prefix,
              offsets) = verinfo
-            self.failUnlessEqual(seqnum, 0)
-            self.failUnlessEqual(root_hash, self.root_hash)
-            self.failIf(IV)
-            self.failUnlessEqual(segsize, 6)
-            self.failUnlessEqual(datalen, 36)
-            self.failUnlessEqual(k, 3)
-            self.failUnlessEqual(n, 10)
+            self.assertThat(seqnum, Equals(0))
+            self.assertThat(root_hash, Equals(self.root_hash))
+            self.assertFalse(IV)
+            self.assertThat(segsize, Equals(6))
+            self.assertThat(datalen, Equals(36))
+            self.assertThat(k, Equals(3))
+            self.assertThat(n, Equals(10))
             expected_prefix = struct.pack(">BQ32s BBQQ",
                                           1,
                                           seqnum,
@@ -3209,8 +3217,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                                           n,
                                           segsize,
                                           datalen)
-            self.failUnlessEqual(prefix, expected_prefix)
-            self.failUnlessEqual(offsets, self.offsets)
+            self.assertThat(prefix, Equals(expected_prefix))
+            self.assertThat(offsets, Equals(self.offsets))
         d.addCallback(_check_verinfo)
         return d
 
@@ -3246,15 +3254,15 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         sdmfr.put_verification_key(self.verification_key)
 
         # Now check to make sure that nothing has been written yet.
-        self.failUnlessEqual(self.rref.write_count, 0)
+        self.assertThat(self.rref.write_count, Equals(0))
 
         # Now finish publishing
         d = sdmfr.finish_publishing()
         def _then(ignored):
-            self.failUnlessEqual(self.rref.write_count, 1)
+            self.assertThat(self.rref.write_count, Equals(1))
             read = self.ss.slot_readv
-            self.failUnlessEqual(read(b"si1", [0], [(0, len(data))]),
-                                 {0: [data]})
+            self.assertThat(read(b"si1", [0], [(0, len(data))]),
+                                 Equals({0: [data]}))
         d.addCallback(_then)
         return d
 
@@ -3290,11 +3298,11 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         sdmfw.put_verification_key(self.verification_key)
 
         # We shouldn't have a checkstring yet
-        self.failUnlessEqual(sdmfw.get_checkstring(), b"")
+        self.assertThat(sdmfw.get_checkstring(), Equals(b""))
 
         d = sdmfw.finish_publishing()
         def _then(results):
-            self.failIf(results[0])
+            self.assertFalse(results[0])
             # this is the correct checkstring
             self._expected_checkstring = results[1][0][0]
             return self._expected_checkstring
@@ -3304,27 +3312,27 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda ignored:
             sdmfw.get_checkstring())
         d.addCallback(lambda checkstring:
-            self.failUnlessEqual(checkstring, self._expected_checkstring))
+            self.assertThat(checkstring, Equals(self._expected_checkstring)))
         d.addCallback(lambda ignored:
             sdmfw.finish_publishing())
         def _then_again(results):
-            self.failUnless(results[0])
+            self.assertTrue(results[0])
             read = self.ss.slot_readv
-            self.failUnlessEqual(read(b"si1", [0], [(1, 8)]),
-                                 {0: [struct.pack(">Q", 1)]})
-            self.failUnlessEqual(read(b"si1", [0], [(9, len(data) - 9)]),
-                                 {0: [data[9:]]})
+            self.assertThat(read(b"si1", [0], [(1, 8)]),
+                                 Equals({0: [struct.pack(">Q", 1)]}))
+            self.assertThat(read(b"si1", [0], [(9, len(data) - 9)]),
+                                 Equals({0: [data[9:]]}))
         d.addCallback(_then_again)
         return d
 
 
-class Stats(unittest.TestCase):
+class Stats(SyncTestCase):
 
     def setUp(self):
+        super(Stats, self).setUp()
         self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
-    def tearDown(self):
-        return self.sparent.stopService()
+        self.addCleanup(self.sparent.stopService)
 
     def workdir(self, name):
         basedir = os.path.join("storage", "Server", name)
@@ -3350,61 +3358,61 @@ class Stats(unittest.TestCase):
 
         output = ss.get_latencies()
 
-        self.failUnlessEqual(sorted(output.keys()),
-                             sorted(["allocate", "renew", "cancel", "write", "get"]))
-        self.failUnlessEqual(len(ss.latencies["allocate"]), 1000)
-        self.failUnless(abs(output["allocate"]["mean"] - 9500) < 1, output)
-        self.failUnless(abs(output["allocate"]["01_0_percentile"] - 9010) < 1, output)
-        self.failUnless(abs(output["allocate"]["10_0_percentile"] - 9100) < 1, output)
-        self.failUnless(abs(output["allocate"]["50_0_percentile"] - 9500) < 1, output)
-        self.failUnless(abs(output["allocate"]["90_0_percentile"] - 9900) < 1, output)
-        self.failUnless(abs(output["allocate"]["95_0_percentile"] - 9950) < 1, output)
-        self.failUnless(abs(output["allocate"]["99_0_percentile"] - 9990) < 1, output)
-        self.failUnless(abs(output["allocate"]["99_9_percentile"] - 9999) < 1, output)
+        self.assertThat(sorted(output.keys()),
+                             Equals(sorted(["allocate", "renew", "cancel", "write", "get"])))
+        self.assertThat(ss.latencies["allocate"], HasLength(1000))
+        self.assertTrue(abs(output["allocate"]["mean"] - 9500) < 1, output)
+        self.assertTrue(abs(output["allocate"]["01_0_percentile"] - 9010) < 1, output)
+        self.assertTrue(abs(output["allocate"]["10_0_percentile"] - 9100) < 1, output)
+        self.assertTrue(abs(output["allocate"]["50_0_percentile"] - 9500) < 1, output)
+        self.assertTrue(abs(output["allocate"]["90_0_percentile"] - 9900) < 1, output)
+        self.assertTrue(abs(output["allocate"]["95_0_percentile"] - 9950) < 1, output)
+        self.assertTrue(abs(output["allocate"]["99_0_percentile"] - 9990) < 1, output)
+        self.assertTrue(abs(output["allocate"]["99_9_percentile"] - 9999) < 1, output)
 
-        self.failUnlessEqual(len(ss.latencies["renew"]), 1000)
-        self.failUnless(abs(output["renew"]["mean"] - 500) < 1, output)
-        self.failUnless(abs(output["renew"]["01_0_percentile"] -  10) < 1, output)
-        self.failUnless(abs(output["renew"]["10_0_percentile"] - 100) < 1, output)
-        self.failUnless(abs(output["renew"]["50_0_percentile"] - 500) < 1, output)
-        self.failUnless(abs(output["renew"]["90_0_percentile"] - 900) < 1, output)
-        self.failUnless(abs(output["renew"]["95_0_percentile"] - 950) < 1, output)
-        self.failUnless(abs(output["renew"]["99_0_percentile"] - 990) < 1, output)
-        self.failUnless(abs(output["renew"]["99_9_percentile"] - 999) < 1, output)
+        self.assertThat(ss.latencies["renew"], HasLength(1000))
+        self.assertTrue(abs(output["renew"]["mean"] - 500) < 1, output)
+        self.assertTrue(abs(output["renew"]["01_0_percentile"] -  10) < 1, output)
+        self.assertTrue(abs(output["renew"]["10_0_percentile"] - 100) < 1, output)
+        self.assertTrue(abs(output["renew"]["50_0_percentile"] - 500) < 1, output)
+        self.assertTrue(abs(output["renew"]["90_0_percentile"] - 900) < 1, output)
+        self.assertTrue(abs(output["renew"]["95_0_percentile"] - 950) < 1, output)
+        self.assertTrue(abs(output["renew"]["99_0_percentile"] - 990) < 1, output)
+        self.assertTrue(abs(output["renew"]["99_9_percentile"] - 999) < 1, output)
 
-        self.failUnlessEqual(len(ss.latencies["write"]), 20)
-        self.failUnless(abs(output["write"]["mean"] - 9) < 1, output)
-        self.failUnless(output["write"]["01_0_percentile"] is None, output)
-        self.failUnless(abs(output["write"]["10_0_percentile"] -  2) < 1, output)
-        self.failUnless(abs(output["write"]["50_0_percentile"] - 10) < 1, output)
-        self.failUnless(abs(output["write"]["90_0_percentile"] - 18) < 1, output)
-        self.failUnless(abs(output["write"]["95_0_percentile"] - 19) < 1, output)
-        self.failUnless(output["write"]["99_0_percentile"] is None, output)
-        self.failUnless(output["write"]["99_9_percentile"] is None, output)
+        self.assertThat(ss.latencies["write"], HasLength(20))
+        self.assertTrue(abs(output["write"]["mean"] - 9) < 1, output)
+        self.assertTrue(output["write"]["01_0_percentile"] is None, output)
+        self.assertTrue(abs(output["write"]["10_0_percentile"] -  2) < 1, output)
+        self.assertTrue(abs(output["write"]["50_0_percentile"] - 10) < 1, output)
+        self.assertTrue(abs(output["write"]["90_0_percentile"] - 18) < 1, output)
+        self.assertTrue(abs(output["write"]["95_0_percentile"] - 19) < 1, output)
+        self.assertTrue(output["write"]["99_0_percentile"] is None, output)
+        self.assertTrue(output["write"]["99_9_percentile"] is None, output)
 
-        self.failUnlessEqual(len(ss.latencies["cancel"]), 10)
-        self.failUnless(abs(output["cancel"]["mean"] - 9) < 1, output)
-        self.failUnless(output["cancel"]["01_0_percentile"] is None, output)
-        self.failUnless(abs(output["cancel"]["10_0_percentile"] -  2) < 1, output)
-        self.failUnless(abs(output["cancel"]["50_0_percentile"] - 10) < 1, output)
-        self.failUnless(abs(output["cancel"]["90_0_percentile"] - 18) < 1, output)
-        self.failUnless(output["cancel"]["95_0_percentile"] is None, output)
-        self.failUnless(output["cancel"]["99_0_percentile"] is None, output)
-        self.failUnless(output["cancel"]["99_9_percentile"] is None, output)
+        self.assertThat(ss.latencies["cancel"], HasLength(10))
+        self.assertTrue(abs(output["cancel"]["mean"] - 9) < 1, output)
+        self.assertTrue(output["cancel"]["01_0_percentile"] is None, output)
+        self.assertTrue(abs(output["cancel"]["10_0_percentile"] -  2) < 1, output)
+        self.assertTrue(abs(output["cancel"]["50_0_percentile"] - 10) < 1, output)
+        self.assertTrue(abs(output["cancel"]["90_0_percentile"] - 18) < 1, output)
+        self.assertTrue(output["cancel"]["95_0_percentile"] is None, output)
+        self.assertTrue(output["cancel"]["99_0_percentile"] is None, output)
+        self.assertTrue(output["cancel"]["99_9_percentile"] is None, output)
 
-        self.failUnlessEqual(len(ss.latencies["get"]), 1)
-        self.failUnless(output["get"]["mean"] is None, output)
-        self.failUnless(output["get"]["01_0_percentile"] is None, output)
-        self.failUnless(output["get"]["10_0_percentile"] is None, output)
-        self.failUnless(output["get"]["50_0_percentile"] is None, output)
-        self.failUnless(output["get"]["90_0_percentile"] is None, output)
-        self.failUnless(output["get"]["95_0_percentile"] is None, output)
-        self.failUnless(output["get"]["99_0_percentile"] is None, output)
-        self.failUnless(output["get"]["99_9_percentile"] is None, output)
+        self.assertThat(ss.latencies["get"], HasLength(1))
+        self.assertTrue(output["get"]["mean"] is None, output)
+        self.assertTrue(output["get"]["01_0_percentile"] is None, output)
+        self.assertTrue(output["get"]["10_0_percentile"] is None, output)
+        self.assertTrue(output["get"]["50_0_percentile"] is None, output)
+        self.assertTrue(output["get"]["90_0_percentile"] is None, output)
+        self.assertTrue(output["get"]["95_0_percentile"] is None, output)
+        self.assertTrue(output["get"]["99_0_percentile"] is None, output)
+        self.assertTrue(output["get"]["99_9_percentile"] is None, output)
 
 immutable_schemas = strategies.sampled_from(list(ALL_IMMUTABLE_SCHEMAS))
 
-class ShareFileTests(unittest.TestCase):
+class ShareFileTests(SyncTestCase):
     """Tests for allmydata.storage.immutable.ShareFile."""
 
     def get_sharefile(self, **kwargs):
@@ -3543,7 +3551,7 @@ class ShareFileTests(unittest.TestCase):
 
 mutable_schemas = strategies.sampled_from(list(ALL_MUTABLE_SCHEMAS))
 
-class MutableShareFileTests(unittest.TestCase):
+class MutableShareFileTests(SyncTestCase):
     """
     Tests for allmydata.storage.mutable.MutableShareFile.
     """

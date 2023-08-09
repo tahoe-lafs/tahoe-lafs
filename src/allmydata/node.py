@@ -4,16 +4,11 @@ a node for Tahoe-LAFS.
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_str, ensure_text
 
+import json
 import datetime
 import os.path
 import re
@@ -22,11 +17,7 @@ import errno
 from base64 import b32decode, b32encode
 from errno import ENOENT, EPERM
 from warnings import warn
-
-try:
-    from typing import Union
-except ImportError:
-    pass
+from typing import Union, Iterable
 
 import attr
 
@@ -181,7 +172,7 @@ def create_node_dir(basedir, readme_text):
             f.write(readme_text)
 
 
-def read_config(basedir, portnumfile, generated_files=[], _valid_config=None):
+def read_config(basedir, portnumfile, generated_files: Iterable = (), _valid_config=None):
     """
     Read and validate configuration.
 
@@ -280,8 +271,7 @@ def _error_about_old_config_files(basedir, generated_files):
         raise e
 
 
-def ensure_text_and_abspath_expanduser_unicode(basedir):
-    # type: (Union[bytes, str]) -> str
+def ensure_text_and_abspath_expanduser_unicode(basedir: Union[bytes, str]) -> str:
     return abspath_expanduser_unicode(ensure_text(basedir))
 
 
@@ -349,6 +339,19 @@ class _Config(object):
                 Failure(),
                 "Unable to write config file '{}'".format(fn),
             )
+
+    def enumerate_section(self, section):
+        """
+        returns a dict containing all items in a configuration section. an
+        empty dict is returned if the section doesn't exist.
+        """
+        answer = dict()
+        try:
+            for k in self.config.options(section):
+                answer[k] = self.config.get(section, k)
+        except configparser.NoSectionError:
+            pass
+        return answer
 
     def items(self, section, default=_None):
         try:
@@ -484,6 +487,12 @@ class _Config(object):
         """
         returns an absolute path inside the 'private' directory with any
         extra args join()-ed
+
+        This exists for historical reasons. New code should ideally
+        not call this because it makes it harder for e.g. a SQL-based
+        _Config object to exist. Code that needs to call this method
+        should probably be a _Config method itself. See
+        e.g. get_grid_manager_certificates()
         """
         return os.path.join(self._basedir, "private", *args)
 
@@ -491,6 +500,12 @@ class _Config(object):
         """
         returns an absolute path inside the config directory with any
         extra args join()-ed
+
+        This exists for historical reasons. New code should ideally
+        not call this because it makes it harder for e.g. a SQL-based
+        _Config object to exist. Code that needs to call this method
+        should probably be a _Config method itself. See
+        e.g. get_grid_manager_certificates()
         """
         # note: we re-expand here (_basedir already went through this
         # expanduser function) in case the path we're being asked for
@@ -498,6 +513,35 @@ class _Config(object):
         return abspath_expanduser_unicode(
             os.path.join(self._basedir, *args)
         )
+
+    def get_grid_manager_certificates(self):
+        """
+        Load all Grid Manager certificates in the config.
+
+        :returns: A list of all certificates. An empty list is
+            returned if there are none.
+        """
+        grid_manager_certificates = []
+
+        cert_fnames = list(self.enumerate_section("grid_manager_certificates").values())
+        for fname in cert_fnames:
+            fname = self.get_config_path(fname)
+            if not os.path.exists(fname):
+                raise ValueError(
+                    "Grid Manager certificate file '{}' doesn't exist".format(
+                        fname
+                    )
+                )
+            with open(fname, 'r') as f:
+                cert = json.load(f)
+            if set(cert.keys()) != {"certificate", "signature"}:
+                raise ValueError(
+                    "Unknown key in Grid Manager certificate '{}'".format(
+                        fname
+                    )
+                )
+            grid_manager_certificates.append(cert)
+        return grid_manager_certificates
 
     def get_introducer_configuration(self):
         """
@@ -697,7 +741,7 @@ def create_connection_handlers(config, i2p_provider, tor_provider):
 
 
 def create_tub(tub_options, default_connection_handlers, foolscap_connection_handlers,
-               handler_overrides={}, force_foolscap=False, **kwargs):
+               handler_overrides=None, force_foolscap=False, **kwargs):
     """
     Create a Tub with the right options and handlers. It will be
     ephemeral unless the caller provides certFile= in kwargs
@@ -711,6 +755,8 @@ def create_tub(tub_options, default_connection_handlers, foolscap_connection_han
     :param bool force_foolscap: If True, only allow Foolscap, not just HTTPS
         storage protocol.
     """
+    if handler_overrides is None:
+        handler_overrides = {}
     # We listen simultaneously for both Foolscap and HTTPS on the same port,
     # so we have to create a special Foolscap Tub for that to work:
     if force_foolscap:
@@ -878,7 +924,7 @@ def tub_listen_on(i2p_provider, tor_provider, tub, tubport, location):
 def create_main_tub(config, tub_options,
                     default_connection_handlers, foolscap_connection_handlers,
                     i2p_provider, tor_provider,
-                    handler_overrides={}, cert_filename="node.pem"):
+                    handler_overrides=None, cert_filename="node.pem"):
     """
     Creates a 'main' Foolscap Tub, typically for use as the top-level
     access point for a running Node.
@@ -899,6 +945,8 @@ def create_main_tub(config, tub_options,
     :param tor_provider: None, or a _Provider instance if txtorcon +
         Tor are installed.
     """
+    if handler_overrides is None:
+        handler_overrides = {}
     portlocation = _tub_portlocation(
         config,
         iputil.get_local_addresses_sync,

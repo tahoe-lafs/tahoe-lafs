@@ -341,7 +341,7 @@ class WebMixin(TimezoneMixin):
         self.ws = webish.WebishServer(
             self.s,
             "0",
-            tempdir=tempdir.path,
+            webish.anonymous_tempfile_factory(tempdir.path),
             staticdir=self.staticdir,
             clock=self.clock,
             now_fn=lambda:self.fakeTime,
@@ -565,7 +565,9 @@ class WebMixin(TimezoneMixin):
         returnValue(data)
 
     @inlineCallbacks
-    def HEAD(self, urlpath, return_response=False, headers={}):
+    def HEAD(self, urlpath, return_response=False, headers=None):
+        if headers is None:
+            headers = {}
         url = self.webish_url + urlpath
         response = yield treq.request("head", url, persistent=False,
                                       headers=headers)
@@ -573,7 +575,9 @@ class WebMixin(TimezoneMixin):
             raise Error(response.code, response="")
         returnValue( ("", response.code, response.headers) )
 
-    def PUT(self, urlpath, data, headers={}):
+    def PUT(self, urlpath, data, headers=None):
+        if headers is None:
+            headers = {}
         url = self.webish_url + urlpath
         return do_http("put", url, data=data, headers=headers)
 
@@ -618,7 +622,9 @@ class WebMixin(TimezoneMixin):
         body, headers = self.build_form(**fields)
         return self.POST2(urlpath, body, headers)
 
-    def POST2(self, urlpath, body="", headers={}, followRedirect=False):
+    def POST2(self, urlpath, body="", headers=None, followRedirect=False):
+        if headers is None:
+            headers = {}
         url = self.webish_url + urlpath
         if isinstance(body, str):
             body = body.encode("utf-8")

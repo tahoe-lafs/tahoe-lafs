@@ -173,7 +173,9 @@ class LeaseInfo(object):
         """
         return attr.assoc(
             self,
-            _expiration_time=new_expire_time,
+            # MyPy is unhappy with this; long-term solution is likely switch to
+            # new @frozen attrs API, with type annotations.
+            _expiration_time=new_expire_time,  # type: ignore[call-arg]
         )
 
     def is_renew_secret(self, candidate_secret):
