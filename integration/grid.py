@@ -73,11 +73,6 @@ class FlogGatherer(object):
     """
     Flog Gatherer process.
     """
-
-    # it would be best to use attr.validators.provides() here but that
-    # is deprecated; please replace with our own "provides" as part of
-    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4056#ticket
-    # for now, insisting on a subclass which is narrower than necessary
     process = attr.ib(
         validator=provides(IProcessTransport)
     )
