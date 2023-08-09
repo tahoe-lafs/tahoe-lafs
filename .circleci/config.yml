@@ -118,7 +118,7 @@ workflows:
           {}
 
       - "windows-server-2022":
-          name: "Windows Server 2022, Python <<matrix.pythonVersion>>"
+          name: "Windows Server 2022, CPython <<matrix.pythonVersion>>"
           matrix:
             parameters:
               pythonVersion:
