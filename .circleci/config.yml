@@ -205,8 +205,11 @@ jobs:
       - "run":
           name: "Fix $env:PATH"
           command: |
-            # The Python for which we installed subunit is not necessarily on
-            # %PATH% so put it there.
+            # The Python this job is parameterized is not necessarily the one
+            # at the front of $env:PATH.  Modify $env:PATH so that it is so we
+            # can just say "python" in the rest of the steps.  Also get the
+            # related Scripts directory so tools from packages we install are
+            # also available.
             $p = py -<<parameters.pythonVersion>> -c "import sys; print(sys.prefix)"
             $q = py -<<parameters.pythonVersion>> -c "import sysconfig; print(sysconfig.get_path('scripts'))"
 
