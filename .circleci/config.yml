@@ -271,8 +271,10 @@ jobs:
             python -m coverage combine
 
             # Now coveralls will be able to find the data, so have it do the
-            # upload.
-            python -m coveralls
+            # upload.  Also, have it strip the system config-specific prefix
+            # from all of the source paths.
+            $prefix = python -c "import sysconfig; print(sysconfig.get_path('purelib'))"
+            python -m coveralls --basedir $prefix
 
       - "run":
           name: "Convert Result Log"
