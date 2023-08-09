@@ -243,7 +243,15 @@ jobs:
             COVERALLS_PARALLEL: "true"
           command: |
             py -<<parameters.pythonVersion>> -m pip install coveralls==3.3.1
-            py -<<parameters.pythonVersion>> -m coveralls debug
+
+            # .coveragerc sets parallel = True so we don't have a `.coverage`
+            # file but a `.coverage.<unique stuff>` file (or maybe more than
+            # one, but probably not).  coveralls can't work with these so
+            # merge them before invoking it.
+            py -<<parameters.pythonVersion>> -m coverage combine
+
+            # Now coveralls will be able to find the data, so have it do the
+            # upload.
             py -<<parameters.pythonVersion>> -m coveralls
 
       - "run":
