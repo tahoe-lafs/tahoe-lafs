@@ -88,7 +88,7 @@ from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import permute_server_hash
 from allmydata.util.dictutil import BytesKeyDict, UnicodeKeyDict
 from allmydata.util.deferredutil import async_to_deferred, race
-from allmydata.util.attr_provides import provides
+from allmydata.util.attrs_provides import provides
 from allmydata.storage.http_client import (
     StorageClient, StorageClientImmutables, StorageClientGeneral,
     ClientException as HTTPClientException, StorageClientMutables,
