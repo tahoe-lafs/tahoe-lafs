@@ -23,7 +23,5 @@ source =
     D:/a/tahoe-lafs/tahoe-lafs/.tox/py*-coverage/Lib/site-packages/
 # Although sometimes it looks like this instead.  Also it looks like this on macOS.
     .tox/py*-coverage/lib/python*/site-packages/
-# And on the CircleCI Windows build envronment...
-    .tox/py*-coverage/Lib/site-packages/
 # On some Linux CI jobs it looks like this
     /tmp/tahoe-lafs.tox/py*-coverage/lib/python*/site-packages/
