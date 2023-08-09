@@ -222,7 +222,7 @@ jobs:
             # version-specific binary packages so include the Python version
             # in this key, as well as the canonical source of our
             # dependencies.
-            - "pip-packages-v1-{{ parameters.pythonVersion }}-{{ checksum \"setup.py\" }}"
+            - "pip-packages-v1-<< parameters.pythonVersion >>-{{ checksum \"setup.py\" }}"
 
       - "run":
           name: "Fix $env:PATH"
