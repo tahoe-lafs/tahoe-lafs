@@ -141,8 +141,12 @@ workflows:
 
       - "finish-coverage-report":
           requires:
-            - "Windows Server 2022, Python 3.9"
-            - "Windows Server 2022, Python 3.11"
+            # Referencing the job by "alias" (as CircleCI calls the mapping
+            # key) instead of the value of its "name" property causes us to
+            # require every instance of the job from its matrix expansion.  So
+            # this requirement is enough to require every Windows Server 2022
+            # job.
+            - "windows-server-2022"
 
   images:
     <<: *IMAGES
