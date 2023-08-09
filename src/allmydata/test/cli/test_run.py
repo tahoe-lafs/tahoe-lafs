@@ -279,7 +279,10 @@ class RunTests(SyncTestCase):
                              # sequences to begin with non-zero.
 
         r"\w*"               # any amount of whitespace
-        r"$"                 # stop at the end
+        r"$",                # stop at the end
+
+        re.MULTILINE,        # If the whitespace happens to be
+                             # newline-flavored, deal with it anyway.
     )
 
     @given(one_of(
