@@ -243,22 +243,18 @@ class UnrecognizedAnnouncement(unittest.TestCase):
         server.get_foolscap_write_enabler_seed()
         server.get_nickname()
 
-    def test_longname(self) -> None:
+    def test_missing_plugin(self) -> None:
         """
-        ``NativeStorageServer.get_longname`` describes the missing plugin.
+        An exception is produced if the plugin is missing
         """
-        server = self.native_storage_server(
-            StorageClientConfig(
-                storage_plugins={
-                    "nothing": {}
-                }
+        with self.assertRaises(MissingPlugin):
+            _ = self.native_storage_server(
+                StorageClientConfig(
+                    storage_plugins={
+                        "nothing": {}
+                    }
+                )
             )
-        )
-        self.assertEqual(
-            server.get_longname(),
-            '<missing plugin "nothing">',
-        )
-        self.flushLoggedErrors(MissingPlugin)
 
 
 class PluginMatchedAnnouncement(SyncTestCase):
