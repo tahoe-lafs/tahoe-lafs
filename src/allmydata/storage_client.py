@@ -761,7 +761,7 @@ class AnnouncementNotMatched(Exception):
 @attr.s(auto_exc=True)
 class MissingPlugin(Exception):
     """
-    A particular plugin was request, but is missing
+    A particular plugin was requested but is missing
     """
 
     plugin_name = attr.ib()
