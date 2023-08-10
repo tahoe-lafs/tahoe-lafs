@@ -307,13 +307,12 @@ class UseNode(object):
         if self.plugin_config is None:
             plugin_config_section = ""
         else:
-            plugin_config_section =
-            "[storageclient.plugins.{storage_plugin}]\n"
-            "{config}\n"
-            .format(
-                storage_plugin=self.storage_plugin,
-                config=format_config_items(self.plugin_config),
-            )
+            plugin_config_section = (
+                "[storageclient.plugins.{storage_plugin}]\n"
+                "{config}\n").format(
+                    storage_plugin=self.storage_plugin,
+                    config=format_config_items(self.plugin_config),
+                )
 
         if self.storage_plugin is None:
             plugins = ""
