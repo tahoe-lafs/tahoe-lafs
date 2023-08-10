@@ -30,12 +30,10 @@ from twisted.python.filepath import (
 from twisted.python import log as twlog
 from twisted.application import service
 from twisted.python.failure import Failure
-from twisted.plugin import getPlugins
 from foolscap.api import Tub
 
 import foolscap.logging.log
 
-from allmydata.interfaces import IFoolscapStoragePlugin
 from allmydata.util import log
 from allmydata.util import fileutil, iputil
 from allmydata.util.fileutil import abspath_expanduser_unicode
