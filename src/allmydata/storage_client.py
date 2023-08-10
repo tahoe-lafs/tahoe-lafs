@@ -830,7 +830,7 @@ def _storage_from_foolscap_plugin(node_config, config, announcement, get_rref):
 
     # none of the storage options in the announcement are configured
     # locally; we can't make a storage-client.
-    plugin_names = ", ".join(sorted(plugins))
+    plugin_names = ", ".join(sorted(option["name"] for option in storage_options))
     raise AnnouncementNotMatched(plugin_names)
 
 
@@ -872,6 +872,7 @@ def _make_storage_system(
     :return: An object enabling communication via Foolscap with the server
         which generated the announcement.
     """
+    unmatched = None
     # Try to match the announcement against a plugin.
     try:
         furl, storage_server = _storage_from_foolscap_plugin(
@@ -885,14 +886,10 @@ def _make_storage_system(
             get_rref,
         )
     except AnnouncementNotMatched as e:
-        _log.error(
-            'No plugin for storage-server "{nickname}" from plugins: {plugins}',
-            nickname=ann.get("nickname", "<unknown>"),
-            plugins=e.args[0],
-        )
-    except MissingPlugin as e:
-        _log.failure("Missing plugin")
-        return _NullStorage('<missing plugin "{}">'.format(e.args[0]))
+        # show a more-specific error to the user for this server
+        # (Note this will only be shown if the server _doesn't_ offer
+        # anonymous service, which will match below)
+        unmatched = _NullStorage('{}: missing plugin "{}"'.format(server_id.decode("utf8"), str(e)))
     else:
         return _FoolscapStorage.from_announcement(
             server_id,
@@ -918,8 +915,10 @@ def _make_storage_system(
             storage_server,
         )
 
-    # Nothing matched so we can't talk to this server.
-    return _null_storage
+    # Nothing matched so we can't talk to this server. If we have a
+    # specific reason in "unmatched", use it; otherwise the generic
+    # one
+    return unmatched or _null_storage
 
 @implementer(IServer)
 class NativeStorageServer(service.MultiService):
