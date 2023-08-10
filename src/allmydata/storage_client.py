@@ -187,6 +187,30 @@ class StorageClientConfig(object):
             grid_manager_keys,
         )
 
+    def get_configured_storage_plugins(self):
+        """
+        :returns Dict[str, IFoolscapStoragePlugin]: a dict mapping names
+            to instances for all available plugins
+
+        :raises MissingPlugin: if the configuration asks for a plugin
+            for which there is no corresponding instance (e.g. it is
+            not installed).
+        """
+        plugins = {
+            plugin.name: plugin
+            for plugin
+            in getPlugins(IFoolscapStoragePlugin)
+        }
+
+        configured = dict()
+        for plugin_name in self.storage_plugins:
+            try:
+                plugin = plugins[plugin_name]
+            except KeyError:
+                raise MissingPlugin(plugin_name)
+            configured[plugin_name] = plugin
+        return configured
+
 
 @implementer(IStorageBroker)
 class StorageFarmBroker(service.MultiService):
@@ -765,10 +789,9 @@ class MissingPlugin(Exception):
     """
 
     plugin_name = attr.ib()
-    nickname = attr.ib()
 
     def __str__(self):
-        return "Missing plugin '{}' for server '{}'".format(self.plugin_name, self.nickname)
+        return "Missing plugin '{}'".format(self.plugin_name)
 
 
 def _storage_from_foolscap_plugin(node_config, config, announcement, get_rref):
@@ -782,26 +805,32 @@ def _storage_from_foolscap_plugin(node_config, config, announcement, get_rref):
     :param dict announcement: The storage announcement for the storage
         server we should build
     """
-    plugins = {
-        plugin.name: plugin
-        for plugin
-        in getPlugins(IFoolscapStoragePlugin)
-    }
     storage_options = announcement.get(u"storage-options", [])
-    for plugin_name, plugin_config in list(config.storage_plugins.items()):
+    plugins = config.get_configured_storage_plugins()
+
+    # for every storage-option that we have enabled locally (in order
+    # of preference), see if the announcement asks for such a thing.
+    # if it does, great: we return that storage-client
+    # otherwise we've run out of options...
+
+    for options in storage_options:
         try:
-            plugin = plugins[plugin_name]
+            plugin = plugins[options[u"name"]]
         except KeyError:
-            raise MissingPlugin(plugin_name, announcement.get(u"nickname", "<unknown>"))
-        for option in storage_options:
-            if plugin_name == option[u"name"]:
-                furl = option[u"storage-server-FURL"]
-                return furl, plugin.get_storage_client(
-                    node_config,
-                    option,
-                    get_rref,
-                )
-    plugin_names = ", ".join(sorted(list(config.storage_plugins.keys())))
+            # we didn't configure this kind of plugin locally, so
+            # consider the next announced option
+            continue
+
+        furl = options[u"storage-server-FURL"]
+        return furl, plugin.get_storage_client(
+            node_config,
+            options,
+            get_rref,
+        )
+
+    # none of the storage options in the announcement are configured
+    # locally; we can't make a storage-client.
+    plugin_names = ", ".join(sorted(plugins))
     raise AnnouncementNotMatched(plugin_names)
 
 
