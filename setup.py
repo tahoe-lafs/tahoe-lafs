@@ -151,7 +151,7 @@ install_requires = [
     "pycddl >= 0.4",
 
     # Command-line parsing
-    "click >= 7.0",
+    "click >= 8.1.1",
 
     # for pid-file support
     "psutil",
@@ -413,7 +413,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "pip==22.0.3",
               "wheel==0.37.1",
               "setuptools==60.9.1",
-              "subunitreporter==22.2.0",
+              "subunitreporter==23.8.0",
               "python-subunit==1.4.2",
               "junitxml==0.7",
               "coverage==7.2.5",
@@ -435,7 +435,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "paramiko < 2.9",
               "pytest-timeout",
               # Does our OpenMetrics endpoint adhere to the spec:
-              "prometheus-client == 0.11.0",
+              "prometheus-client == 0.11.0"
           ] + tor_requires + i2p_requires,
           "tor": tor_requires,
           "i2p": i2p_requires,

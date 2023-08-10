@@ -62,6 +62,7 @@ from ..storage.http_server import (
     _add_error_handling,
     read_encoded,
     _SCHEMAS as SERVER_SCHEMAS,
+    BaseApp,
 )
 from ..storage.http_client import (
     StorageClient,
@@ -257,7 +258,7 @@ def gen_bytes(length: int) -> bytes:
     return result
 
 
-class TestApp(object):
+class TestApp(BaseApp):
     """HTTP API for testing purposes."""
 
     clock: IReactorTime
@@ -265,7 +266,7 @@ class TestApp(object):
     _add_error_handling(_app)
     _swissnum = SWISSNUM_FOR_TEST  # Match what the test client is using
 
-    @_authorized_route(_app, {}, "/noop", methods=["GET"])
+    @_authorized_route(_app, set(), "/noop", methods=["GET"])
     def noop(self, request, authorization):
         return "noop"
 

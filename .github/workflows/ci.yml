@@ -44,13 +44,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - windows-latest
-        python-version:
-          - "3.8"
-          - "3.9"
-          - "3.10"
-          - "3.11"
         include:
           # On macOS don't bother with 3.8, just to get faster builds.
           - os: macos-12

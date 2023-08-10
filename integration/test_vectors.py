@@ -15,7 +15,8 @@ from pytest_twisted import ensureDeferred
 
 from . import vectors
 from .vectors import parameters
-from .util import reconfigure, upload, TahoeProcess
+from .util import upload
+from .grid import Client
 
 @mark.parametrize('convergence', parameters.CONVERGENCE_SECRETS)
 def test_convergence(convergence):
@@ -36,8 +37,8 @@ async def test_capability(reactor, request, alice, case, expected):
     computed value.
     """
     # rewrite alice's config to match params and convergence
-    await reconfigure(
-        reactor, request, alice, (1, case.params.required, case.params.total), case.convergence, case.segment_size)
+    await alice.reconfigure_zfec(
+        reactor, (1, case.params.required, case.params.total), case.convergence, case.segment_size)
 
     # upload data in the correct format
     actual = upload(alice, case.fmt, case.data)
@@ -82,7 +83,7 @@ async def skiptest_generate(reactor, request, alice):
 async def generate(
         reactor,
         request,
-        alice: TahoeProcess,
+        alice: Client,
         cases: Iterator[vectors.Case],
 ) -> AsyncGenerator[[vectors.Case, str], None]:
     """
@@ -106,10 +107,8 @@ async def generate(
     # reliability of this generator, be happy if we can put shares anywhere
     happy = 1
     for case in cases:
-        await reconfigure(
+        await alice.reconfigure_zfec(
             reactor,
-            request,
-            alice,
             (happy, case.params.required, case.params.total),
             case.convergence,
             case.segment_size
@@ -117,5 +116,5 @@ async def generate(
 
         # Give the format a chance to make an RSA key if it needs it.
         case = evolve(case, fmt=case.fmt.customize())
-        cap = upload(alice, case.fmt, case.data)
+        cap = upload(alice.process, case.fmt, case.data)
         yield case, cap
