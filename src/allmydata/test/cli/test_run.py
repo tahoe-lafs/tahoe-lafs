@@ -52,6 +52,18 @@ from ..common import (
     SyncTestCase,
 )
 
+def not_found(pattern: re.Pattern, haystack: str) -> bool:
+    """
+    Determine whether a pattern can be found in a string.
+
+    :param pattern: The pattern to search for.
+    :param haystack: The string to search for the pattern.
+
+    :return: True if and only if the pattern is *not* found.
+    """
+    return pattern.search(haystack) is None
+
+
 class DaemonizeTheRealServiceTests(SyncTestCase):
     """
     Tests for ``DaemonizeTheRealService``.
@@ -312,15 +324,3 @@ class RunTests(SyncTestCase):
         # result should be InvalidPidFile.
         with self.assertRaises(InvalidPidFile):
             check_pid_process(pidfile)
-
-
-def not_found(pattern: re.Pattern, haystack: str) -> bool:
-    """
-    Determine whether a pattern can be found in a string.
-
-    :param pattern: The pattern to search for.
-    :param haystack: The string to search for the pattern.
-
-    :return: True if and only if the pattern is *not* found.
-    """
-    return pattern.search(haystack) is None
