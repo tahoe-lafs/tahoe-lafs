@@ -1,3 +1,9 @@
+"""
+Process IDentification-related helpers.
+"""
+
+from __future__ import annotations
+
 import psutil
 
 # the docs are a little misleading, but this is either WindowsFileLock
