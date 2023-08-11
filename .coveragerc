@@ -19,7 +19,7 @@ skip_covered = True
 source =
 # It looks like this in the checkout
     src/
-# It looks like this in the Windows build environment
+# It looks like this in the GitHub Actions Windows build environment
     D:/a/tahoe-lafs/tahoe-lafs/.tox/py*-coverage/Lib/site-packages/
 # Although sometimes it looks like this instead.  Also it looks like this on macOS.
     .tox/py*-coverage/lib/python*/site-packages/
