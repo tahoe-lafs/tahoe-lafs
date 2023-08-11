@@ -31,10 +31,10 @@ class CannotRemovePidFile(Exception):
     """
 
 
-def _pidfile_to_lockpath(pidfile):
+def _pidfile_to_lockpath(pidfile: FilePath) -> FilePath:
     """
     internal helper.
-    :returns FilePath: a path to use for file-locking the given pidfile
+    :returns: a path to use for file-locking the given pidfile
     """
     return pidfile.sibling("{}.lock".format(pidfile.basename()))
 
@@ -64,7 +64,7 @@ def parse_pidfile(pidfile: FilePath) -> tuple[int, float]:
     return pid, starttime
 
 
-def check_pid_process(pidfile):
+def check_pid_process(pidfile: FilePath) -> None:
     """
     If another instance appears to be running already, raise an
     exception.  Otherwise, write our PID + start time to the pidfile
@@ -114,7 +114,7 @@ def check_pid_process(pidfile):
         )
 
 
-def cleanup_pidfile(pidfile):
+def cleanup_pidfile(pidfile: FilePath) -> None:
     """
     Remove the pidfile specified (respecting locks). If anything at
     all goes wrong, `CannotRemovePidFile` is raised.
