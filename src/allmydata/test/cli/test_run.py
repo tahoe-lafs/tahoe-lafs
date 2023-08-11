@@ -12,7 +12,7 @@ from six.moves import (
 )
 
 from hypothesis.strategies import text, floats, integers, one_of
-from hypothesis import given, assume
+from hypothesis import given
 
 from testtools.matchers import (
     Contains,
