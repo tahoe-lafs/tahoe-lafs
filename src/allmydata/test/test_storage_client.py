@@ -248,7 +248,7 @@ class UnrecognizedAnnouncement(unittest.TestCase):
         An exception is produced if the plugin is missing
         """
         with self.assertRaises(MissingPlugin):
-            _ = self.native_storage_server(
+            self.native_storage_server(
                 StorageClientConfig(
                     storage_plugins={
                         "missing-plugin-name": {}
