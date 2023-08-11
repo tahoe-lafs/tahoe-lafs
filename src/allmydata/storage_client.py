@@ -189,8 +189,8 @@ class StorageClientConfig(object):
 
     def get_configured_storage_plugins(self) -> dict[str, IFoolscapStoragePlugin]:
         """
-        :returns Dict[str, IFoolscapStoragePlugin]: a dict mapping names
-            to instances for all available plugins
+        :returns: a mapping from names to instances for all available
+            plugins
 
         :raises MissingPlugin: if the configuration asks for a plugin
             for which there is no corresponding instance (e.g. it is
