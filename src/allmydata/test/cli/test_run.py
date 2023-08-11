@@ -5,6 +5,7 @@ Tests for ``allmydata.scripts.tahoe_run``.
 from __future__ import annotations
 
 import re
+from functools import partial
 from sys import float_info
 from six.moves import (
     StringIO,
@@ -292,14 +293,14 @@ class RunTests(SyncTestCase):
         text().filter(
             # But we're testing the exception path so exclude strings we
             # specifically know are valid.
-            lambda s, re=good_file_content_re: re.search(s) is None
+            partial(not_found, good_file_content_re),
         ),
         # Also try some more focused strategies where at least the structure
         # and one field are valid.
         integers(max_value=0).map(lambda p: f"{p} 123.45"),
         floats(max_value=-float_info.min).map(lambda t: f"123 {t}"),
      ))
-    def test_pidfile_contents(self, content):
+    def test_pidfile_contents(self, content: str) -> None:
         """
         invalid contents for a pidfile raise errors
         """
@@ -311,3 +312,15 @@ class RunTests(SyncTestCase):
         # result should be InvalidPidFile.
         with self.assertRaises(InvalidPidFile):
             check_pid_process(pidfile)
+
+
+def not_found(pattern: re.Pattern, haystack: str) -> bool:
+    """
+    Determine whether a pattern can be found in a string.
+
+    :param pattern: The pattern to search for.
+    :param haystack: The string to search for the pattern.
+
+    :return: True if and only if the pattern is *not* found.
+    """
+    return pattern.search(haystack) is None
