@@ -267,9 +267,11 @@ class RunTests(SyncTestCase):
 
     good_file_content_re = re.compile(
         r"^"                 # start at the beginning
-        r"\w*"               # any amount of whitespace
+        r"\s*"               # any amount of whitespace
         r"[1-9][0-9]*"       # a pid is a positive integer
-        r"\w+"               # any amount of whitespace separates the two fields
+
+        r"\s+"               # any amount of whitespace separates the two
+                             # fields
 
         r"[0-9]+(\.[0-9]*)?" # a time is a base ten floating point
                              # representation that's an integer-like sequence
@@ -278,7 +280,7 @@ class RunTests(SyncTestCase):
                              # so there is no requirement for the integer-like
                              # sequences to begin with non-zero.
 
-        r"\w*"               # any amount of whitespace
+        r"\s*"               # any amount of whitespace
         r"$",                # stop at the end
 
         re.MULTILINE,        # If the whitespace happens to be
