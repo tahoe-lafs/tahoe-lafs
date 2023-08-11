@@ -187,7 +187,7 @@ class StorageClientConfig(object):
             grid_manager_keys,
         )
 
-    def get_configured_storage_plugins(self):
+    def get_configured_storage_plugins(self) -> dict[str, IFoolscapStoragePlugin]:
         """
         :returns Dict[str, IFoolscapStoragePlugin]: a dict mapping names
             to instances for all available plugins
