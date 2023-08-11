@@ -251,7 +251,7 @@ class UnrecognizedAnnouncement(unittest.TestCase):
             _ = self.native_storage_server(
                 StorageClientConfig(
                     storage_plugins={
-                        "nothing": {}
+                        "missing-plugin-name": {}
                     }
                 )
             )
