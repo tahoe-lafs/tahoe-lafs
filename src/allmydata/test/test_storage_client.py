@@ -196,7 +196,7 @@ class UnrecognizedAnnouncement(unittest.TestCase):
             self._tub_maker,
             {},
             node_config=EMPTY_CLIENT_CONFIG,
-            config=config or StorageClientConfig(),
+            config=config if config is not None else StorageClientConfig(),
         )
 
     def test_no_exceptions(self):
