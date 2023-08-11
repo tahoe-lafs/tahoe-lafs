@@ -5,6 +5,7 @@ Process IDentification-related helpers.
 from __future__ import annotations
 
 import psutil
+from attrs import frozen
 
 # the docs are a little misleading, but this is either WindowsFileLock
 # or UnixFileLock depending upon the platform we're currently on
@@ -50,9 +51,9 @@ def parse_pidfile(pidfile: FilePath) -> tuple[int, float]:
     with pidfile.open("r") as f:
         content = f.read().decode("utf8").strip()
     try:
-        pid, starttime = content.split()
-        pid = int(pid)
-        starttime = float(starttime)
+        pid_str, starttime_str = content.split()
+        pid = int(pid_str)
+        starttime = float(starttime_str)
     except ValueError:
         raise InvalidPidFile(
             "found invalid PID file in {}".format(
@@ -80,7 +81,7 @@ def check_pid_process(pidfile: FilePath) -> None:
         # a short timeout is fine, this lock should only be active
         # while someone is reading or deleting the pidfile .. and
         # facilitates testing the locking itself.
-        with FileLock(lock_path.path, timeout=2):
+        with FileLock(_CouldBeBytesPath(lock_path.path), timeout=2):
             # check if we have another instance running already
             if pidfile.exists():
                 pid, starttime = parse_pidfile(pidfile)
@@ -97,7 +98,7 @@ def check_pid_process(pidfile: FilePath) -> None:
                 except psutil.NoSuchProcess:
                     print(
                         "'{pidpath}' refers to {pid} that isn't running".format(
-                            pidpath=pidfile.path,
+                            pidpath=pidfile.asTextMode().path,
                             pid=pid,
                         )
                     )
@@ -110,7 +111,7 @@ def check_pid_process(pidfile: FilePath) -> None:
                 f.write("{} {}\n".format(proc.pid, proc.create_time()).encode("utf8"))
     except Timeout:
         raise ProcessInTheWay(
-            "Another process is still locking {}".format(pidfile.path)
+            "Another process is still locking {}".format(pidfile.asTextMode().path)
         )
 
 
@@ -120,13 +121,25 @@ def cleanup_pidfile(pidfile: FilePath) -> None:
     all goes wrong, `CannotRemovePidFile` is raised.
     """
     lock_path = _pidfile_to_lockpath(pidfile)
-    with FileLock(lock_path.path):
+    with FileLock(_CouldBeBytesPath(lock_path.path)):
         try:
             pidfile.remove()
         except Exception as e:
             raise CannotRemovePidFile(
                 "Couldn't remove '{pidfile}': {err}.".format(
-                    pidfile=pidfile.path,
+                    pidfile=pidfile.asTextMode().path,
                     err=e,
                 )
             )
+
+@frozen
+class _CouldBeBytesPath(object):
+    """
+    Sneak bytes past `FileLock.__init__`.
+
+    See https://github.com/tox-dev/py-filelock/issues/258
+    """
+    _path: str | bytes
+
+    def __fspath__(self) -> str | bytes:
+        return self._path
