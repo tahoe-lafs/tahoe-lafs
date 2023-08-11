@@ -272,7 +272,7 @@
                     if (( $# )) then
                       ${python} -m twisted.trial "$@"
                     else
-                      ${python} -m twisted.trial -j4 allmydata
+                      ${python} -m twisted.trial -j$NIX_BUILD_CORES allmydata
                     fi
                   '';
             };
