@@ -186,7 +186,7 @@ class UnrecognizedAnnouncement(unittest.TestCase):
     def _tub_maker(self, overrides):
         return Service()
 
-    def native_storage_server(self, config=None):
+    def native_storage_server(self, config: Optional[StorageClientConfig] = None) -> NativeStorageServer:
         """
         Make a ``NativeStorageServer`` out of an unrecognizable announcement.
         """
