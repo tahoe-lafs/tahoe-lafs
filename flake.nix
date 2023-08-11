@@ -315,8 +315,14 @@
                             # development-friendly experience.
                             export PYTHONPATH=$PWD/src
 
+                            # Chutney wants to write out files to track its
+                            # state.  By default it does this alongside its
+                            # source code but we put the source in the nix
+                            # store so that location isn't writeable.  Give it
+                            # somewhere else to write it.
                             export CHUTNEY_DATA_DIR=$PWD/chutney-net
 
+                            # If args are given, use them.
                             if (( $# )) then
                               python -m pytest "$@"
                             else
