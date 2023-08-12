@@ -209,7 +209,7 @@ class StorageClientConfig(object):
             except KeyError:
                 raise MissingPlugin(plugin_name)
             configured[plugin_name] = plugin
-        return configured
+        return configured  # type: ignore
 
 
 @implementer(IStorageBroker)
