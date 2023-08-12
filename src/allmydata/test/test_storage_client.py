@@ -186,7 +186,7 @@ class UnrecognizedAnnouncement(unittest.TestCase):
     def _tub_maker(self, overrides):
         return Service()
 
-    def native_storage_server(self, config=None):
+    def native_storage_server(self, config: Optional[StorageClientConfig] = None) -> NativeStorageServer:
         """
         Make a ``NativeStorageServer`` out of an unrecognizable announcement.
         """
@@ -196,7 +196,7 @@ class UnrecognizedAnnouncement(unittest.TestCase):
             self._tub_maker,
             {},
             node_config=EMPTY_CLIENT_CONFIG,
-            config=config or StorageClientConfig(),
+            config=config if config is not None else StorageClientConfig(),
         )
 
     def test_no_exceptions(self):
@@ -248,10 +248,10 @@ class UnrecognizedAnnouncement(unittest.TestCase):
         An exception is produced if the plugin is missing
         """
         with self.assertRaises(MissingPlugin):
-            _ = self.native_storage_server(
+            self.native_storage_server(
                 StorageClientConfig(
                     storage_plugins={
-                        "nothing": {}
+                        "missing-plugin-name": {}
                     }
                 )
             )
