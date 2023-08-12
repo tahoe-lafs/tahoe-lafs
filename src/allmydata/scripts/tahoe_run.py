@@ -42,6 +42,9 @@ from allmydata.util.pid import (
 from allmydata.storage.crawler import (
     MigratePickleFileError,
 )
+from allmydata.storage_client import (
+    MissingPlugin,
+)
 from allmydata.node import (
     PortAssignmentRequired,
     PrivacyError,
@@ -195,6 +198,17 @@ class DaemonizeTheRealService(Service, HookMixin):
                         .format(
                             reason.value.args[0].path,
                             self.basedir,
+                        )
+                    )
+                elif reason.check(MissingPlugin):
+                    self.stderr.write(
+                        "Missing Plugin\n"
+                        "The configuration requests a plugin:\n"
+                        "\n    {}\n\n"
+                        "...which cannot be found.\n"
+                        "This typically means that some software hasn't been installed or the plugin couldn't be instantiated.\n\n"
+                        .format(
+                            reason.value.plugin_name,
                         )
                     )
                 else:
