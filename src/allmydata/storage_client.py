@@ -33,7 +33,7 @@ Ported to Python 3.
 from __future__ import annotations
 
 from six import ensure_text
-from typing import Union, Callable, Any, Optional, cast
+from typing import Union, Callable, Any, Optional, cast, Dict
 from os import urandom
 import re
 import time
@@ -202,14 +202,15 @@ class StorageClientConfig(object):
             in getPlugins(IFoolscapStoragePlugin)
         }
 
-        configured = dict()
+        # mypy doesn't like "str" in place of Any ...
+        configured: Dict[Any, IFoolscapStoragePlugin] = dict()
         for plugin_name in self.storage_plugins:
             try:
                 plugin = plugins[plugin_name]
             except KeyError:
                 raise MissingPlugin(plugin_name)
             configured[plugin_name] = plugin
-        return configured  # type: ignore
+        return configured
 
 
 @implementer(IStorageBroker)
