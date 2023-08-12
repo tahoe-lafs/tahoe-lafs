@@ -264,7 +264,7 @@ class RunTests(SyncTestCase):
         self.assertThat(runs, Equals([]))
         self.assertThat(result_code, Equals(1))
 
-    good_file_content_re = re.compile(r"\w[0-9]*\w[0-9]*\w")
+    good_file_content_re = re.compile(r"\s[0-9]*\s[0-9]*\s", re.M)
 
     @given(text())
     def test_pidfile_contents(self, content):
