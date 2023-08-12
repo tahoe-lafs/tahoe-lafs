@@ -772,8 +772,6 @@ class NonReconnector(object):
     def getReconnectionInfo(self):
         return ReconnectionInfo()
 
-_null_storage = _NullStorage()
-
 
 class AnnouncementNotMatched(Exception):
     """
@@ -915,10 +913,11 @@ def _make_storage_system(
             storage_server,
         )
 
-    # Nothing matched so we can't talk to this server. If we have a
-    # specific reason in "unmatched", use it; otherwise the generic
-    # one
-    return unmatched or _null_storage
+    # Nothing matched so we can't talk to this server. (There should
+    # not be a way to get here without this local being valid)
+    assert unmatched is not None, "Expected unmatched plugin error"
+    return unmatched
+
 
 @implementer(IServer)
 class NativeStorageServer(service.MultiService):
