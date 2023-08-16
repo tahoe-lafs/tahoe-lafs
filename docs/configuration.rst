@@ -684,8 +684,7 @@ Client Configuration
     If this is ``True``, the client will only connect to storage servers via
     Foolscap, regardless of whether they support HTTPS. If this is ``False``,
     the client will prefer HTTPS when it is available on the server. The default
-    value is ``True`` (this will change in
-    https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4041).
+    value is ``False``.
 
 In addition,
 see :doc:`accepting-donations` for a convention for donating to storage server operators.
@@ -809,8 +808,7 @@ Storage Server Configuration
     If this is ``True``, the node will expose the storage server via Foolscap
     only, with no support for HTTPS. If this is ``False``, the server will
     support both Foolscap and HTTPS on the same port. The default value is
-    ``True`` (this will change in
-    https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4041).
+    ``False``.
 
 In addition,
 see :doc:`accepting-donations` for a convention encouraging donations to storage server operators.
