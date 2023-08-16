@@ -117,6 +117,10 @@ from subprocess import (
     PIPE,
 )
 
+# Is the process running as an OS user with elevated privileges (ie, root)?
+# We only know how to determine this for POSIX systems.
+superuser = getattr(os, "getuid", lambda: -1)() == 0
+
 EMPTY_CLIENT_CONFIG = config_from_string(
     "/dev/null",
     "tub.port",
@@ -303,13 +307,17 @@ class UseNode(object):
         if self.plugin_config is None:
             plugin_config_section = ""
         else:
-            plugin_config_section = """
-[storageclient.plugins.{storage_plugin}]
-{config}
-""".format(
-    storage_plugin=self.storage_plugin,
-    config=format_config_items(self.plugin_config),
-)
+            plugin_config_section = (
+                "[storageclient.plugins.{storage_plugin}]\n"
+                "{config}\n").format(
+                    storage_plugin=self.storage_plugin,
+                    config=format_config_items(self.plugin_config),
+                )
+
+        if self.storage_plugin is None:
+            plugins = ""
+        else:
+            plugins = "storage.plugins = {}".format(self.storage_plugin)
 
         write_introducer(
             self.basedir,
@@ -336,18 +344,17 @@ class UseNode(object):
         self.config = config_from_string(
             self.basedir.asTextMode().path,
             "tub.port",
-"""
-[node]
-{node_config}
-
-[client]
-storage.plugins = {storage_plugin}
-{plugin_config_section}
-""".format(
-    storage_plugin=self.storage_plugin,
-    node_config=format_config_items(node_config),
-    plugin_config_section=plugin_config_section,
-)
+            "[node]\n"
+            "{node_config}\n"
+            "\n"
+            "[client]\n"
+            "{plugins}\n"
+            "{plugin_config_section}\n"
+            .format(
+                plugins=plugins,
+                node_config=format_config_items(node_config),
+                plugin_config_section=plugin_config_section,
+            )
         )
 
     def create_node(self):

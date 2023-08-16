@@ -222,3 +222,7 @@ def _config_path_from_option(config: str) -> Optional[FilePath]:
     if config == "-":
         return None
     return FilePath(config)
+
+
+if __name__ == '__main__':
+    grid_manager()  # type: ignore

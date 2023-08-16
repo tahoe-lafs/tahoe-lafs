@@ -483,6 +483,11 @@ def create_storage_farm_broker(config: _Config, default_connection_handlers, foo
     storage_client_config = storage_client.StorageClientConfig.from_node_config(
         config,
     )
+    # ensure that we can at least load all plugins that the
+    # configuration mentions; doing this early (i.e. before creating
+    # storage-clients themselves) allows us to exit in case of a
+    # problem.
+    storage_client_config.get_configured_storage_plugins()
 
     def tub_creator(handler_overrides=None, **kwargs):
         return node.create_tub(
