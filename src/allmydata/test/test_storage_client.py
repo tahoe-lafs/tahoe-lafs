@@ -742,7 +742,7 @@ storage:
         self.assertTrue(done.called)
 
     def test_should_we_use_http_default(self):
-        """Default is to use HTTP; this will change eventually"""
+        """Default is to use HTTP."""
         basedir = self.mktemp()
         node_config = config_from_string(basedir, "", "")
         announcement = {ANONYMOUS_STORAGE_NURLS: ["pb://..."]}
