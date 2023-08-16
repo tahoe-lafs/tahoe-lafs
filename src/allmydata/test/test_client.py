@@ -77,6 +77,7 @@ from allmydata.scripts.common import (
 from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
 from .common import (
+    superuser,
     EMPTY_CLIENT_CONFIG,
     SyncTestCase,
     AsyncBrokenTestCase,
@@ -151,7 +152,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     # EnvironmentError when reading a file that really exists), on
     # windows, please fix this
     @skipIf(platform.isWindows(), "We don't know how to set permissions on Windows.")
-    @skipIf(os.getuid() == 0, "cannot test as superuser with all permissions")
+    @skipIf(superuser, "cannot test as superuser with all permissions")
     def test_unreadable_config(self):
         basedir = "test_client.Basic.test_unreadable_config"
         os.mkdir(basedir)

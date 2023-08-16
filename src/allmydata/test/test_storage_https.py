@@ -109,9 +109,11 @@ class PinningHTTPSValidation(AsyncTestCase):
         root.isLeaf = True
         listening_port = await endpoint.listen(Site(root))
         try:
-            yield f"https://127.0.0.1:{listening_port.getHost().port}/"
+            yield f"https://127.0.0.1:{listening_port.getHost().port}/"  # type: ignore[attr-defined]
         finally:
-            await listening_port.stopListening()
+            result = listening_port.stopListening()
+            if result is not None:
+                await result
 
     def request(self, url: str, expected_certificate: x509.Certificate):
         """

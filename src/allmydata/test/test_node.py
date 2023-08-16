@@ -62,6 +62,7 @@ from .common import (
     ConstantAddresses,
     SameProcessStreamEndpointAssigner,
     UseNode,
+    superuser,
 )
 
 def port_numbers():
@@ -325,7 +326,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         self.assertEqual(config.items("nosuch", default), default)
 
     @skipIf(platform.isWindows(), "We don't know how to set permissions on Windows.")
-    @skipIf(os.getuid() == 0, "cannot test as superuser with all permissions")
+    @skipIf(superuser, "cannot test as superuser with all permissions")
     def test_private_config_unreadable(self):
         """
         Asking for inaccessible private config is an error
@@ -341,7 +342,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             config.get_or_create_private_config("foo")
 
     @skipIf(platform.isWindows(), "We don't know how to set permissions on Windows.")
-    @skipIf(os.getuid() == 0, "cannot test as superuser with all permissions")
+    @skipIf(superuser, "cannot test as superuser with all permissions")
     def test_private_config_unreadable_preexisting(self):
         """
         error if reading private config data fails
@@ -398,7 +399,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         self.assertEqual(len(counter), 1) # don't call unless necessary
         self.assertEqual(value, "newer")
 
-    @skipIf(os.getuid() == 0, "cannot test as superuser with all permissions")
+    @skipIf(superuser, "cannot test as superuser with all permissions")
     def test_write_config_unwritable_file(self):
         """
         Existing behavior merely logs any errors upon writing
