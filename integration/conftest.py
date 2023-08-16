@@ -285,7 +285,7 @@ def introducer_furl(introducer, temp_dir):
     include_args=["temp_dir", "flog_gatherer"],
     include_result=False,
 )
-def tor_introducer(reactor, temp_dir, flog_gatherer, request):
+def tor_introducer(reactor, temp_dir, flog_gatherer, request, tor_control_port):
     intro_dir = join(temp_dir, 'introducer_tor')
     print("making Tor introducer in {}".format(intro_dir))
     print("(this can take tens of seconds to allocate Onion address)")
@@ -299,9 +299,7 @@ def tor_introducer(reactor, temp_dir, flog_gatherer, request):
             request,
             (
                 'create-introducer',
-                # The control port should agree with the configuration of the
-                # Tor network we bootstrap with chutney.
-                '--tor-control-port', 'tcp:localhost:8007',
+                '--tor-control-port', tor_control_port,
                 '--hide-ip',
                 '--listen=tor',
                 intro_dir,
@@ -516,6 +514,17 @@ def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
 
     return (chutney_dir, {"PYTHONPATH": join(chutney_dir, "lib")})
 
+@pytest.fixture(scope='session')
+def tor_control_port(tor_network):
+    """
+    Get an endpoint description for the Tor control port for the local Tor
+    network we run..
+    """
+    # We ignore tor_network because it can't tell us the control port.  But
+    # asking for it forces the Tor network to be built before we run - so if
+    # we get the hard-coded control port value correct, there should be
+    # something listening at that address.
+    return 'tcp:localhost:8007'
 
 @pytest.fixture(scope='session')
 @pytest.mark.skipif(sys.platform.startswith('win'),

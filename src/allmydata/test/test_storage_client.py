@@ -784,13 +784,14 @@ storage:
         self.assertTrue(done.called)
 
     def test_should_we_use_http_default(self):
-        """Default is to not use HTTP; this will change eventually"""
+        """Default is to use HTTP."""
         basedir = self.mktemp()
         node_config = config_from_string(basedir, "", "")
         announcement = {ANONYMOUS_STORAGE_NURLS: ["pb://..."]}
-        self.assertFalse(
+        self.assertTrue(
             StorageFarmBroker._should_we_use_http(node_config, announcement)
         )
+        # Lacking NURLs, we can't use HTTP:
         self.assertFalse(
             StorageFarmBroker._should_we_use_http(node_config, {})
         )

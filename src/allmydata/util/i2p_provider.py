@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-Ported to Python 3.
-"""
-from __future__ import absolute_import, print_function, with_statement
-from __future__ import division
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
+
+from typing import Any
+from typing_extensions import Literal
 
 import os
 
@@ -20,12 +15,15 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.endpoints import clientFromString
 from twisted.internet.error import ConnectionRefusedError, ConnectError
 from twisted.application import service
+from twisted.python.usage import Options
 
+from ..listeners import ListenerConfig
 from ..interfaces import (
     IAddressFamily,
 )
+from ..node import _Config
 
-def create(reactor, config):
+def create(reactor: Any, config: _Config) -> IAddressFamily:
     """
     Create a new Provider service (this is an IService so must be
     hooked up to a parent or otherwise started).
@@ -55,6 +53,21 @@ def _import_txi2p():
     except ImportError: # pragma: no cover
         return None
 
+def is_available() -> bool:
+    """
+    Can this type of listener actually be used in this runtime
+    environment?
+
+    If its dependencies are missing then it cannot be.
+    """
+    return not (_import_i2p() is None or _import_txi2p() is None)
+
+def can_hide_ip() -> Literal[True]:
+    """
+    Can the transport supported by this type of listener conceal the
+    node's public internet address from peers?
+    """
+    return True
 
 def _try_to_connect(reactor, endpoint_desc, stdout, txi2p):
     # yields True or None
@@ -97,29 +110,35 @@ def _connect_to_i2p(reactor, cli_config, txi2p):
     else:
         raise ValueError("unable to reach any default I2P SAM port")
 
-@inlineCallbacks
-def create_config(reactor, cli_config):
+async def create_config(reactor: Any, cli_config: Options) -> ListenerConfig:
+    """
+    For a given set of command-line options, construct an I2P listener.
+
+    This includes allocating a new I2P address.
+    """
     txi2p = _import_txi2p()
     if not txi2p:
         raise ValueError("Cannot create I2P Destination without txi2p. "
                          "Please 'pip install tahoe-lafs[i2p]' to fix this.")
-    tahoe_config_i2p = {} # written into tahoe.cfg:[i2p]
+    tahoe_config_i2p = [] # written into tahoe.cfg:[i2p]
     private_dir = os.path.abspath(os.path.join(cli_config["basedir"], "private"))
-    stdout = cli_config.stdout
+    # XXX We shouldn't carry stdout around by jamming it into the Options
+    # value.  See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4048
+    stdout = cli_config.stdout # type: ignore[attr-defined]
     if cli_config["i2p-launch"]:
         raise NotImplementedError("--i2p-launch is under development.")
     else:
         print("connecting to I2P (to allocate .i2p address)..", file=stdout)
-        sam_port = yield _connect_to_i2p(reactor, cli_config, txi2p)
+        sam_port = await _connect_to_i2p(reactor, cli_config, txi2p)
         print("I2P connection established", file=stdout)
-        tahoe_config_i2p["sam.port"] = sam_port
+        tahoe_config_i2p.append(("sam.port", sam_port))
 
     external_port = 3457 # TODO: pick this randomly? there's no contention.
 
     privkeyfile = os.path.join(private_dir, "i2p_dest.privkey")
     sam_endpoint = clientFromString(reactor, sam_port)
     print("allocating .i2p address...", file=stdout)
-    dest = yield txi2p.generateDestination(reactor, privkeyfile, 'SAM', sam_endpoint)
+    dest = await txi2p.generateDestination(reactor, privkeyfile, 'SAM', sam_endpoint)
     print(".i2p address allocated", file=stdout)
     i2p_port = "listen:i2p" # means "see [i2p]", calls Provider.get_listener()
     i2p_location = "i2p:%s:%d" % (dest.host, external_port)
@@ -132,10 +151,11 @@ def create_config(reactor, cli_config):
     # * "private_key_file" points to the on-disk copy of the private key
     #   material (although we always write it to the same place)
 
-    tahoe_config_i2p["dest"] = "true"
-    tahoe_config_i2p["dest.port"] = str(external_port)
-    tahoe_config_i2p["dest.private_key_file"] = os.path.join("private",
-                                                             "i2p_dest.privkey")
+    tahoe_config_i2p.extend([
+        ("dest", "true"),
+        ("dest.port", str(external_port)),
+        ("dest.private_key_file", os.path.join("private", "i2p_dest.privkey")),
+    ])
 
     # tahoe_config_i2p: this is a dictionary of keys/values to add to the
     # "[i2p]" section of tahoe.cfg, which tells the new node how to launch
@@ -149,7 +169,7 @@ def create_config(reactor, cli_config):
     # at both create-node and startup time. The data directory is not
     # recorded in tahoe.cfg
 
-    returnValue((tahoe_config_i2p, i2p_port, i2p_location))
+    return ListenerConfig([i2p_port], [i2p_location], {"i2p": tahoe_config_i2p})
 
 
 @implementer(IAddressFamily)
