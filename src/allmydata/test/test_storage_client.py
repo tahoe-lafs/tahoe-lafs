@@ -671,12 +671,8 @@ storage:
         self.assertTrue(initial_service.running)
         self.assertIdentical(initial_service.parent, broker)
 
-        http_announcement = {
-            "service-name": "storage",
-            "anonymous-storage-FURL": f"pb://{ones}@nowhere/fake2",
-            "permutation-seed-base32": "bbbbbbbbbbbbbbbbbbbbbbbb",
-            ANONYMOUS_STORAGE_NURLS: [f"pb://{ones}@nowhere/fake2#v=1"],
-        }
+        http_announcement = initial_announcement.copy()
+        http_announcement[ANONYMOUS_STORAGE_NURLS] = {f"pb://{ones}@nowhere/fake2#v=1"}
         broker._got_announcement(key_s, http_announcement)
         self.assertFalse(initial_service.running)
         self.assertEqual(initial_service.parent, None)
