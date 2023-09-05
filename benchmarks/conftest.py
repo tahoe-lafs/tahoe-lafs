@@ -9,6 +9,8 @@ from os.path import abspath
 from shutil import which, rmtree
 from tempfile import mkdtemp
 from pathlib import Path
+from contextlib import contextmanager
+from time import time
 
 import pytest
 import pytest_twisted
@@ -105,3 +107,22 @@ def client_node(request, grid, storage_nodes, number_of_nodes) -> Client:
     )
     print(f"Client node pid: {client_node.process.transport.pid}")
     return client_node
+
+
+class Benchmarker:
+    """Keep track of benchmarking results."""
+
+    @contextmanager
+    def record(self, name, **parameters):
+        """Record the timing of running some code, if it succeeds."""
+        start = time()
+        yield
+        elapsed = time() - start
+        # For now we just print the outcome:
+        parameters = " ".join(f"{k}={v}" for (k, v) in parameters.items())
+        print(f"BENCHMARK RESULT: {name} {parameters} elapsed {elapsed} secs")
+
+
+@pytest.fixture(scope="session")
+def tahoe_benchmarker():
+    return Benchmarker()
