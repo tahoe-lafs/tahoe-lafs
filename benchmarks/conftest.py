@@ -5,10 +5,8 @@ The number of nodes is parameterized via a --number-of-nodes CLI option added
 to pytest.
 """
 
-from os.path import abspath
 from shutil import which, rmtree
 from tempfile import mkdtemp
-from pathlib import Path
 from contextlib import contextmanager
 from time import time
 
