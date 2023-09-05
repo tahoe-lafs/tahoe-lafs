@@ -54,6 +54,15 @@ class Secrets(Enum):
     WRITE_ENABLER = "write-enabler"
 
 
+def get_spki(certificate: Certificate) -> bytes:
+    """
+    Get the bytes making up the DER encoded representation of the
+    `SubjectPublicKeyInfo` (RFC 7469) for the given certificate.
+    """
+    return certificate.public_key().public_bytes(
+        Encoding.DER, PublicFormat.SubjectPublicKeyInfo
+    )
+
 def get_spki_hash(certificate: Certificate) -> bytes:
     """
     Get the public key hash, as per RFC 7469: base64 of sha256 of the public
@@ -61,7 +70,5 @@ def get_spki_hash(certificate: Certificate) -> bytes:
 
     We use the URL-safe base64 variant, since this is typically found in NURLs.
     """
-    public_key_bytes = certificate.public_key().public_bytes(
-        Encoding.DER, PublicFormat.SubjectPublicKeyInfo
-    )
-    return urlsafe_b64encode(sha256(public_key_bytes).digest()).strip().rstrip(b"=")
+    spki_bytes = get_spki(certificate)
+    return urlsafe_b64encode(sha256(spki_bytes).digest()).strip().rstrip(b"=")
