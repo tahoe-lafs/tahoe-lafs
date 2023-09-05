@@ -657,6 +657,7 @@ storage:
         )
         broker = StorageFarmBroker(True, tub_maker, config)
         broker.startService()
+        self.addCleanup(broker.stopService)
         key_s = b'v0-1234-1'
 
         ones = str(base32.b2a(b"1"), "utf-8")
@@ -681,7 +682,6 @@ storage:
         self.assertTrue(new_service.running)
         self.assertIdentical(new_service.parent, broker)
 
-        return broker.stopService()
 
     def test_static_permutation_seed_pubkey(self):
         broker = make_broker()
