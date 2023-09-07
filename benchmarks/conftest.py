@@ -5,11 +5,12 @@ The number of nodes is parameterized via a --number-of-nodes CLI option added
 to pytest.
 """
 
-import sys
+from resource import getrusage, RUSAGE_CHILDREN
 from shutil import which, rmtree
 from tempfile import mkdtemp
 from contextlib import contextmanager
 from time import time
+from psutil import Process
 
 import pytest
 import pytest_twisted
@@ -114,13 +115,27 @@ class Benchmarker:
     @contextmanager
     def record(self, capsys: pytest.CaptureFixture[str], name, **parameters):
         """Record the timing of running some code, if it succeeds."""
+        process = Process()
+
+        def get_children_cpu_time():
+            cpu = 0
+            for subprocess in process.children():
+                usage = subprocess.cpu_times()
+                cpu += usage.system + usage.user
+            return cpu
+
+        start_cpu = get_children_cpu_time()
         start = time()
         yield
         elapsed = time() - start
-        # For now we just print the outcome:
+        end_cpu = get_children_cpu_time()
+        elapsed_cpu = end_cpu - start_cpu
+        # FOR now we just print the outcome:
         parameters = " ".join(f"{k}={v}" for (k, v) in parameters.items())
         with capsys.disabled():
-            print(f"\nBENCHMARK RESULT: {name} {parameters} elapsed {elapsed} secs\n")
+            print(
+                f"\nBENCHMARK RESULT: {name} {parameters} elapsed={elapsed:.3} (secs) CPU={elapsed_cpu:.3} (secs)\n"
+            )
 
 
 @pytest.fixture(scope="session")
