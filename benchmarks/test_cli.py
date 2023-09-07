@@ -12,14 +12,14 @@ def cli_alias(client_node):
     cli(client_node.process, "create-alias", "cli")
 
 
+@pytest.mark.parametrize("file_size", [1000, 100_000, 1_000_000, 10_000_000])
 def test_get_put_one_file(
-    client_node, cli_alias, tmp_path, tahoe_benchmarker, number_of_nodes
+    file_size, client_node, cli_alias, tmp_path, tahoe_benchmarker, number_of_nodes
 ):
     """
     Upload a file with ``tahoe put`` and then download it with ``tahoe get``,
     measuring the latency of both operations.
     """
-    file_size = 1000  # parameterize later on
     file_path = tmp_path / "file"
     DATA = b"0123456789" * (file_size // 10)
     with file_path.open("wb") as f:
