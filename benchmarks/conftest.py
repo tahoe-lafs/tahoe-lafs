@@ -5,6 +5,7 @@ The number of nodes is parameterized via a --number-of-nodes CLI option added
 to pytest.
 """
 
+import sys
 from shutil import which, rmtree
 from tempfile import mkdtemp
 from contextlib import contextmanager
@@ -111,14 +112,15 @@ class Benchmarker:
     """Keep track of benchmarking results."""
 
     @contextmanager
-    def record(self, name, **parameters):
+    def record(self, capsys: pytest.CaptureFixture[str], name, **parameters):
         """Record the timing of running some code, if it succeeds."""
         start = time()
         yield
         elapsed = time() - start
         # For now we just print the outcome:
         parameters = " ".join(f"{k}={v}" for (k, v) in parameters.items())
-        print(f"BENCHMARK RESULT: {name} {parameters} elapsed {elapsed} secs")
+        with capsys.disabled():
+            print(f"\nBENCHMARK RESULT: {name} {parameters} elapsed {elapsed} secs\n")
 
 
 @pytest.fixture(scope="session")

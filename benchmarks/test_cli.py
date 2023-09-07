@@ -14,7 +14,13 @@ def cli_alias(client_node):
 
 @pytest.mark.parametrize("file_size", [1000, 100_000, 1_000_000, 10_000_000])
 def test_get_put_one_file(
-    file_size, client_node, cli_alias, tmp_path, tahoe_benchmarker, number_of_nodes
+    file_size,
+    client_node,
+    cli_alias,
+    tmp_path,
+    tahoe_benchmarker,
+    number_of_nodes,
+    capsys,
 ):
     """
     Upload a file with ``tahoe put`` and then download it with ``tahoe get``,
@@ -26,12 +32,12 @@ def test_get_put_one_file(
         f.write(DATA)
 
     with tahoe_benchmarker.record(
-        "cli-put-file", file_size=file_size, number_of_nodes=number_of_nodes
+        capsys, "cli-put-file", file_size=file_size, number_of_nodes=number_of_nodes
     ):
         cli(client_node.process, "put", str(file_path), "cli:tostdout")
 
     with tahoe_benchmarker.record(
-        "cli-get-file", file_size=file_size, number_of_nodes=number_of_nodes
+        capsys, "cli-get-file", file_size=file_size, number_of_nodes=number_of_nodes
     ):
         p = Popen(
             [
