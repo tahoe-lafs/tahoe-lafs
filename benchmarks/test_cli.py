@@ -28,7 +28,7 @@ def test_get_put_files_sequentially(
     DATA = b"0123456789" * (file_size // 10)
 
     with tahoe_benchmarker.record(
-        capsys, "cli-put-file", file_size=file_size, number_of_nodes=number_of_nodes
+        capsys, "cli-put-5-file-sequentially", file_size=file_size, number_of_nodes=number_of_nodes
     ):
         for i in range(5):
             p = Popen(
@@ -48,7 +48,7 @@ def test_get_put_files_sequentially(
             assert p.wait() == 0
 
     with tahoe_benchmarker.record(
-        capsys, "cli-get-file", file_size=file_size, number_of_nodes=number_of_nodes
+        capsys, "cli-get-5-files-sequentially", file_size=file_size, number_of_nodes=number_of_nodes
     ):
         for i in range(5):
             p = Popen(
