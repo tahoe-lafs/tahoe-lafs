@@ -1673,10 +1673,12 @@ class SharedImmutableMutableTestsMixin:
         # semantically valid under HTTP.
         check_bad_range("bytes=0-")
 
-    @given(data_length=st.integers(min_value=1, max_value=300000))
-    def test_read_with_no_range(self, data_length):
+    def _read_with_no_range_test(self, data_length):
         """
         A read with no range returns the whole mutable/immutable.
+
+        Actual test is defined in subclasses, to fix complaints from Hypothesis
+        about the method having different executors.
         """
         storage_index, uploaded_data, _ = self.upload(1, data_length)
         response = self.http.result_of_with_flush(
@@ -1770,6 +1772,13 @@ class ImmutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
     def get_leases(self, storage_index):
         return self.http.storage_server.get_leases(storage_index)
 
+    @given(data_length=st.integers(min_value=1, max_value=300000))
+    def test_read_with_no_range(self, data_length):
+        """
+        A read with no range returns the whole immutable.
+        """
+        return self._read_with_no_range_test(data_length)
+
 
 class MutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
     """Shared tests, running on mutables."""
@@ -1809,3 +1818,10 @@ class MutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
 
     def get_leases(self, storage_index):
         return self.http.storage_server.get_slot_leases(storage_index)
+
+    @given(data_length=st.integers(min_value=1, max_value=300000))
+    def test_read_with_no_range(self, data_length):
+        """
+        A read with no range returns the whole mutable.
+        """
+        return self._read_with_no_range_test(data_length)
