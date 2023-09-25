@@ -436,7 +436,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               "pytest-timeout",
               # Does our OpenMetrics endpoint adhere to the spec:
               "prometheus-client == 0.11.0",
-              "psutil",
           ] + tor_requires + i2p_requires,
           "tor": tor_requires,
           "i2p": i2p_requires,
