@@ -6,12 +6,10 @@ to pytest.
 """
 
 import os
-from resource import getrusage, RUSAGE_CHILDREN
 from shutil import which, rmtree
 from tempfile import mkdtemp
 from contextlib import contextmanager
 from time import time
-from psutil import Process
 
 import pytest
 import pytest_twisted
