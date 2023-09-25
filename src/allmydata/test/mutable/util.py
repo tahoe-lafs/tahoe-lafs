@@ -317,7 +317,7 @@ def make_nodemaker_with_storage_broker(storage_broker):
     :param StorageFarmBroker peers: The storage broker to use.
     """
     sh = client.SecretHolder(b"lease secret", b"convergence secret")
-    keygen = client.KeyGenerator()
+    keygen = client.KeyGenerator(reactor)
     nodemaker = NodeMaker(storage_broker, sh, None,
                           None, None,
                           {"k": 3, "n": 10}, SDMF_VERSION, keygen)

@@ -246,6 +246,7 @@ def create_no_network_client(basedir):
     from allmydata.client import read_config
     config = read_config(basedir, u'client.port')
     storage_broker = NoNetworkStorageBroker()
+    from twisted.internet import reactor
     client = _NoNetworkClient(
         config,
         main_tub=None,
@@ -253,6 +254,7 @@ def create_no_network_client(basedir):
         tor_provider=None,
         introducer_clients=[],
         storage_farm_broker=storage_broker,
+        reactor=reactor,
     )
     # this is a (pre-existing) reference-cycle and also a bad idea, see:
     # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2949

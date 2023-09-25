@@ -22,6 +22,7 @@ from zope.interface import implementer
 from twisted.plugin import (
     getPlugins,
 )
+from twisted.internet.interfaces import IReactorFromThreads
 from twisted.internet import reactor, defer
 from twisted.application import service
 from twisted.application.internet import TimerService
@@ -47,6 +48,7 @@ from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider, _Provider as TorProvider
+from allmydata.util.cputhreadpool import defer_to_thread
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import (
@@ -170,12 +172,19 @@ class KeyGenerator(object):
     """I create RSA keys for mutable files. Each call to generate() returns a
     single keypair."""
 
-    def generate(self):
-        """I return a Deferred that fires with a (verifyingkey, signingkey)
-        pair. The returned key will be 2048 bit"""
+    def __init__(self, reactor: IReactorFromThreads):
+        self._reactor = reactor
+
+    def generate(self) -> defer.Deferred[tuple[rsa.PublicKey, rsa.PrivateKey]]:
+        """
+        I return a Deferred that fires with a (verifyingkey, signingkey)
+        pair. The returned key will be 2048 bit.
+        """
         keysize = 2048
-        signer, verifier = rsa.create_signing_keypair(keysize)
-        return defer.succeed( (verifier, signer) )
+        return defer_to_thread(
+            self._reactor, rsa.create_signing_keypair, keysize
+        ).addCallback(lambda t: (t[1], t[0]))
+
 
 class Terminator(service.Service):
     def __init__(self):
@@ -622,11 +631,13 @@ class _Client(node.Node, pollmixin.PollMixin):
                                    }
 
     def __init__(self, config, main_tub, i2p_provider, tor_provider, introducer_clients,
-                 storage_farm_broker):
+                 storage_farm_broker, reactor=None):
         """
         Use :func:`allmydata.client.create_client` to instantiate one of these.
         """
         node.Node.__init__(self, config, main_tub, i2p_provider, tor_provider)
+        if reactor is None:
+            from twisted.internet import reactor
 
         self.started_timestamp = time.time()
         self.logSource = "Client"
@@ -638,7 +649,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
-        self._key_generator = KeyGenerator()
+        self._key_generator = KeyGenerator(reactor)
         key_gen_furl = config.get_config("client", "key_generator.furl", None)
         if key_gen_furl:
             log.msg("[client]key_generator.furl= is now ignored, see #2783")
