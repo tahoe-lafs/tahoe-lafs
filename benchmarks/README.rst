@@ -23,4 +23,6 @@ To run with 5 storage servers (aka "nodes")::
 The `-s` option provides immediate output from fixtures and so forth and can be useful when analyzing problems.
 The `-v` option is "verbose" and prints out longer test-names.
 
-Ultimatel, look for the string "BENCHMARK RESULT" for the results.
+You can look for the string "BENCHMARK RESULT" for the results.
+
+Additionally, a JSON representation of the benchmarks is written to `--json-file` (by default `"tahoe-benchmarks.json"`).
