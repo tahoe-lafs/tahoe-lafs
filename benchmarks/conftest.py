@@ -29,6 +29,7 @@ def pytest_addoption(parser):
         default=[],
         type=int,
         help="list of number_of_nodes to benchmark against",
+        required=True,
     )
     # Required to be compatible with integration.util code that we indirectly
     # depend on, but also might be useful.
