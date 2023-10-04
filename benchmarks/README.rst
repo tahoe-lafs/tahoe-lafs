@@ -1,0 +1,26 @@
+Benchmark Suite
+===============
+
+This directory contains `py-test`-based benchmarks for Tahoe-LAFS.
+
+These benchmarks are in an early state and improvements are welcome!
+
+(Can we say more about the goals?)
+
+
+Running the Benchmarks
+----------------------
+
+You must provide the number of "nodes" to run via the `--number-of-nodes` option (or else every test is skipped).
+
+To get all dependencies, install tahoe with the `test` extra.
+For example, from the top-level one might do: `pip install --editable .[test]`
+
+To run with 5 storage servers (aka "nodes")::
+
+  py.test -sv --number-of-nodes 5 benchmarks/
+
+The `-s` option provides immediate output from fixtures and so forth and can be useful when analyzing problems.
+The `-v` option is "verbose" and prints out longer test-names.
+
+Ultimatel, look for the string "BENCHMARK RESULT" for the results.
