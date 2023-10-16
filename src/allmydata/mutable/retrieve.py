@@ -895,8 +895,8 @@ class Retrieve(object):
         d.addCallback(_process)
         return d
 
-
-    def _decrypt_segment(self, segment_and_salt):
+    @deferredutil.async_to_deferred
+    async def _decrypt_segment(self, segment_and_salt):
         """
         I take a single segment and its salt, and decrypt it. I return
         the plaintext of the segment that is in my argument.
@@ -905,9 +905,14 @@ class Retrieve(object):
         self._set_current_status("decrypting")
         self.log("decrypting segment %d" % self._current_segment)
         started = time.time()
-        key = hashutil.ssk_readkey_data_hash(salt, self._node.get_readkey())
-        decryptor = aes.create_decryptor(key)
-        plaintext = aes.decrypt_data(decryptor, segment)
+        readkey = self._node.get_readkey()
+
+        def decrypt():
+            key = hashutil.ssk_readkey_data_hash(salt, readkey)
+            decryptor = aes.create_decryptor(key)
+            return aes.decrypt_data(decryptor, segment)
+
+        plaintext = await defer_to_thread(decrypt)
         self._status.accumulate_decrypt_time(time.time() - started)
         return plaintext
 
