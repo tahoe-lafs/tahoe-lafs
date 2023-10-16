@@ -7,7 +7,7 @@ import time
 
 from itertools import count
 from zope.interface import implementer
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.python import failure
 from twisted.internet.interfaces import IPushProducer, IConsumer
 from foolscap.api import eventually, fireEventually, DeadReferenceError, \
@@ -20,6 +20,7 @@ from allmydata.interfaces import IRetrieveStatus, NotEnoughSharesError, \
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util import hashutil, log, mathutil, deferredutil
 from allmydata.util.dictutil import DictOfSets
+from allmydata.util.cputhreadpool import defer_to_thread
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
 
@@ -734,7 +735,8 @@ class Retrieve(object):
         return None
 
 
-    def _validate_block(self, results, segnum, reader, server, started):
+    @deferredutil.async_to_deferred
+    async def _validate_block(self, results, segnum, reader, server, started):
         """
         I validate a block from one share on a remote server.
         """
@@ -767,9 +769,9 @@ class Retrieve(object):
                                         "block hash tree failure: %s" % e)
 
         if self._version == MDMF_VERSION:
-            blockhash = hashutil.block_hash(salt + block)
+            blockhash = await defer_to_thread(reactor, hashutil.block_hash, salt + block)
         else:
-            blockhash = hashutil.block_hash(block)
+            blockhash = await defer_to_thread(reactor, hashutil.block_hash, block)
         # If this works without an error, then validation is
         # successful.
         try:

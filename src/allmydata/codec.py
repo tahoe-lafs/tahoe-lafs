@@ -83,9 +83,12 @@ class CRSDecoder(object):
                      len(some_shares), len(their_shareids))
         precondition(len(some_shares) == self.required_shares,
                      len(some_shares), self.required_shares)
-        data = self.decoder.decode(some_shares,
-                                   [int(s) for s in their_shareids])
-        return defer.succeed(data)
+        return defer_to_thread(
+            reactor,
+            self.decoder.decode,
+            some_shares,
+            [int(s) for s in their_shareids]
+        )
 
 def parse_params(serializedparams):
     pieces = serializedparams.split(b"-")
