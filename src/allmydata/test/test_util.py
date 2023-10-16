@@ -18,7 +18,6 @@ import json
 from threading import current_thread
 
 from twisted.trial import unittest
-from twisted.internet import reactor
 from foolscap.api import Violation, RemoteException
 
 from allmydata.util import idlib, mathutil

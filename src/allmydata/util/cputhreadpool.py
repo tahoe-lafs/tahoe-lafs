@@ -24,7 +24,6 @@ from unittest import TestCase
 from twisted.python.threadpool import ThreadPool
 from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.internet.threads import deferToThreadPool
-from twisted.internet.interfaces import IReactorFromThreads
 from twisted.internet import reactor
 
 _CPU_THREAD_POOL = ThreadPool(minthreads=0, maxthreads=os.cpu_count(), name="TahoeCPU")

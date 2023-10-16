@@ -7,7 +7,7 @@ import time
 
 from itertools import count
 from zope.interface import implementer
-from twisted.internet import defer, reactor
+from twisted.internet import defer
 from twisted.python import failure
 from twisted.internet.interfaces import IPushProducer, IConsumer
 from foolscap.api import eventually, fireEventually, DeadReferenceError, \

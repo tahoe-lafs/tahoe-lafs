@@ -39,7 +39,6 @@ from twisted.internet.interfaces import (
     IOpenSSLClientConnectionCreator,
     IReactorTime,
     IDelayedCall,
-    IReactorFromThreads,
 )
 from twisted.internet.ssl import CertificateOptions
 from twisted.protocols.tls import TLSMemoryBIOProtocol
@@ -438,7 +437,7 @@ class StorageClient(object):
     _swissnum: bytes
     _treq: Union[treq, StubTreq, HTTPClient]
     _pool: HTTPConnectionPool
-    _clock: Union[IReactorTime, IReactorFromThreads]
+    _clock: IReactorTime
     # Are we running unit tests?
     _analyze_response: Callable[[IResponse], None] = lambda _: None
 

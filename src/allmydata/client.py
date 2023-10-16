@@ -22,7 +22,6 @@ from zope.interface import implementer
 from twisted.plugin import (
     getPlugins,
 )
-from twisted.internet.interfaces import IReactorFromThreads
 from twisted.internet import reactor, defer
 from twisted.application import service
 from twisted.application.internet import TimerService
