@@ -13,9 +13,10 @@ if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from zope.interface import implementer
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from allmydata.util import mathutil
 from allmydata.util.assertutil import precondition
+from allmydata.util.cputhreadpool import defer_to_thread
 from allmydata.interfaces import ICodecEncoder, ICodecDecoder
 import zfec
 
@@ -53,9 +54,9 @@ class CRSEncoder(object):
 
         for inshare in inshares:
             assert len(inshare) == self.share_size, (len(inshare), self.share_size, self.data_size, self.required_shares)
-        shares = self.encoder.encode(inshares, desired_share_ids)
-
-        return defer.succeed((shares, desired_share_ids))
+        d = defer_to_thread(reactor, self.encoder.encode, inshares, desired_share_ids)
+        d.addCallback(lambda shares: (shares, desired_share_ids))
+        return d
 
     def encode_proposal(self, data, desired_share_ids=None):
         raise NotImplementedError()
