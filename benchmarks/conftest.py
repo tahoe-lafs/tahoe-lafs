@@ -5,6 +5,7 @@ The number of nodes is parameterized via a --number-of-nodes CLI option added
 to pytest.
 """
 
+import os
 from shutil import which, rmtree
 from tempfile import mkdtemp
 from contextlib import contextmanager
@@ -106,19 +107,42 @@ def client_node(request, grid, storage_nodes, number_of_nodes) -> Client:
     print(f"Client node pid: {client_node.process.transport.pid}")
     return client_node
 
+def get_cpu_time_for_cgroup():
+    """
+    Get how many CPU seconds have been used in current cgroup so far.
+
+    Assumes we're running in a v2 cgroup.
+    """
+    with open("/proc/self/cgroup") as f:
+        cgroup = f.read().strip().split(":")[-1]
+        assert cgroup.startswith("/")
+        cgroup = cgroup[1:]
+    cpu_stat = os.path.join("/sys/fs/cgroup", cgroup, "cpu.stat")
+    with open(cpu_stat) as f:
+        for line in f.read().splitlines():
+            if line.startswith("usage_usec"):
+                return int(line.split()[1]) / 1_000_000
+    raise ValueError("Failed to find usage_usec")
+
 
 class Benchmarker:
     """Keep track of benchmarking results."""
 
     @contextmanager
-    def record(self, name, **parameters):
+    def record(self, capsys: pytest.CaptureFixture[str], name, **parameters):
         """Record the timing of running some code, if it succeeds."""
+        start_cpu = get_cpu_time_for_cgroup()
         start = time()
         yield
         elapsed = time() - start
-        # For now we just print the outcome:
+        end_cpu = get_cpu_time_for_cgroup()
+        elapsed_cpu = end_cpu - start_cpu
+        # FOR now we just print the outcome:
         parameters = " ".join(f"{k}={v}" for (k, v) in parameters.items())
-        print(f"BENCHMARK RESULT: {name} {parameters} elapsed {elapsed} secs")
+        with capsys.disabled():
+            print(
+                f"\nBENCHMARK RESULT: {name} {parameters} elapsed={elapsed:.3} (secs) CPU={elapsed_cpu:.3} (secs)\n"
+            )
 
 
 @pytest.fixture(scope="session")
