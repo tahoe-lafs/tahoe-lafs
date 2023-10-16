@@ -779,7 +779,7 @@ class Publish(object):
                 hashed = salt + sharedata
             else:
                 hashed = sharedata
-            block_hash = await defer_to_thread(reactor, hashutil.block_hash, hashed)
+            block_hash = await defer_to_thread(hashutil.block_hash, hashed)
             self.blockhashes[shareid][segnum] = block_hash
             # find the writer for this share
             writers = self.writers[shareid]

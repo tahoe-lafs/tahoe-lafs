@@ -541,9 +541,7 @@ class StorageClient(object):
                     "Can't use both `message_to_serialize` and `data` "
                     "as keyword arguments at the same time"
                 )
-            kwargs["data"] = await defer_to_thread(
-                self._clock, dumps, message_to_serialize
-            )
+            kwargs["data"] = await defer_to_thread(dumps, message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
         response = await self._treq.request(
@@ -566,7 +564,7 @@ class StorageClient(object):
                         schema.validate_cbor(data)
                         return loads(data)
 
-                    return await defer_to_thread(self._clock, validate_and_decode)
+                    return await defer_to_thread(validate_and_decode)
                 else:
                     raise ClientException(
                         -1,

@@ -19,12 +19,13 @@ from typing import TypeVar, Callable, cast
 from functools import partial
 import threading
 from typing_extensions import ParamSpec
+from unittest import TestCase
 
 from twisted.python.threadpool import ThreadPool
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.internet.threads import deferToThreadPool
 from twisted.internet.interfaces import IReactorFromThreads
-
+from twisted.internet import reactor
 
 _CPU_THREAD_POOL = ThreadPool(minthreads=0, maxthreads=os.cpu_count(), name="TahoeCPU")
 if hasattr(threading, "_register_atexit"):
@@ -46,14 +47,37 @@ _CPU_THREAD_POOL.start()
 P = ParamSpec("P")
 R = TypeVar("R")
 
+# Is running in a thread pool disabled? Should only be true in synchronous unit
+# tests.
+_DISABLED = False
+
 
 def defer_to_thread(
-    reactor: IReactorFromThreads, f: Callable[P, R], *args: P.args, **kwargs: P.kwargs
+    f: Callable[P, R], *args: P.args, **kwargs: P.kwargs
 ) -> Deferred[R]:
     """Run the function in a thread, return the result as a ``Deferred``."""
+    if _DISABLED:
+        return maybeDeferred(f, *args, **kwargs)
+
     # deferToThreadPool has no type annotations...
     result = deferToThreadPool(reactor, _CPU_THREAD_POOL, f, *args, **kwargs)
     return cast(Deferred[R], result)
 
 
-__all__ = ["defer_to_thread"]
+def disable_thread_pool_for_test(test: TestCase) -> None:
+    """
+    For the duration of the test, calls to C{defer_to_thread} will actually run
+    synchronously.
+    """
+    global _DISABLED
+
+    def restore():
+        global _DISABLED
+        _DISABLED = False
+
+    test.addCleanup(restore)
+
+    _DISABLED = True
+
+
+__all__ = ["defer_to_thread", "disable_thread_pool_for_test"]

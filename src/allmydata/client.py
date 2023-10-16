@@ -172,9 +172,6 @@ class KeyGenerator(object):
     """I create RSA keys for mutable files. Each call to generate() returns a
     single keypair."""
 
-    def __init__(self, reactor: IReactorFromThreads):
-        self._reactor = reactor
-
     def generate(self) -> defer.Deferred[tuple[rsa.PublicKey, rsa.PrivateKey]]:
         """
         I return a Deferred that fires with a (verifyingkey, signingkey)
@@ -182,7 +179,7 @@ class KeyGenerator(object):
         """
         keysize = 2048
         return defer_to_thread(
-            self._reactor, rsa.create_signing_keypair, keysize
+            rsa.create_signing_keypair, keysize
         ).addCallback(lambda t: (t[1], t[0]))
 
 
@@ -631,13 +628,11 @@ class _Client(node.Node, pollmixin.PollMixin):
                                    }
 
     def __init__(self, config, main_tub, i2p_provider, tor_provider, introducer_clients,
-                 storage_farm_broker, reactor=None):
+                 storage_farm_broker):
         """
         Use :func:`allmydata.client.create_client` to instantiate one of these.
         """
         node.Node.__init__(self, config, main_tub, i2p_provider, tor_provider)
-        if reactor is None:
-            from twisted.internet import reactor
 
         self.started_timestamp = time.time()
         self.logSource = "Client"
@@ -649,7 +644,7 @@ class _Client(node.Node, pollmixin.PollMixin):
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
-        self._key_generator = KeyGenerator(reactor)
+        self._key_generator = KeyGenerator()
         key_gen_furl = config.get_config("client", "key_generator.furl", None)
         if key_gen_furl:
             log.msg("[client]key_generator.furl= is now ignored, see #2783")

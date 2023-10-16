@@ -13,7 +13,6 @@ if PY2:
     from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from zope.interface import implementer
-from twisted.internet import defer, reactor
 from allmydata.util import mathutil
 from allmydata.util.assertutil import precondition
 from allmydata.util.cputhreadpool import defer_to_thread
@@ -54,7 +53,7 @@ class CRSEncoder(object):
 
         for inshare in inshares:
             assert len(inshare) == self.share_size, (len(inshare), self.share_size, self.data_size, self.required_shares)
-        d = defer_to_thread(reactor, self.encoder.encode, inshares, desired_share_ids)
+        d = defer_to_thread(self.encoder.encode, inshares, desired_share_ids)
         d.addCallback(lambda shares: (shares, desired_share_ids))
         return d
 
@@ -84,7 +83,6 @@ class CRSDecoder(object):
         precondition(len(some_shares) == self.required_shares,
                      len(some_shares), self.required_shares)
         return defer_to_thread(
-            reactor,
             self.decoder.decode,
             some_shares,
             [int(s) for s in their_shareids]

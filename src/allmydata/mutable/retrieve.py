@@ -769,9 +769,9 @@ class Retrieve(object):
                                         "block hash tree failure: %s" % e)
 
         if self._version == MDMF_VERSION:
-            blockhash = await defer_to_thread(reactor, hashutil.block_hash, salt + block)
+            blockhash = await defer_to_thread(hashutil.block_hash, salt + block)
         else:
-            blockhash = await defer_to_thread(reactor, hashutil.block_hash, block)
+            blockhash = await defer_to_thread(hashutil.block_hash, block)
         # If this works without an error, then validation is
         # successful.
         try:
