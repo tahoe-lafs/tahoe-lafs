@@ -708,7 +708,8 @@ class Publish(object):
                 writer.put_salt(salt)
 
 
-    def _encode_segment(self, segnum):
+    @async_to_deferred
+    async def _encode_segment(self, segnum):
         """
         I encrypt and encode the segment segnum.
         """
@@ -730,11 +731,16 @@ class Publish(object):
 
         salt = os.urandom(16)
 
-        key = hashutil.ssk_readkey_data_hash(salt, self.readkey)
+        key = await defer_to_thread(hashutil.ssk_readkey_data_hash, salt, self.readkey)
         self._status.set_status("Encrypting")
-        encryptor = aes.create_encryptor(key)
-        crypttext = aes.encrypt_data(encryptor, data)
-        assert len(crypttext) == len(data)
+
+        def encrypt():
+            encryptor = aes.create_encryptor(key)
+            crypttext = aes.encrypt_data(encryptor, data)
+            assert len(crypttext) == len(data)
+            return crypttext
+
+        crypttext = await defer_to_thread(encrypt)
 
         now = time.time()
         self._status.accumulate_encrypt_time(now - started)
@@ -755,14 +761,11 @@ class Publish(object):
             piece = piece + b"\x00"*(piece_size - len(piece)) # padding
             crypttext_pieces[i] = piece
             assert len(piece) == piece_size
-        d = fec.encode(crypttext_pieces)
-        def _done_encoding(res):
-            elapsed = time.time() - started
-            self._status.accumulate_encode_time(elapsed)
-            return (res, salt)
-        d.addCallback(_done_encoding)
-        return d
 
+        res = await fec.encode(crypttext_pieces)
+        elapsed = time.time() - started
+        self._status.accumulate_encode_time(elapsed)
+        return (res, salt)
 
     @async_to_deferred
     async def _push_segment(self, encoded_and_salt, segnum):
