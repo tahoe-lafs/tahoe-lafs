@@ -424,7 +424,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _stash_uri(n):
             self.uriList.append(n.get_uri())
         d.addCallback(_stash_uri)
-        d = c0.create_dirnode()
+        d.addCallback(lambda _: c0.create_dirnode())
         d.addCallback(_stash_uri)
 
         d.addCallback(lambda ign: self.do_cli("check", self.uriList[0], self.uriList[1]))
