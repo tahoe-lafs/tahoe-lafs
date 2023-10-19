@@ -729,18 +729,17 @@ class Publish(object):
 
         assert len(data) == segsize, len(data)
 
-        salt = os.urandom(16)
-
-        key = await defer_to_thread(hashutil.ssk_readkey_data_hash, salt, self.readkey)
         self._status.set_status("Encrypting")
 
-        def encrypt():
+        def encrypt(readkey):
+            salt = os.urandom(16)
+            key = hashutil.ssk_readkey_data_hash(salt, readkey)
             encryptor = aes.create_encryptor(key)
             crypttext = aes.encrypt_data(encryptor, data)
             assert len(crypttext) == len(data)
-            return crypttext
+            return salt, crypttext
 
-        crypttext = await defer_to_thread(encrypt)
+        salt, crypttext = await defer_to_thread(encrypt, self.readkey)
 
         now = time.time()
         self._status.accumulate_encrypt_time(now - started)
