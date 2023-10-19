@@ -54,7 +54,12 @@ _DISABLED = False
 def defer_to_thread(
     f: Callable[P, R], *args: P.args, **kwargs: P.kwargs
 ) -> Deferred[R]:
-    """Run the function in a thread, return the result as a ``Deferred``."""
+    """
+    Run the function in a thread, return the result as a ``Deferred``.
+
+    However, if ``disable_thread_pool_for_test()`` was called the function will
+    be called synchronously inside the current thread.
+    """
     if _DISABLED:
         return maybeDeferred(f, *args, **kwargs)
 
@@ -65,8 +70,8 @@ def defer_to_thread(
 
 def disable_thread_pool_for_test(test: TestCase) -> None:
     """
-    For the duration of the test, calls to C{defer_to_thread} will actually run
-    synchronously.
+    For the duration of the test, calls to ``defer_to_thread()`` will actually
+    run synchronously, which is useful for synchronous unit tests.
     """
     global _DISABLED
 
