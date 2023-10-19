@@ -612,24 +612,14 @@ class CPUThreadPool(unittest.TestCase):
             return current_thread(), args, kwargs
 
         this_thread = current_thread().ident
-        result = defer_to_thread(f, 1, 3, key=4, value=5)
-
-        # Callbacks run in the correct thread:
-        callback_thread_ident = []
-        def passthrough(result):
-            callback_thread_ident.append(current_thread().ident)
-            return result
-
-        result.addCallback(passthrough)
+        thread, args, kwargs = await defer_to_thread(f, 1, 3, key=4, value=5)
 
         # The task ran in a different thread:
-        thread, args, kwargs = await result
-        self.assertEqual(callback_thread_ident[0], this_thread)
         self.assertNotEqual(thread.ident, this_thread)
         self.assertEqual(args, (1, 3))
         self.assertEqual(kwargs, {"key": 4, "value": 5})
 
-    def test_when_disabled_runs_in_same_thread(self):
+    async def test_when_disabled_runs_in_same_thread(self):
         """
         If the CPU thread pool is disabled, the given function runs in the
         current thread.
@@ -639,10 +629,7 @@ class CPUThreadPool(unittest.TestCase):
             return current_thread().ident, args, kwargs
 
         this_thread = current_thread().ident
-        result = defer_to_thread(f, 1, 3, key=4, value=5)
-        l = []
-        result.addCallback(l.append)
-        thread, args, kwargs = l[0]
+        thread, args, kwargs = await defer_to_thread(f, 1, 3, key=4, value=5)
 
         self.assertEqual(thread, this_thread)
         self.assertEqual(args, (1, 3))

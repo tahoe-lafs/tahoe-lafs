@@ -15,14 +15,13 @@ scheduler affinity or cgroups, but that's not the end of the world.
 """
 
 import os
-from typing import TypeVar, Callable, cast
+from typing import TypeVar, Callable
 from functools import partial
 import threading
 from typing_extensions import ParamSpec
 from unittest import TestCase
 
 from twisted.python.threadpool import ThreadPool
-from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.internet.threads import deferToThreadPool
 from twisted.internet import reactor
 
@@ -51,21 +50,22 @@ R = TypeVar("R")
 _DISABLED = False
 
 
-def defer_to_thread(
-    f: Callable[P, R], *args: P.args, **kwargs: P.kwargs
-) -> Deferred[R]:
+async def defer_to_thread(f: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> R:
     """
-    Run the function in a thread, return the result as a ``Deferred``.
+    Run the function in a thread, return the result.
 
     However, if ``disable_thread_pool_for_test()`` was called the function will
     be called synchronously inside the current thread.
+
+    To reduce chances of synchronous tests being misleading as a result, this
+    is an async function on presumption that will encourage immediate ``await``ing.
     """
     if _DISABLED:
-        return maybeDeferred(f, *args, **kwargs)
+        return f(*args, **kwargs)
 
     # deferToThreadPool has no type annotations...
-    result = deferToThreadPool(reactor, _CPU_THREAD_POOL, f, *args, **kwargs)
-    return cast(Deferred[R], result)
+    result = await deferToThreadPool(reactor, _CPU_THREAD_POOL, f, *args, **kwargs)
+    return result
 
 
 def disable_thread_pool_for_test(test: TestCase) -> None:
