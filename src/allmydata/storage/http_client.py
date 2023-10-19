@@ -474,7 +474,8 @@ class StorageClient(object):
         into corresponding HTTP headers.
 
         If ``message_to_serialize`` is set, it will be serialized (by default
-        with CBOR) and set as the request body.
+        with CBOR) and set as the request body.  It should not be mutated
+        during execution of this function!
 
         Default timeout is 60 seconds.
         """
