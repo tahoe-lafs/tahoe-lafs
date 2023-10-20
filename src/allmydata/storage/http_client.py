@@ -64,6 +64,7 @@ from .common import si_b2a, si_to_human_readable
 from ..util.hashutil import timing_safe_compare
 from ..util.deferredutil import async_to_deferred
 from ..util.tor_provider import _Provider as TorProvider
+from ..util.cputhreadpool import defer_to_thread
 
 try:
     from txtorcon import Tor  # type: ignore
@@ -473,7 +474,8 @@ class StorageClient(object):
         into corresponding HTTP headers.
 
         If ``message_to_serialize`` is set, it will be serialized (by default
-        with CBOR) and set as the request body.
+        with CBOR) and set as the request body.  It should not be mutated
+        during execution of this function!
 
         Default timeout is 60 seconds.
         """
@@ -539,7 +541,7 @@ class StorageClient(object):
                     "Can't use both `message_to_serialize` and `data` "
                     "as keyword arguments at the same time"
                 )
-            kwargs["data"] = dumps(message_to_serialize)
+            kwargs["data"] = await defer_to_thread(dumps, message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
         response = await self._treq.request(
@@ -557,8 +559,12 @@ class StorageClient(object):
                 if content_type == CBOR_MIME_TYPE:
                     f = await limited_content(response, self._clock)
                     data = f.read()
-                    schema.validate_cbor(data)
-                    return loads(data)
+
+                    def validate_and_decode():
+                        schema.validate_cbor(data)
+                        return loads(data)
+
+                    return await defer_to_thread(validate_and_decode)
                 else:
                     raise ClientException(
                         -1,
@@ -1232,7 +1238,8 @@ class StorageClientMutables:
             return cast(
                 Set[int],
                 await self._client.decode_cbor(
-                    response, _SCHEMAS["mutable_list_shares"]
+                    response,
+                    _SCHEMAS["mutable_list_shares"],
                 ),
             )
         else:

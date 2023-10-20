@@ -43,6 +43,7 @@ from testtools.matchers import Equals
 from zope.interface import implementer
 
 from ..util.deferredutil import async_to_deferred
+from ..util.cputhreadpool import disable_thread_pool_for_test
 from .common import SyncTestCase
 from ..storage.http_common import (
     get_content_type,
@@ -345,6 +346,7 @@ class CustomHTTPServerTests(SyncTestCase):
 
     def setUp(self):
         super(CustomHTTPServerTests, self).setUp()
+        disable_thread_pool_for_test(self)
         StorageClientFactory.start_test_mode(
             lambda pool: self.addCleanup(pool.closeCachedConnections)
         )
@@ -701,6 +703,7 @@ class GenericHTTPAPITests(SyncTestCase):
 
     def setUp(self):
         super(GenericHTTPAPITests, self).setUp()
+        disable_thread_pool_for_test(self)
         self.http = self.useFixture(HttpTestFixture())
 
     def test_missing_authentication(self) -> None:
@@ -808,6 +811,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
     def setUp(self):
         super(ImmutableHTTPAPITests, self).setUp()
+        disable_thread_pool_for_test(self)
         self.http = self.useFixture(HttpTestFixture())
         self.imm_client = StorageClientImmutables(self.http.client)
         self.general_client = StorageClientGeneral(self.http.client)
@@ -1317,6 +1321,7 @@ class MutableHTTPAPIsTests(SyncTestCase):
 
     def setUp(self):
         super(MutableHTTPAPIsTests, self).setUp()
+        disable_thread_pool_for_test(self)
         self.http = self.useFixture(HttpTestFixture())
         self.mut_client = StorageClientMutables(self.http.client)
 
@@ -1734,6 +1739,7 @@ class ImmutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
 
     def setUp(self):
         super(ImmutableSharedTests, self).setUp()
+        disable_thread_pool_for_test(self)
         self.http = self.useFixture(HttpTestFixture())
         self.client = self.clientFactory(self.http.client)
         self.general_client = StorageClientGeneral(self.http.client)
@@ -1788,6 +1794,7 @@ class MutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
 
     def setUp(self):
         super(MutableSharedTests, self).setUp()
+        disable_thread_pool_for_test(self)
         self.http = self.useFixture(HttpTestFixture())
         self.client = self.clientFactory(self.http.client)
         self.general_client = StorageClientGeneral(self.http.client)

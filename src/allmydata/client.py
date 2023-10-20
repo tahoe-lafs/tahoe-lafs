@@ -47,6 +47,8 @@ from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider, _Provider as TorProvider
+from allmydata.util.cputhreadpool import defer_to_thread
+from allmydata.util.deferredutil import async_to_deferred
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import (
@@ -170,12 +172,18 @@ class KeyGenerator(object):
     """I create RSA keys for mutable files. Each call to generate() returns a
     single keypair."""
 
-    def generate(self):
-        """I return a Deferred that fires with a (verifyingkey, signingkey)
-        pair. The returned key will be 2048 bit"""
+    @async_to_deferred
+    async def generate(self) -> tuple[rsa.PublicKey, rsa.PrivateKey]:
+        """
+        I return a Deferred that fires with a (verifyingkey, signingkey)
+        pair. The returned key will be 2048 bit.
+        """
         keysize = 2048
-        signer, verifier = rsa.create_signing_keypair(keysize)
-        return defer.succeed( (verifier, signer) )
+        private, public = await defer_to_thread(
+            rsa.create_signing_keypair, keysize
+        )
+        return public, private
+
 
 class Terminator(service.Service):
     def __init__(self):

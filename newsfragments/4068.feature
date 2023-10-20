@@ -1,0 +1,1 @@
+Some operations now run in threads, improving the responsiveness of Tahoe nodes.
