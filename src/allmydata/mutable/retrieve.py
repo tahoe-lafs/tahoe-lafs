@@ -928,12 +928,20 @@ class Retrieve(object):
             reason,
         )
 
-
-    def _try_to_validate_privkey(self, enc_privkey, reader, server):
+    @deferredutil.async_to_deferred
+    async def _try_to_validate_privkey(self, enc_privkey, reader, server):
         node_writekey = self._node.get_writekey()
-        alleged_privkey_s = decrypt_privkey(node_writekey, enc_privkey)
-        alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
-        if alleged_writekey != node_writekey:
+
+        def get_privkey():
+            alleged_privkey_s = decrypt_privkey(node_writekey, enc_privkey)
+            alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
+            if alleged_writekey != node_writekey:
+                return None
+            privkey, _ = rsa.create_signing_keypair_from_string(alleged_privkey_s)
+            return privkey
+
+        privkey = await defer_to_thread(get_privkey)
+        if privkey is None:
             self.log("invalid privkey from %s shnum %d" %
                      (reader, reader.shnum),
                      level=log.WEIRD, umid="YIw4tA")
@@ -950,7 +958,6 @@ class Retrieve(object):
         # it's good
         self.log("got valid privkey from shnum %d on reader %s" %
                  (reader.shnum, reader))
-        privkey, _ = rsa.create_signing_keypair_from_string(alleged_privkey_s)
         self._node._populate_encprivkey(enc_privkey)
         self._node._populate_privkey(privkey)
         self._need_privkey = False
