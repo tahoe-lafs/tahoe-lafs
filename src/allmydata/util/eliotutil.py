@@ -85,6 +85,8 @@ class BytesEliotJSONEncoder(EliotJSONEncoder):
     def default(self, o):
         if isinstance(o, bytes):
             return o.decode("utf-8", "backslashreplace")
+        if isinstance(o, set):
+            return list(o)
         return EliotJSONEncoder.default(self, o)
 
 

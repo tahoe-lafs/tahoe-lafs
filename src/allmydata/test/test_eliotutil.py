@@ -88,6 +88,21 @@ def passes():
     return AfterPreprocessing(run, Equals(True))
 
 
+class BytesEliotJSONEncoderTests(TestCase):
+    """Tests for ``BytesEliotJSONEncoder``."""
+
+    def test_encoding_bytes(self):
+        """``BytesEliotJSONEncoder`` can encode bytes."""
+        encoder = BytesEliotJSONEncoder()
+        self.assertEqual(encoder.default(b"xxx"), "xxx")
+        self.assertEqual(encoder.default(bytes([12])), "\x0c")
+
+    def test_encoding_sets(self):
+        """``BytesEliotJSONEncoder`` can encode sets."""
+        encoder = BytesEliotJSONEncoder()
+        self.assertIn(encoder.default({1, 2}), ([1, 2], [2, 1]))
+
+
 class EliotLoggedTestTests(TestCase):
     """
     Tests for the automatic log-related provided by ``AsyncTestCase``.
