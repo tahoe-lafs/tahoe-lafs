@@ -23,7 +23,7 @@ def assert_soup_has_favicon(testcase, soup):
     ``BeautifulSoup`` object ``soup`` contains the tahoe favicon link.
     """
     links = soup.find_all(u'link', rel=u'shortcut icon')
-    testcase.assert_(
+    testcase.assertTrue(
         any(t[u'href'] == u'/icon.png' for t in links), soup)
 
 
@@ -92,6 +92,6 @@ def assert_soup_has_text(testcase, soup, text):
     ``BeautifulSoup`` object ``soup`` contains the passed in ``text`` anywhere
     as a text node.
     """
-    testcase.assert_(
+    testcase.assertTrue(
         soup.find_all(string=re.compile(re.escape(text))),
         soup)
