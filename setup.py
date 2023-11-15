@@ -113,7 +113,7 @@ install_requires = [
     "magic-wormhole >= 0.10.2",
 
     # We want a new enough version to support custom JSON encoders.
-    "eliot >= 1.13.0",
+    "eliot >= 1.14.0",
 
     "pyrsistent",
 

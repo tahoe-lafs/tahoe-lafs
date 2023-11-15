@@ -61,6 +61,12 @@ from eliot import (
     write_traceback,
     start_action,
 )
+from eliot.testing import (
+    MemoryLogger,
+    capture_logging,
+)
+from eliot.json import EliotJSONEncoder as eliot_json_encoder
+
 from eliot._validation import (
     ValidationError,
 )
@@ -87,11 +93,6 @@ from twisted.internet.defer import (
 )
 from twisted.application.service import Service
 
-from ._eliot_updates import (
-    MemoryLogger,
-    eliot_json_encoder,
-    capture_logging,
-)
 
 def validateInstanceOf(t):
     """
