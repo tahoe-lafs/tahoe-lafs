@@ -1352,6 +1352,14 @@ class _TestCaseMixin(object):
     def assertRaises(self, *a, **kw):
         return self._dummyCase.assertRaises(*a, **kw)
 
+    def failUnless(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertTrue(*args, **kwargs)
+
+    def failIf(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertFalse(*args, **kwargs)
+
 
 class SyncTestCase(_TestCaseMixin, TestCase):
     """
