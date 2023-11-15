@@ -1360,6 +1360,18 @@ class _TestCaseMixin(object):
         """Backwards compatibility method."""
         self.assertFalse(*args, **kwargs)
 
+    def failIfEqual(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertNotEqual(*args, **kwargs)
+
+    def failUnlessEqual(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertEqual(*args, **kwargs)
+
+    def failUnlessReallyEqual(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertReallyEqual(*args, **kwargs)
+
 
 class SyncTestCase(_TestCaseMixin, TestCase):
     """
