@@ -32,7 +32,6 @@ Ported to Python 3.
 
 from __future__ import annotations
 
-from six import ensure_text
 from typing import Union, Callable, Any, Optional, cast, Dict
 from os import urandom
 import re

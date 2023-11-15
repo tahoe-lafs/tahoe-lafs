@@ -47,7 +47,6 @@ from eliot import (
     Message,
     MessageType,
     fields,
-    FileDestination,
     MemoryLogger,
 )
 from eliot.twisted import DeferredContext
