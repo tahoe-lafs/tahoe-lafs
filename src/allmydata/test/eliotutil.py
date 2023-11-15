@@ -29,6 +29,7 @@ from eliot import (
     ILogger,
 )
 from eliot.testing import (
+    MemoryLogger,
     swap_logger,
     check_for_errors,
 )
@@ -38,7 +39,7 @@ from twisted.python.monkey import (
 )
 
 from ..util.eliotutil import (
-    MemoryLogger,
+    BytesEliotJSONEncoder
 )
 
 _NAME = Field.for_types(
@@ -146,7 +147,7 @@ def with_logging(
     """
     @wraps(test_method)
     def run_with_logging(*args, **kwargs):
-        validating_logger = MemoryLogger()
+        validating_logger = MemoryLogger(encoder=BytesEliotJSONEncoder)
         original = swap_logger(None)
         try:
             swap_logger(_TwoLoggers(original, validating_logger))
