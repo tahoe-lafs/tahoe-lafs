@@ -50,7 +50,6 @@ from eliot.testing import (
     MemoryLogger,
     capture_logging,
 )
-from eliot.json import EliotJSONEncoder
 
 from eliot._validation import (
     ValidationError,
@@ -78,16 +77,7 @@ from twisted.internet.defer import (
 )
 from twisted.application.service import Service
 
-
-class BytesEliotJSONEncoder(EliotJSONEncoder):
-    """Support encoding bytes."""
-
-    def default(self, o):
-        if isinstance(o, bytes):
-            return o.decode("utf-8", "backslashreplace")
-        if isinstance(o, set):
-            return list(o)
-        return EliotJSONEncoder.default(self, o)
+from .jsonbytes import AnyBytesJSONEncoder
 
 
 def validateInstanceOf(t):
@@ -306,7 +296,7 @@ class _DestinationParser(object):
                     rotateLength=rotate_length,
                     maxRotatedFiles=max_rotated_files,
                 )
-        return lambda reactor: FileDestination(get_file(), encoder=BytesEliotJSONEncoder)
+        return lambda reactor: FileDestination(get_file(), encoder=AnyBytesJSONEncoder)
 
 
 _parse_destination_description = _DestinationParser().parse

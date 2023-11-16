@@ -38,8 +38,8 @@ from twisted.python.monkey import (
     MonkeyPatcher,
 )
 
-from ..util.eliotutil import (
-    BytesEliotJSONEncoder
+from ..util.jsonbytes import (
+    AnyBytesJSONEncoder
 )
 
 _NAME = Field.for_types(
@@ -147,7 +147,7 @@ def with_logging(
     """
     @wraps(test_method)
     def run_with_logging(*args, **kwargs):
-        validating_logger = MemoryLogger(encoder=BytesEliotJSONEncoder)
+        validating_logger = MemoryLogger(encoder=AnyBytesJSONEncoder)
         original = swap_logger(None)
         try:
             swap_logger(_TwoLoggers(original, validating_logger))

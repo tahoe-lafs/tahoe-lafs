@@ -117,7 +117,7 @@ class TestStreamingLogs(AsyncTestCase):
         proto.transport.loseConnection()
         yield proto.is_closed
 
-        self.assertThat(len(messages), Equals(3))
+        self.assertThat(len(messages), Equals(3), messages)
         self.assertThat(messages[0]["action_type"], Equals("test:cli:some-exciting-action"))
         self.assertThat(messages[0]["arguments"],
                          Equals(["hello", "good-\\xff-day", 123, {"a": 35}, [None]]))

@@ -67,7 +67,7 @@ from allmydata.util import (
     configutil,
     jsonbytes as json,
 )
-from allmydata.util.eliotutil import capture_logging, BytesEliotJSONEncoder
+from allmydata.util.eliotutil import capture_logging
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
@@ -850,7 +850,7 @@ class StorageClients(SyncTestCase):
             actionType=u"storage-client:broker:set-static-servers",
             succeeded=True,
         ),
-        encoder_=BytesEliotJSONEncoder
+        encoder_=json.AnyBytesJSONEncoder
     )
     def test_static_servers(self, logger):
         """
@@ -885,7 +885,7 @@ class StorageClients(SyncTestCase):
             actionType=u"storage-client:broker:make-storage-server",
             succeeded=False,
         ),
-        encoder_=BytesEliotJSONEncoder
+        encoder_=json.AnyBytesJSONEncoder
     )
     def test_invalid_static_server(self, logger):
         """
