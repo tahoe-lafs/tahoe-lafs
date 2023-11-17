@@ -1,7 +1,6 @@
 """
 Ported to Python 3.
 """
-import os
 import time
 from urllib.parse import quote as urlquote
 
@@ -9,7 +8,6 @@ from hyperlink import DecodedURL, URL
 from twisted.web import (
     http,
     resource,
-    static,
 )
 from twisted.web.util import redirectTo, Redirect
 from twisted.python.filepath import FilePath
