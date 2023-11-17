@@ -4,11 +4,10 @@ Ported to Python 3.
 from __future__ import annotations
 
 from six import ensure_str
-try:
+import sys
+if sys.version_info[:2] >= (3, 9):
     from importlib.resources import files as resource_files, as_file
-except ImportError:
-    import sys
-    assert sys.version_info[:2] < (3, 9)
+else:
     from importlib_resources import files as resource_files, as_file
 from contextlib import ExitStack
 import weakref
