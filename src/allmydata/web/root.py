@@ -42,7 +42,7 @@ from allmydata.web.common import (
     render_time_delta,
     render_time,
     render_time_attr,
-    StaticFiles,
+    add_static_children,
 )
 from allmydata.web.private import (
     create_private_tree,
@@ -242,7 +242,7 @@ class Root(MultiFormatResource):
         self.putChild(b"statistics", status.Statistics(client.stats_provider))
         self.putChild(b"report_incident", IncidentReporter())
 
-        StaticFiles.add_static_children(self)
+        add_static_children(self)
 
     @exception_to_child
     def getChild(self, path, request):

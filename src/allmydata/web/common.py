@@ -6,7 +6,7 @@ from __future__ import annotations
 from six import ensure_str
 from importlib.resources import files as resource_files, as_file
 from contextlib import ExitStack
-
+import weakref
 from typing import Optional, Union, TypeVar, overload
 from typing_extensions import Literal
 
@@ -857,26 +857,19 @@ def get_keypair(request: IRequest) -> tuple[PublicKey, PrivateKey] | None:
     return pubkey, privkey
 
 
-class StaticFiles:
+def add_static_children(root: IResource):
     """
-    Serve static files includes as resources.
+    Add static files from C{allmydata.web} to the given resource.
 
     Package resources may be on the filesystem, or they may be in a zip
     or something, so we need to do a bit more work to serve them as
     static files.
     """
-
-    def __init__(self):
-        self._temporary_file_manager = ExitStack()
-
-    @classmethod
-    def add_static_children(cls, root: IResource):
-        """Add static files from C{allmydata.web} to the given resource."""
-        self = cls()
-        static_dir = resource_files("allmydata.web") / "static"
-        for child in static_dir.iterdir():
-            child_path = child.name.encode("utf-8")
-            root.putChild(child_path, static.File(
-                self._temporary_file_manager.enter_context(as_file(child))
-            ))
-        root.__static_files_cleanup = self
+    temporary_file_manager = ExitStack()
+    static_dir = resource_files("allmydata.web") / "static"
+    for child in static_dir.iterdir():
+        child_path = child.name.encode("utf-8")
+        root.putChild(child_path, static.File(
+            temporary_file_manager.enter_context(as_file(child))
+        ))
+    weakref.finalize(root, temporary_file_manager.close)

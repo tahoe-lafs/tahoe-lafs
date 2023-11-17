@@ -10,7 +10,7 @@ from allmydata.web.common import (
     render_time,
     MultiFormatResource,
     SlotsSequenceElement,
-    StaticFiles
+    add_static_children,
 )
 
 
@@ -28,7 +28,7 @@ class IntroducerRoot(MultiFormatResource):
         self.introducer_service = introducer_node.getServiceNamed("introducer")
         # necessary as a root Resource
         self.putChild(b"", self)
-        StaticFiles.add_static_children(self)
+        add_static_children(self)
 
     def _create_element(self):
         """
