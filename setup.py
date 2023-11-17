@@ -32,10 +32,6 @@ VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
 
 install_requires = [
-    # we don't need much out of setuptools but the version checking stuff
-    # needs pkg_resources and PEP 440 version specifiers.
-    "setuptools >= 28.8.0",
-
     "zfec >= 1.1.0",
 
     # zope.interface >= 3.6.0 is required for Twisted >= 12.1.0.
@@ -412,7 +408,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # as those releases are known to actually work.
               "pip==22.0.3",
               "wheel==0.37.1",
-              "setuptools==60.9.1",
               "subunitreporter==23.8.0",
               "python-subunit==1.4.2",
               "junitxml==0.7",
