@@ -4,8 +4,6 @@ Ported to Python 3.
 import os
 import time
 from urllib.parse import quote as urlquote
-from importlib.resources import files as resource_files, as_file
-from contextlib import ExitStack
 
 from hyperlink import DecodedURL, URL
 from twisted.web import (
@@ -46,6 +44,7 @@ from allmydata.web.common import (
     render_time_delta,
     render_time,
     render_time_attr,
+    StaticFiles,
 )
 from allmydata.web.private import (
     create_private_tree,
@@ -243,22 +242,9 @@ class Root(MultiFormatResource):
         self.putChild(b"named", FileHandler(client))
         self.putChild(b"status", status.Status(client.get_history()))
         self.putChild(b"statistics", status.Statistics(client.stats_provider))
-
-        # Package resources may be on the filesystem, or they may be in a zip
-        # or something, so we need to do a bit more work to serve them as
-        # static files.
-        self._temporary_file_manager = ExitStack()
-        static_dir = resource_files("allmydata.web") / "static"
-        for child in static_dir.iterdir():
-            child_path = child.name.encode("utf-8")
-            self.putChild(child_path, static.File(
-                self._temporary_file_manager.enter_context(as_file(child))
-            ))
-
         self.putChild(b"report_incident", IncidentReporter())
 
-    def __del__(self):
-        self._temporary_file_manager.close()
+        StaticFiles.add_static_children(self)
 
     @exception_to_child
     def getChild(self, path, request):
