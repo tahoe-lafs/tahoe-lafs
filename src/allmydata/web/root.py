@@ -1,21 +1,13 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2, PY3
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import os
 import time
 from urllib.parse import quote as urlquote
+from importlib.resources import files as resource_files, as_file
+from contextlib import ExitStack
 
 from hyperlink import DecodedURL, URL
-from pkg_resources import resource_filename
 from twisted.web import (
     http,
     resource,
@@ -251,14 +243,22 @@ class Root(MultiFormatResource):
         self.putChild(b"named", FileHandler(client))
         self.putChild(b"status", status.Status(client.get_history()))
         self.putChild(b"statistics", status.Statistics(client.stats_provider))
-        static_dir = resource_filename("allmydata.web", "static")
-        for filen in os.listdir(static_dir):
-            child_path = filen
-            if PY3:
-                child_path = filen.encode("utf-8")
-            self.putChild(child_path, static.File(os.path.join(static_dir, filen)))
+
+        # Package resources may be on the filesystem, or they may be in a zip
+        # or something, so we need to do a bit more work to serve them as
+        # static files.
+        self._temporary_file_manager = ExitStack()
+        static_dir = resource_files("allmydata.web") / "static"
+        for child in static_dir.iterdir():
+            child_path = child.name.encode("utf-8")
+            self.putChild(child_path, static.File(
+                self._temporary_file_manager.enter_context(as_file(child))
+            ))
 
         self.putChild(b"report_incident", IncidentReporter())
+
+    def __del__(self):
+        self._temporary_file_manager.close()
 
     @exception_to_child
     def getChild(self, path, request):
