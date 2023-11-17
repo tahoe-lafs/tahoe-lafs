@@ -32,6 +32,9 @@ VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
 
 install_requires = [
+    # importlib.resources.files and friends are new in Python 3.9.
+    "importlib_resources; python_version < '3.9'",
+
     "zfec >= 1.1.0",
 
     # zope.interface >= 3.6.0 is required for Twisted >= 12.1.0.
