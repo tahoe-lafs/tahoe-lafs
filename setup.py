@@ -32,10 +32,6 @@ VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
 
 install_requires = [
-    # we don't need much out of setuptools but the version checking stuff
-    # needs pkg_resources and PEP 440 version specifiers.
-    "setuptools >= 28.8.0",
-
     "zfec >= 1.1.0",
 
     # zope.interface >= 3.6.0 is required for Twisted >= 12.1.0.
@@ -156,10 +152,6 @@ install_requires = [
     # for pid-file support
     "psutil",
     "filelock",
-]
-
-setup_requires = [
-    'setuptools >= 28.8.0',  # for PEP-440 style versions
 ]
 
 tor_requires = [
@@ -410,9 +402,9 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # selected here are just the current versions at the time.
               # Bumping them to keep up with future releases is fine as long
               # as those releases are known to actually work.
-              "pip==22.0.3",
-              "wheel==0.37.1",
-              "setuptools==60.9.1",
+              "pip==23.3.1",
+              "wheel==0.41.3",
+              "setuptools==68.2.2",
               "subunitreporter==23.8.0",
               "python-subunit==1.4.2",
               "junitxml==0.7",
@@ -448,7 +440,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
                     "allmydata": ["ported-modules.txt"],
                     },
       include_package_data=True,
-      setup_requires=setup_requires,
       entry_points={
           'console_scripts': [
               'tahoe = allmydata.scripts.runner:run',
