@@ -39,7 +39,6 @@ package_imports = [
     ('pycparser',        'pycparser'),
     ('PyYAML',           'yaml'),
     ('magic-wormhole',   'wormhole'),
-    ('setuptools',       'setuptools'),
     ('eliot',            'eliot'),
     ('attrs',            'attr'),
     ('autobahn',         'autobahn'),

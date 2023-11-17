@@ -695,7 +695,7 @@ class HTTPServer(BaseApp):
         if accept.best == CBOR_MIME_TYPE:
             request.setHeader("Content-Type", CBOR_MIME_TYPE)
             f = TemporaryFile()
-            cbor2.dump(data, f)
+            cbor2.dump(data, f)  # type: ignore
 
             def read_data(offset: int, length: int) -> bytes:
                 f.seek(offset)

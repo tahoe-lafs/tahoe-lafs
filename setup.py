@@ -32,6 +32,9 @@ VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
 
 install_requires = [
+    # importlib.resources.files and friends are new in Python 3.9.
+    "importlib_resources; python_version < '3.9'",
+
     "zfec >= 1.1.0",
 
     # zope.interface >= 3.6.0 is required for Twisted >= 12.1.0.
@@ -404,7 +407,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # as those releases are known to actually work.
               "pip==23.3.1",
               "wheel==0.41.3",
-              "setuptools==68.2.2",
               "subunitreporter==23.8.0",
               "python-subunit==1.4.2",
               "junitxml==0.7",
