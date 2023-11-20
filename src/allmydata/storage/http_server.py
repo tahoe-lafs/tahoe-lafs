@@ -638,10 +638,7 @@ async def read_encoded(
 
     # Pycddl will release the GIL when validating larger documents, so
     # let's take advantage of multiple CPUs:
-    if size > 10_000:
-        await defer_to_thread(reactor, schema.validate_cbor, message)
-    else:
-        schema.validate_cbor(message)
+    await defer_to_thread(schema.validate_cbor, message)
 
     # The CBOR parser will allocate more memory, but at least we can feed
     # it the file-like object, so that if it's large it won't be make two
@@ -698,7 +695,7 @@ class HTTPServer(BaseApp):
         if accept.best == CBOR_MIME_TYPE:
             request.setHeader("Content-Type", CBOR_MIME_TYPE)
             f = TemporaryFile()
-            cbor2.dump(data, f)
+            cbor2.dump(data, f)  # type: ignore
 
             def read_data(offset: int, length: int) -> bytes:
                 f.seek(offset)

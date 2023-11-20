@@ -43,6 +43,7 @@ from testtools.matchers import Equals
 from zope.interface import implementer
 
 from ..util.deferredutil import async_to_deferred
+from ..util.cputhreadpool import disable_thread_pool_for_test
 from .common import SyncTestCase
 from ..storage.http_common import (
     get_content_type,
@@ -345,6 +346,7 @@ class CustomHTTPServerTests(SyncTestCase):
 
     def setUp(self):
         super(CustomHTTPServerTests, self).setUp()
+        disable_thread_pool_for_test(self)
         StorageClientFactory.start_test_mode(
             lambda pool: self.addCleanup(pool.closeCachedConnections)
         )
@@ -701,6 +703,7 @@ class GenericHTTPAPITests(SyncTestCase):
 
     def setUp(self):
         super(GenericHTTPAPITests, self).setUp()
+        disable_thread_pool_for_test(self)
         self.http = self.useFixture(HttpTestFixture())
 
     def test_missing_authentication(self) -> None:
@@ -808,6 +811,7 @@ class ImmutableHTTPAPITests(SyncTestCase):
 
     def setUp(self):
         super(ImmutableHTTPAPITests, self).setUp()
+        disable_thread_pool_for_test(self)
         self.http = self.useFixture(HttpTestFixture())
         self.imm_client = StorageClientImmutables(self.http.client)
         self.general_client = StorageClientGeneral(self.http.client)
@@ -1317,6 +1321,7 @@ class MutableHTTPAPIsTests(SyncTestCase):
 
     def setUp(self):
         super(MutableHTTPAPIsTests, self).setUp()
+        disable_thread_pool_for_test(self)
         self.http = self.useFixture(HttpTestFixture())
         self.mut_client = StorageClientMutables(self.http.client)
 
@@ -1673,10 +1678,12 @@ class SharedImmutableMutableTestsMixin:
         # semantically valid under HTTP.
         check_bad_range("bytes=0-")
 
-    @given(data_length=st.integers(min_value=1, max_value=300000))
-    def test_read_with_no_range(self, data_length):
+    def _read_with_no_range_test(self, data_length):
         """
         A read with no range returns the whole mutable/immutable.
+
+        Actual test is defined in subclasses, to fix complaints from Hypothesis
+        about the method having different executors.
         """
         storage_index, uploaded_data, _ = self.upload(1, data_length)
         response = self.http.result_of_with_flush(
@@ -1732,6 +1739,7 @@ class ImmutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
 
     def setUp(self):
         super(ImmutableSharedTests, self).setUp()
+        disable_thread_pool_for_test(self)
         self.http = self.useFixture(HttpTestFixture())
         self.client = self.clientFactory(self.http.client)
         self.general_client = StorageClientGeneral(self.http.client)
@@ -1770,6 +1778,13 @@ class ImmutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
     def get_leases(self, storage_index):
         return self.http.storage_server.get_leases(storage_index)
 
+    @given(data_length=st.integers(min_value=1, max_value=300000))
+    def test_read_with_no_range(self, data_length):
+        """
+        A read with no range returns the whole immutable.
+        """
+        return self._read_with_no_range_test(data_length)
+
 
 class MutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
     """Shared tests, running on mutables."""
@@ -1779,6 +1794,7 @@ class MutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
 
     def setUp(self):
         super(MutableSharedTests, self).setUp()
+        disable_thread_pool_for_test(self)
         self.http = self.useFixture(HttpTestFixture())
         self.client = self.clientFactory(self.http.client)
         self.general_client = StorageClientGeneral(self.http.client)
@@ -1809,3 +1825,10 @@ class MutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
 
     def get_leases(self, storage_index):
         return self.http.storage_server.get_slot_leases(storage_index)
+
+    @given(data_length=st.integers(min_value=1, max_value=300000))
+    def test_read_with_no_range(self, data_length):
+        """
+        A read with no range returns the whole mutable.
+        """
+        return self._read_with_no_range_test(data_length)

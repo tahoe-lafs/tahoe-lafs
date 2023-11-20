@@ -20,6 +20,7 @@ from allmydata.interfaces import IRetrieveStatus, NotEnoughSharesError, \
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util import hashutil, log, mathutil, deferredutil
 from allmydata.util.dictutil import DictOfSets
+from allmydata.util.cputhreadpool import defer_to_thread
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
 
@@ -734,7 +735,8 @@ class Retrieve(object):
         return None
 
 
-    def _validate_block(self, results, segnum, reader, server, started):
+    @deferredutil.async_to_deferred
+    async def _validate_block(self, results, segnum, reader, server, started):
         """
         I validate a block from one share on a remote server.
         """
@@ -767,9 +769,9 @@ class Retrieve(object):
                                         "block hash tree failure: %s" % e)
 
         if self._version == MDMF_VERSION:
-            blockhash = hashutil.block_hash(salt + block)
+            blockhash = await defer_to_thread(hashutil.block_hash, salt + block)
         else:
-            blockhash = hashutil.block_hash(block)
+            blockhash = await defer_to_thread(hashutil.block_hash, block)
         # If this works without an error, then validation is
         # successful.
         try:
@@ -893,8 +895,8 @@ class Retrieve(object):
         d.addCallback(_process)
         return d
 
-
-    def _decrypt_segment(self, segment_and_salt):
+    @deferredutil.async_to_deferred
+    async def _decrypt_segment(self, segment_and_salt):
         """
         I take a single segment and its salt, and decrypt it. I return
         the plaintext of the segment that is in my argument.
@@ -903,9 +905,14 @@ class Retrieve(object):
         self._set_current_status("decrypting")
         self.log("decrypting segment %d" % self._current_segment)
         started = time.time()
-        key = hashutil.ssk_readkey_data_hash(salt, self._node.get_readkey())
-        decryptor = aes.create_decryptor(key)
-        plaintext = aes.decrypt_data(decryptor, segment)
+        readkey = self._node.get_readkey()
+
+        def decrypt():
+            key = hashutil.ssk_readkey_data_hash(salt, readkey)
+            decryptor = aes.create_decryptor(key)
+            return aes.decrypt_data(decryptor, segment)
+
+        plaintext = await defer_to_thread(decrypt)
         self._status.accumulate_decrypt_time(time.time() - started)
         return plaintext
 
