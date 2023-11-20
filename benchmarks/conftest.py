@@ -7,6 +7,7 @@ to pytest.
 
 import os
 import json
+from datetime import datetime, timezone
 from shutil import which, rmtree
 from tempfile import mkdtemp
 from contextlib import contextmanager
@@ -183,12 +184,18 @@ class Benchmarker:
                 f"\nBENCHMARK RESULT: {name} {parameters} elapsed={elapsed:.3} (secs) CPU={elapsed_cpu:.3} (secs)\n"
             )
 
-    def output_results(self, filelike):
-        js = dict()
+    def output_results(self, filelike, previous_results=None):
+        results = dict()
         for b in self.benchmarks.values():
-            js[b.name] = b.to_json()
+            results[b.name] = b.to_json()
+
+        benchmarks = previous_results or []
+        benchmarks.append({
+            "timestamp-utc": datetime.now(timezone.utc).isoformat(),
+            "results": results,
+        })
         filelike.write(
-            json.dumps(js, indent=4).encode("utf8")
+            json.dumps({"benchmarks": benchmarks}, indent=4).encode("utf8")
         )
 
 
@@ -198,5 +205,13 @@ def tahoe_benchmarker(request):
     yield bm
     fname = request.config.getoption("json_fname")
     print(f'Writing benchmarks to "{fname}"')
+    try:
+        with open(fname, "rb") as js_file:
+            previous = json.loads(js_file.read())["benchmarks"]
+    except json.decoder.JSONDecodeError as e:
+        print(f"Failed to load previous results: {e}")
+        previous = None
+    except OSError:
+        previous = None
     with open(fname, "wb") as js_file:
-        bm.output_results(js_file)
+        bm.output_results(js_file, previous)
