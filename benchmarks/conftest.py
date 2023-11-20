@@ -138,7 +138,7 @@ def get_cpu_time_for_cgroup():
     raise ValueError("Failed to find usage_usec")
 
 
-@attr.define
+@attr.frozen
 class Benchmark:
     name: str
     parameters: dict
