@@ -197,6 +197,6 @@ def tahoe_benchmarker(request):
     bm = Benchmarker()
     yield bm
     fname = request.config.getoption("json_fname")
-    print('Writing benchmarks to "{fname}"')
+    print(f'Writing benchmarks to "{fname}"')
     with open(fname, "wb") as js_file:
         bm.output_results(js_file)
