@@ -1,8 +1,7 @@
 #! /usr/bin/env python
 
-from __future__ import print_function
-
 import locale, os, platform, subprocess, sys, traceback
+from importlib.metadata import version, PackageNotFoundError
 
 
 def foldlines(s, numlines=None):
@@ -72,17 +71,10 @@ def print_as_ver():
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
 
-
 def print_setuptools_ver():
     try:
-        import pkg_resources
-        out = str(pkg_resources.require("setuptools"))
-        print("setuptools:", foldlines(out))
-    except (ImportError, EnvironmentError):
-        sys.stderr.write("\nGot exception using 'pkg_resources' to get the version of setuptools. Exception follows\n")
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.flush()
-    except pkg_resources.DistributionNotFound:
+        print("setuptools:", version("setuptools"))
+    except PackageNotFoundError:
         print('setuptools: DistributionNotFound')
 
 
@@ -91,14 +83,8 @@ def print_py_pkg_ver(pkgname, modulename=None):
         modulename = pkgname
     print()
     try:
-        import pkg_resources
-        out = str(pkg_resources.require(pkgname))
-        print(pkgname + ': ' + foldlines(out))
-    except (ImportError, EnvironmentError):
-        sys.stderr.write("\nGot exception using 'pkg_resources' to get the version of %s. Exception follows.\n" % (pkgname,))
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.flush()
-    except pkg_resources.DistributionNotFound:
+        print(pkgname + ': ' + version(pkgname))
+    except PackageNotFoundError:
         print(pkgname + ': DistributionNotFound')
     try:
         __import__(modulename)
