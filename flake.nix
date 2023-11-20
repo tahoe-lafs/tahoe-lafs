@@ -5,8 +5,8 @@
     # Supply configuration for the build cache updated by our CI system.  This
     # should allow most users to avoid having to build a large number of
     # packages (otherwise necessary due to our Python package overrides).
-    substituters = ["https://tahoe-lafs-opensource.cachix.org"];
-    trusted-public-keys = ["tahoe-lafs-opensource.cachix.org-1:eIKCHOPJYceJ2gb74l6e0mayuSdXqiavxYeAio0LFGo="];
+    extra-substituters = ["https://tahoe-lafs-opensource.cachix.org"];
+    extra-trusted-public-keys = ["tahoe-lafs-opensource.cachix.org-1:eIKCHOPJYceJ2gb74l6e0mayuSdXqiavxYeAio0LFGo="];
   };
 
   inputs = {
@@ -117,6 +117,11 @@
       # Construct the unit test application name for the given Python runtime.
       unitTestName = pyVersion: "${pyVersion}-unittest";
 
+      # string -> string
+      #
+      # Construct the integration test application name for the given Python runtime.
+      integrationTestName = pyVersion: "${pyVersion}-integration";
+
       # (string -> a) -> (string -> b) -> string -> attrset a b
       #
       # Make a singleton attribute set from the result of two functions.
@@ -140,24 +145,50 @@
       )).overrideAttrs (old: {
         # By default, withPackages gives us a derivation with a fairly generic
         # name (like "python-env").  Put our name in there for legibility.
-        # See the similar override in makeTestEnv.
+        # See the similar override in make*TestEnv.
         name = packageName pyVersion;
       });
 
-      # makeTestEnv :: string -> derivation
+      # extraRequirements :: derivation -> [string] -> [derivation]
+      #
+      # Get a flat list of the additional requirements from the derivation's
+      # `passthru.extras` attribute for all of the given extra names.
+      extraRequirements = drv: names:
+        builtins.concatLists (builtins.map (name: drv.passthru.extras.${name}) names);
+
+      # makeUnitTestEnv :: string -> derivation
       #
       # Create a derivation that includes a Python runtime and all of the
       # Tahoe-LAFS dependencies, but not Tahoe-LAFS itself, which we'll get
       # from the working directory.
-      makeTestEnv = pyVersion: (pkgs.${pyVersion}.withPackages (ps: with ps;
-        [ tahoe-lafs ] ++
-        tahoe-lafs.passthru.extras.i2p ++
-        tahoe-lafs.passthru.extras.tor ++
-        tahoe-lafs.passthru.extras.unittest
+      makeUnitTestEnv = pyVersion: (pkgs.${pyVersion}.withPackages (ps:
+        ps.tahoe-lafs.passthru.dependencies ++
+        (extraRequirements ps.tahoe-lafs ["i2p" "tor" "unittest"])
       )).overrideAttrs (old: {
         # See the similar override in makeRuntimeEnv'.
         name = packageName pyVersion;
       });
+
+      # makeIntegrationTestEnv :: string -> derivation
+      #
+      # Create a derivation that includes a Python runtime, Tahoe-LAFS, and
+      # all of its dependencies.  This is suitable for running the integration
+      # tests, which expect to find `tahoe` on PATH.
+      makeIntegrationTestEnv = pyVersion: (pkgs.${pyVersion}.withPackages (ps:
+        [
+          ps.tahoe-lafs
+
+          # chutney is here instead of in the integrationtest extra because
+          # it's not properly packaged and pip can't install it.
+          ps.chutney
+
+        ] ++
+        (extraRequirements ps.tahoe-lafs ["i2p" "tor" "integrationtest"])
+      )).overrideAttrs (old: {
+        # See the similar override in makeRuntimeEnv'.
+        name = packageName pyVersion;
+      });
+
     in {
       # Include a package set with out overlay on it in our own output.  This
       # is mainly a development/debugging convenience as it will expose all of
@@ -175,7 +206,8 @@
         mergeAttrs (
           [ { default = self.packages.${system}.${packageName defaultPyVersion}; } ]
           ++ (builtins.map makeRuntimeEnv pythonVersions)
-          ++ (builtins.map (singletonOf unitTestName makeTestEnv) pythonVersions)
+          ++ (builtins.map (singletonOf unitTestName makeUnitTestEnv) pythonVersions)
+          ++ (builtins.map (singletonOf integrationTestName makeIntegrationTestEnv) pythonVersions)
         );
 
       # The flake's app outputs.  We'll define a version of an app for running
@@ -218,15 +250,88 @@
               type = "app";
               program =
                 let
-                  python = "${makeTestEnv pyVersion}/bin/python";
+                  #
+                  python =
+                    "${self.packages.${system}.${unitTestName pyVersion}}/bin/python";
                 in
                   writeScript "unit-tests"
                     ''
+                    # Make sure there is recent generated-version information
+                    # in the tree.
                     ${python} setup.py update_version
+
+                    # Use the closer-to-deterministic Hypothesis profile for
+                    # better reproducibility.
                     export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
+
+                    # Use the source from the working tree for a
+                    # development-friendly experience.
                     export PYTHONPATH=$PWD/src
-                    ${python} -m twisted.trial "$@"
+
+                    # Run the unit tests.
+                    if (( $# )) then
+                      ${python} -m twisted.trial "$@"
+                    else
+                      ${python} -m twisted.trial -j$NIX_BUILD_CORES allmydata
+                    fi
                   '';
+            };
+          };
+
+          # makeIntegrationTestsApp :: string -> attrset
+          #
+          # A helper function to define the Tahoe-LAFS integration test
+          # entrypoint for a certain Python runtime.
+          makeIntegrationTestsApp = pyVersion: {
+            "${integrationTestName pyVersion}" = {
+              type = "app";
+              program =
+                let programDrv =
+                      pkgs.writeShellApplication {
+                        name = "integration-tests";
+                        runtimeInputs = [
+                          # Place the integration test package into the
+                          # runtime environment so PATH is updated.  The
+                          # integration tests require certain tools to be
+                          # discoverable that way.
+                          self.packages.${system}.${integrationTestName pyVersion}
+
+                          # Also include non-Python dependencies for the
+                          # integration test suite.
+                          pkgs.tor
+                        ];
+                        # Disable checking the shell application.  Shell
+                        # checking is nice but our Python package overrides
+                        # mean a huge number of dependencies must be built
+                        # before the check can be run.
+                        checkPhase = "";
+                        text =
+                          ''
+                            # Make sure there is recent generated-version
+                            # information in the tree.
+                            python setup.py update_version
+
+                            # Use the source from the working tree for a
+                            # development-friendly experience.
+                            export PYTHONPATH=$PWD/src
+
+                            # Chutney wants to write out files to track its
+                            # state.  By default it does this alongside its
+                            # source code but we put the source in the nix
+                            # store so that location isn't writeable.  Give it
+                            # somewhere else to write it.
+                            export CHUTNEY_DATA_DIR=$PWD/chutney-net
+
+                            # If args are given, use them.
+                            if (( $# )) then
+                              python -m pytest "$@"
+                            else
+                              python -m pytest -v --runslow integration
+                            fi
+                          '';
+                      };
+                in
+                  "${programDrv}/bin/integration-tests";
             };
           };
         in
@@ -234,6 +339,7 @@
           mergeAttrs (
             [ { default = self.apps.${system}."tahoe-python3"; } ]
             ++ (builtins.map makeUnitTestsApp pythonVersions)
+            ++ (builtins.map makeIntegrationTestsApp pythonVersions)
             ++ (builtins.map makeTahoeApp pythonVersions)
           );
     }));

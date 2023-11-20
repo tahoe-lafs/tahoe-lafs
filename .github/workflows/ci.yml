@@ -158,19 +158,13 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          # 22.04 has some issue with Tor at the moment:
-          # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3943
-          - ubuntu-20.04
           - macos-12
           - windows-latest
         python-version:
           - "3.11"
         force-foolscap:
           - false
-        include:
-          - os: ubuntu-20.04
-            python-version: "3.10"
-            force-foolscap: true
+
     steps:
 
       - name: Install Tor [Ubuntu]

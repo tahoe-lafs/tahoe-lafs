@@ -92,8 +92,8 @@ workflows:
       - "oraclelinux-8":
           {}
 
-      - "nixos":
-          name: "<<matrix.pythonVersion>>"
+      - "unittest":
+          name: "<<matrix.pythonVersion>>-unittest"
           nixpkgs: "nixpkgs-unstable"
           matrix:
             parameters:
@@ -101,6 +101,17 @@ workflows:
                 - "python39"
                 - "python310"
                 - "python311"
+
+      - "integrationtest":
+          name: "<<matrix.pythonVersion>>-integrationtest-foolscap:<<matrix.forceFoolscap>>"
+          nixpkgs: "nixpkgs-unstable"
+          matrix:
+            parameters:
+              pythonVersion:
+                - "python310"
+              forceFoolscap:
+                - true
+                - false
 
       # Eventually, test against PyPy 3.8
       #- "pypy27-buster":
@@ -571,7 +582,69 @@ jobs:
         image: "tahoelafsci/fedora:35-py3"
         user: "nobody"
 
-  nixos:
+  # A parameterized job which runs the integration test suite in the
+  # Nix-defined environment.
+  integrationtest:
+    parameters:
+      nixpkgs:
+        description: >-
+          Reference the name of a flake-managed nixpkgs input (see `nix flake
+          metadata` and flake.nix)
+        type: "string"
+      pythonVersion:
+        description: >-
+          Reference the name of a Python package in nixpkgs to use.
+        type: "string"
+      forceFoolscap:
+        description: >-
+          True if nodes should be configured to force the choice of Foolscap
+          for the storage protocol, False if they should be left alone.
+        type: "boolean"
+
+    executor: "nix"
+
+    steps:
+      - "nix-build":
+          nixpkgs: "<<parameters.nixpkgs>>"
+          pythonVersion: "<<parameters.pythonVersion>>"
+          buildSteps:
+            - "run":
+                name: "Integration Test"
+                command: |
+                  source .circleci/lib.sh
+
+                  # Translate the nixpkgs selection into a flake reference we
+                  # can use to override the default nixpkgs input.
+                  NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
+
+                  # Figure out what option to pass to control storage protocol
+                  # selection behavior.
+                  if <<parameters.forceFoolscap>>; then
+                    FORCE_FOOLSCAP="--force-foolscap"
+                  else
+                    FORCE_FOOLSCAP=""
+                  fi
+
+                  # Run the integration tests, even the slow ones.  Generate
+                  # junit xml results for CircleCI to ingest.
+                  cache_if_able nix run \
+                    --verbose \
+                    --print-build-logs \
+                    --override-input nixpkgs "$NIXPKGS" \
+                    .#<<parameters.pythonVersion>>-integration \
+                    -- \
+                    --verbose \
+                    $FORCE_FOOLSCAP \
+                    --runslow \
+                    --capture=no \
+                    --junitxml=integration-results.xml \
+                    integration/
+            - "store_test_results":
+                path: "integration-results.xml"
+
+  # A parameterized job which runs the unit test suite in the Nix-defined
+  # environment.
+  unittest:
     parameters:
       nixpkgs:
         description: >-
@@ -600,6 +673,8 @@ jobs:
                   NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
 
                   cache_if_able nix run \
+                    --verbose \
+                    --print-build-logs \
                     --override-input nixpkgs "$NIXPKGS" \
                     .#<<parameters.pythonVersion>>-unittest -- \
                     --jobs $UNITTEST_CORES \
