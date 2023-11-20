@@ -45,17 +45,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # On macOS don't bother with 3.8, just to get faster builds.
           - os: macos-12
             python-version: "3.12"
-          - os: macos-12
-            python-version: "3.11"
           # We only support PyPy on Linux at the moment.
           - os: ubuntu-latest
             python-version: "pypy-3.8"
           - os: ubuntu-latest
             python-version: "pypy-3.9"
           - os: ubuntu-latest
+            python-version: "3.12"
+          - os: windows-latest
             python-version: "3.12"
 
     steps:
