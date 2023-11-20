@@ -73,7 +73,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade "tox<4" tox-gh-actions setuptools
+          pip install --upgrade tox tox-gh-actions setuptools
           pip list
 
       - name: Display tool versions
@@ -205,7 +205,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade "tox<4"
+          pip install --upgrade tox
           pip list
 
       - name: Display tool versions
@@ -265,7 +265,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade "tox<4"
+          pip install --upgrade tox
           pip list
 
       - name: Display tool versions
