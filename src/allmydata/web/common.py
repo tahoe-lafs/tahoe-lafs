@@ -874,6 +874,6 @@ def add_static_children(root: IResource):
     for child in static_dir.iterdir():
         child_path = child.name.encode("utf-8")
         root.putChild(child_path, static.File(
-            temporary_file_manager.enter_context(as_file(child))
+            str(temporary_file_manager.enter_context(as_file(child)))
         ))
     weakref.finalize(root, temporary_file_manager.close)

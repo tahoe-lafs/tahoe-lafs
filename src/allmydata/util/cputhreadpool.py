@@ -15,7 +15,7 @@ scheduler affinity or cgroups, but that's not the end of the world.
 """
 
 import os
-from typing import TypeVar, Callable
+from typing import TypeVar, Callable, cast
 from functools import partial
 import threading
 from typing_extensions import ParamSpec
@@ -24,8 +24,9 @@ from unittest import TestCase
 from twisted.python.threadpool import ThreadPool
 from twisted.internet.threads import deferToThreadPool
 from twisted.internet import reactor
+from twisted.internet.interfaces import IReactorFromThreads
 
-_CPU_THREAD_POOL = ThreadPool(minthreads=0, maxthreads=os.cpu_count(), name="TahoeCPU")
+_CPU_THREAD_POOL = ThreadPool(minthreads=0, maxthreads=os.cpu_count() or 1, name="TahoeCPU")
 if hasattr(threading, "_register_atexit"):
     # This is a private API present in Python 3.8 or later, specifically
     # designed for thread pool shutdown. Since it's private, it might go away
@@ -64,7 +65,7 @@ async def defer_to_thread(f: Callable[P, R], *args: P.args, **kwargs: P.kwargs) 
         return f(*args, **kwargs)
 
     # deferToThreadPool has no type annotations...
-    result = await deferToThreadPool(reactor, _CPU_THREAD_POOL, f, *args, **kwargs)
+    result = await deferToThreadPool(cast(IReactorFromThreads, reactor), _CPU_THREAD_POOL, f, *args, **kwargs)
     return result
 
 
