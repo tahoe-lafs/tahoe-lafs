@@ -3,17 +3,6 @@ Tools aimed at the interaction between Tahoe-LAFS implementation and Eliot.
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from __future__ import (
-    unicode_literals,
-    print_function,
-    absolute_import,
-    division,
-)
 
 __all__ = [
     "MemoryLogger",
@@ -26,11 +15,6 @@ __all__ = [
     "capture_logging",
 ]
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-from six import ensure_text
-
 from sys import (
     stdout,
 )
@@ -42,6 +26,7 @@ from logging import (
 )
 from json import loads
 
+from six import ensure_text
 from zope.interface import (
     implementer,
 )
@@ -61,6 +46,11 @@ from eliot import (
     write_traceback,
     start_action,
 )
+from eliot.testing import (
+    MemoryLogger,
+    capture_logging,
+)
+
 from eliot._validation import (
     ValidationError,
 )
@@ -87,11 +77,8 @@ from twisted.internet.defer import (
 )
 from twisted.application.service import Service
 
-from ._eliot_updates import (
-    MemoryLogger,
-    eliot_json_encoder,
-    capture_logging,
-)
+from .jsonbytes import AnyBytesJSONEncoder
+
 
 def validateInstanceOf(t):
     """
@@ -309,7 +296,7 @@ class _DestinationParser(object):
                     rotateLength=rotate_length,
                     maxRotatedFiles=max_rotated_files,
                 )
-        return lambda reactor: FileDestination(get_file(), eliot_json_encoder)
+        return lambda reactor: FileDestination(get_file(), encoder=AnyBytesJSONEncoder)
 
 
 _parse_destination_description = _DestinationParser().parse

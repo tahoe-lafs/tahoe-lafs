@@ -507,7 +507,7 @@ class TestUtil(unittest.TestCase):
         """
         remove a simple prefix properly
         """
-        self.assertEquals(
+        self.assertEqual(
             remove_prefix(b"foobar", b"foo"),
             b"bar"
         )
@@ -523,7 +523,7 @@ class TestUtil(unittest.TestCase):
         """
         removing a zero-length prefix does nothing
         """
-        self.assertEquals(
+        self.assertEqual(
             remove_prefix(b"foobar", b""),
             b"foobar",
         )
@@ -532,7 +532,7 @@ class TestUtil(unittest.TestCase):
         """
         removing a prefix which is the whole string is empty
         """
-        self.assertEquals(
+        self.assertEqual(
             remove_prefix(b"foobar", b"foobar"),
             b"",
         )

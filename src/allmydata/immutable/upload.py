@@ -78,7 +78,7 @@ _READONLY_PEERS = Field(
 
 def _serialize_existing_shares(existing_shares):
     return {
-        server: list(shares)
+        ensure_str(server): list(shares)
         for (server, shares)
         in existing_shares.items()
     }
@@ -91,7 +91,7 @@ _EXISTING_SHARES = Field(
 
 def _serialize_happiness_mappings(happiness_mappings):
     return {
-        sharenum: base32.b2a(serverid)
+        str(sharenum): ensure_str(base32.b2a(serverid))
         for (sharenum, serverid)
         in happiness_mappings.items()
     }
@@ -112,7 +112,7 @@ _UPLOAD_TRACKERS = Field(
     u"upload_trackers",
     lambda trackers: list(
         dict(
-            server=tracker.get_name(),
+            server=ensure_str(tracker.get_name()),
             shareids=sorted(tracker.buckets.keys()),
         )
         for tracker
@@ -123,7 +123,7 @@ _UPLOAD_TRACKERS = Field(
 
 _ALREADY_SERVERIDS = Field(
     u"already_serverids",
-    lambda d: d,
+    lambda d: {str(k): v for k, v in d.items()},
     u"Some servers which are already holding some shares that we were interested in uploading.",
 )
 
