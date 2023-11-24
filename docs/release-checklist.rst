@@ -62,15 +62,16 @@ Create Branch and Apply Updates
 
 - Remember the new version: export RELEASE_VERSION=1.19.0
 - Create a branch for the release/candidate: git checkout -b ${RELEASE_TICKET}.release-${RELEASE_VERSION}
-- Produce *and commit* recent changes: ./venv/bin/tox -e news
+- Produce NEWS for changes: ./venv/bin/tox -e news
+- These will be *staged* only at this point.
+- Correct title for latest release ("Release 1.16.0" instead of "Release ...post1432")
+- Double-check date (maybe release will be in the future)
+- Spot-check the release notes (these come from the newsfragments files though so don't do heavy editing)
+- commit: git commit -m "release notes"
 
 Update the release notes:
 
 - manually fix NEWS.txt:
-  - proper title for latest release ("Release 1.16.0" instead of "Release ...post1432")
-  - double-check date (maybe release will be in the future)
-  - spot-check the release notes (these come from the newsfragments files though so don't do heavy editing)
-  - commit these changes
 
 - update "relnotes.txt"
   - update all mentions of ``1.19.0`` to new and higher release version for example ``1.19.1``
