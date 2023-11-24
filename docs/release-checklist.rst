@@ -105,11 +105,8 @@ Typically expert users will be the ones testing release candidates and they will
     Replace the key-id above with your own, which can simply be your email if it's attached to your fingerprint.
 
 - build all code locally.
-  - these should all pass:
-    - tox -e py37,codechecks,docs,integration
-
-  - these can fail (ideally they should not of course):
-    - tox -e deprecations,upcoming-deprecations
+  - these should pass: tox -e py37,codechecks,docs,integration
+  - these can fail: tox -e deprecations,upcoming-deprecations
 
 - build tarballs: tox -e tarballs
 - Confirm: ls dist/ | grep 1.16.0rc0
