@@ -32,7 +32,7 @@ The ``master`` branch should always be releasable.
 It may be worth asking (on IRC or mailing-ist) if anything will be merged imminently (for example, "I will prepare a release this coming Tuesday if you want to get anything in").
 
 - Create a ticket for the release in Trac: https://tahoe-lafs.org/trac/tahoe-lafs/newticket
-- Remember the ticket number: ``export RELEASE_TICKET=4076``
+- Remember the ticket number: export RELEASE_TICKET=4076
 
 
 Get a clean checkout
@@ -42,26 +42,27 @@ The release proccess involves compressing source files and putting them in forma
 To minimize surprises (extra files, etc), we begin the release process with a clean checkout.
 
 - Make sure our checkout is up-to-date: git checkout master; git pull
-- Clone a local, clean checkout: git clone . ../tahoe-release-$(RELEASE_TICKET)
+- Ensure up-to-date: git checkout master; git pull
+- Clone a local, clean checkout: git clone . ../tahoe-release-${RELEASE_TICKET}
 
-.. note:: 
+.. note::
      The above command would create a new directory at the same level as your original clone.
      You can name this folder however you want but it would be a good practice to give it the release name.
      You SHOULD also discard this directory once the release process is complete.
 
 Get into the release directory and install dependencies:
 
-- cd ../tahoe-release-$(RELEASE_TICKET)
+- cd ../tahoe-release-${RELEASE_TICKET}
 - python -m venv venv
-- ./venv/bin/pip install --editable .[test]
+- ./venv/bin/pip install --editable .[test,build]
 
 
 Create Branch and Apply Updates
 ```````````````````````````````
 
 - Remember the new version: export RELEASE_VERSION=1.19.0
-- Create a branch for the release/candidate: git chheckout -b $(RELEASE_TICKET):release-$(RELEASE_VERSION)
-- Produce *and commit* recent changes: run tox -e news
+- Create a branch for the release/candidate: git checkout -b ${RELEASE_TICKET}.release-${RELEASE_VERSION}
+- Produce *and commit* recent changes: ./venv/bin/tox -e news
 
 Update the release notes:
 
@@ -167,7 +168,7 @@ Secure-copy all release artifacts to the download area on the tahoe-lafs.org hos
 - scp dist/*${RELEASE_VERSION}* username@tahoe-lafs.org:/home/source/downloads
 
 Push the signed tag to the main repository:
-- git push origin tahoe-lafs-$(RELEASE_VERSION)
+- git push origin tahoe-lafs-${RELEASE_VERSION}
 
 For an actual release, the tarball and signature files need to be uploaded to PyPI as well.
 In 2023 and forward, PyPI requires us to use tokens to upload.
