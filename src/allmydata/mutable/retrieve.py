@@ -4,7 +4,6 @@ Ported to Python 3.
 from __future__ import annotations
 
 import time
-from io import BytesIO
 from itertools import count
 
 from zope.interface import implementer
@@ -879,17 +878,11 @@ class Retrieve(object):
             d = self._segment_decoder.decode(shares, shareids)
 
         # For larger shares, this can take a few milliseconds. As such, we want
-        # to unblock the event loop. Even if it doesn't release the GIL, if it
-        # really takes too long it will implicitly release it.
-        def _join(buffers):
-            f = BytesIO()
-            for b in buffers:
-                f.write(b)
-            return f.getbuffer()
-
+        # to unblock the event loop. In newer Python b"".join() will release
+        # the GIL: https://github.com/python/cpython/issues/80232
         @deferredutil.async_to_deferred
         async def _got_buffers(buffers):
-            return await defer_to_thread(_join, buffers)
+            return await defer_to_thread(lambda: b"".join(buffers))
 
         d.addCallback(_got_buffers)
 
