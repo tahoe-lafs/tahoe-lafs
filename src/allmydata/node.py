@@ -200,14 +200,14 @@ def read_config(basedir, portnumfile, generated_files: Iterable = (), _valid_con
 
     config_path = FilePath(basedir).child("tahoe.cfg")
     try:
-        config_str = config_path.getContent()
+        config_bytes = config_path.getContent()
     except EnvironmentError as e:
         if e.errno != errno.ENOENT:
             raise
         # The file is missing, just create empty ConfigParser.
         config_str = u""
     else:
-        config_str = config_str.decode("utf-8-sig")
+        config_str = config_bytes.decode("utf-8-sig")
 
     return config_from_string(
         basedir,

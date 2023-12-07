@@ -26,7 +26,7 @@ from typing import Union, Callable, Tuple, Iterable
 from queue import Queue
 from cbor2 import dumps
 from pycddl import ValidationError as CDDLValidationError
-from hypothesis import assume, given, strategies as st
+from hypothesis import assume, given, strategies as st, settings as hypothesis_settings
 from fixtures import Fixture, TempDir, MonkeyPatch
 from treq.testing import StubTreq
 from klein import Klein
@@ -442,6 +442,9 @@ class CustomHTTPServerTests(SyncTestCase):
             result_of(client.get_version())
 
     @given(length=st.integers(min_value=1, max_value=1_000_000))
+    # On Python 3.12 we're getting weird deadline issues in CI, so disabling
+    # for now.
+    @hypothesis_settings(deadline=None)
     def test_limited_content_fits(self, length):
         """
         ``http_client.limited_content()`` returns the body if it is less than

@@ -131,3 +131,54 @@ developer summit.
 * acdfc299c35eed3bb27f7463ad8cdfcdcd4dcfd5184f290f87530c2be999de3e
   1.41401086 (@$714.16) = $1009.83, plus 0.000133 tx-fee
 
+
+Aspiration Contract
+-------------------
+
+In December 2018, we entered into an agreement with a non-profit named
+Aspiration (https://aspirationtech.org/) to fund contractors for development
+work. They handle payroll, taxes, and oversight, in exchange for an 8%
+management fee. The first phase of work will extend through most of 2019.
+
+* Recipient: Aspiration
+* Address: 1gDXYQNH4kCJ8Dk7kgiztfjNUaA1KJcHv
+
+These txids record the transfers from the primary 1Pxi address to the
+Aspiration-specific 1gDXY subaddress. In some cases, leftover funds
+were swept back into the main 1Pxi address after the transfers were
+complete.
+
+First phase, transfers performed 28-Dec-2018 - 31-Dec-2018, total 89
+BTC, about $350K.
+
+* 95c68d488bd92e8c164195370aaa516dff05aa4d8c543d3fb8cfafae2b811e7a
+  1.0 BTC plus 0.00002705 tx-fee
+* c0a5b8e3a63c56c4365d4c3ded0821bc1170f6351502849168bc34e30a0582d7
+  89.0 BTC plus 0.00000633 tx-fee
+* 421cff5f398509aaf48951520738e0e63dfddf1157920c15bdc72c34e24cf1cf
+  return 0.00005245 BTC to 1Pxi, less 0.00000211 tx-fee
+
+In November 2020, we funded a second phase of the work: 51.38094 BTC,
+about $800K.
+
+* 7558cbf3b24e8d835809d2d6f01a8ba229190102efdf36280d0639abaa488721
+  1.0 BTC plus 0.00230766 tx-fee
+* 9c78ae6bb7db62cbd6be82fd52d50a2f015285b562f05de0ebfb0e5afc6fd285
+  56.0 BTC plus 0.00057400 tx-fee
+* fbee4332e8c7ffbc9c1bcaee773f063550e589e58d350d14f6daaa473966c368
+  returning 5.61906 BTC to 1Pxi, less 0.00012000 tx-fee
+
+
+Open Collective
+---------------
+
+In August 2023, we started working with Open Collective to fund a
+grant covering development work performed over the last year.
+
+* Recipient: Open Collective (US)
+* Address: 1KZYr8UU2XjuEdSPzn2pF8eRPZZvffByDf
+
+The first phase transferred 7.5 BTC (about $260K).
+
+* (txid)
+  (amount)

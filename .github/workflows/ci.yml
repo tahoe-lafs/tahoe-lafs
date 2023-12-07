@@ -45,16 +45,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # On macOS don't bother with 3.8, just to get faster builds.
           - os: macos-12
-            python-version: "3.9"
-          - os: macos-12
-            python-version: "3.11"
+            python-version: "3.12"
           # We only support PyPy on Linux at the moment.
           - os: ubuntu-latest
             python-version: "pypy-3.8"
           - os: ubuntu-latest
             python-version: "pypy-3.9"
+          - os: ubuntu-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
 
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
@@ -72,7 +73,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade "tox<4" tox-gh-actions setuptools
+          pip install --upgrade tox tox-gh-actions setuptools
           pip list
 
       - name: Display tool versions
@@ -169,7 +170,7 @@ jobs:
           - false
         include:
           - os: ubuntu-20.04
-            python-version: "3.10"
+            python-version: "3.12"
             force-foolscap: true
     steps:
 
@@ -204,7 +205,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade "tox<4"
+          pip install --upgrade tox
           pip list
 
       - name: Display tool versions
@@ -264,7 +265,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade "tox<4"
+          pip install --upgrade tox
           pip list
 
       - name: Display tool versions

@@ -1,0 +1,1 @@
+Added support for Python 3.12, and work with Eliot 1.15

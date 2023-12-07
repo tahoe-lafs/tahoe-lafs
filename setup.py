@@ -32,9 +32,8 @@ VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
 
 install_requires = [
-    # we don't need much out of setuptools but the version checking stuff
-    # needs pkg_resources and PEP 440 version specifiers.
-    "setuptools >= 28.8.0",
+    # importlib.resources.files and friends are new in Python 3.9.
+    "importlib_resources; python_version < '3.9'",
 
     "zfec >= 1.1.0",
 
@@ -113,7 +112,7 @@ install_requires = [
     "magic-wormhole >= 0.10.2",
 
     # We want a new enough version to support custom JSON encoders.
-    "eliot >= 1.13.0",
+    "eliot >= 1.14.0",
 
     "pyrsistent",
 
@@ -156,10 +155,6 @@ install_requires = [
     # for pid-file support
     "psutil",
     "filelock",
-]
-
-setup_requires = [
-    'setuptools >= 28.8.0',  # for PEP-440 style versions
 ]
 
 tor_requires = [
@@ -385,8 +380,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
       package_dir = {'':'src'},
       packages=find_packages('src') + ['allmydata.test.plugins'],
       classifiers=trove_classifiers,
-      # We support Python 3.8 or later, 3.12 is untested for now
-      python_requires=">=3.8, <3.12",
+      # We support Python 3.8 or later, 3.13 is untested for now
+      python_requires=">=3.8, <3.13",
       install_requires=install_requires,
       extras_require={
           # Duplicate the Twisted pywin32 dependency here.  See
@@ -410,9 +405,8 @@ setup(name="tahoe-lafs", # also set in __init__.py
               # selected here are just the current versions at the time.
               # Bumping them to keep up with future releases is fine as long
               # as those releases are known to actually work.
-              "pip==22.0.3",
-              "wheel==0.37.1",
-              "setuptools==60.9.1",
+              "pip==23.3.1",
+              "wheel==0.41.3",
               "subunitreporter==23.8.0",
               "python-subunit==1.4.2",
               "junitxml==0.7",
@@ -448,7 +442,6 @@ setup(name="tahoe-lafs", # also set in __init__.py
                     "allmydata": ["ported-modules.txt"],
                     },
       include_package_data=True,
-      setup_requires=setup_requires,
       entry_points={
           'console_scripts': [
               'tahoe = allmydata.scripts.runner:run',

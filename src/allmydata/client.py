@@ -12,6 +12,7 @@ from base64 import urlsafe_b64encode
 from functools import partial
 from configparser import NoSectionError
 
+from six import ensure_text
 from foolscap.furl import (
     decode_furl,
 )
@@ -989,6 +990,9 @@ class _Client(node.Node, pollmixin.PollMixin):
             static_servers = servers_yaml.get("storage", {})
             log.msg("found %d static servers in private/servers.yaml" %
                     len(static_servers))
+            static_servers = {
+                ensure_text(key): value for (key, value) in static_servers.items()
+            }
             self.storage_broker.set_static_servers(static_servers)
         except EnvironmentError:
             pass

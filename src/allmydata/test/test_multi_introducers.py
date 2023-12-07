@@ -28,14 +28,14 @@ INTRODUCERS_CFG_FURLS_COMMENTED="""introducers:
 
 class MultiIntroTests(unittest.TestCase):
 
-    def setUp(self):
+    async def setUp(self):
         # setup tahoe.cfg and basedir/private/introducers
         # create a custom tahoe.cfg
         self.basedir = os.path.dirname(self.mktemp())
         c = open(os.path.join(self.basedir, "tahoe.cfg"), "w")
         config = {'hide-ip':False, 'listen': 'tcp',
                   'port': None, 'location': None, 'hostname': 'example.net'}
-        write_node_config(c, config)
+        await write_node_config(c, config)
         c.write("[storage]\n")
         c.write("enabled = false\n")
         c.close()
@@ -63,8 +63,7 @@ class MultiIntroTests(unittest.TestCase):
         # assertions
         self.failUnlessEqual(ic_count, len(connections["introducers"]))
 
-    @defer.inlineCallbacks
-    def test_read_introducer_furl_from_tahoecfg(self):
+    async def test_read_introducer_furl_from_tahoecfg(self):
         """
         The deprecated [client]introducer.furl item is still read and respected.
         """
@@ -72,7 +71,7 @@ class MultiIntroTests(unittest.TestCase):
         c = open(os.path.join(self.basedir, "tahoe.cfg"), "w")
         config = {'hide-ip':False, 'listen': 'tcp',
                   'port': None, 'location': None, 'hostname': 'example.net'}
-        write_node_config(c, config)
+        await write_node_config(c, config)
         fake_furl = "furl1"
         c.write("[client]\n")
         c.write("introducer.furl = %s\n" % fake_furl)
@@ -139,14 +138,14 @@ introducers:
 """
 
 class NoDefault(unittest.TestCase):
-    def setUp(self):
+    async def setUp(self):
         # setup tahoe.cfg and basedir/private/introducers
         # create a custom tahoe.cfg
         self.basedir = os.path.dirname(self.mktemp())
         c = open(os.path.join(self.basedir, "tahoe.cfg"), "w")
         config = {'hide-ip':False, 'listen': 'tcp',
                   'port': None, 'location': None, 'hostname': 'example.net'}
-        write_node_config(c, config)
+        await write_node_config(c, config)
         c.write("[storage]\n")
         c.write("enabled = false\n")
         c.close()
