@@ -929,7 +929,7 @@ class _Accum(object):
 class EncryptAnUploadable(object):
     """This is a wrapper that takes an IUploadable and provides
     IEncryptedUploadable."""
-    CHUNKSIZE = 50*1024
+    CHUNKSIZE = 512*1024
 
     def __init__(self, original, log_parent=None, chunk_size=None):
         """
