@@ -1,0 +1,1 @@
+Process data with larger chunks. This reduces CPU usage at the cost of an imperceptible increase in memory usage.
