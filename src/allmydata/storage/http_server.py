@@ -427,7 +427,7 @@ class _ReadAllProducer:
         return producer.result
 
     def resumeProducing(self) -> None:
-        data = self.read_data(self.start, 65536)
+        data = self.read_data(self.start, 1024 * 1024)
         if not data:
             self.request.unregisterProducer()
             d = self.result
@@ -462,7 +462,7 @@ class _ReadRangeProducer:
         if self.result is None or self.request is None:
             return
 
-        to_read = min(self.remaining, 65536)
+        to_read = min(self.remaining, 1024 * 1024)
         data = self.read_data(self.start, to_read)
         assert len(data) <= to_read
 
@@ -845,7 +845,7 @@ class HTTPServer(BaseApp):
         finished = False
 
         while remaining > 0:
-            data = request.content.read(min(remaining, 65536))
+            data = request.content.read(min(remaining, 1024 * 1024))
             assert data, "uploaded data length doesn't match range"
             try:
                 finished = bucket.write(offset, data)
