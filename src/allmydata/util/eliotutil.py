@@ -41,8 +41,6 @@ from eliot import (
     ILogger,
     Message,
     FileDestination,
-    add_destinations,
-    remove_destination,
     write_traceback,
     start_action,
 )
