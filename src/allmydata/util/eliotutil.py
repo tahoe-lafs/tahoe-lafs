@@ -36,7 +36,7 @@ from attr.validators import (
     optional,
     provides,
 )
-
+from twisted.internet import reactor
 from eliot import (
     ILogger,
     Message,
@@ -58,6 +58,7 @@ from eliot.twisted import (
     DeferredContext,
     inline_callbacks,
 )
+from eliot.logwriter import ThreadedWriter
 from twisted.python.usage import (
     UsageError,
 )
@@ -75,7 +76,7 @@ from twisted.logger import (
 from twisted.internet.defer import (
     maybeDeferred,
 )
-from twisted.application.service import Service
+from twisted.application.service import MultiService
 
 from .jsonbytes import AnyBytesJSONEncoder
 
@@ -144,7 +145,7 @@ def opt_help_eliot_destinations(self):
     raise SystemExit(0)
 
 
-class _EliotLogging(Service):
+class _EliotLogging(MultiService):
     """
     A service which adds stdout as an Eliot destination while it is running.
     """
@@ -153,23 +154,22 @@ class _EliotLogging(Service):
         :param list destinations: The Eliot destinations which will is added by this
             service.
         """
-        self.destinations = destinations
-
+        MultiService.__init__(self)
+        for destination in destinations:
+            service = ThreadedWriter(destination, reactor)
+            service.setServiceParent(self)
 
     def startService(self):
         self.stdlib_cleanup = _stdlib_logging_to_eliot_configuration(getLogger())
         self.twisted_observer = _TwistedLoggerToEliotObserver()
         globalLogPublisher.addObserver(self.twisted_observer)
-        add_destinations(*self.destinations)
-        return Service.startService(self)
+        return MultiService.startService(self)
 
 
     def stopService(self):
-        for dest in self.destinations:
-            remove_destination(dest)
         globalLogPublisher.removeObserver(self.twisted_observer)
         self.stdlib_cleanup()
-        return Service.stopService(self)
+        return MultiService.stopService(self)
 
 
 @implementer(ILogObserver)
