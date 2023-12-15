@@ -1109,6 +1109,10 @@ class EncryptAnUploadable(object):
         # we use data.pop(0) instead of 'for chunk in data' to save
         # memory: each chunk is destroyed as soon as we're done with it.
         bytes_processed = 0
+        # TODO this is always a list with a single item. Just change
+        # IUploadable.read() to return bytes, and simplify this.
+        # TODO if it's large chunk, run in the CPU thread pool.
+        # TODO the above will require some sort of locking scheme on the shared resources. perhaps refactor them into separate object?
         while data:
             chunk = data.pop(0)
             self.log(" read_encrypted handling %dB-sized chunk" % len(chunk),
