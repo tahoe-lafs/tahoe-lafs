@@ -533,10 +533,11 @@ class DownloadNode(object):
         self._segment_requests = [t for t in self._segment_requests
                                   if t[2] != cancel]
         segnums = [segnum for (segnum,d,c,seg_ev,lp) in self._segment_requests]
+
         # self._active_segment might be None in rare circumstances, so make
         # sure we tolerate it
         if self._active_segment and self._active_segment.segnum not in segnums:
-            seg, self._active_segment = self._active_segment, None##True # XXX None for real
+            seg, self._active_segment = self._active_segment, None
             seg.stop()
             self._start_new_segment()
 
