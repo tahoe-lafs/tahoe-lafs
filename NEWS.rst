@@ -5,14 +5,8 @@ User-Visible Changes in Tahoe-LAFS
 ==================================
 
 .. towncrier start line
-Release 1.18.0.post1720.dev0 (2024-01-04)
-'''''''''''''''''''''''''''''''''''''''''
-
-No significant changes.
-
-
-Release 1.18.0.post1720 (2024-01-04)
-''''''''''''''''''''''''''''''''''''
+Release 1.190 (2024-01-04)
+''''''''''''''''''''''''''
 
 Features
 --------
