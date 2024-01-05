@@ -1,1 +1,0 @@
-Tahoe-LAFS is incompatible with cryptography >= 40 and now declares a requirement on an older version.

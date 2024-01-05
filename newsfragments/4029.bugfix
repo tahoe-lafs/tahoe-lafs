@@ -1,2 +1,0 @@
-The (still off-by-default) HTTP storage client will now use Tor when Tor-based client-side anonymity was requested.
-Previously it would use normal TCP connections and not be anonymous.
