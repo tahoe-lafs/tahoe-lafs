@@ -1,1 +1,0 @@
-The storage server and client now support a new, HTTPS-based protocol.

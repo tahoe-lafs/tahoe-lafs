@@ -1,1 +1,0 @@
-Mutable objects can now be created with a pre-determined "signature key" using the ``tahoe put`` CLI or the HTTP API.  This enables deterministic creation of mutable capabilities.  This feature must be used with care to preserve the normal security and reliability properties.

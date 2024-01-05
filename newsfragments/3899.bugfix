@@ -1,4 +1,0 @@
-Provide better feedback from plugin configuration errors
-
-Local errors now print a useful message and exit.
-Announcements that only contain invalid / unusable plugins now show a message in the Welcome page.

@@ -1,1 +1,0 @@
-Fix incompatibility with transitive dependency charset_normalizer >= 3  when using PyInstaller.
