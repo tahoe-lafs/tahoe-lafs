@@ -1707,3 +1707,85 @@ class Selection(unittest.TestCase):
                                                       2: "block-2"}) )
         d.addCallback(_check4)
         return d
+
+
+from allmydata.immutable.downloader.node import DownloadNode
+class FakeShareFinder:
+    def hungry(self):
+        return True
+
+
+from allmydata.codec import CRSDecoder
+
+class SomewhatFakeNode(DownloadNode):
+    def __init__(self, *args, **kw):
+        DownloadNode.__init__(self, *args, **kw)
+        self._sharefinder = FakeShareFinder()
+        self.num_segments = 1
+        self.segment_size = 128
+        self.chunk_size = 32
+        self.data_size = 128
+        self.tail_segment_padded = 128
+        self.tail_block_size = 128
+        self._codec = CRSDecoder()
+        self._codec.set_params(self.segment_size, 1, 1)
+
+
+from allmydata.immutable.downloader.status import ReadEvent, DownloadStatus, SegmentEvent
+
+class FakeStatus:##(DownloadStatus):
+    requests = []
+
+    def update_last_timestamp(self, when):
+        pass
+
+    def add_misc_event(*args):
+        pass
+
+    def add_segment_request(self, segnum, when):
+        r = {
+            "segment_number": segnum,
+            "start_time": when,
+            "active_time": None,
+            "finish_time": None,
+            "success": None,
+            "decode_time": None,
+            "segment_start": None,
+            "segment_length": None,
+        }
+        o = SegmentEvent(r, self)
+        self.requests.append((o, segnum, when))
+        return o
+
+
+class TestSegmentFetcher(unittest.TestCase):
+    """
+    Direct tests of immutable.downloader.fetcher.SegmentFetcher
+    """
+    K = 1
+    M = 1
+    SIZE = 128
+    SEGSIZE = 32
+
+    async def test_race_condition(self):
+        """
+        4078 identifies a race-condition ...
+        """
+        uebdict = {
+            'segment_size': self.SEGSIZE,
+            'crypttext_root_hash': b'0' * hashutil.CRYPTO_VAL_SIZE,
+            'share_root_hash': b'1' * hashutil.CRYPTO_VAL_SIZE
+        }
+        uebstring = uri.pack_extension(uebdict)
+        uebhash = hashutil.uri_extension_hash(uebstring)
+
+        verifycap = uri.CHKFileVerifierURI(storage_index=b'x'*16, uri_extension_hash=uebhash, needed_shares=self.K, total_shares=self.M, size=self.SIZE)
+        broker = object()
+        holder = object()
+        status = FakeStatus()
+        node = SomewhatFakeNode(verifycap, broker, holder, None, None, status)
+
+        node.get_segment(0)
+
+        node.process_blocks(0, {0: b"x"*128})
+        await flushEventualQueue()
