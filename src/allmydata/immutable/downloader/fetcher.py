@@ -63,6 +63,9 @@ class SegmentFetcher(object):
         self._running = True
 
     def stop(self):
+        # this may be stopped at least twice: once from the Terminator
+        # of the Node and once when/if we have all the blocks (i.e. we
+        # call self.stop on ourself)
         if self._running:
             log.msg("SegmentFetcher(%r).stop" % self._node._si_prefix,
                     level=log.NOISY, parent=self._lp, umid="LWyqpg")
