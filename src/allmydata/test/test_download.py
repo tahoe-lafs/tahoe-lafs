@@ -1731,7 +1731,7 @@ class SomewhatFakeNode(DownloadNode):
         self._codec.set_params(self.segment_size, 1, 1)
 
 
-from allmydata.immutable.downloader.status import ReadEvent, DownloadStatus, SegmentEvent
+from allmydata.immutable.downloader.status import ReadEvent, DownloadStatus, SegmentEvent, BlockRequestEvent
 
 class FakeStatus:##(DownloadStatus):
     requests = []
@@ -1741,6 +1741,18 @@ class FakeStatus:##(DownloadStatus):
 
     def add_misc_event(*args):
         pass
+
+    def add_block_request(self, server, shnum, start, length, when):
+        r = { "server": server,
+              "shnum": shnum,
+              "start": start,
+              "length": length,
+              "start_time": when,
+              "finish_time": None,
+              "success": None,
+              "response_length": None,
+              }
+        return BlockRequestEvent(r, self)
 
     def add_segment_request(self, segnum, when):
         r = {
@@ -1786,6 +1798,26 @@ class TestSegmentFetcher(unittest.TestCase):
         node = SomewhatFakeNode(verifycap, broker, holder, None, None, status)
 
         node.get_segment(0)
+        from allmydata.immutable.downloader.share import Share
+
+        class FakeServer:
+            def get_name(self):
+                return b"foo"
+            def get_version(self):
+                return {
+                    b"http://allmydata.org/tahoe/protocols/storage/v1": {
+                        b"tolerates-immutable-read-overrun": False,
+                    }
+                }
+
+        class FakeRef:
+            def callRemote(self, *args):
+                print("callremote", args)
+                return defer.succeed(None)
+
+        rref = FakeRef()
+        s = Share(rref, FakeServer(), verifycap, None, node, status, 1, 0.1, None)
+        node.got_shares([s])
 
         node.process_blocks(0, {0: b"x"*128})
         await flushEventualQueue()
