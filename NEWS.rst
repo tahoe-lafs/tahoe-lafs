@@ -13,7 +13,6 @@ Features
 
 - Tahoe-LAFS now includes a new "Grid Manager" specification and implementation adding more options to control which storage servers a client will use for uploads. (`#2916 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2916>`_)
 - Added support for Python 3.12, and work with Eliot 1.15 (`#3072 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3072>`_)
-- The new HTTPS-based storage server is now enabled transparently on the same port as the Foolscap server. This will not have any user-facing impact until the HTTPS storage protocol is supported in clients as well. (`#3902 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3902>`_)
 - `tahoe run ...` will now exit when its stdin is closed.
 
   This facilitates subprocess management, specifically cleanup.
@@ -52,7 +51,6 @@ Dependency/Installation Changes
 -------------------------------
 
 - tenacity is no longer a dependency. (`#3989 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3989>`_)
-- Tahoe-LAFS is incompatible with cryptography >= 40 and now declares a requirement on an older version. (`#3997 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3997>`_)
 
 
 Documentation Changes

@@ -32,7 +32,7 @@ storage-servers and clients support this new protocol.
 Mutables may be created with a pre-determined signature key; care must
 be taken!
 
-This release drops Python 3.7 support and adds Python 3.11
+This release drops Python 3.7 support and adds Python 3.11 and 3.12
 support. Several performance improvements have been made. Introducer
 correctly listens on Tor or I2P. Debian 10 and Ubuntu 20.04 are no
 longer tested.
