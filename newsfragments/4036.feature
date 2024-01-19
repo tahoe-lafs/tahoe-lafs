@@ -1,1 +1,0 @@
-tahoe run now accepts --allow-stdin-close to mean "keep running if stdin closes"

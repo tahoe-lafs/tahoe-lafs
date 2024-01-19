@@ -147,7 +147,7 @@ they will need to evaluate which contributors' signatures they trust.
 
 - when satisfied, sign the tarballs:
 
-  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.16.0rc0-py2.py3-none-any.whl
+  - gpg --pinentry=loopback --armor -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A --detach-sign dist/tahoe_lafs-1.16.0rc0-py2.py3-none-any.whl
   - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.16.0rc0.tar.gz
 
 
@@ -197,13 +197,15 @@ Push the signed tag to the main repository:
 For the actual release, the tarball and signature files need to be
 uploaded to PyPI as well.
 
-- how to do this?
-- (original guide says only `twine upload dist/*`)
-- the following developers have access to do this:
+- ls dist/*1.19.0*
+- twine upload --username __token__ --password `cat SECRET-pypi-tahoe-publish-token` dist/*1.19.0*
+
+The following developers have access to do this:
 
   - warner
+  - meejah
   - exarkun (partial?)
-  - meejah (partial?)
+
 
 Announcing the Release Candidate
 ````````````````````````````````

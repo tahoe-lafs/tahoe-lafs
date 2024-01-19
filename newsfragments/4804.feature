@@ -1,1 +1,0 @@
-Logs are now written in a thread, which should make the application more responsive under load.
