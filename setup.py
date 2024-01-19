@@ -143,7 +143,8 @@ install_requires = [
     # 2.2.0 has a bug: https://github.com/pallets/werkzeug/issues/2465
     "werkzeug != 2.2.0",
     "treq",
-    "cbor2",
+    # 5.6.0 excluded because https://github.com/agronholm/cbor2/issues/208
+    "cbor2 != 5.6.0",
 
     # 0.4 adds the ability to pass in mmap() values which greatly reduces the
     # amount of copying involved.
