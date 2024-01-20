@@ -41,6 +41,7 @@ from werkzeug import routing
 from werkzeug.exceptions import NotFound as WNotFound
 from testtools.matchers import Equals
 from zope.interface import implementer
+import cbor2
 
 from ..util.deferredutil import async_to_deferred
 from ..util.cputhreadpool import disable_thread_pool_for_test
@@ -1835,3 +1836,14 @@ class MutableSharedTests(SharedImmutableMutableTestsMixin, SyncTestCase):
         A read with no range returns the whole mutable.
         """
         return self._read_with_no_range_test(data_length)
+
+    def test_roundtrip_cbor2_encoding_issue(self):
+        """
+        Some versions of cbor2 (5.6.0) don't correctly encode bytestrings
+        bigger than 65535
+        """
+        for size in range(0, 65535*2, 17):
+            self.assertEqual(
+                size,
+                len(cbor2.loads(cbor2.dumps(b"\12" * size)))
+            )
