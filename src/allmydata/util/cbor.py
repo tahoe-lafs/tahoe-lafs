@@ -11,11 +11,11 @@ from cbor2 import dumps, dump
 # Now, override the C extension so we can import the Python versions of loading
 # functions.
 del sys.modules["cbor2"]
-sys.modules["_cbor2"] = None
+sys.modules["_cbor2"] = None  # type: ignore[assignment]
 from cbor2 import load, loads
 
 # Quick validation that we got the Python version, not the C version.
-assert type(load) == type(lambda: None), repr(load)
-assert type(loads) == type(lambda: None), repr(loads)
+assert type(load) == type(lambda: None), repr(load)   # type: ignore[comparison-overlap]
+assert type(loads) == type(lambda: None), repr(loads)   # type: ignore[comparison-overlap]
 
 __all__ = ["dumps", "loads", "dump", "load"]
