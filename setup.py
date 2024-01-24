@@ -146,9 +146,8 @@ install_requires = [
     # 5.6.0 excluded because https://github.com/agronholm/cbor2/issues/208
     "cbor2 != 5.6.0",
 
-    # 0.4 adds the ability to pass in mmap() values which greatly reduces the
-    # amount of copying involved.
-    "pycddl >= 0.4",
+    # 0.6 adds the ability to decode CBOR.
+    "pycddl >= 0.6",
 
     # Command-line parsing
     "click >= 8.1.1",

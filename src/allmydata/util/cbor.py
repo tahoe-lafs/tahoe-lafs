@@ -1,21 +1,19 @@
 """
 Unified entry point for CBOR encoding and decoding.
-"""
 
-import sys
+Makes it less likely to use ``cbor2.loads()`` by mistake, which we want to avoid.
+"""
 
 # We don't want to use the C extension for loading, at least for now, but using
 # it for dumping should be fine.
 from cbor2 import dumps, dump
 
-# Now, override the C extension so we can import the Python versions of loading
-# functions.
-del sys.modules["cbor2"]
-sys.modules["_cbor2"] = None  # type: ignore[assignment]
-from cbor2 import load, loads
+def load(*args, **kwargs):
+    """
+    Don't use this!  Here just in case someone uses it by mistake.
+    """
+    raise RuntimeError("Use pycddl for decoding CBOR")
 
-# Quick validation that we got the Python version, not the C version.
-assert type(load) == type(lambda: None), repr(load)   # type: ignore[comparison-overlap]
-assert type(loads) == type(lambda: None), repr(loads)   # type: ignore[comparison-overlap]
+loads = load
 
 __all__ = ["dumps", "loads", "dump", "load"]

@@ -637,17 +637,8 @@ async def read_encoded(
 
     # Pycddl will release the GIL when validating larger documents, so
     # let's take advantage of multiple CPUs:
-    await defer_to_thread(schema.validate_cbor, message)
-
-    # The CBOR parser will allocate more memory, but at least we can feed
-    # it the file-like object, so that if it's large it won't be make two
-    # copies.
-    request.content.seek(SEEK_SET, 0)
-    # Typically deserialization to Python will not release the GIL, and
-    # indeed as of Jan 2023 cbor2 didn't have any code to release the GIL
-    # in the decode path. As such, running it in a different thread has no benefit.
-    return cbor.load(request.content)
-
+    decoded = await defer_to_thread(schema.validate_cbor, message, True)
+    return decoded
 
 class HTTPServer(BaseApp):
     """
