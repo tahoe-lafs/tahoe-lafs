@@ -30,12 +30,12 @@
 { lib, fetchPypi, python, buildPythonPackage, rustPlatform }:
 buildPythonPackage rec {
   pname = "pycddl";
-  version = "0.4.0";
+  version = "0.6.1";
   format = "pyproject";
 
   src = fetchPypi {
     inherit pname version;
-    sha256 = "sha256-w0CGbPeiXyS74HqZXyiXhvaAMUaIj5onwjl9gWKAjqY=";
+    sha256 = "sha256-63fe8UJXEH6t4l7ujV8JDvlGb7q3kL6fHHATFdklzFc=";
   };
 
   # Without this, when building for PyPy, `maturin build` seems to fail to
@@ -52,6 +52,6 @@ buildPythonPackage rec {
   cargoDeps = rustPlatform.fetchCargoTarball {
     inherit src;
     name = "${pname}-${version}";
-    hash = "sha256-g96eeaqN9taPED4u+UKUcoitf5aTGFrW2/TOHoHEVHs=";
+    hash = "sha256-ssDEKRd3Y9/10oXBZHCxvlRkl9KMh3pGYbCkM4rXThQ=";
   };
 }
