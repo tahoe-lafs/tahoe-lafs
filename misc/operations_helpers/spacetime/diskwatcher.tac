@@ -1,6 +1,5 @@
 # -*- python -*-
 
-from __future__ import print_function
 
 """
 Run this tool with twistd in its own directory, with a file named 'urls.txt'

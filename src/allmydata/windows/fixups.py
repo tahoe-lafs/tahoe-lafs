@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 from future.utils import PY3
 from past.builtins import unicode
