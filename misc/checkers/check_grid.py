@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 """
 Test an existing Tahoe grid, both to see if the grid is still running and to

@@ -1,12 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import (
-    print_function,
-    unicode_literals,
-    absolute_import,
-    division,
-)
 
 from autobahn.twisted.resource import WebSocketResource
 from autobahn.twisted.websocket import (

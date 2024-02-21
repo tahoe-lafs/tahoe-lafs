@@ -4,10 +4,6 @@ Tests for allmydata.util.humanreadable.
 This module has been ported to Python 3.
 """
 
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from future.utils import PY2
 if PY2:
@@ -31,7 +27,7 @@ class NoArgumentException(Exception):
 class HumanReadable(unittest.TestCase):
     def test_repr(self):
         hr = humanreadable.hr
-        self.failUnlessEqual(hr(foo), "<foo() at test_humanreadable.py:24>")
+        self.failUnlessEqual(hr(foo), "<foo() at test_humanreadable.py:20>")
         self.failUnlessEqual(hr(self.test_repr),
                              "<bound method HumanReadable.test_repr of <allmydata.test.test_humanreadable.HumanReadable testMethod=test_repr>>")
         self.failUnlessEqual(hr(long(1)), "1")

@@ -24,7 +24,6 @@ from contextlib import contextmanager
 from os import urandom
 from typing import Union, Callable, Tuple, Iterable
 from queue import Queue
-from cbor2 import dumps
 from pycddl import ValidationError as CDDLValidationError
 from hypothesis import assume, given, strategies as st, settings as hypothesis_settings
 from fixtures import Fixture, TempDir, MonkeyPatch
@@ -42,6 +41,7 @@ from werkzeug.exceptions import NotFound as WNotFound
 from testtools.matchers import Equals
 from zope.interface import implementer
 
+from ..util.cbor import dumps
 from ..util.deferredutil import async_to_deferred
 from ..util.cputhreadpool import disable_thread_pool_for_test
 from .common import SyncTestCase
