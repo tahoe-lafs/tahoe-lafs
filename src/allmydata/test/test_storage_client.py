@@ -41,6 +41,7 @@ import attr
 
 from twisted.internet.interfaces import (
     IStreamClientEndpoint,
+    IProtocolFactory,
 )
 from twisted.application.service import (
     Service,
@@ -604,7 +605,7 @@ class SpyHandler(object):
         ``Deferred`` that was returned from ``connect`` and the factory that
         was passed to ``connect``.
     """
-    _connects = attr.ib(default=attr.Factory(list))
+    _connects : list[tuple[Deferred[object], IProtocolFactory]]= attr.ib(default=attr.Factory(list))
 
     def hint_to_endpoint(self, hint, reactor, update_status):
         return (SpyEndpoint(self._connects.append), hint)

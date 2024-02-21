@@ -32,7 +32,7 @@ Ported to Python 3.
 
 from __future__ import annotations
 
-from typing import Union, Callable, Any, Optional, cast, Dict
+from typing import Union, Callable, Any, Optional, cast, Dict, Iterable
 from os import urandom
 import re
 import time
@@ -139,9 +139,9 @@ class StorageClientConfig(object):
         only upload to a storage-server that has a valid certificate
         signed by at least one of these keys.
     """
-    preferred_peers = attr.ib(default=())
-    storage_plugins = attr.ib(default=attr.Factory(dict))
-    grid_manager_keys = attr.ib(default=attr.Factory(list))
+    preferred_peers : Iterable[bytes] = attr.ib(default=())
+    storage_plugins : dict[str, dict[str, str]] = attr.ib(default=attr.Factory(dict))
+    grid_manager_keys : list[ed25519.Ed25519PublicKey] = attr.ib(default=attr.Factory(list))
 
     @classmethod
     def from_node_config(cls, config):
@@ -1107,18 +1107,21 @@ class NativeStorageServer(service.MultiService):
 async def _pick_a_http_server(
         reactor,
         nurls: list[DecodedURL],
-        request: Callable[[Any, DecodedURL], defer.Deferred[Any]]
+        request: Callable[[object, DecodedURL], defer.Deferred[object]]
 ) -> DecodedURL:
     """Pick the first server we successfully send a request to.
 
     Fires with ``None`` if no server was found, or with the ``DecodedURL`` of
     the first successfully-connected server.
     """
-    queries = race([
-        request(reactor, nurl).addCallback(lambda _, nurl=nurl: nurl)
-        for nurl in nurls
-    ])
+    requests = []
+    for nurl in nurls:
+        def to_nurl(_: object, nurl: DecodedURL=nurl) -> DecodedURL:
+            return nurl
 
+        requests.append(request(reactor, nurl).addCallback(to_nurl))
+
+    queries: defer.Deferred[tuple[int, DecodedURL]] = race(requests)
     _, nurl = await queries
     return nurl
 
