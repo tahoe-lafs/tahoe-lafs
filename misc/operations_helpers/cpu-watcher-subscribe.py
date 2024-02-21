@@ -1,6 +1,5 @@
 # -*- python -*-
 
-from __future__ import print_function
 
 from twisted.internet import reactor
 import sys

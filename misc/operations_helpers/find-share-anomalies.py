@@ -2,7 +2,6 @@
 
 # feed this the results of 'tahoe catalog-shares' for all servers
 
-from __future__ import print_function
 
 import sys
 
