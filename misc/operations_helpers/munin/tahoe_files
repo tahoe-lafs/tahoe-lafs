@@ -18,7 +18,6 @@
 #  env.basedir_NODE3 /path/to/node3
 #
 
-from __future__ import print_function
 
 import os, sys
 

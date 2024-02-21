@@ -7,10 +7,6 @@ Ported to Python 3.
 Once Python 2 support is dropped, most of this module will obsolete, since
 Unicode is the default everywhere in Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 from future.utils import PY2, PY3, native_str
 from future.builtins import str as future_str

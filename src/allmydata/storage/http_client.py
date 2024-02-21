@@ -26,8 +26,6 @@ from attrs import define, asdict, frozen, field
 from eliot import start_action, register_exception_extractor
 from eliot.twisted import DeferredContext
 
-# TODO Make sure to import Python version?
-from cbor2 import loads, dumps
 from pycddl import Schema
 from collections_extended import RangeMap
 from werkzeug.datastructures import Range, ContentRange
@@ -65,6 +63,7 @@ from ..util.hashutil import timing_safe_compare
 from ..util.deferredutil import async_to_deferred
 from ..util.tor_provider import _Provider as TorProvider
 from ..util.cputhreadpool import defer_to_thread
+from ..util.cbor import dumps
 
 try:
     from txtorcon import Tor  # type: ignore
@@ -561,8 +560,7 @@ class StorageClient(object):
                     data = f.read()
 
                     def validate_and_decode():
-                        schema.validate_cbor(data)
-                        return loads(data)
+                        return schema.validate_cbor(data, True)
 
                     return await defer_to_thread(validate_and_decode)
                 else:

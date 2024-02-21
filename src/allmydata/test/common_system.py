@@ -700,6 +700,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         self.sparent.startService()
 
     def _got_new_http_connection_pool(self, pool):
+        # Make sure the pool closes cached connections quickly:
+        pool.cachedConnectionTimeout = 0.1
         # Register the pool for shutdown later:
         self._http_client_pools.append(pool)
         # Disable retries:

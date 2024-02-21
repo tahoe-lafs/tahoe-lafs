@@ -177,8 +177,8 @@ class MemoryIntroducerClient(object):
     sequencer = attr.ib()
     cache_filepath = attr.ib()
 
-    subscribed_to = attr.ib(default=attr.Factory(list))
-    published_announcements = attr.ib(default=attr.Factory(list))
+    subscribed_to : list[Subscription] = attr.ib(default=attr.Factory(list))
+    published_announcements : list[Announcement] = attr.ib(default=attr.Factory(list))
 
 
     def setServiceParent(self, parent):
@@ -288,7 +288,7 @@ class UseNode(object):
     basedir = attr.ib(validator=attr.validators.instance_of(FilePath))
     introducer_furl = attr.ib(validator=attr.validators.instance_of(str),
                               converter=six.ensure_str)
-    node_config = attr.ib(default=attr.Factory(dict))
+    node_config : dict[bytes,bytes] = attr.ib(default=attr.Factory(dict))
 
     config = attr.ib(default=None)
     reactor = attr.ib(default=None)

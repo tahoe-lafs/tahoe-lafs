@@ -1,3 +1,0 @@
-Provide our own copy of attrs' "provides()" validator
-
-This validator is deprecated and slated for removal; that project's suggestion is to copy the code to our project.

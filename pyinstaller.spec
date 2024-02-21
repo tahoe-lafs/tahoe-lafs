@@ -1,6 +1,5 @@
 # -*- mode: python -*-
 
-from __future__ import print_function
 
 from distutils.sysconfig import get_python_lib
 import hashlib

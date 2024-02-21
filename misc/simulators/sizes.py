@@ -1,6 +1,5 @@
 #! /usr/bin/env python
 
-from __future__ import print_function
 
 from future.utils import PY2
 if PY2:

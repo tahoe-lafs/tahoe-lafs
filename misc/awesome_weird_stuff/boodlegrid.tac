@@ -1,6 +1,5 @@
 # -*- python -*-
 
-from __future__ import print_function
 
 """Monitor a Tahoe grid, by playing sounds in response to remote events.
 
