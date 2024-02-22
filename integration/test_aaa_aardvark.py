@@ -6,11 +6,6 @@
 # longer" to start the first test as the fixtures get built
 
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-
 def test_create_flogger(flog_gatherer):
     print("Created flog_gatherer")
 

@@ -4,9 +4,6 @@ Ported to Python 3.
 
 
 from future.utils import PY2, native_str
-if PY2:
-    # Omitted types (bytes etc.) so future variants don't confuse Foolscap.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, object, range, max, min  # noqa: F401
 
 from zope.interface import Interface
 from foolscap.api import StringConstraint, SetOf, DictOf, Any, \

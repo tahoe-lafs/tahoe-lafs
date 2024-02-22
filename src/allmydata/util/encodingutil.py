@@ -10,9 +10,6 @@ Unicode is the default everywhere in Python 3.
 
 from future.utils import PY2, PY3, native_str
 from future.builtins import str as future_str
-if PY2:
-    # We omit str() because that seems too tricky to get right.
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
 
 from past.builtins import unicode
 from six import ensure_str

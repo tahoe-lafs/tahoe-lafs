@@ -6,8 +6,6 @@ Ported to Python 3.
 
 
 from future.utils import PY2, native_str
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from twisted.trial import unittest
 from twisted.python.failure import Failure

@@ -1,8 +1,5 @@
 
 from future.utils import PY2, PY3
-if PY2:
-    # We don't import str because omg way too ambiguous in this context.
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
 
 from past.builtins import unicode
 
@@ -137,19 +134,6 @@ class EncodingUtil(ReallyEqualMixin):
     def test_unicode_to_url(self):
         self.failUnless(unicode_to_url(lumiere_nfc), b"lumi\xc3\xa8re")
 
-    @skipIf(PY3, "Python 3 is always Unicode, regardless of OS.")
-    def test_unicode_to_output_py2(self):
-        if 'argv' not in dir(self):
-            return
-
-        mock_stdout = MockStdout()
-        mock_stdout.encoding = self.io_encoding
-        self.patch(sys, 'stdout', mock_stdout)
-
-        _reload()
-        self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), self.argv)
-
-    @skipIf(PY2, "Python 3 only.")
     def test_unicode_to_output_py3(self):
         self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), lumiere_nfc)
 
@@ -167,20 +151,6 @@ class EncodingUtil(ReallyEqualMixin):
         self.assertIsInstance(result, type(expected_value))
         self.assertEqual(result, expected_value)
 
-    @skipIf(PY3, "Python 3 only.")
-    def test_unicode_platform_py2(self):
-        matrix = {
-          'linux2': False,
-          'linux3': False,
-          'openbsd4': False,
-          'win32':  True,
-          'darwin': True,
-        }
-
-        _reload()
-        self.failUnlessReallyEqual(unicode_platform(), matrix[self.platform])
-
-    @skipIf(PY2, "Python 3 isn't Python 2.")
     def test_unicode_platform_py3(self):
         _reload()
         self.failUnlessReallyEqual(unicode_platform(), True)
@@ -361,9 +331,6 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
 
     def test_quote_output_utf8(self, enc='utf-8'):
         def check(inp, out, optional_quotes=False, quote_newlines=None):
-            if PY2:
-                # On Python 3 output is always Unicode:
-                out = out.encode('utf-8')
             self._check(inp, out, enc, optional_quotes, quote_newlines)
 
         self._test_quote_output_all(enc)

@@ -2,11 +2,6 @@
 Ported to Python3.
 """
 
-
-from future.utils import PY2
-if PY2:
-    # open is not here because we want to use native strings on Py2
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 import six
 import os, time, sys
 import yaml
@@ -189,8 +184,6 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessRaises(AssertionError, fileutil.abspath_expanduser_unicode, b"bytestring")
 
         saved_cwd = os.path.normpath(os.getcwd())
-        if PY2:
-            saved_cwd = saved_cwd.decode("utf8")
         abspath_cwd = fileutil.abspath_expanduser_unicode(u".")
         abspath_cwd_notlong = fileutil.abspath_expanduser_unicode(u".", long_path=False)
         self.failUnless(isinstance(saved_cwd, str), saved_cwd)
