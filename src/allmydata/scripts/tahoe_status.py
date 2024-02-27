@@ -24,13 +24,12 @@ def print(*args, **kwargs):
     encoding error handler and then write the result whereas builtin print
     uses the "strict" encoding error handler.
     """
-    from past.builtins import unicode
     out = kwargs.pop("file", None)
     if out is None:
         out = _sys_stdout
     encoding = out.encoding or "ascii"
     def ensafe(o):
-        if isinstance(o, unicode):
+        if isinstance(o, str):
             return o.encode(encoding, errors="replace").decode(encoding)
         return o
     return _print(

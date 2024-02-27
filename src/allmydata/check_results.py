@@ -1,8 +1,6 @@
 """Ported to Python 3.
 """
 
-from past.builtins import unicode
-
 from zope.interface import implementer
 from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
      IDeepCheckResults, IDeepCheckAndRepairResults, IURI, IDisplayableServer
@@ -64,7 +62,7 @@ class CheckResults(object):
         # unicode.
         if isinstance(summary, bytes):
             summary = unicode(summary, "utf-8")
-        assert isinstance(summary, unicode)  # should be a single string
+        assert isinstance(summary, str)  # should be a single string
         self._summary = summary
         assert not isinstance(report, str) # should be list of strings
         self._report = report

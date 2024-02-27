@@ -5,7 +5,6 @@ Ported to Python 3.
 from __future__ import annotations
 
 from future.utils import native_str
-from past.builtins import long, unicode
 from six import ensure_str
 
 import os, time, weakref, itertools
@@ -57,7 +56,7 @@ from eliot import (
 
 _TOTAL_SHARES = Field.for_types(
     u"total_shares",
-    [int, long],
+    [int, int],
     u"The total number of shares desired.",
 )
 
@@ -104,7 +103,7 @@ _HAPPINESS_MAPPINGS = Field(
 
 _HAPPINESS = Field.for_types(
     u"happiness",
-    [int, long],
+    [int, int],
     u"The computed happiness of a certain placement.",
 )
 
@@ -142,7 +141,7 @@ GET_SHARE_PLACEMENTS = MessageType(
 
 _EFFECTIVE_HAPPINESS = Field.for_types(
     u"effective_happiness",
-    [int, long],
+    [int, int],
     u"The computed happiness value of a share placement map.",
 )
 
@@ -1622,7 +1621,7 @@ class AssistedUploader(object):
         # abbreviated), so if we detect old results, just clobber them.
 
         sharemap = upload_results.sharemap
-        if any(isinstance(v, (bytes, unicode)) for v in sharemap.values()):
+        if any(isinstance(v, (bytes, str)) for v in sharemap.values()):
             upload_results.sharemap = None
 
     def _build_verifycap(self, helper_upload_results):
@@ -1701,7 +1700,7 @@ class BaseUploadable(object):
     def set_default_encoding_parameters(self, default_params):
         assert isinstance(default_params, dict)
         for k,v in default_params.items():
-            precondition(isinstance(k, (bytes, unicode)), k, v)
+            precondition(isinstance(k, (bytes, str)), k, v)
             precondition(isinstance(v, int), k, v)
         if "k" in default_params:
             self.default_encoding_param_k = default_params["k"]
