@@ -3,8 +3,6 @@ Ported to Python 3
 """
 
 from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from six import ensure_text
 
@@ -12,11 +10,6 @@ import os.path, re, sys
 from os import linesep
 import locale
 
-import six
-
-from testtools import (
-    skipUnless,
-)
 from testtools.matchers import (
     MatchesListwise,
     MatchesAny,
@@ -53,9 +46,6 @@ from allmydata.util.pid import (
 )
 from allmydata.test import common_util
 import allmydata
-from allmydata.scripts.runner import (
-    parse_options,
-)
 from allmydata.scripts.tahoe_run import (
     on_stdin_close,
 )
@@ -97,27 +87,6 @@ def get_root_from_file(src):
 
 srcfile = allmydata.__file__
 rootdir = get_root_from_file(srcfile)
-
-
-class ParseOptionsTests(SyncTestCase):
-    """
-    Tests for ``parse_options``.
-    """
-    @skipUnless(six.PY2, "Only Python 2 exceptions must stringify to bytes.")
-    def test_nonascii_unknown_subcommand_python2(self):
-        """
-        When ``parse_options`` is called with an argv indicating a subcommand that
-        does not exist and which also contains non-ascii characters, the
-        exception it raises includes the subcommand encoded as UTF-8.
-        """
-        tricky = u"\u00F6"
-        try:
-            parse_options([tricky])
-        except usage.error as e:
-            self.assertEqual(
-                b"Unknown command: \\xf6",
-                b"{}".format(e),
-            )
 
 
 class ParseOrExitTests(SyncTestCase):
