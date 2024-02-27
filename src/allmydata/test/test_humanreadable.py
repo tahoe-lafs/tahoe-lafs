@@ -27,7 +27,8 @@ class NoArgumentException(Exception):
 class HumanReadable(unittest.TestCase):
     def test_repr(self):
         hr = humanreadable.hr
-        self.failUnlessEqual(hr(foo), "<foo() at test_humanreadable.py:20>")
+        # we match on regex so this test isn't fragile about line-numbers
+        self.assertRegex(hr(foo), r"<foo\(\) at test_humanreadable.py:\d+>")
         self.failUnlessEqual(hr(self.test_repr),
                              "<bound method HumanReadable.test_repr of <allmydata.test.test_humanreadable.HumanReadable testMethod=test_repr>>")
         self.failUnlessEqual(hr(long(1)), "1")
