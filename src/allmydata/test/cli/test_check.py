@@ -3,7 +3,7 @@ from six import ensure_text
 import os.path
 import json
 from twisted.trial import unittest
-from six.moves import cStringIO as StringIO
+from io import StringIO
 
 from allmydata import uri
 from allmydata.util import base32

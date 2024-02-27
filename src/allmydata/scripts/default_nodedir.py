@@ -3,7 +3,6 @@ Ported to Python 3.
 """
 
 import sys
-import six
 from allmydata.util.assertutil import precondition
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
@@ -13,10 +12,10 @@ if sys.platform == 'win32':
     from allmydata.windows import registry
     path = registry.get_base_dir_path()
     if path:
-        precondition(isinstance(path, six.text_type), path)
+        precondition(isinstance(path, str), path)
         _default_nodedir = abspath_expanduser_unicode(path)
 
 if _default_nodedir is None:
-    path = abspath_expanduser_unicode(u"~/.tahoe")
-    precondition(isinstance(path, six.text_type), path)
+    path = abspath_expanduser_unicode("~/.tahoe")
+    precondition(isinstance(path, str), path)
     _default_nodedir = path

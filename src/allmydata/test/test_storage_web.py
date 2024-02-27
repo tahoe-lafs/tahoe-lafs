@@ -9,7 +9,7 @@ import os.path
 import re
 import json
 from unittest import skipIf
-from six.moves import StringIO
+from io import StringIO
 
 from twisted.trial import unittest
 from twisted.internet import defer

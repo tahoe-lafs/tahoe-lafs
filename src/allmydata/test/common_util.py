@@ -2,7 +2,7 @@
 Ported to Python 3.
 """
 
-from future.utils import PY2, PY3, bchr, binary_type
+from future.utils import bchr
 from future.builtins import str as future_str
 
 import os
@@ -13,8 +13,6 @@ from functools import (
     partial,
 )
 from random import randrange
-if PY2:
-    from StringIO import StringIO
 from io import (
     TextIOWrapper,
     BytesIO,
@@ -101,22 +99,7 @@ def run_cli_native(verb, *args, **kwargs):
     )
     argv = ["tahoe"] + nodeargs + [verb] + list(args)
     stdin = kwargs.get("stdin", "")
-    if PY2:
-        # The original behavior, the Python 2 behavior, is to accept either
-        # bytes or unicode and try to automatically encode or decode as
-        # necessary.  This works okay for ASCII and if LANG is set
-        # appropriately.  These aren't great constraints so we should move
-        # away from this behavior.
-        #
-        # The encoding attribute doesn't change StringIO behavior on Python 2,
-        # but it's there for realism of the emulation.
-        stdin = StringIO(stdin)
-        stdin.encoding = encoding
-        stdout = StringIO()
-        stdout.encoding = encoding
-        stderr = StringIO()
-        stderr.encoding = encoding
-    else:
+    if True:
         # The new behavior, the Python 3 behavior, is to accept unicode and
         # encode it using a specific encoding. For older versions of Python 3,
         # the encoding is determined from LANG (bad) but for newer Python 3,
@@ -146,13 +129,13 @@ def run_cli_native(verb, *args, **kwargs):
         stderr=stderr,
     )
     def _done(rc, stdout=stdout, stderr=stderr):
-        if return_bytes and PY3:
+        if return_bytes:
             stdout = stdout.buffer
             stderr = stderr.buffer
         return 0, _getvalue(stdout), _getvalue(stderr)
     def _err(f, stdout=stdout, stderr=stderr):
         f.trap(SystemExit)
-        if return_bytes and PY3:
+        if return_bytes:
             stdout = stdout.buffer
             stderr = stderr.buffer
         return f.value.code, _getvalue(stdout), _getvalue(stderr)
@@ -189,11 +172,7 @@ def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
         argv=argv,
     )
     codec = encoding or "ascii"
-    if PY2:
-        encode = lambda t: None if t is None else t.encode(codec)
-    else:
-        # On Python 3 command-line parsing expects Unicode!
-        encode = lambda t: t
+    encode = lambda t: t
     d = run_cli_native(
         encode(verb),
         nodeargs=list(encode(arg) for arg in nodeargs),
@@ -238,7 +217,7 @@ def flip_bit(good, which):
 def flip_one_bit(s, offset=0, size=None):
     """ flip one random bit of the string s, in a byte greater than or equal to offset and less
     than offset+size. """
-    precondition(isinstance(s, binary_type))
+    precondition(isinstance(s, bytes))
     if size is None:
         size=len(s)-offset
     i = randrange(offset, offset+size)

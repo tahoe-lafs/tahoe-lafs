@@ -2,10 +2,8 @@
 Ported to Python 3.
 """
 
-from future.utils import PY2
-
 import os.path
-from six.moves import cStringIO as StringIO
+from io import StringIO
 from datetime import timedelta
 import re
 
@@ -421,10 +419,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             else:
                 return original_open(name, *args, **kwargs)
 
-        if PY2:
-            from allmydata.scripts import cli as module_to_patch
-        else:
-            import builtins as module_to_patch
+        import builtins as module_to_patch
         patcher = MonkeyPatcher((module_to_patch, 'open', call_file))
         patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from-utf-8', unicode_to_argv(exclude_file), 'from', 'to'])
         self.failUnless(ns.called)

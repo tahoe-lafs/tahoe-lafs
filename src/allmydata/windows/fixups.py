@@ -1,7 +1,3 @@
-
-from future.utils import PY3
-from past.builtins import unicode
-
 # This code isn't loadable or sensible except on Windows.  Importers all know
 # this and are careful.  Normally I would just let an import error from ctypes
 # explain any mistakes but Mypy also needs some help here.  This assert
@@ -123,82 +119,6 @@ def initialize():
 
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX)
 
-    if PY3:
-        # The rest of this appears to be Python 2-specific
-        return
-
-    original_stderr = sys.stderr
-
-    # If any exception occurs in this code, we'll probably try to print it on stderr,
-    # which makes for frustrating debugging if stderr is directed to our wrapper.
-    # So be paranoid about catching errors and reporting them to original_stderr,
-    # so that we can at least see them.
-    def _complain(output_file, message):
-        print(isinstance(message, str) and message or repr(message), file=output_file)
-        log.msg(message, level=log.WEIRD)
-
-    _complain = partial(_complain, original_stderr)
-
-    # Work around <http://bugs.python.org/issue6058>.
-    codecs.register(lambda name: name == 'cp65001' and codecs.lookup('utf-8') or None)
-
-    # Make Unicode console output work independently of the current code page.
-    # This also fixes <http://bugs.python.org/issue1602>.
-    # Credit to Michael Kaplan <https://blogs.msdn.com/b/michkap/archive/2010/04/07/9989346.aspx>
-    # and TZOmegaTZIOY
-    # <http://stackoverflow.com/questions/878972/windows-cmd-encoding-change-causes-python-crash/1432462#1432462>.
-    try:
-        old_stdout_fileno = None
-        old_stderr_fileno = None
-        if hasattr(sys.stdout, 'fileno'):
-            old_stdout_fileno = sys.stdout.fileno()
-        if hasattr(sys.stderr, 'fileno'):
-            old_stderr_fileno = sys.stderr.fileno()
-
-        real_stdout = (old_stdout_fileno == STDOUT_FILENO)
-        real_stderr = (old_stderr_fileno == STDERR_FILENO)
-
-        if real_stdout:
-            hStdout = GetStdHandle(STD_OUTPUT_HANDLE)
-            if not a_console(hStdout):
-                real_stdout = False
-
-        if real_stderr:
-            hStderr = GetStdHandle(STD_ERROR_HANDLE)
-            if not a_console(hStderr):
-                real_stderr = False
-
-        if real_stdout:
-            sys.stdout = UnicodeOutput(hStdout, None, STDOUT_FILENO, '<Unicode console stdout>', _complain)
-        else:
-            sys.stdout = UnicodeOutput(None, sys.stdout, old_stdout_fileno, '<Unicode redirected stdout>', _complain)
-
-        if real_stderr:
-            sys.stderr = UnicodeOutput(hStderr, None, STDERR_FILENO, '<Unicode console stderr>', _complain)
-        else:
-            sys.stderr = UnicodeOutput(None, sys.stderr, old_stderr_fileno, '<Unicode redirected stderr>', _complain)
-    except Exception as e:
-        _complain("exception %r while fixing up sys.stdout and sys.stderr" % (e,))
-
-    argv = list(arg.encode("utf-8") for arg in get_argv())
-
-    # Take only the suffix with the same number of arguments as sys.argv.
-    # This accounts for anything that can cause initial arguments to be stripped,
-    # for example, the Python interpreter or any options passed to it, or runner
-    # scripts such as 'coverage run'. It works even if there are no such arguments,
-    # as in the case of a frozen executable created by bb-freeze or similar.
-    #
-    # Also, modify sys.argv in place.  If any code has already taken a
-    # reference to the original argument list object then this ensures that
-    # code sees the new values.  This reliance on mutation of shared state is,
-    # of course, awful.  Why does this function even modify sys.argv?  Why not
-    # have a function that *returns* the properly initialized argv as a new
-    # list?  I don't know.
-    #
-    # At least Python 3 gets sys.argv correct so before very much longer we
-    # should be able to fix this bad design by deleting it.
-    sys.argv[:] = argv[-len(sys.argv):]
-
 
 def a_console(handle):
     """
@@ -274,13 +194,13 @@ class UnicodeOutput(object):
                 # There is no Windows console available.  That means we are
                 # responsible for encoding the unicode to a byte string to
                 # write it to a Python file object.
-                if isinstance(text, unicode):
+                if isinstance(text, str):
                     text = text.encode('utf-8')
                 self._stream.write(text)
             else:
                 # There is a Windows console available.  That means Windows is
                 # responsible for dealing with the unicode itself.
-                if not isinstance(text, unicode):
+                if not isinstance(text, str):
                     text = str(text).decode('utf-8')
                 remaining = len(text)
                 while remaining > 0:

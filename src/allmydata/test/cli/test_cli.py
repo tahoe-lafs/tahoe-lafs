@@ -2,7 +2,7 @@
 Ported to Python 3.
 """
 
-from six.moves import cStringIO as StringIO
+from io import StringIO
 import re
 from six import ensure_text
 

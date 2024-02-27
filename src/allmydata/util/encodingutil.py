@@ -8,7 +8,7 @@ Once Python 2 support is dropped, most of this module will obsolete, since
 Unicode is the default everywhere in Python 3.
 """
 
-from future.utils import PY3, native_str
+from future.utils import native_str
 from future.builtins import str as future_str
 
 from past.builtins import unicode
@@ -56,25 +56,13 @@ def check_encoding(encoding):
 io_encoding = "utf-8"
 
 filesystem_encoding = None
-is_unicode_platform = False
-use_unicode_filepath = False
+is_unicode_platform = True
+use_unicode_filepath = True
 
 def _reload():
-    global filesystem_encoding, is_unicode_platform, use_unicode_filepath
-
+    global filesystem_encoding
     filesystem_encoding = canonical_encoding(sys.getfilesystemencoding())
     check_encoding(filesystem_encoding)
-    is_unicode_platform = PY3 or sys.platform in ["win32", "darwin"]
-
-    # Despite the Unicode-mode FilePath support added to Twisted in
-    # <https://twistedmatrix.com/trac/ticket/7805>, we can't yet use
-    # Unicode-mode FilePaths with INotify on non-Windows platforms due to
-    # <https://twistedmatrix.com/trac/ticket/7928>. Supposedly 7928 is fixed,
-    # though... and Tahoe-LAFS doesn't use inotify anymore!
-    #
-    # In the interest of not breaking anything, this logic is unchanged for
-    # Python 2, but on Python 3 the paths are always unicode, like it or not.
-    use_unicode_filepath = PY3 or sys.platform == "win32"
 
 _reload()
 
@@ -128,9 +116,7 @@ def unicode_to_argv(s):
     Windows, this returns the input unmodified.
     """
     precondition(isinstance(s, unicode), s)
-    if PY3:
-        warnings.warn("This will be unnecessary once Python 2 is dropped.",
-                      DeprecationWarning)
+    warnings.warn("This is unnecessary.", DeprecationWarning)
     if sys.platform == "win32":
         return s
     return ensure_str(s)
@@ -184,24 +170,8 @@ def unicode_to_output(s):
     the responsibility of stdout/stderr, they expect Unicode by default.
     """
     precondition(isinstance(s, unicode), s)
-    if PY3:
-        warnings.warn("This will be unnecessary once Python 2 is dropped.",
-                      DeprecationWarning)
-        return s
-
-    try:
-        out = s.encode(io_encoding)
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        raise UnicodeEncodeError(native_str(io_encoding), s, 0, 0,
-                                 native_str("A string could not be encoded as %s for output to the terminal:\n%r" %
-                                 (io_encoding, repr(s))))
-
-    if PRINTABLE_8BIT.search(out) is None:
-        raise UnicodeEncodeError(native_str(io_encoding), s, 0, 0,
-                                 native_str("A string encoded as %s for output to the terminal contained unsafe bytes:\n%r" %
-                                 (io_encoding, repr(s))))
-    return out
-
+    warnings.warn("This is unnecessary.", DeprecationWarning)
+    return s
 
 def _unicode_escape(m, quote_newlines):
     u = m.group(0)
@@ -303,20 +273,7 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
         return b'"%s"' % (escaped.encode(encoding, 'backslashreplace'),)
 
     result = _encode(s)
-    if PY3:
-        # On Python 3 half of what this function does is unnecessary, since
-        # sys.stdout typically expects Unicode. To ensure no encode errors, one
-        # can do:
-        #
-        # sys.stdout.reconfigure(encoding=sys.stdout.encoding, errors="backslashreplace")
-        #
-        # Although the problem is that doesn't work in Python 3.6, only 3.7 or
-        # later... For now not thinking about it, just returning unicode since
-        # that is the right thing to do on Python 3.
-        #
-        # Now that Python 3.7 is the minimum, this can in theory be done:
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3866
-        result = result.decode(encoding)
+    result = result.decode(encoding)
     return result
 
 

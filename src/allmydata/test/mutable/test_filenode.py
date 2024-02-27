@@ -2,7 +2,7 @@
 Ported to Python 3.
 """
 
-from six.moves import cStringIO as StringIO
+from io import StringIO
 from twisted.internet import defer, reactor
 from ..common import AsyncBrokenTestCase
 from testtools.matchers import (

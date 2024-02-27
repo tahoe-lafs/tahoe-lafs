@@ -1,6 +1,3 @@
-
-from future.utils import native_bytes
-
 import unittest
 
 from base64 import b64decode
@@ -40,7 +37,7 @@ class TestRegression(unittest.TestCase):
         #     priv_str = b64encode(priv.serialize())
         #     pub_str = b64encode(priv.get_verifying_key().serialize())
         RSA_2048_PRIV_KEY = b64decode(f.read().strip())
-        assert isinstance(RSA_2048_PRIV_KEY, native_bytes)
+        assert isinstance(RSA_2048_PRIV_KEY, bytes)
 
     with RESOURCE_DIR.child('pycryptopp-rsa-2048-sig.txt').open('r') as f:
         # Signature created using `RSA_2048_PRIV_KEY` via:
@@ -61,7 +58,7 @@ class TestRegression(unittest.TestCase):
         #     priv_str = b64encode(priv.serialize())
         #     pub_str = b64encode(priv.get_verifying_key().serialize())
         RSA_TINY_PRIV_KEY = b64decode(f.read().strip())
-        assert isinstance(RSA_TINY_PRIV_KEY, native_bytes)
+        assert isinstance(RSA_TINY_PRIV_KEY, bytes)
 
     with RESOURCE_DIR.child('pycryptopp-rsa-32768-priv.txt').open('r') as f:
         # Created using `pycryptopp`:
@@ -72,7 +69,7 @@ class TestRegression(unittest.TestCase):
         #     priv_str = b64encode(priv.serialize())
         #     pub_str = b64encode(priv.get_verifying_key().serialize())
         RSA_HUGE_PRIV_KEY = b64decode(f.read().strip())
-        assert isinstance(RSA_HUGE_PRIV_KEY, native_bytes)
+        assert isinstance(RSA_HUGE_PRIV_KEY, bytes)
 
     def test_old_start_up_test(self):
         """
@@ -324,7 +321,7 @@ class TestEd25519(unittest.TestCase):
         private_key, public_key = ed25519.create_signing_keypair()
         private_key_str = ed25519.string_from_signing_key(private_key)
 
-        self.assertIsInstance(private_key_str, native_bytes)
+        self.assertIsInstance(private_key_str, bytes)
 
         private_key2, public_key2 = ed25519.signing_keypair_from_string(private_key_str)
 
@@ -340,7 +337,7 @@ class TestEd25519(unittest.TestCase):
 
         # ditto, but for the verifying keys
         public_key_str = ed25519.string_from_verifying_key(public_key)
-        self.assertIsInstance(public_key_str, native_bytes)
+        self.assertIsInstance(public_key_str, bytes)
 
         public_key2 = ed25519.verifying_key_from_string(public_key_str)
         self.assertEqual(
@@ -444,7 +441,7 @@ class TestRsa(unittest.TestCase):
         priv_key, pub_key = rsa.create_signing_keypair(2048)
         priv_key_str = rsa.der_string_from_signing_key(priv_key)
 
-        self.assertIsInstance(priv_key_str, native_bytes)
+        self.assertIsInstance(priv_key_str, bytes)
 
         priv_key2, pub_key2 = rsa.create_signing_keypair_from_string(priv_key_str)
 

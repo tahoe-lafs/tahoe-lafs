@@ -45,9 +45,6 @@ noisy = True
 from allmydata.util.log import NOISY, OPERATIONAL, WEIRD, \
     msg as logmsg, PrefixingLogMixin
 
-if six.PY3:
-    long = int
-
 
 def createSFTPError(errorCode, errorMessage):
     """
