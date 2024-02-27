@@ -6,7 +6,6 @@ Ported to Python 3.
 
 from future.utils import PY2
 
-from warnings import catch_warnings
 
 
 def patch():

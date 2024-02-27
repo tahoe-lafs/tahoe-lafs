@@ -9,8 +9,7 @@ from twisted.internet import defer
 
 from allmydata.scripts import cli
 from allmydata.util import fileutil
-from allmydata.util.encodingutil import (quote_output, get_io_encoding,
-                                         unicode_to_output, to_bytes)
+from allmydata.util.encodingutil import (quote_output, unicode_to_output, to_bytes)
 from allmydata.util.assertutil import _assert
 from ..no_network import GridTestMixin
 from .common import CLITestMixin

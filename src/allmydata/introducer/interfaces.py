@@ -3,7 +3,7 @@ Ported to Python 3.
 """
 
 
-from future.utils import PY2, native_str
+from future.utils import native_str
 
 from zope.interface import Interface
 from foolscap.api import StringConstraint, SetOf, DictOf, Any, \

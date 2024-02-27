@@ -46,9 +46,6 @@ from allmydata.util.pid import (
 )
 from allmydata.test import common_util
 import allmydata
-from allmydata.scripts.runner import (
-    parse_options,
-)
 from allmydata.scripts.tahoe_run import (
     on_stdin_close,
 )

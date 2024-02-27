@@ -14,7 +14,7 @@ from twisted.python.monkey import MonkeyPatcher
 
 from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
-from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
+from allmydata.util.encodingutil import unicode_to_argv
 from allmydata.util.namespace import Namespace
 from allmydata.scripts import cli, backupdb
 from ..common_util import StallMixin

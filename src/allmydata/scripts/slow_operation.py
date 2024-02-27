@@ -2,7 +2,7 @@
 Ported to Python 3.
 """
 
-from future.utils import PY2, PY3
+from future.utils import PY3
 
 from six import ensure_str
 

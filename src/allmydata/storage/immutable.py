@@ -3,7 +3,7 @@ Ported to Python 3.
 """
 
 
-from future.utils import PY2, bytes_to_native_str
+from future.utils import bytes_to_native_str
 
 import os, stat, struct, time
 

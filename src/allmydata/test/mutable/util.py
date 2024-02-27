@@ -2,7 +2,7 @@
 Ported to Python 3.
 """
 
-from future.utils import PY2, bchr
+from future.utils import bchr
 
 from past.builtins import long
 

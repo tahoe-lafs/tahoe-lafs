@@ -8,7 +8,7 @@ Once Python 2 support is dropped, most of this module will obsolete, since
 Unicode is the default everywhere in Python 3.
 """
 
-from future.utils import PY2, PY3, native_str
+from future.utils import PY3, native_str
 from future.builtins import str as future_str
 
 from past.builtins import unicode

@@ -5,7 +5,6 @@ Ported to Python 3.
 """
 
 import json
-import codecs
 
 
 def bytes_to_unicode(any_bytes, obj):

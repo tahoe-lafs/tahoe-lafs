@@ -5,7 +5,7 @@ Ported to Python 3.
 """
 
 
-from future.utils import PY2, native_str
+from future.utils import native_str
 
 from twisted.trial import unittest
 from twisted.python.failure import Failure

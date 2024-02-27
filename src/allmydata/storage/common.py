@@ -2,7 +2,7 @@
 Ported to Python 3.
 """
 
-from future.utils import PY2, PY3
+from future.utils import PY3
 
 import os.path
 from allmydata.util import base32

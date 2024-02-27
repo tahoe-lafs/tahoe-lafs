@@ -1,6 +1,5 @@
 import os, sys
 from io import StringIO
-from past.builtins import unicode
 import six
 
 from twisted.python import usage
@@ -106,7 +105,7 @@ def parse_options(argv, config=None):
         config = Options()
     try:
         config.parseOptions(argv)
-    except usage.error as e:
+    except usage.error:
         raise
     return config
 
