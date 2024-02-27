@@ -1427,7 +1427,4 @@ class TrialTestCase(_TrialTestCase):
         you try to turn that Exception instance into a string.
         """
 
-        if six.PY2:
-            if isinstance(msg, six.text_type):
-                return super(TrialTestCase, self).fail(msg.encode("utf8"))
         return super(TrialTestCase, self).fail(msg)

@@ -10,10 +10,6 @@ objects that `cryptography` documents.
 Ported to Python 3.
 """
 
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import six
 
 from cryptography.hazmat.backends import default_backend

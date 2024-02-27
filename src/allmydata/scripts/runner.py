@@ -1,6 +1,5 @@
 import os, sys
 from io import StringIO
-from past.builtins import unicode
 import six
 
 from twisted.python import usage
@@ -106,28 +105,7 @@ def parse_options(argv, config=None):
         config = Options()
     try:
         config.parseOptions(argv)
-    except usage.error as e:
-        if six.PY2:
-            # On Python 2 the exception may hold non-ascii in a byte string.
-            # This makes it impossible to convert the exception to any kind of
-            # string using str() or unicode().  It could also hold non-ascii
-            # in a unicode string which still makes it difficult to convert it
-            # to a byte string later.
-            #
-            # So, reach inside and turn it into some entirely safe ascii byte
-            # strings that will survive being written to stdout without
-            # causing too much damage in the process.
-            #
-            # As a result, non-ascii will not be rendered correctly but
-            # instead as escape sequences.  At least this can go away when
-            # we're done with Python 2 support.
-            raise usage.error(*(
-                arg.encode("ascii", errors="backslashreplace")
-                if isinstance(arg, unicode)
-                else arg.decode("utf-8").encode("ascii", errors="backslashreplace")
-                for arg
-                in e.args
-            ))
+    except usage.error:
         raise
     return config
 
