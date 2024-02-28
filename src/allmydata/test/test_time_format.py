@@ -2,8 +2,6 @@
 Tests for allmydata.util.time_format.
 """
 
-from past.builtins import long
-
 import time
 
 from twisted.trial import unittest
@@ -103,7 +101,7 @@ class TimeFormat(unittest.TestCase, TimezoneMixin):
     def test_parse_date(self):
         p = time_format.parse_date
         self.failUnlessEqual(p("2010-02-21"), 1266710400)
-        self.failUnless(isinstance(p("2009-03-18"), (int, long)), p("2009-03-18"))
+        self.failUnless(isinstance(p("2009-03-18"), int), p("2009-03-18"))
         self.failUnlessEqual(p("2009-03-18"), 1237334400)
 
     def test_format_time(self):

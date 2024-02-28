@@ -8,7 +8,6 @@ Note that for RemoteInterfaces, the __remote_name__ needs to be a native string 
 
 from future.utils import native_str
 
-from past.builtins import long
 from typing import Dict
 
 from zope.interface import Interface, Attribute
@@ -2774,7 +2773,7 @@ class RIEncryptedUploadable(RemoteInterface):
         return Offset
 
     def get_all_encoding_parameters():
-        return (int, int, int, long)
+        return (int, int, int, int)
 
     def read_encrypted(offset=Offset, length=ReadSize):
         return ListOf(bytes)

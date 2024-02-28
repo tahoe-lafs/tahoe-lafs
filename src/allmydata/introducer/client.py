@@ -2,8 +2,6 @@
 Ported to Python 3.
 """
 
-from past.builtins import long
-
 from six import ensure_text, ensure_str
 
 import time
@@ -304,7 +302,7 @@ class IntroducerClient(service.Service, Referenceable):
             if "seqnum" in old:
                 # must beat previous sequence number to replace
                 if ("seqnum" not in ann
-                    or not isinstance(ann["seqnum"], (int,long))):
+                    or not isinstance(ann["seqnum"], int)):
                     self.log("not replacing old announcement, no valid seqnum: %s"
                              % (ann,),
                              parent=lp2, level=log.NOISY, umid="zFGH3Q")

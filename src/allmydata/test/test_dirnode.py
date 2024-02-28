@@ -3,8 +3,6 @@
 Ported to Python 3.
 """
 
-from past.builtins import long
-
 import time
 import unicodedata
 from zope.interface import implementer
@@ -1854,7 +1852,7 @@ class DeepStats(testutil.ReallyEqualMixin, unittest.TestCase):
                                      (101, 316, 216),
                                      (317, 1000, 684),
                                      (1001, 3162, 99),
-                                     (long(3162277660169), long(10000000000000), 1),
+                                     (3162277660169, 10000000000000, 1),
                                      ])
 
 class UCWEingMutableFileNode(MutableFileNode):
