@@ -4,7 +4,6 @@ Ported to Python 3.
 
 from __future__ import annotations
 
-from future.utils import native_str
 from six import ensure_str
 
 import os, time, weakref, itertools
@@ -165,7 +164,7 @@ class HelperUploadResults(Copyable, RemoteCopy):
     # package/module/class name
     #
     # Needs to be native string to make Foolscap happy.
-    typeToCopy = native_str("allmydata.upload.UploadResults.tahoe.allmydata.com")
+    typeToCopy = "allmydata.upload.UploadResults.tahoe.allmydata.com"
     copytype = typeToCopy
 
     # also, think twice about changing the shape of any existing attribute,

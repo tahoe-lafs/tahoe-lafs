@@ -3,7 +3,6 @@ Ported to Python 3.
 """
 
 from future.utils import bchr
-from future.builtins import str as future_str
 
 import os
 import sys
@@ -64,13 +63,13 @@ def run_cli_native(verb, *args, **kwargs):
     :param runner.Options options: The options instance to use to parse the
         given arguments.
 
-    :param native_str verb: The command to run.  For example,
+    :param str verb: The command to run.  For example,
         ``"create-node"``.
 
-    :param [native_str] args: The arguments to pass to the command.  For
+    :param [str] args: The arguments to pass to the command.  For
         example, ``("--hostname=localhost",)``.
 
-    :param [native_str] nodeargs: Extra arguments to pass to the Tahoe
+    :param [str] nodeargs: Extra arguments to pass to the Tahoe
         executable before ``verb``.
 
     :param bytes|unicode stdin: Text or bytes to pass to the command via stdin.
@@ -165,7 +164,7 @@ def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
     if nodeargs is None:
         nodeargs = []
     precondition(
-        all(isinstance(arg, future_str) for arg in [verb] + nodeargs + argv),
+        all(isinstance(arg, str) for arg in [verb] + nodeargs + argv),
         "arguments to run_cli_unicode must be unicode",
         verb=verb,
         nodeargs=nodeargs,
@@ -229,13 +228,9 @@ def flip_one_bit(s, offset=0, size=None):
 class ReallyEqualMixin(object):
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.assertEqual(a, b, msg)
-        # Make sure unicode strings are a consistent type. Specifically there's
-        # Future newstr (backported Unicode type) vs. Python 2 native unicode
-        # type. They're equal, and _logically_ the same type, but have
-        # different types in practice.
-        if a.__class__ == future_str:
+        if a.__class__ == str:
             a = str(a)
-        if b.__class__ == future_str:
+        if b.__class__ == str:
             b = str(b)
         self.assertEqual(type(a), type(b), "a :: %r (%s), b :: %r (%s), %r" % (a, type(a), b, type(b), msg))
 

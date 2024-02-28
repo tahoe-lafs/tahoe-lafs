@@ -6,8 +6,6 @@ Ported to Python 3.
 Note that for RemoteInterfaces, the __remote_name__ needs to be a native string because of https://github.com/warner/foolscap/blob/43f4485a42c9c28e2c79d655b3a9e24d4e6360ca/src/foolscap/remoteinterface.py#L67
 """
 
-from future.utils import native_str
-
 from typing import Dict
 
 from zope.interface import Interface, Attribute
@@ -111,7 +109,7 @@ ReadData = ListOf(ShareData)
 
 
 class RIStorageServer(RemoteInterface):
-    __remote_name__ = native_str("RIStorageServer.tahoe.allmydata.com")
+    __remote_name__ = "RIStorageServer.tahoe.allmydata.com"
 
     def get_version():
         """
@@ -2767,7 +2765,7 @@ UploadResults = Any() #DictOf(bytes, bytes)
 
 
 class RIEncryptedUploadable(RemoteInterface):
-    __remote_name__ = native_str("RIEncryptedUploadable.tahoe.allmydata.com")
+    __remote_name__ = "RIEncryptedUploadable.tahoe.allmydata.com"
 
     def get_size():
         return Offset
@@ -2783,7 +2781,7 @@ class RIEncryptedUploadable(RemoteInterface):
 
 
 class RICHKUploadHelper(RemoteInterface):
-    __remote_name__ = native_str("RIUploadHelper.tahoe.allmydata.com")
+    __remote_name__ = "RIUploadHelper.tahoe.allmydata.com"
 
     def get_version():
         """
@@ -2796,7 +2794,7 @@ class RICHKUploadHelper(RemoteInterface):
 
 
 class RIHelper(RemoteInterface):
-    __remote_name__ = native_str("RIHelper.tahoe.allmydata.com")
+    __remote_name__ = "RIHelper.tahoe.allmydata.com"
 
     def get_version():
         """

@@ -5,7 +5,7 @@ functionality.
 Ported to Python 3.
 """
 
-from future.utils import native_str, native_str_to_bytes
+from future.utils import native_str_to_bytes
 from six import ensure_str
 
 import attr
@@ -40,7 +40,7 @@ from allmydata.util.jsonbytes import (
 
 
 class RIDummy(RemoteInterface):
-    __remote_name__ = native_str("RIDummy.tahoe.allmydata.com")
+    __remote_name__ = "RIDummy.tahoe.allmydata.com"
 
     def just_some_method():
         """

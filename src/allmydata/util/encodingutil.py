@@ -8,9 +8,6 @@ Once Python 2 support is dropped, most of this module will obsolete, since
 Unicode is the default everywhere in Python 3.
 """
 
-from future.utils import native_str
-from future.builtins import str as future_str
-
 from past.builtins import unicode
 from six import ensure_str
 
@@ -124,7 +121,7 @@ def unicode_to_argv(s):
 
 # According to unicode_to_argv above, the expected type for
 # cli args depends on the platform, so capture that expectation.
-argv_type = (future_str, native_str) if sys.platform == "win32" else native_str
+argv_type = (str,)
 """
 The expected type for args to a subprocess
 """
