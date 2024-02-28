@@ -101,7 +101,7 @@ def client_node(request, grid, storage_nodes, number_of_nodes) -> Client:
             "client_node",
             needed=number_of_nodes,
             happy=number_of_nodes,
-            total=number_of_nodes,
+            total=number_of_nodes + 3,  # Make sure FEC does some work
         )
     )
     print(f"Client node pid: {client_node.process.transport.pid}")
