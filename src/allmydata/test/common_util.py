@@ -2,8 +2,6 @@
 Ported to Python 3.
 """
 
-from future.utils import bchr
-
 import os
 import sys
 import time
@@ -24,6 +22,9 @@ from twisted.trial import unittest
 from ..util.assertutil import precondition
 from ..scripts import runner
 from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, argv_type, unicode_to_argv
+
+def bchr(s):
+    return bytes([s])
 
 
 def skip_if_cannot_represent_filename(u):
