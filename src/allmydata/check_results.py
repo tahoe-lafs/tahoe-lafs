@@ -61,7 +61,7 @@ class CheckResults(object):
         # On Python 2, we can mix bytes and Unicode. On Python 3, we want
         # unicode.
         if isinstance(summary, bytes):
-            summary = unicode(summary, "utf-8")
+            summary = str(summary, "utf-8")
         assert isinstance(summary, str)  # should be a single string
         self._summary = summary
         assert not isinstance(report, str) # should be list of strings

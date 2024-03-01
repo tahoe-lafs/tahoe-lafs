@@ -65,7 +65,7 @@ from allmydata.test.common_util import (
 from allmydata.util import encodingutil, fileutil
 from allmydata.util.encodingutil import unicode_to_url, \
     unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
-    quote_filepath, unicode_platform, listdir_unicode, FilenameEncodingError, \
+    quote_filepath, unicode_platform, listdir_unicode, \
     get_filesystem_encoding, to_bytes, from_utf8_or_none, _reload, \
     to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from, \
     unicode_to_argv
