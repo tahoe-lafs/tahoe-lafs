@@ -2,7 +2,6 @@
 Ported to Python3.
 """
 
-import six
 import os, time, sys
 import yaml
 import json
@@ -22,8 +21,7 @@ from allmydata.util.cputhreadpool import defer_to_thread, disable_thread_pool_fo
 from allmydata.test.common_util import ReallyEqualMixin
 from .no_network import fireNow, LocalWrapper
 
-if six.PY3:
-    long = int
+long = int
 
 
 class IDLib(unittest.TestCase):
@@ -477,7 +475,7 @@ class YAML(unittest.TestCase):
         Unicode and (ASCII) native strings get roundtripped to Unicode strings.
         """
         data = yaml.safe_dump(
-            [six.ensure_str("str"), u"unicode", u"\u1234nicode"]
+            ["str", "unicode", "\u1234nicode"]
         )
         back = yamlutil.safe_load(data)
         self.assertIsInstance(back[0], str)

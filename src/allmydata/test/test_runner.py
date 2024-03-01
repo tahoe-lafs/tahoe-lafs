@@ -2,10 +2,6 @@
 Ported to Python 3
 """
 
-from future.utils import PY2
-
-from six import ensure_text
-
 import os.path, re, sys
 from os import linesep
 import locale
@@ -129,18 +125,14 @@ def run_bintahoe(extra_argv, python_options=None):
     :return: A three-tuple of stdout (unicode), stderr (unicode), and the
         child process "returncode" (int).
     """
-    executable = ensure_text(sys.executable)
-    argv = [executable]
+    argv = [sys.executable]
     if python_options is not None:
         argv.extend(python_options)
     argv.extend([u"-b", u"-m", u"allmydata.scripts.runner"])
     argv.extend(extra_argv)
     argv = list(unicode_to_argv(arg) for arg in argv)
     p = Popen(argv, stdout=PIPE, stderr=PIPE)
-    if PY2:
-        encoding = "utf-8"
-    else:
-        encoding = locale.getpreferredencoding(False)
+    encoding = locale.getpreferredencoding(False)
     out = p.stdout.read().decode(encoding)
     err = p.stderr.read().decode(encoding)
     returncode = p.wait()
@@ -154,10 +146,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase):
         """
         tricky = u"\u00F6"
         out, err, returncode = run_bintahoe([tricky])
-        if PY2:
-            expected = u"Unknown command: \\xf6"
-        else:
-            expected = u"Unknown command: \xf6"
+        expected = u"Unknown command: \xf6"
         self.assertEqual(returncode, 1)
         self.assertIn(
             expected,

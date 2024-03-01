@@ -2,8 +2,6 @@
 Ported to Python 3.
 """
 
-from future.utils import PY3
-
 import os.path
 from allmydata.util import base32
 
@@ -43,7 +41,5 @@ def storage_index_to_dir(storageindex):
     Returns native string.
     """
     sia = si_b2a(storageindex)
-    if PY3:
-        # On Python 3 we expect paths to be unicode.
-        sia = sia.decode("ascii")
+    sia = sia.decode("ascii")
     return os.path.join(sia[:2], sia)

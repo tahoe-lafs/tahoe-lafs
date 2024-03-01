@@ -5,7 +5,7 @@ Ported to Python 3.
 import os.path, re
 from urllib.parse import quote as url_quote
 import json
-from six.moves import StringIO
+from io import StringIO
 
 from bs4 import BeautifulSoup
 

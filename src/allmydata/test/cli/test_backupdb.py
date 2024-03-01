@@ -4,7 +4,7 @@ Ported to Python 3.
 
 import sys
 import os.path, time
-from six.moves import cStringIO as StringIO
+from io import StringIO
 from twisted.trial import unittest
 
 from allmydata.util import fileutil

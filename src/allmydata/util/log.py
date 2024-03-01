@@ -4,7 +4,6 @@ Logging utilities.
 Ported to Python 3.
 """
 
-from future.utils import PY2
 from six import ensure_str
 
 from pyutil import nummedobj
@@ -12,14 +11,10 @@ from pyutil import nummedobj
 from foolscap.logging import log
 from twisted.python import log as tw_log
 
-if PY2:
-    def bytes_to_unicode(ign, obj):
-        return obj
-else:
-    # We want to convert bytes keys to Unicode, otherwise JSON serialization
-    # inside foolscap will fail (for details see
-    # https://github.com/warner/foolscap/issues/88)
-    from .jsonbytes import bytes_to_unicode
+# We want to convert bytes keys to Unicode, otherwise JSON serialization
+# inside foolscap will fail (for details see
+# https://github.com/warner/foolscap/issues/88)
+from .jsonbytes import bytes_to_unicode
 
 
 NOISY = log.NOISY # 10

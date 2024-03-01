@@ -4,8 +4,6 @@ Netstring encoding and decoding.
 Ported to Python 3.
 """
 
-from past.builtins import long
-
 try:
     from typing import Optional, Tuple, List  # noqa: F401
 except ImportError:
@@ -27,7 +25,7 @@ def split_netstring(data, numstrings,
     data does not exactly equal 'required_trailer'."""
     assert isinstance(data, bytes)
     assert required_trailer is None or isinstance(required_trailer, bytes)
-    assert isinstance(position, (int, long)), (repr(position), type(position))
+    assert isinstance(position, int), (repr(position), type(position))
     elements = []
     assert numstrings >= 0
     while position < len(data):
