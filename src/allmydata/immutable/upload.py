@@ -55,7 +55,7 @@ from eliot import (
 
 _TOTAL_SHARES = Field.for_types(
     u"total_shares",
-    [int, int],
+    [int],
     u"The total number of shares desired.",
 )
 
@@ -102,7 +102,7 @@ _HAPPINESS_MAPPINGS = Field(
 
 _HAPPINESS = Field.for_types(
     u"happiness",
-    [int, int],
+    [int],
     u"The computed happiness of a certain placement.",
 )
 
@@ -140,7 +140,7 @@ GET_SHARE_PLACEMENTS = MessageType(
 
 _EFFECTIVE_HAPPINESS = Field.for_types(
     u"effective_happiness",
-    [int, int],
+    [int],
     u"The computed happiness value of a share placement map.",
 )
 
