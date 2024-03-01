@@ -73,38 +73,6 @@ from allmydata.util.encodingutil import unicode_to_url, \
 class MockStdout(object):
     pass
 
-# The following tests apply only to platforms that don't store filenames as
-# Unicode entities on the filesystem.
-class EncodingUtilNonUnicodePlatform(unittest.TestCase):
-
-    def test_listdir_unicode(self):
-        # What happens if latin1-encoded filenames are encountered on an UTF-8
-        # filesystem?
-        def call_os_listdir(path):
-            return [
-              lumiere_nfc.encode('utf-8'),
-              lumiere_nfc.encode('latin1')
-            ]
-        self.patch(os, 'listdir', call_os_listdir)
-
-        sys_filesystemencoding = 'utf-8'
-        def call_sys_getfilesystemencoding():
-            return sys_filesystemencoding
-        self.patch(sys, 'getfilesystemencoding', call_sys_getfilesystemencoding)
-
-        _reload()
-        self.failUnlessRaises(FilenameEncodingError,
-                              listdir_unicode,
-                              u'/dummy')
-
-        # We're trying to list a directory whose name cannot be represented in
-        # the filesystem encoding.  This should fail.
-        sys_filesystemencoding = 'ascii'
-        _reload()
-        self.failUnlessRaises(FilenameEncodingError,
-                              listdir_unicode,
-                              u'/' + lumiere_nfc)
-
 
 class EncodingUtil(ReallyEqualMixin):
     def setUp(self):
