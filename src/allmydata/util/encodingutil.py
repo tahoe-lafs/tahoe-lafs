@@ -339,25 +339,6 @@ class FilenameEncodingError(Exception):
     """
     pass
 
-def listdir_unicode_fallback(path):
-    """
-    This function emulates a fallback Unicode API similar to one available
-    under Windows or MacOS X.
-
-    If badly encoded filenames are encountered, an exception is raised.
-    """
-    precondition(isinstance(path, str), path)
-
-    try:
-        byte_path = path.encode(filesystem_encoding)
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        raise FilenameEncodingError(path)
-
-    try:
-        return [str(fn, filesystem_encoding) for fn in os.listdir(byte_path)]
-    except UnicodeDecodeError as e:
-        raise FilenameEncodingError(e.object)
-
 def listdir_unicode(path):
     """
     Wrapper around listdir() which provides safe access to the convenient
