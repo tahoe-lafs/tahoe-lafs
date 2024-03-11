@@ -3,7 +3,6 @@ Ported to Python 3.
 """
 from __future__ import annotations
 
-from future.utils import bytes_to_native_str
 from typing import Iterable, Any
 
 import os, re
@@ -905,7 +904,12 @@ share_number: {share_number}
 
 """
 
-def render_corruption_report(share_type, si_s, shnum, reason):
+def render_corruption_report(
+    share_type: bytes,
+    si_s: bytes,
+    shnum: int,
+    reason: bytes
+) -> str:
     """
     Create a string that explains a corruption report using freeform text.
 
@@ -920,13 +924,18 @@ def render_corruption_report(share_type, si_s, shnum, reason):
         report.
     """
     return CORRUPTION_REPORT_FORMAT.format(
-        type=bytes_to_native_str(share_type),
-        storage_index=bytes_to_native_str(si_s),
+        type=share_type.decode(),
+        storage_index=si_s.decode(),
         share_number=shnum,
-        reason=bytes_to_native_str(reason),
+        reason=reason.decode(),
     )
 
-def get_corruption_report_path(base_dir, now, si_s, shnum):
+def get_corruption_report_path(
+    base_dir: str,
+    now: str,
+    si_s: str,
+    shnum: int
+) -> str:
     """
     Determine the path to which a certain corruption report should be written.
 
