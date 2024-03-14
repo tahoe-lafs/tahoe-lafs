@@ -2,8 +2,6 @@
 Ported to Python 3.
 """
 
-from past.builtins import long
-
 import itertools
 import hashlib
 import re
@@ -1393,7 +1391,7 @@ class StatusElement(Element):
         size = op.get_size()
         if size is None:
             size = "(unknown)"
-        elif isinstance(size, (int, long, float)):
+        elif isinstance(size, (int, float)):
             size = abbreviate_size(size)
 
         result["total_size"] = size

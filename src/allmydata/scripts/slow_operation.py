@@ -2,8 +2,6 @@
 Ported to Python 3.
 """
 
-from future.utils import PY3
-
 from six import ensure_str
 
 import os, time
@@ -81,9 +79,7 @@ class SlowOperationRunner(object):
         if not data["finished"]:
             return False
         if self.options.get("raw"):
-            if PY3:
-                # need to write bytes!
-                stdout = stdout.buffer
+            stdout = stdout.buffer
             if is_printable_ascii(jdata):
                 stdout.write(jdata)
                 stdout.write(b"\n")

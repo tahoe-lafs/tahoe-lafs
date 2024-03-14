@@ -2,9 +2,6 @@
 Ported to Python 3.
 """
 
-
-from future.utils import native_str
-
 from zope.interface import Interface
 from foolscap.api import StringConstraint, SetOf, DictOf, Any, \
     RemoteInterface, Referenceable
@@ -34,7 +31,7 @@ FURL = StringConstraint(1000)
 Announcement_v2 = Any()
 
 class RIIntroducerSubscriberClient_v2(RemoteInterface):
-    __remote_name__ = native_str("RIIntroducerSubscriberClient_v2.tahoe.allmydata.com")
+    __remote_name__ = "RIIntroducerSubscriberClient_v2.tahoe.allmydata.com"
 
     def announce_v2(announcements=SetOf(Announcement_v2)):
         """I accept announcements from the publisher."""
@@ -47,11 +44,14 @@ class RIIntroducerPublisherAndSubscriberService_v2(RemoteInterface):
     announcement message. I will deliver a copy to all connected subscribers.
     To hear about services, connect to me and subscribe to a specific
     service_name."""
-    __remote_name__ = native_str("RIIntroducerPublisherAndSubscriberService_v2.tahoe.allmydata.com")
+    __remote_name__ = "RIIntroducerPublisherAndSubscriberService_v2.tahoe.allmydata.com"
+
     def get_version():
         return DictOf(bytes, Any())
+
     def publish_v2(announcement=Announcement_v2, canary=Referenceable):
         return None
+
     def subscribe_v2(subscriber=RIIntroducerSubscriberClient_v2,
                      service_name=bytes, subscriber_info=SubscriberInfo):
         """Give me a subscriber reference, and I will call its announce_v2()

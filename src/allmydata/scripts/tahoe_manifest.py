@@ -2,10 +2,6 @@
 Ported to Python 3.
 """
 
-from future.utils import PY3
-
-from six import ensure_str
-
 from urllib.parse import quote as url_quote
 import json
 from twisted.protocols.basic import LineOnlyReceiver
@@ -56,8 +52,7 @@ class ManifestStreamer(LineOnlyReceiver, object):
         # use Twisted to split this into lines
         self.in_error = False
         # Writing bytes, so need binary stdout.
-        if PY3:
-            stdout = stdout.buffer
+        stdout = stdout.buffer
         while True:
             chunk = resp.read(100)
             if not chunk:
@@ -99,8 +94,7 @@ class ManifestStreamer(LineOnlyReceiver, object):
                     if vc:
                         print(quote_output(vc, quotemarks=False), file=stdout)
                 else:
-                    # ensure_str() only necessary for Python 2.
-                    print(ensure_str("%s %s") % (
+                    print("%s %s" % (
                         quote_output(d["cap"], quotemarks=False),
                         quote_path(d["path"], quotemarks=False)), file=stdout)
 

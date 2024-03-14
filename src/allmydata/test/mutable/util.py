@@ -4,8 +4,6 @@ Ported to Python 3.
 
 from future.utils import bchr
 
-from past.builtins import long
-
 from io import BytesIO
 import attr
 from twisted.internet import defer, reactor
@@ -129,8 +127,8 @@ class FakeStorageServer(object):
                     continue
                 vector = response[shnum] = []
                 for (offset, length) in readv:
-                    assert isinstance(offset, (int, long)), offset
-                    assert isinstance(length, (int, long)), length
+                    assert isinstance(offset, int), offset
+                    assert isinstance(length, int), length
                     vector.append(shares[shnum][offset:offset+length])
             return response
         d.addCallback(_read)

@@ -4,7 +4,7 @@ Tests for allmydata.util.statistics.
 Ported to Python 3.
 """
 
-from six.moves import StringIO  # native string StringIO
+from io import StringIO
 
 from twisted.trial import unittest
 

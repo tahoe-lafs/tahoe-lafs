@@ -65,8 +65,8 @@ class Options(usage.Options):
     ]
     optParameters = [
         ["node-directory", "d", None, NODEDIR_HELP],
-        ["wormhole-server", None, u"ws://wormhole.tahoe-lafs.org:4000/v1", "The magic wormhole server to use.", six.text_type],
-        ["wormhole-invite-appid", None, u"tahoe-lafs.org/invite", "The appid to use on the wormhole server.", six.text_type],
+        ["wormhole-server", None, u"ws://wormhole.tahoe-lafs.org:4000/v1", "The magic wormhole server to use.", str],
+        ["wormhole-invite-appid", None, u"tahoe-lafs.org/invite", "The appid to use on the wormhole server.", str],
     ]
 
     def opt_version(self):
@@ -262,7 +262,7 @@ def _setup_coverage(reactor, argv):
     # can we put this _setup_coverage call after we hit
     # argument-parsing?
     # ensure_str() only necessary on Python 2.
-    if six.ensure_str('--coverage') not in sys.argv:
+    if '--coverage' not in sys.argv:
         return
     argv.remove('--coverage')
 

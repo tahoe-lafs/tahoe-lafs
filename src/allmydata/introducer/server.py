@@ -4,7 +4,6 @@ Ported to Python 3.
 
 from __future__ import annotations
 
-from past.builtins import long
 from six import ensure_text
 
 import time, os.path, textwrap
@@ -262,7 +261,7 @@ class IntroducerService(service.MultiService, Referenceable):  # type: ignore[mi
                 if "seqnum" in old_ann:
                     # must beat previous sequence number to replace
                     if ("seqnum" not in ann
-                        or not isinstance(ann["seqnum"], (int,long))):
+                        or not isinstance(ann["seqnum"], int)):
                         self.log("not replacing old ann, no valid seqnum",
                                  level=log.NOISY, umid="ySbaVw")
                         self._debug_counts["inbound_no_seqnum"] += 1

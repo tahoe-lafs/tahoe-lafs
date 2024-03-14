@@ -2,7 +2,7 @@
 Ported to Python 3.
 """
 
-from six.moves import StringIO
+from io import StringIO
 import os.path
 from twisted.trial import unittest
 from urllib.parse import quote as url_quote

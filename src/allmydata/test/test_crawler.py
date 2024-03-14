@@ -5,8 +5,6 @@ Ported to Python 3.
 """
 
 
-from future.utils import PY3
-
 import time
 import os.path
 from twisted.trial import unittest
@@ -28,10 +26,9 @@ class BucketEnumeratingCrawler(ShareCrawler):
         self.all_buckets = []
         self.finished_d = defer.Deferred()
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
-        if PY3:
-            # Bucket _inputs_ are bytes, and that's what we will compare this
-            # to:
-            storage_index_b32 = storage_index_b32.encode("ascii")
+        # Bucket _inputs_ are bytes, and that's what we will compare this
+        # to:
+        storage_index_b32 = storage_index_b32.encode("ascii")
         self.all_buckets.append(storage_index_b32)
     def finished_cycle(self, cycle):
         eventually(self.finished_d.callback, None)
@@ -46,10 +43,9 @@ class PacedCrawler(ShareCrawler):
         self.finished_d = defer.Deferred()
         self.yield_cb = None
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
-        if PY3:
-            # Bucket _inputs_ are bytes, and that's what we will compare this
-            # to:
-            storage_index_b32 = storage_index_b32.encode("ascii")
+        # Bucket _inputs_ are bytes, and that's what we will compare this
+        # to:
+        storage_index_b32 = storage_index_b32.encode("ascii")
         self.all_buckets.append(storage_index_b32)
         self.countdown -= 1
         if self.countdown == 0:
