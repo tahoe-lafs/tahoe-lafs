@@ -391,6 +391,7 @@ setup(name="tahoe-lafs", # also set in __init__.py
           "build": [
               "dulwich",
               "gpg",
+              "docutils",
           ],
 
           # Here are the dependencies required to set up a reproducible test
