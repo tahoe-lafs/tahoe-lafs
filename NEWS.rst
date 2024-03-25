@@ -11,7 +11,7 @@ Release 1.20.0 (2024-03-25)
 Bug Fixes
 ---------
 
--  (`#4087 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4087>`_)
+- CBOR2 failure on large strings (`#4087 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4087>`_)
 - Stop using the C version of the cbor2 decoder. (`#4088 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4088>`_)
 
 
