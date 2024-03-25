@@ -5,6 +5,22 @@ User-Visible Changes in Tahoe-LAFS
 ==================================
 
 .. towncrier start line
+Release 1.20.0 (2024-03-25)
+'''''''''''''''''''''''''''
+
+Bug Fixes
+---------
+
+-  (`#4087 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4087>`_)
+- Stop using the C version of the cbor2 decoder. (`#4088 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4088>`_)
+
+
+Misc/Other
+----------
+
+- `#4076 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4076>`_, `#4082 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4082>`_, `#4085 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4085>`_, `#4090 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4090>`_, `#4091 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4091>`_, `#4092 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4092>`_, `#4093 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4093>`_
+
+
 Release 1.190 (2024-01-04)
 ''''''''''''''''''''''''''
 
