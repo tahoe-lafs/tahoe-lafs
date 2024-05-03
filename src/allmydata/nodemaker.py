@@ -135,7 +135,13 @@ class NodeMaker(object):
         d.addCallback(lambda res: n)
         return d
 
-    def create_new_mutable_directory(self, initial_children=None, version=None):
+    def create_new_mutable_directory(
+        self,
+        initial_children=None,
+        version=None,
+        *,
+        keypair: tuple[PublicKey, PrivateKey] | None = None,
+    ):
         if initial_children is None:
             initial_children = {}
         for (name, (node, metadata)) in initial_children.items():
@@ -145,7 +151,8 @@ class NodeMaker(object):
         d = self.create_mutable_file(lambda n:
                                      MutableData(pack_children(initial_children,
                                                     n.get_writekey())),
-                                     version=version)
+                                     version=version,
+                                     keypair=keypair)
         d.addCallback(self._create_dirnode)
         return d
 
