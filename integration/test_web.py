@@ -12,11 +12,18 @@ exists anywhere, however.
 from __future__ import annotations
 
 import time
+from base64 import urlsafe_b64encode
 from urllib.parse import unquote as url_unquote, quote as url_quote
 
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from twisted.internet.threads import deferToThread
 
 import allmydata.uri
+from allmydata.crypto.rsa import (
+    create_signing_keypair,
+    der_string_from_signing_key,
+)
+from allmydata.mutable.common import derive_mutable_keys
 from allmydata.util import jsonbytes as json
 
 from . import util
@@ -541,3 +548,118 @@ def test_mkdir_with_children(alice):
     assert resp.startswith(b"URI:DIR2")
     cap = allmydata.uri.from_string(resp)
     assert isinstance(cap, allmydata.uri.DirectoryURI)
+
+
+@run_in_thread
+def test_mkdir_with_random_private_key(alice):
+    """
+    Create a new directory with ?t=mkdir&private-key=... using a
+    randomly-generated RSA private key.
+
+    The writekey and fingerprint derived from the provided RSA key
+    should match those of the newly-created directory capability.
+    """
+
+    privkey, pubkey = create_signing_keypair(2048)
+
+    writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
+
+    # The "private-key" parameter takes a DER-encoded RSA private key
+    # encoded in URL-safe base64; PEM blocks are not supported.
+    privkey_der = der_string_from_signing_key(privkey)
+    privkey_encoded = urlsafe_b64encode(privkey_der).decode("ascii")
+
+    resp = util.web_post(
+        alice.process, u"uri",
+        params={
+            u"t": "mkdir",
+            u"private-key": privkey_encoded,
+        },
+    )
+    assert resp.startswith(b"URI:DIR2")
+
+    dircap = allmydata.uri.from_string(resp)
+    assert isinstance(dircap, allmydata.uri.DirectoryURI)
+
+    # DirectoryURI objects lack 'writekey' and 'fingerprint' attributes
+    # so extract them from the enclosed WriteableSSKFileURI object.
+    filecap = dircap.get_filenode_cap()
+    assert isinstance(filecap, allmydata.uri.WriteableSSKFileURI)
+
+    assert (writekey, fingerprint) == (filecap.writekey, filecap.fingerprint)
+
+
+@run_in_thread
+def test_mkdir_with_known_private_key(alice):
+    """
+    Create a new directory with ?t=mkdir&private-key=... using a
+    known-in-advance RSA private key.
+
+    The writekey and fingerprint derived from the provided RSA key
+    should match those of the newly-created directory capability.
+    In addition, because the writekey and fingerprint are derived
+    deterministically, given the same RSA private key, the resultant
+    directory capability should always be the same.
+    """
+    # Randomly generated with `openssl genrsa -out privkey.pem 2048`
+    privkey_pem = """-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAoa9i8v9YIzb+3yRHyXLm4j1eWK9lQc6lFwoQhik8y+joD+5A
+v73OlDZAcn6vzlU72vwrJ1f4o54nEVm0rhNrhwCsiHCdxxEDEoqZ8w/19vc4hWj4
+SYwGirhcnyb2ysZSV8v9Lm5HiFe5zZM4jzCzf2rzt0YRlZZj9nhSglaiHZ9BE2e0
+vzOl6GePDz6yS4jbh2RsPsDQtqXNOqZwfGUd+iTsbSxXcm8+rNrT1VAbx6+1Sr0r
+aDyc/jp8S1JwJ0ofJLsU3Pb6DYazFf12CNTsrKF1L0hAsbN8v2DSunZIQqQLQGfp
+0hnNO9V8q9FjvVu8XY/HhgoTvtESU3vuq+BnIwIDAQABAoIBAGpWDP+/y9mtK8bZ
+95SXyx10Ov6crD2xiIY0ilWR/XgmP6lqio8QaDK104D5rOpIyErnmgIQK2iAdTVG
+CDyMbSWm3dIGLt5jY9/n5AQltSCtyzCCrvi/7PWC9vd9Csal1DYF5QeKY+VZvMtl
+Tcduwj7EunEI1jvJYwkQbUNncsuDi+88/JNwa8DJp1IrR4goxNflGl7mNzfq49re
+lhSyezfLSTZKDa3A6sYnNFAAOy82iXZuLXCqKuwRuaiFFilB0R0/egzBSUeBwMJk
+sS+SvHHXwv9HsYt4pYiiZFm8HxB4NKYtdpHpvJVJcG9vOXjewnA5YHWVDJsrBfu6
+0kPgbcECgYEA0bqfX2Vc6DizwjWVn9yVlckjQNGTnwf/B9eGW2MgTn6YADe0yjFm
+KCtr34hEZc/hv3kBnoLOqSvZJiser8ve3SmwxfmpjEfJdIgA5J5DbCEGBiDm9PMy
+0lYsfjykzYykehdasb8f4xd+SPMuTC/CFb1MCTlohex7qn7Xt9IskBECgYEAxVtF
+iXwFJPQUil2bSFGnxtaI/8ijypLOkP3CyuVnEcbMt74jDt1hdooRxjQ9VVlg7r7i
+EvebPKMukWxdVcQ/38i97oB/oN7MIH0QBCDWTdTQokuNQSEknGLouj6YtLAWRcyJ
+9DDENSaGtP42le5dD60hZc732jN09fGxNa6gN/MCgYB5ux98CGJ3q0mzBNUW17q/
+GOLsYXiUitidHZyveIas6M+i+LJn1WpdEG7pbLd+fL2kHEEzVutKx9efTtHd6bAu
+oF8pWfLuKFCm4bXa/H1XyocrkXdcX7h0222xy9NAN0zUTK/okW2Zqu4yu2t47xNw
++NGkXPztFsjkugDNgiE5cQKBgQDDy/BqHPORnOIAACw9jF1SpKcYdPsiz5FGQawO
+1ZbzCPMzW9y2M6YtD3/gzxUGZv0G/7OUs7h8aTybJBJZM7FXGHZud2ent0J2/Px1
+zAow/3DZgvEp63LCAFL5635ezM/cAbff3r3aKVW9nPOUvf3vvokC01oMTb68/kMc
+ihoERwKBgFsoRUrgGPSfG1UZt8BpIXbG/8qfoy/Vy77BRqvJ6ZpdM9RPqdAl7Sih
+cdqfxs8w0NVvj+gvM/1CGO0J9lZW2f1J81haIoyUpiITFdoyzLKXLhMSbaF4Y7Hn
+yC/N5w3cCLa2LLKoLG8hagFDlXBGSmpT1zgKBk4YxNn6CLdMSzPR
+-----END RSA PRIVATE KEY-----
+"""
+
+    privkey = load_pem_private_key(
+        privkey_pem.encode("ascii"), password=None
+    )
+    pubkey = privkey.public_key()
+
+    writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
+
+    # The "private-key" parameter takes a DER-encoded RSA private key
+    # encoded in URL-safe base64; PEM blocks are not supported.
+    privkey_der = der_string_from_signing_key(privkey)
+    privkey_encoded = urlsafe_b64encode(privkey_der).decode("ascii")
+
+    resp = util.web_post(
+        alice.process, u"uri",
+        params={
+            u"t": "mkdir",
+            u"private-key": privkey_encoded,
+        },
+    )
+    assert resp.startswith(b"URI:DIR2")
+
+    dircap = allmydata.uri.from_string(resp)
+    assert isinstance(dircap, allmydata.uri.DirectoryURI)
+
+    # DirectoryURI objects lack 'writekey' and 'fingerprint' attributes
+    # so extract them from the enclosed WriteableSSKFileURI object.
+    filecap = dircap.get_filenode_cap()
+    assert isinstance(filecap, allmydata.uri.WriteableSSKFileURI)
+
+    assert (writekey, fingerprint) == (filecap.writekey, filecap.fingerprint)
+
+    assert resp == b"URI:DIR2:3oo7j7f7qqxnet2z2lf57ucup4:cpktmsxlqnd5yeekytxjxvff5e6d6fv7py6rftugcndvss7tzd2a"
