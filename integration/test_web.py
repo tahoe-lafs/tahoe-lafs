@@ -756,3 +756,135 @@ def test_mkdir_with_children_and_random_private_key(alice):
     assert isinstance(filecap, allmydata.uri.WriteableSSKFileURI)
 
     assert (writekey, fingerprint) == (filecap.writekey, filecap.fingerprint)
+
+
+@run_in_thread
+def test_mkdir_with_children_and_known_private_key(alice):
+    """
+    Create a new directory with ?t=mkdir-with-children&private-key=...
+    using a known-in-advance RSA private key.
+
+
+    The writekey and fingerprint derived from the provided RSA key
+    should match those of the newly-created directory capability.
+    In addition, because the writekey and fingerprint are derived
+    deterministically, given the same RSA private key, the resultant
+    directory capability should always be the same.
+    """
+
+    # create a file to put in our directory
+    FILE_CONTENTS = u"some file contents\n" * 500
+    resp = requests.put(
+        util.node_url(alice.process.node_dir, u"uri"),
+        data=FILE_CONTENTS,
+    )
+    filecap = resp.content.strip()
+
+    # create a (sub) directory to put in our directory
+    resp = requests.post(
+        util.node_url(alice.process.node_dir, u"uri"),
+        params={
+            u"t": u"mkdir",
+        }
+    )
+    # (we need both the read-write and read-only URIs I guess)
+    dircap = resp.content
+    dircap_obj = allmydata.uri.from_string(dircap)
+    dircap_ro = dircap_obj.get_readonly().to_string()
+
+    # create json information about our directory
+    meta = {
+        "a_file": [
+            "filenode", {
+                "ro_uri": filecap,
+                "metadata": {
+                    "ctime": 1202777696.7564139,
+                    "mtime": 1202777696.7564139,
+                    "tahoe": {
+                        "linkcrtime": 1202777696.7564139,
+                        "linkmotime": 1202777696.7564139
+                    }
+                }
+            }
+        ],
+        "some_subdir": [
+            "dirnode", {
+                "rw_uri": dircap,
+                "ro_uri": dircap_ro,
+                "metadata": {
+                    "ctime": 1202778102.7589991,
+                    "mtime": 1202778111.2160511,
+                    "tahoe": {
+                        "linkcrtime": 1202777696.7564139,
+                        "linkmotime": 1202777696.7564139
+                    }
+                }
+            }
+        ]
+    }
+
+    # Randomly generated with `openssl genrsa -out privkey.pem 2048`
+    privkey_pem = """-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEA2PL5Ry2BGuuUtRJa20WS0fwBOqVIVSXDVuSvZFYTT1Xji19J
+q+ohHcFnIIYHAq0zQG+NgNjK5rogY/5TfbwIhfwLufleeAdL9jXTfxan0o/wwFA1
+DAIHcYsTEYI2dfQe4acOLFY6/Hh6iXCbHvSzzUnEmYkgwCAZvc0v/lD8pMnz/6gQ
+2nJnAASfFovcAvfr1T+MZzLJGQem3f2IFp1frurQyFmzFRtZMO5B9PDSsFG4yJVf
+cz0iSP8wlc9QydImmJGRvu4xEOkx/55B/XaUdb6CIGpCTkLsDOlImvZt9UHDSgXq
+qcE/T7SYMIXqbep64tJw9enjomH+n1KVh9UA2wIDAQABAoIBABCSTrQ/J5N010EV
+i9cf810S0M03/tRyM/+ZLESPxp3Sw7TLrIbzNWBee5AibLqpnDaZzsc+yBDjusGo
+lZwPFt+VJxgnki288PJ3nhYhFuSglhU6izLFnOfxZZ16wsozwYAfEJgWZh8O3N1O
+uqqcqndN4TSRIu1KBm1XFQlqCkJT/stzYjO4k1vhgZT4pqhYRdx7q7FAap4v+sNs
+Svhm1blvOXlyeumAbFBdGFttpTxIOGRzI1bp00jcLK4rgssTTxNyEiVu4oJhQY/k
+0CptSUzpGio8DZ0/8bNnKCkw8YATUWJZQgSmKraRwAYMMR/SZa7WqjEc2KRTj6xQ
+pHmYwZECgYEA700a/7ur8+EwTSulLgDveAOtTV0xEbhuq6cJQgNrEp2rbFqie6FX
+g/YJKzEpEnUvj/yOzhEcw3CdQDUaxndlqY87QIhUWMcsnfMPsM1FjhmfksR8s3TF
+WZNqa0RAKmcRoLohGclSvRV2OVU8+10mLUwJfR86Nl5+auR3LxWLyB8CgYEA6BaR
+r+Z7oTlgkdEDVhnQ58Msktv58y28N+VIbYS79bV01jqUUlogm5uTvdvq5nyENXHx
+gnK88mVzWYBMk83D01HlOC5DhpspTVEQQG2V/If6KZa56mxiHP3Mab9jLew9w/kA
+g6l/04ATSA8g4i2H/Bz0eEyPEBt6o/+SO0Xv38UCgYEAyTTLvrrNmgF922UXPdcL
+gp2U2bfBymSIqUuJPTgij0SDHlgWxlyieRImI2ryXdKqayav7BP3W10U2yfLm5RI
+pokICPqX8Q2HNkdoqf/uu8xPn9gWAc3tIaQRlp+MVBrVd48IxeXA67tf7FT/MVrg
+/rUwRUQ8bfqF0NrIW46COYECgYAYDJamGoT/DNoD4hutZVlvWpsY0LCS0U9qn1ik
++Jcde+MSe9l4uxwb48AocUxi+84bV6ZF9Su9FmQghxnoSu8ay6ar7qdSoGtkNp0v
+f+uF0nVKr/Kt5vM3u9jdsFZPoOY5k2jJO9wiB2h4FBE9PqiTqFBw0sYUTjSkH8yA
+VdvoXQKBgFqCC8Y82eVf0/ORGTgG/KhZ72WFQKHyAeryvoLuadZ6JAI6qW9U1l9P
+18SMnCO+opGN5GH2Qx7gdg17KzWzTW1gnbv0QUPNnnYEJU8VYMelNuKa8tmNgFH7
+inAwsxbbWoR08ai4exzbJrNrLpDRg5ih2wMtknN6D8m+EAvBC/Gj
+-----END RSA PRIVATE KEY-----
+"""
+
+    privkey = load_pem_private_key(
+        privkey_pem.encode("ascii"), password=None
+    )
+    pubkey = privkey.public_key()
+
+    writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
+
+    # The "private-key" parameter takes a DER-encoded RSA private key
+    # encoded in URL-safe base64; PEM blocks are not supported.
+    privkey_der = der_string_from_signing_key(privkey)
+    privkey_encoded = urlsafe_b64encode(privkey_der).decode("ascii")
+
+    # create a new directory with one file and one sub-dir (all-at-once)
+    # with the supplied RSA private key
+    resp = util.web_post(
+        alice.process, u"uri",
+        params={
+            u"t": "mkdir-with-children",
+            u"private-key": privkey_encoded,
+        },
+        data=json.dumps(meta),
+    )
+    assert resp.startswith(b"URI:DIR2")
+
+    dircap = allmydata.uri.from_string(resp)
+    assert isinstance(dircap, allmydata.uri.DirectoryURI)
+
+    # DirectoryURI objects lack 'writekey' and 'fingerprint' attributes
+    # so extract them from the enclosed WriteableSSKFileURI object.
+    filecap = dircap.get_filenode_cap()
+    assert isinstance(filecap, allmydata.uri.WriteableSSKFileURI)
+
+    assert (writekey, fingerprint) == (filecap.writekey, filecap.fingerprint)
+
+    assert resp == b"URI:DIR2:ppwzpwrd37xi7tpribxyaa25uy:imdws47wwpzfkc5vfllo4ugspb36iit4cqps6ttuhaouc66jb2da"
