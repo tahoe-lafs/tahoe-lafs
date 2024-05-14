@@ -22,6 +22,8 @@ import allmydata.uri
 from allmydata.crypto.rsa import (
     create_signing_keypair,
     der_string_from_signing_key,
+    PrivateKey,
+    PublicKey,
 )
 from allmydata.mutable.common import derive_mutable_keys
 from allmydata.util import jsonbytes as json
@@ -634,7 +636,9 @@ yC/N5w3cCLa2LLKoLG8hagFDlXBGSmpT1zgKBk4YxNn6CLdMSzPR
     privkey = load_pem_private_key(
         privkey_pem.encode("ascii"), password=None
     )
+    assert isinstance(privkey, PrivateKey)
     pubkey = privkey.public_key()
+    assert isinstance(pubkey, PublicKey)
 
     writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
 
@@ -856,7 +860,9 @@ inAwsxbbWoR08ai4exzbJrNrLpDRg5ih2wMtknN6D8m+EAvBC/Gj
     privkey = load_pem_private_key(
         privkey_pem.encode("ascii"), password=None
     )
+    assert isinstance(privkey, PrivateKey)
     pubkey = privkey.public_key()
+    assert isinstance(pubkey, PublicKey)
 
     writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
 
