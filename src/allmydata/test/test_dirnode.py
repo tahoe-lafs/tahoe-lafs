@@ -11,6 +11,7 @@ from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
 from allmydata import uri, dirnode
 from allmydata.client import _Client
+from allmydata.crypto.rsa import create_signing_keypair
 from allmydata.immutable import upload
 from allmydata.immutable.literal import LiteralFileNode
 from allmydata.interfaces import IImmutableFileNode, IMutableFileNode, \
@@ -19,16 +20,25 @@ from allmydata.interfaces import IImmutableFileNode, IMutableFileNode, \
      IDeepCheckResults, IDeepCheckAndRepairResults, \
      MDMF_VERSION, SDMF_VERSION
 from allmydata.mutable.filenode import MutableFileNode
-from allmydata.mutable.common import UncoordinatedWriteError
+from allmydata.mutable.common import (
+    UncoordinatedWriteError,
+    derive_mutable_keys,
+)
 from allmydata.util import hashutil, base32
 from allmydata.util.netstring import split_netstring
 from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
      ErrorMixin
+from allmydata.test.mutable.util import (
+    FakeStorage,
+    make_nodemaker_with_peers,
+    make_peer,
+)
 from allmydata.test.no_network import GridTestMixin
 from allmydata.unknown import UnknownNode, strip_prefix_for_ro
 from allmydata.nodemaker import NodeMaker
 from base64 import b32decode
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 import allmydata.test.common_util as testutil
 
 from hypothesis import given
@@ -1978,3 +1988,104 @@ class Adder(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
 
         d.addCallback(_test_adder)
         return d
+
+
+class DeterministicDirnode(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.TestCase):
+    def setUp(self):
+        # Copied from allmydata.test.mutable.test_filenode
+        super(DeterministicDirnode, self).setUp()
+        self._storage = FakeStorage()
+        self._peers = list(
+            make_peer(self._storage, n)
+            for n
+            in range(10)
+        )
+        self.nodemaker = make_nodemaker_with_peers(self._peers)
+
+    async def test_create_with_random_keypair(self):
+        """
+        Create a dirnode using a random RSA keypair.
+
+        The writekey and fingerprint of the enclosed mutable filecap
+        should match those derived from the given keypair.
+        """
+        privkey, pubkey = create_signing_keypair(2048)
+        writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
+
+        node = await self.nodemaker.create_new_mutable_directory(
+            keypair=(pubkey, privkey)
+        )
+        self.failUnless(isinstance(node, dirnode.DirectoryNode))
+
+        dircap = uri.from_string(node.get_uri())
+        self.failUnless(isinstance(dircap, uri.DirectoryURI))
+
+        filecap = dircap.get_filenode_cap()
+        self.failUnless(isinstance(filecap, uri.WriteableSSKFileURI))
+
+        self.failUnlessReallyEqual(filecap.writekey, writekey)
+        self.failUnlessReallyEqual(filecap.fingerprint, fingerprint)
+
+    async def test_create_with_known_keypair(self):
+        """
+        Create a dirnode using a known RSA keypair.
+
+        The writekey and fingerprint of the enclosed mutable filecap
+        should match those derived from the given keypair. Because
+        these values are derived deterministically, given the same
+        keypair, the resulting filecap should also always be the same.
+        """
+        # Randomly generated with `openssl genrsa -out privkey.pem 2048`
+        privkey_pem = """-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAygMjLBKayDEioOZap2syJhUlqI7Dkk4zV5TfVxlQFO7bR410
+eJRJY1rHGIeZxQPjytsSJvqlYEJrvvVNdhi6XN/6NA3RFL6pDTHkYyM3qbrXqlYC
+HUlkS2JAZzIFRizl6nG11yIbHjPsoG+vGSjGSzVIiOP4NeIssYLpoASTIppdZxy+
+syZ6zSmPhZu7W9X73aupLjFrIZpjeKfO2+GfUwEzAH0HckLIgJpQ+vK3sqbSik/2
+1oZK33M8uvtdmba7D3uJXmxWMTJ7oyFLDpDOMl7HSUv1lZY2O2qiDPYfGDUM1BRp
+6blxE+BA2INr9NO4A4H8pzhikFnaFnkpH/AxowIDAQABAoIBABprXJ8386w42NmI
+JtT8bPuUCm/H9AXfWlGa87aVZebG8kCiXFgktJBc3+ryWQbuIk12ZyJX52b2aNb5
+h97pDv50gGlsYSrAYKWMH91jTrVQ7UGmq/IelhJR0DBu10e9OXh21JxFJpzFl63H
+zXOR5JUTa+ATSHPrl4LDp0A5OPDuWbBWa64yx7gUI9/tljbndplCrPjmIE6+h10M
+sqxW5oJpLnZpWc73QQUTuPIr+A7fLgGJYHnyCFUu9OW4ZnxNEI3/wNHPvoxkYuHN
+2qVonFESiAx9mBv7JzQ7X2KIB8doY3KL6S7sAKi/i/aP7EDJ9QEtl3BR3M8/XP8E
+KJVORWECgYEA8Vbw75+aVMxHUl9BJc1zESxqVvr+R0NBqMO47CBj39sTJkXY37O3
+A7j4dzCorI0NaB7Jr+AI2ZZu9CaR31Y2mhAGbNLBPK8yn0Z7iWyDIqOW1OpMDs35
+h2CI1pFLjx1a3PzhsQdzZ68izWKYBdTs2scaFz/ntaPwwPEwORaMDZECgYEA1kie
+YfMRJ2GwzvbR35WvEMhVxhnmA6yuRL15Pkb1WDR3iWGM0ld/u3N4sRVCx1nU4wk/
+MMqCRdm4JaxqzR/hl8+/sp3Aai15ecqR+F+ecwbbB2XKVHfi1nqClivYnB+GgCh1
+bQYUd9LT80sIQdBEW5MBdbMFnOkt+1sSpjf1wfMCgYBAavlyrIJQQhqDdSN5iKY/
+HkDgKKy4rs4W0u9IL7kY5mvtGlWyGFEwcC35+oX7UMcUVKt3A3C5S3sgNi9XkraO
+VtqwL20e2pDDjNeqrcku9MVs3YEhrn79UJoV08B8WdSICgPf8eIu+cNrWPbFD7mN
+B/oB3K/nfvPjPD2n70nA0QKBgGWJN3NWR9SPV8ZZ8gyt0qxzISGjd/hZxKHR3jeC
+TBMlmVbBoIay61WZW6EdX+0yRcvmv8iQzLXoendvgZP8/VqAGGe8lEY7kgoB0LUO
+Kfh7USHqO7tWq2fR2TrrP9KKpaLoiOvGK8CzZ7cq4Ji+5QU3XUO2NnypiR5Hg0i7
+z3m9AoGBAIEXtoSR9OTwdmrdIQn3vsaFOkN5pyYfvAvdeZ+7wwMg/ZOwhStwctbI
+Um7XqocXU+8f/gjczgLgMJj+zqr+QDH5n4vSTUMPeN0gIugI9UwWnc2rhbRCgDdY
+W6SwPQGDuGoUa5PxjggkyevUUmtXvGG9jnkt9kozQOA0lOF1vbw/
+-----END RSA PRIVATE KEY-----
+"""
+        privkey = load_pem_private_key(
+            privkey_pem.encode("ascii"), password=None
+        )
+        pubkey = privkey.public_key()
+        writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
+
+        node = await self.nodemaker.create_new_mutable_directory(
+            keypair=(pubkey, privkey)
+        )
+        self.failUnless(isinstance(node, dirnode.DirectoryNode))
+
+        dircap = uri.from_string(node.get_uri())
+        self.failUnless(isinstance(dircap, uri.DirectoryURI))
+
+        filecap = dircap.get_filenode_cap()
+        self.failUnless(isinstance(filecap, uri.WriteableSSKFileURI))
+
+        self.failUnlessReallyEqual(filecap.writekey, writekey)
+        self.failUnlessReallyEqual(filecap.fingerprint, fingerprint)
+
+        self.failUnlessReallyEqual(
+            # Despite being named "to_string", this actually returns bytes..
+            dircap.to_string(),
+            b'URI:DIR2:n4opqgewgcn4mddu4oiippaxru:ukpe4z6xdlujdpguoabergyih3bj7iaafukdqzwthy2ytdd5bs2a'
+        )
