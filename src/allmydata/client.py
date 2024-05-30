@@ -1132,6 +1132,32 @@ class _Client(node.Node, pollmixin.PollMixin):
         *,
         unique_keypair: tuple[rsa.PublicKey, rsa.PrivateKey] | None = None
     ):
+        """
+        Create a new directory.
+
+        :param initial_children: If given, a structured dict representing the
+            initial content of the created directory. See
+            `docs/frontends/webapi.rst` for examples.
+
+        :param version: If given, an int representing the mutable file format
+            of the new object. Acceptable values are currently `SDMF_VERSION`
+            or `MDMF_VERSION` (corresponding to 0 or 1, respectively, as
+            defined in `allmydata.interfaces`). If no such value is provided,
+            the default mutable format will be used (currently SDMF).
+
+        :param unique_keypair: an optional tuple containing the RSA public
+            and private key to be used for the new directory. Typically, this
+            value is omitted (in which case a new random keypair will be
+            generated at creation time).
+
+            **Warning** This value independently determines the identity of
+            the mutable object to create.  There cannot be two different
+            mutable objects that share a keypair.  They will merge into one
+            object (with undefined contents).
+
+        :return: A Deferred which will fire with a representation of the new
+            directory after it has been created.
+        """
         d = self.nodemaker.create_new_mutable_directory(
             initial_children,
             version=version,
