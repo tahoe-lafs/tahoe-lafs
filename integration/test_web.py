@@ -17,6 +17,7 @@ from urllib.parse import unquote as url_unquote, quote as url_quote
 
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from twisted.internet.threads import deferToThread
+from twisted.python.filepath import FilePath
 
 import allmydata.uri
 from allmydata.crypto.rsa import (
@@ -36,6 +37,10 @@ import html5lib
 from bs4 import BeautifulSoup
 
 import pytest_twisted
+
+
+DATA_PATH = FilePath(__file__).parent().sibling("src").child("allmydata").child("test").child("data")
+
 
 @run_in_thread
 def test_index(alice):
@@ -603,39 +608,9 @@ def test_mkdir_with_known_private_key(alice):
     deterministically, given the same RSA private key, the resultant
     directory capability should always be the same.
     """
-    # Randomly generated with `openssl genrsa -out privkey.pem 2048`
-    privkey_pem = """-----BEGIN RSA PRIVATE KEY-----
-MIIEowIBAAKCAQEAoa9i8v9YIzb+3yRHyXLm4j1eWK9lQc6lFwoQhik8y+joD+5A
-v73OlDZAcn6vzlU72vwrJ1f4o54nEVm0rhNrhwCsiHCdxxEDEoqZ8w/19vc4hWj4
-SYwGirhcnyb2ysZSV8v9Lm5HiFe5zZM4jzCzf2rzt0YRlZZj9nhSglaiHZ9BE2e0
-vzOl6GePDz6yS4jbh2RsPsDQtqXNOqZwfGUd+iTsbSxXcm8+rNrT1VAbx6+1Sr0r
-aDyc/jp8S1JwJ0ofJLsU3Pb6DYazFf12CNTsrKF1L0hAsbN8v2DSunZIQqQLQGfp
-0hnNO9V8q9FjvVu8XY/HhgoTvtESU3vuq+BnIwIDAQABAoIBAGpWDP+/y9mtK8bZ
-95SXyx10Ov6crD2xiIY0ilWR/XgmP6lqio8QaDK104D5rOpIyErnmgIQK2iAdTVG
-CDyMbSWm3dIGLt5jY9/n5AQltSCtyzCCrvi/7PWC9vd9Csal1DYF5QeKY+VZvMtl
-Tcduwj7EunEI1jvJYwkQbUNncsuDi+88/JNwa8DJp1IrR4goxNflGl7mNzfq49re
-lhSyezfLSTZKDa3A6sYnNFAAOy82iXZuLXCqKuwRuaiFFilB0R0/egzBSUeBwMJk
-sS+SvHHXwv9HsYt4pYiiZFm8HxB4NKYtdpHpvJVJcG9vOXjewnA5YHWVDJsrBfu6
-0kPgbcECgYEA0bqfX2Vc6DizwjWVn9yVlckjQNGTnwf/B9eGW2MgTn6YADe0yjFm
-KCtr34hEZc/hv3kBnoLOqSvZJiser8ve3SmwxfmpjEfJdIgA5J5DbCEGBiDm9PMy
-0lYsfjykzYykehdasb8f4xd+SPMuTC/CFb1MCTlohex7qn7Xt9IskBECgYEAxVtF
-iXwFJPQUil2bSFGnxtaI/8ijypLOkP3CyuVnEcbMt74jDt1hdooRxjQ9VVlg7r7i
-EvebPKMukWxdVcQ/38i97oB/oN7MIH0QBCDWTdTQokuNQSEknGLouj6YtLAWRcyJ
-9DDENSaGtP42le5dD60hZc732jN09fGxNa6gN/MCgYB5ux98CGJ3q0mzBNUW17q/
-GOLsYXiUitidHZyveIas6M+i+LJn1WpdEG7pbLd+fL2kHEEzVutKx9efTtHd6bAu
-oF8pWfLuKFCm4bXa/H1XyocrkXdcX7h0222xy9NAN0zUTK/okW2Zqu4yu2t47xNw
-+NGkXPztFsjkugDNgiE5cQKBgQDDy/BqHPORnOIAACw9jF1SpKcYdPsiz5FGQawO
-1ZbzCPMzW9y2M6YtD3/gzxUGZv0G/7OUs7h8aTybJBJZM7FXGHZud2ent0J2/Px1
-zAow/3DZgvEp63LCAFL5635ezM/cAbff3r3aKVW9nPOUvf3vvokC01oMTb68/kMc
-ihoERwKBgFsoRUrgGPSfG1UZt8BpIXbG/8qfoy/Vy77BRqvJ6ZpdM9RPqdAl7Sih
-cdqfxs8w0NVvj+gvM/1CGO0J9lZW2f1J81haIoyUpiITFdoyzLKXLhMSbaF4Y7Hn
-yC/N5w3cCLa2LLKoLG8hagFDlXBGSmpT1zgKBk4YxNn6CLdMSzPR
------END RSA PRIVATE KEY-----
-"""
-
-    privkey = load_pem_private_key(
-        privkey_pem.encode("ascii"), password=None
-    )
+    # Generated with `openssl genrsa -out openssl-rsa-2048-3.txt 2048`
+    pempath = DATA_PATH.child("openssl-rsa-2048-3.txt")
+    privkey = load_pem_private_key(pempath.getContent(), password=None)
     assert isinstance(privkey, PrivateKey)
     pubkey = privkey.public_key()
     assert isinstance(pubkey, PublicKey)
@@ -827,39 +802,9 @@ def test_mkdir_with_children_and_known_private_key(alice):
         ]
     }
 
-    # Randomly generated with `openssl genrsa -out privkey.pem 2048`
-    privkey_pem = """-----BEGIN RSA PRIVATE KEY-----
-MIIEowIBAAKCAQEA2PL5Ry2BGuuUtRJa20WS0fwBOqVIVSXDVuSvZFYTT1Xji19J
-q+ohHcFnIIYHAq0zQG+NgNjK5rogY/5TfbwIhfwLufleeAdL9jXTfxan0o/wwFA1
-DAIHcYsTEYI2dfQe4acOLFY6/Hh6iXCbHvSzzUnEmYkgwCAZvc0v/lD8pMnz/6gQ
-2nJnAASfFovcAvfr1T+MZzLJGQem3f2IFp1frurQyFmzFRtZMO5B9PDSsFG4yJVf
-cz0iSP8wlc9QydImmJGRvu4xEOkx/55B/XaUdb6CIGpCTkLsDOlImvZt9UHDSgXq
-qcE/T7SYMIXqbep64tJw9enjomH+n1KVh9UA2wIDAQABAoIBABCSTrQ/J5N010EV
-i9cf810S0M03/tRyM/+ZLESPxp3Sw7TLrIbzNWBee5AibLqpnDaZzsc+yBDjusGo
-lZwPFt+VJxgnki288PJ3nhYhFuSglhU6izLFnOfxZZ16wsozwYAfEJgWZh8O3N1O
-uqqcqndN4TSRIu1KBm1XFQlqCkJT/stzYjO4k1vhgZT4pqhYRdx7q7FAap4v+sNs
-Svhm1blvOXlyeumAbFBdGFttpTxIOGRzI1bp00jcLK4rgssTTxNyEiVu4oJhQY/k
-0CptSUzpGio8DZ0/8bNnKCkw8YATUWJZQgSmKraRwAYMMR/SZa7WqjEc2KRTj6xQ
-pHmYwZECgYEA700a/7ur8+EwTSulLgDveAOtTV0xEbhuq6cJQgNrEp2rbFqie6FX
-g/YJKzEpEnUvj/yOzhEcw3CdQDUaxndlqY87QIhUWMcsnfMPsM1FjhmfksR8s3TF
-WZNqa0RAKmcRoLohGclSvRV2OVU8+10mLUwJfR86Nl5+auR3LxWLyB8CgYEA6BaR
-r+Z7oTlgkdEDVhnQ58Msktv58y28N+VIbYS79bV01jqUUlogm5uTvdvq5nyENXHx
-gnK88mVzWYBMk83D01HlOC5DhpspTVEQQG2V/If6KZa56mxiHP3Mab9jLew9w/kA
-g6l/04ATSA8g4i2H/Bz0eEyPEBt6o/+SO0Xv38UCgYEAyTTLvrrNmgF922UXPdcL
-gp2U2bfBymSIqUuJPTgij0SDHlgWxlyieRImI2ryXdKqayav7BP3W10U2yfLm5RI
-pokICPqX8Q2HNkdoqf/uu8xPn9gWAc3tIaQRlp+MVBrVd48IxeXA67tf7FT/MVrg
-/rUwRUQ8bfqF0NrIW46COYECgYAYDJamGoT/DNoD4hutZVlvWpsY0LCS0U9qn1ik
-+Jcde+MSe9l4uxwb48AocUxi+84bV6ZF9Su9FmQghxnoSu8ay6ar7qdSoGtkNp0v
-f+uF0nVKr/Kt5vM3u9jdsFZPoOY5k2jJO9wiB2h4FBE9PqiTqFBw0sYUTjSkH8yA
-VdvoXQKBgFqCC8Y82eVf0/ORGTgG/KhZ72WFQKHyAeryvoLuadZ6JAI6qW9U1l9P
-18SMnCO+opGN5GH2Qx7gdg17KzWzTW1gnbv0QUPNnnYEJU8VYMelNuKa8tmNgFH7
-inAwsxbbWoR08ai4exzbJrNrLpDRg5ih2wMtknN6D8m+EAvBC/Gj
------END RSA PRIVATE KEY-----
-"""
-
-    privkey = load_pem_private_key(
-        privkey_pem.encode("ascii"), password=None
-    )
+    # Generated with `openssl genrsa -out openssl-rsa-2048-4.txt 2048`
+    pempath = DATA_PATH.child("openssl-rsa-2048-4.txt")
+    privkey = load_pem_private_key(pempath.getContent(), password=None)
     assert isinstance(privkey, PrivateKey)
     pubkey = privkey.public_key()
     assert isinstance(pubkey, PublicKey)

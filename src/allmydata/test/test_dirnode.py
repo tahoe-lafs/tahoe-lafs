@@ -9,6 +9,7 @@ from zope.interface import implementer
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
+from twisted.python.filepath import FilePath
 from allmydata import uri, dirnode
 from allmydata.client import _Client
 from allmydata.crypto.rsa import create_signing_keypair
@@ -2035,38 +2036,9 @@ class DeterministicDirnode(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, 
         these values are derived deterministically, given the same
         keypair, the resulting filecap should also always be the same.
         """
-        # Randomly generated with `openssl genrsa -out privkey.pem 2048`
-        privkey_pem = """-----BEGIN RSA PRIVATE KEY-----
-MIIEowIBAAKCAQEAygMjLBKayDEioOZap2syJhUlqI7Dkk4zV5TfVxlQFO7bR410
-eJRJY1rHGIeZxQPjytsSJvqlYEJrvvVNdhi6XN/6NA3RFL6pDTHkYyM3qbrXqlYC
-HUlkS2JAZzIFRizl6nG11yIbHjPsoG+vGSjGSzVIiOP4NeIssYLpoASTIppdZxy+
-syZ6zSmPhZu7W9X73aupLjFrIZpjeKfO2+GfUwEzAH0HckLIgJpQ+vK3sqbSik/2
-1oZK33M8uvtdmba7D3uJXmxWMTJ7oyFLDpDOMl7HSUv1lZY2O2qiDPYfGDUM1BRp
-6blxE+BA2INr9NO4A4H8pzhikFnaFnkpH/AxowIDAQABAoIBABprXJ8386w42NmI
-JtT8bPuUCm/H9AXfWlGa87aVZebG8kCiXFgktJBc3+ryWQbuIk12ZyJX52b2aNb5
-h97pDv50gGlsYSrAYKWMH91jTrVQ7UGmq/IelhJR0DBu10e9OXh21JxFJpzFl63H
-zXOR5JUTa+ATSHPrl4LDp0A5OPDuWbBWa64yx7gUI9/tljbndplCrPjmIE6+h10M
-sqxW5oJpLnZpWc73QQUTuPIr+A7fLgGJYHnyCFUu9OW4ZnxNEI3/wNHPvoxkYuHN
-2qVonFESiAx9mBv7JzQ7X2KIB8doY3KL6S7sAKi/i/aP7EDJ9QEtl3BR3M8/XP8E
-KJVORWECgYEA8Vbw75+aVMxHUl9BJc1zESxqVvr+R0NBqMO47CBj39sTJkXY37O3
-A7j4dzCorI0NaB7Jr+AI2ZZu9CaR31Y2mhAGbNLBPK8yn0Z7iWyDIqOW1OpMDs35
-h2CI1pFLjx1a3PzhsQdzZ68izWKYBdTs2scaFz/ntaPwwPEwORaMDZECgYEA1kie
-YfMRJ2GwzvbR35WvEMhVxhnmA6yuRL15Pkb1WDR3iWGM0ld/u3N4sRVCx1nU4wk/
-MMqCRdm4JaxqzR/hl8+/sp3Aai15ecqR+F+ecwbbB2XKVHfi1nqClivYnB+GgCh1
-bQYUd9LT80sIQdBEW5MBdbMFnOkt+1sSpjf1wfMCgYBAavlyrIJQQhqDdSN5iKY/
-HkDgKKy4rs4W0u9IL7kY5mvtGlWyGFEwcC35+oX7UMcUVKt3A3C5S3sgNi9XkraO
-VtqwL20e2pDDjNeqrcku9MVs3YEhrn79UJoV08B8WdSICgPf8eIu+cNrWPbFD7mN
-B/oB3K/nfvPjPD2n70nA0QKBgGWJN3NWR9SPV8ZZ8gyt0qxzISGjd/hZxKHR3jeC
-TBMlmVbBoIay61WZW6EdX+0yRcvmv8iQzLXoendvgZP8/VqAGGe8lEY7kgoB0LUO
-Kfh7USHqO7tWq2fR2TrrP9KKpaLoiOvGK8CzZ7cq4Ji+5QU3XUO2NnypiR5Hg0i7
-z3m9AoGBAIEXtoSR9OTwdmrdIQn3vsaFOkN5pyYfvAvdeZ+7wwMg/ZOwhStwctbI
-Um7XqocXU+8f/gjczgLgMJj+zqr+QDH5n4vSTUMPeN0gIugI9UwWnc2rhbRCgDdY
-W6SwPQGDuGoUa5PxjggkyevUUmtXvGG9jnkt9kozQOA0lOF1vbw/
------END RSA PRIVATE KEY-----
-"""
-        privkey = load_pem_private_key(
-            privkey_pem.encode("ascii"), password=None
-        )
+        # Generated with `openssl genrsa -out openssl-rsa-2048-2.txt 2048`
+        pempath = FilePath(__file__).sibling("data").child("openssl-rsa-2048-2.txt")
+        privkey = load_pem_private_key(pempath.getContent(), password=None)
         pubkey = privkey.public_key()
         writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
 
