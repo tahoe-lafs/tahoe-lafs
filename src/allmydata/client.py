@@ -32,6 +32,7 @@ import allmydata
 from allmydata import node
 from allmydata.crypto import rsa, ed25519
 from allmydata.crypto.util import remove_prefix
+from allmydata.dirnode import DirectoryNode
 from allmydata.storage.server import StorageServer, FoolscapStorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
@@ -1127,11 +1128,11 @@ class _Client(node.Node, pollmixin.PollMixin):
 
     def create_dirnode(
         self,
-        initial_children=None,
-        version=None,
+        initial_children: dict | None = None,
+        version: int | None = None,
         *,
         unique_keypair: tuple[rsa.PublicKey, rsa.PrivateKey] | None = None
-    ):
+    ) -> DirectoryNode:
         """
         Create a new directory.
 
