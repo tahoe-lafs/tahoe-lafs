@@ -449,7 +449,12 @@ Creating a New Directory
  In addition, an optional "private-key=" argument is supported which, if given,
  specifies the underlying signing key to be used when creating the directory.
  This value must be a DER-encoded 2048-bit RSA private key in urlsafe base64
- encoding. Because this key can be used to derive the write capability for the
+ encoding. (To convert an existing PEM-encoded RSA key file into the format
+ required, the following commands may be used -- assuming a modern UNIX-like
+ environment with common tools already installed:
+ ``openssl rsa -in key.pem -outform der | base64 -w 0 -i - | tr '+/' '-_'``)
+
+ Because this key can be used to derive the write capability for the
  associated directory, additional care should be taken to ensure that the key is
  unique, that it is kept confidential, and that it was derived from an
  appropriate (high-entropy) source of randomness. If this argument is omitted
