@@ -160,7 +160,7 @@ def POSTUnlinkedCreateDirectory(req, client):
     mt = None
     if file_format:
         mt = get_mutable_type(file_format)
-    d = client.create_dirnode(version=mt)
+    d = client.create_dirnode(version=mt, unique_keypair=get_keypair(req))
     redirect = get_arg(req, "redirect_to_result", "false")
     if boolean_of_arg(redirect):
         def _then_redir(res):
@@ -178,7 +178,7 @@ def POSTUnlinkedCreateDirectoryWithChildren(req, client):
     req.content.seek(0)
     kids_json = req.content.read()
     kids = convert_children_json(client.nodemaker, kids_json)
-    d = client.create_dirnode(initial_children=kids)
+    d = client.create_dirnode(initial_children=kids, unique_keypair=get_keypair(req))
     redirect = get_arg(req, "redirect_to_result", "false")
     if boolean_of_arg(redirect):
         def _then_redir(res):
