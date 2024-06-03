@@ -77,8 +77,8 @@ def encrypt_data(encryptor, plaintext):
     """
 
     _validate_cryptor(encryptor, encrypt=True)
-    if not isinstance(plaintext, bytes):
-        raise ValueError('Plaintext must be bytes')
+    if not isinstance(plaintext, (bytes, memoryview)):
+        raise ValueError(f'Plaintext must be bytes or memoryview: {type(plaintext)}')
 
     return encryptor.update(plaintext)
 
@@ -116,8 +116,8 @@ def decrypt_data(decryptor, plaintext):
     """
 
     _validate_cryptor(decryptor, encrypt=False)
-    if not isinstance(plaintext, bytes):
-        raise ValueError('Plaintext must be bytes')
+    if not isinstance(plaintext, (bytes, memoryview)):
+        raise ValueError(f'Plaintext must be bytes or memoryview: {type(plaintext)}')
 
     return decryptor.update(plaintext)
 
