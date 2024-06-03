@@ -5,9 +5,6 @@ ISO-8601:
 http://www.cl.cam.ac.uk/~mgk25/iso-time.html
 """
 
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from future.utils import native_str
 
 import calendar, datetime, re, time

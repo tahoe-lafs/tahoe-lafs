@@ -4,11 +4,6 @@ Utilities for turning objects into human-readable strings.
 This module has been ported to Python 3.
 """
 
-
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import os
 from reprlib import Repr
 

@@ -2,14 +2,9 @@
 Ported to Python 3.
 """
 
-from future.utils import PY2
-if PY2:
-    # Don't import future bytes so we don't break a couple of tests
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
-
 import sys
 import os.path, time
-from six.moves import cStringIO as StringIO
+from io import StringIO
 from twisted.trial import unittest
 
 from allmydata.util import fileutil

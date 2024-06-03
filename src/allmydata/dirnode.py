@@ -3,10 +3,6 @@
 Ported to Python 3.
 """
 
-from future.utils import PY2
-if PY2:
-    # Skip dict so it doesn't break things.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, list, object, range, str, max, min  # noqa: F401
 from past.builtins import unicode
 
 import time

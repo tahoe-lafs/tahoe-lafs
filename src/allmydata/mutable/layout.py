@@ -2,10 +2,6 @@
 Ported to Python 3.
 """
 
-from future.utils import PY2
-if PY2:
-    # Omit dict so Python 3 changes don't leak into API callers on Python 2.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, list, object, range, str, max, min  # noqa: F401
 from past.utils import old_div
 
 import struct

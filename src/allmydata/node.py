@@ -112,8 +112,8 @@ def formatTimeTahoeStyle(self, when):
     """
     d = datetime.datetime.utcfromtimestamp(when)
     if d.microsecond:
-        return d.isoformat(ensure_str(" "))[:-3]+"Z"
-    return d.isoformat(ensure_str(" ")) + ".000Z"
+        return d.isoformat(" ")[:-3]+"Z"
+    return d.isoformat(" ") + ".000Z"
 
 PRIV_README = """
 This directory contains files which contain private data for the Tahoe node,

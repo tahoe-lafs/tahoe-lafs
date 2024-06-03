@@ -2,10 +2,6 @@
 Ported to Python 3.
 """
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import six
 import heapq, traceback, stat, struct
 from stat import S_IFREG, S_IFDIR
@@ -48,9 +44,6 @@ noisy = True
 
 from allmydata.util.log import NOISY, OPERATIONAL, WEIRD, \
     msg as logmsg, PrefixingLogMixin
-
-if six.PY3:
-    long = int
 
 
 def createSFTPError(errorCode, errorMessage):

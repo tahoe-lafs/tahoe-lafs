@@ -24,7 +24,7 @@
 import os, sys, subprocess, json, tempfile, zipfile, re, itertools
 import email.parser
 from pprint import pprint
-from six.moves import StringIO
+from io import StringIO
 import click
 
 all_packages = {} # name -> version

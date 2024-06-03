@@ -2,11 +2,7 @@
 Ported to Python 3.
 """
 
-from future.utils import PY2, bchr
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-from past.builtins import long
+from future.utils import bchr
 
 from io import BytesIO
 import attr
@@ -131,8 +127,8 @@ class FakeStorageServer(object):
                     continue
                 vector = response[shnum] = []
                 for (offset, length) in readv:
-                    assert isinstance(offset, (int, long)), offset
-                    assert isinstance(length, (int, long)), length
+                    assert isinstance(offset, int), offset
+                    assert isinstance(length, int), length
                     vector.append(shares[shnum][offset:offset+length])
             return response
         d.addCallback(_read)

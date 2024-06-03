@@ -3,13 +3,6 @@
 Ported to Python 3.
 """
 
-from past.builtins import long
-
-from future.utils import PY2
-if PY2:
-    # Skip list() since it results in spurious test failures
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, object, range, str, max, min  # noqa: F401
-
 import time
 import unicodedata
 from zope.interface import implementer
@@ -1859,7 +1852,7 @@ class DeepStats(testutil.ReallyEqualMixin, unittest.TestCase):
                                      (101, 316, 216),
                                      (317, 1000, 684),
                                      (1001, 3162, 99),
-                                     (long(3162277660169), long(10000000000000), 1),
+                                     (3162277660169, 10000000000000, 1),
                                      ])
 
 class UCWEingMutableFileNode(MutableFileNode):

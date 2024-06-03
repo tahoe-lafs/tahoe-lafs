@@ -1,13 +1,9 @@
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_text
 
 import os.path
 import json
 from twisted.trial import unittest
-from six.moves import cStringIO as StringIO
+from io import StringIO
 
 from allmydata import uri
 from allmydata.util import base32
