@@ -2,9 +2,6 @@
 Ported to Python 3.
 """
 
-
-from future.utils import bytes_to_native_str
-
 import os, stat, struct, time
 
 from collections_extended import RangeMap
@@ -534,9 +531,7 @@ class BucketReader(object):
 
     def __repr__(self):
         return "<%s %s %s>" % (self.__class__.__name__,
-                               bytes_to_native_str(
-                                   base32.b2a(self.storage_index[:8])[:12]
-                               ),
+                               base32.b2a(self.storage_index[:8])[:12].decode(),
                                self.shnum)
 
     def read(self, offset, length):
