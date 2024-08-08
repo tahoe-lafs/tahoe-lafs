@@ -788,7 +788,7 @@ class StorageServer(service.MultiService):
         report_path = get_corruption_report_path(
             self.corruption_advisory_dir,
             now,
-            si_s,
+            si_s.decode("utf8"),
             shnum,
         )
         with open(report_path, "w", encoding="utf-8") as f:
@@ -953,5 +953,5 @@ def get_corruption_report_path(
     # windows can't handle colons in the filename
     return os.path.join(
         base_dir,
-        ("%s--%s-%d" % (now, str(si_s), shnum)).replace(":","")
+        ("%s--%s-%d" % (now, si_s, shnum)).replace(":","")
     )
