@@ -953,5 +953,5 @@ def get_corruption_report_path(
     # windows can't handle colons in the filename
     return os.path.join(
         base_dir,
-        ("%s--%s-%d" % (now, str(si_s, "utf-8"), shnum)).replace(":","")
+        ("%s--%s-%d" % (now, str(si_s), shnum)).replace(":","")
     )
