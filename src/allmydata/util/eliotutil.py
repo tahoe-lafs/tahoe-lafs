@@ -32,10 +32,8 @@ from zope.interface import (
 )
 
 import attr
-from attr.validators import (
-    optional,
-    provides,
-)
+from attr.validators import optional
+from allmydata.util.attrs_provides import provides
 from twisted.internet import reactor
 from eliot import (
     ILogger,
