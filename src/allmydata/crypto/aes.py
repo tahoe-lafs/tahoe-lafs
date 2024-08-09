@@ -17,31 +17,42 @@ from cryptography.hazmat.primitives.ciphers import (
     modes,
     CipherContext,
 )
-from zope.interface import (
-    Interface,
-    directlyProvides,
-)
+from attrs import frozen
 
 
 DEFAULT_IV = b'\x00' * 16
 
 
-class IEncryptor(Interface):
+# Note: previously Zope Interfaces were used to "mark" the Cipher
+# directly; after cryptography 43.0.0 that became impossible and so
+# wrapper objects are used to ensure that create_encryptor() is used
+# to make the encryptor/decryptor objects
+
+
+@frozen
+class Encryptor:
     """
     An object which can encrypt data.
 
     Create one using :func:`create_encryptor` and use it with
     :func:`encrypt_data`
+
+    There are no public methods or members.
     """
+    _cipher: CipherContext
 
 
-class IDecryptor(Interface):
+@frozen
+class Decryptor:
     """
     An object which can decrypt data.
 
     Create one using :func:`create_decryptor` and use it with
     :func:`decrypt_data`
+
+    There are no public methods or members.
     """
+    _cipher: CipherContext
 
 
 def create_encryptor(key, iv=None):
@@ -56,12 +67,10 @@ def create_encryptor(key, iv=None):
     :param bytes iv: the Initialization Vector consisting of 16 bytes,
         or None for the default (which is 16 zero bytes)
 
-    :returns: an object suitable for use with :func:`encrypt_data` (an
-        :class:`IEncryptor`)
+    :returns Encryptor: an object suitable for use with :func:`encrypt_data`
     """
     cryptor = _create_cryptor(key, iv)
-    directlyProvides(cryptor, IEncryptor)
-    return cryptor
+    return Encryptor(cryptor)
 
 
 def encrypt_data(encryptor, plaintext):
@@ -80,7 +89,7 @@ def encrypt_data(encryptor, plaintext):
     if not isinstance(plaintext, (bytes, memoryview)):
         raise ValueError(f'Plaintext must be bytes or memoryview: {type(plaintext)}')
 
-    return encryptor.update(plaintext)
+    return encryptor._cipher.update(plaintext)
 
 
 def create_decryptor(key, iv=None):
@@ -95,12 +104,10 @@ def create_decryptor(key, iv=None):
     :param bytes iv: the Initialization Vector consisting of 16 bytes,
         or None for the default (which is 16 zero bytes)
 
-    :returns: an object suitable for use with :func:`decrypt_data` (an
-        :class:`IDecryptor` instance)
+    :returns Decryptor: an object suitable for use with :func:`decrypt_data`
     """
     cryptor = _create_cryptor(key, iv)
-    directlyProvides(cryptor, IDecryptor)
-    return cryptor
+    return Decryptor(cryptor)
 
 
 def decrypt_data(decryptor, plaintext):
@@ -119,7 +126,7 @@ def decrypt_data(decryptor, plaintext):
     if not isinstance(plaintext, (bytes, memoryview)):
         raise ValueError(f'Plaintext must be bytes or memoryview: {type(plaintext)}')
 
-    return decryptor.update(plaintext)
+    return decryptor._cipher.update(plaintext)
 
 
 def _create_cryptor(key, iv):
@@ -142,16 +149,13 @@ def _validate_cryptor(cryptor, encrypt=True):
     """
     raise ValueError if `cryptor` is not a valid object
     """
-    klass = IEncryptor if encrypt else IDecryptor
+    klass = Encryptor if encrypt else Decryptor
     name = "encryptor" if encrypt else "decryptor"
-    if not isinstance(cryptor, CipherContext):
-        raise ValueError(
-            "'{}' must be a CipherContext".format(name)
-        )
-    if not klass.providedBy(cryptor):
+    if not isinstance(cryptor, klass):
         raise ValueError(
             "'{}' must be created with create_{}()".format(name, name)
         )
+    assert isinstance(cryptor._cipher, CipherContext), "Internal inconsistency"
 
 
 def _validate_key(key):
