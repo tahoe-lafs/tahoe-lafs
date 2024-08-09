@@ -42,8 +42,8 @@ source_suffix = ['.rst', '.md']
 master_doc = 'index'
 
 # General information about the project.
-project = u'Tahoe-LAFS'
-copyright = u'2016, The Tahoe-LAFS Developers'
+project = u'Next-Gen-Docs-Tahoe-LAFS'
+copyright = u'2024, The Tahoe-LAFS Developers'
 author = u'The Tahoe-LAFS Developers'
 
 # The version info for the project you're documenting, acts as replacement for
