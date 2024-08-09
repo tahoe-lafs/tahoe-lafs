@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+import subprocess
+
+
 extensions = ['recommonmark', 'sphinx_rtd_theme']
 templates_path = ['_templates']
 source_suffix = ['.rst', '.md']
@@ -7,7 +10,7 @@ project = u'Next-Gen-Docs-Tahoe-LAFS'
 copyright = u'2024, The Tahoe-LAFS Developers'
 author = u'The Tahoe-LAFS Developers'
 
-version = u'1.19'
+version = subprocess.check_output(['git', 'describe'])
 release = u'1.19'
 
 language = "en"
