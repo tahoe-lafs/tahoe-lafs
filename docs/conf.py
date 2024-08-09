@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from ../src/allmydata import __full_version__
 extensions = ['recommonmark', 'sphinx_rtd_theme']
 templates_path = ['_templates']
 source_suffix = ['.rst', '.md']
@@ -8,7 +7,7 @@ project = u'Next-Gen-Docs-Tahoe-LAFS'
 copyright = u'2024, The Tahoe-LAFS Developers'
 author = u'The Tahoe-LAFS Developers'
 
-version = __full_version__
+version = u'1.19'
 release = u'1.19'
 
 language = "en"
