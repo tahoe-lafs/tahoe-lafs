@@ -1,4 +1,4 @@
 sphinx
 docutils<0.18  # https://github.com/sphinx-doc/sphinx/issues/9788
 recommonmark
-sphinx_rtd_theme
+sphinx-rtd-theme

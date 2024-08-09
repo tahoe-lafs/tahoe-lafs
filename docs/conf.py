@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-extensions = ['recommonmark', 'sphinx_rtd_theme']
+extensions = ['recommonmark',
+              'sphinx_rtd_theme']
 templates_path = ['_templates']
 source_suffix = ['.rst', '.md']
 master_doc = 'index'
@@ -19,6 +20,8 @@ todo_include_todos = False
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 htmlhelp_basename = 'Tahoe-LAFSdoc'
+html_extra_path = ['robots.txt']
+
 
 # -- Options for manual page output ---------------------------------------
 
