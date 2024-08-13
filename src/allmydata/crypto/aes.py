@@ -83,7 +83,7 @@ def encrypt_data(encryptor: Encryptor, plaintext: bytes) -> bytes:
     return encryptor.encrypt_context.update(plaintext)
 
 
-def create_decryptor(key: bytes, iv: Optional[bytes]=None) -> Encryptor:
+def create_decryptor(key: bytes, iv: Optional[bytes]=None) -> Decryptor:
     """
     Create and return a new object which can do AES decryptions with
     the given key and initialization vector (IV). The default IV is 16
@@ -135,7 +135,7 @@ def _create_cryptor(key: bytes, iv: Optional[bytes]) -> CipherContext:
     return cipher.encryptor()  # type: ignore[return-type]
 
 
-def _validate_key(key):
+def _validate_key(key: bytes) -> bytes:
     """
     confirm `key` is suitable for AES encryption, or raise ValueError
     """
@@ -146,7 +146,7 @@ def _validate_key(key):
     return key
 
 
-def _validate_iv(iv):
+def _validate_iv(iv: Optional[bytes]) -> bytes:
     """
     Returns a suitable initialiation vector. If `iv` is `None`, a
     default is returned. If `iv` is not a suitable initialization
