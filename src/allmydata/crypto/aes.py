@@ -10,6 +10,9 @@ objects that `cryptography` documents.
 Ported to Python 3.
 """
 
+from dataclasses import dataclass
+from typing import Optional
+
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import (
     Cipher,
@@ -17,34 +20,34 @@ from cryptography.hazmat.primitives.ciphers import (
     modes,
     CipherContext,
 )
-from zope.interface import (
-    Interface,
-    directlyProvides,
-)
 
 
 DEFAULT_IV = b'\x00' * 16
 
 
-class IEncryptor(Interface):
+@dataclass
+class Encryptor:
     """
     An object which can encrypt data.
 
     Create one using :func:`create_encryptor` and use it with
     :func:`encrypt_data`
     """
+    encrypt_context: CipherContext
 
 
-class IDecryptor(Interface):
+@dataclass
+class Decryptor:
     """
     An object which can decrypt data.
 
     Create one using :func:`create_decryptor` and use it with
     :func:`decrypt_data`
     """
+    decrypt_context: CipherContext
 
 
-def create_encryptor(key, iv=None):
+def create_encryptor(key: bytes, iv: Optional[bytes]=None) -> Encryptor:
     """
     Create and return a new object which can do AES encryptions with
     the given key and initialization vector (IV). The default IV is 16
@@ -57,33 +60,30 @@ def create_encryptor(key, iv=None):
         or None for the default (which is 16 zero bytes)
 
     :returns: an object suitable for use with :func:`encrypt_data` (an
-        :class:`IEncryptor`)
+        :class:`Encryptor`)
     """
     cryptor = _create_cryptor(key, iv)
-    directlyProvides(cryptor, IEncryptor)
-    return cryptor
+    return Encryptor(cryptor)
 
 
-def encrypt_data(encryptor, plaintext):
+def encrypt_data(encryptor: Encryptor, plaintext: bytes) -> bytes:
     """
     AES-encrypt `plaintext` with the given `encryptor`.
 
-    :param encryptor: an instance of :class:`IEncryptor` previously
+    :param encryptor: an instance of :class:`Encryptor` previously
         returned from `create_encryptor`
 
     :param bytes plaintext: the data to encrypt
 
     :returns: bytes of ciphertext
     """
-
-    _validate_cryptor(encryptor, encrypt=True)
     if not isinstance(plaintext, (bytes, memoryview)):
         raise ValueError(f'Plaintext must be bytes or memoryview: {type(plaintext)}')
 
-    return encryptor.update(plaintext)
+    return encryptor.encrypt_context.update(plaintext)
 
 
-def create_decryptor(key, iv=None):
+def create_decryptor(key: bytes, iv: Optional[bytes]=None) -> Encryptor:
     """
     Create and return a new object which can do AES decryptions with
     the given key and initialization vector (IV). The default IV is 16
@@ -96,33 +96,30 @@ def create_decryptor(key, iv=None):
         or None for the default (which is 16 zero bytes)
 
     :returns: an object suitable for use with :func:`decrypt_data` (an
-        :class:`IDecryptor` instance)
+        :class:`Decryptor` instance)
     """
     cryptor = _create_cryptor(key, iv)
-    directlyProvides(cryptor, IDecryptor)
-    return cryptor
+    return Decryptor(cryptor)
 
 
-def decrypt_data(decryptor, plaintext):
+def decrypt_data(decryptor: Decryptor, plaintext: bytes) -> bytes:
     """
     AES-decrypt `plaintext` with the given `decryptor`.
 
-    :param decryptor: an instance of :class:`IDecryptor` previously
+    :param decryptor: an instance of :class:`Decryptor` previously
         returned from `create_decryptor`
 
     :param bytes plaintext: the data to decrypt
 
     :returns: bytes of ciphertext
     """
-
-    _validate_cryptor(decryptor, encrypt=False)
     if not isinstance(plaintext, (bytes, memoryview)):
         raise ValueError(f'Plaintext must be bytes or memoryview: {type(plaintext)}')
 
-    return decryptor.update(plaintext)
+    return decryptor.decrypt_context.update(plaintext)
 
 
-def _create_cryptor(key, iv):
+def _create_cryptor(key: bytes, iv: Optional[bytes]) -> CipherContext:
     """
     Internal helper.
 
@@ -135,23 +132,7 @@ def _create_cryptor(key, iv):
         modes.CTR(iv),
         backend=default_backend()
     )
-    return cipher.encryptor()
-
-
-def _validate_cryptor(cryptor, encrypt=True):
-    """
-    raise ValueError if `cryptor` is not a valid object
-    """
-    klass = IEncryptor if encrypt else IDecryptor
-    name = "encryptor" if encrypt else "decryptor"
-    if not isinstance(cryptor, CipherContext):
-        raise ValueError(
-            "'{}' must be a CipherContext".format(name)
-        )
-    if not klass.providedBy(cryptor):
-        raise ValueError(
-            "'{}' must be created with create_{}()".format(name, name)
-        )
+    return cipher.encryptor()  # type: ignore[return-type]
 
 
 def _validate_key(key):
