@@ -33,7 +33,6 @@ from zope.interface import (
 
 import attr
 from attr.validators import optional
-from allmydata.util.attrs_provides import provides
 from twisted.internet import reactor
 from eliot import (
     ILogger,
@@ -74,6 +73,7 @@ from twisted.internet.defer import (
 )
 from twisted.application.service import MultiService
 
+from .attrs_provides import provides
 from .jsonbytes import AnyBytesJSONEncoder
 
 

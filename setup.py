@@ -62,8 +62,7 @@ install_requires = [
     #   Twisted[conch] also depends on cryptography and Twisted[tls]
     #   transitively depends on cryptography.  So it's anyone's guess what
     #   version of cryptography will *really* be installed.
-    # * cryptography 43.0.0 makes __provides__ read-only; see ticket 4300
-    "cryptography >= 2.6, < 43.0.0",
+    "cryptography >= 2.6",
 
     # * Used for custom HTTPS validation
     "pyOpenSSL >= 23.2.0",
