@@ -1,19 +1,65 @@
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    # We omit anything that might end up in pickle, just in case.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, range, str, max, min  # noqa: F401
-
-import time, os, pickle, struct
-from allmydata.storage.crawler import ShareCrawler
+import json
+import time
+import os
+import struct
+from allmydata.storage.crawler import (
+    ShareCrawler,
+    _confirm_json_format,
+    _convert_cycle_data,
+    _dump_json_to_file,
+)
 from allmydata.storage.shares import get_share_file
 from allmydata.storage.common import UnknownMutableContainerVersionError, \
      UnknownImmutableContainerVersionError
 from twisted.python import log as twlog
+from twisted.python.filepath import FilePath
+
+
+def _convert_pickle_state_to_json(state):
+    """
+    Convert a pickle-serialized crawler-history state to the new JSON
+    format.
+
+    :param dict state: the pickled state
+
+    :return dict: the state in the JSON form
+    """
+    return {
+        str(k): _convert_cycle_data(v)
+        for k, v in state.items()
+    }
+
+
+class _HistorySerializer(object):
+    """
+    Serialize the 'history' file of the lease-crawler state. This is
+    "storage/lease_checker.history" for the pickle or
+    "storage/lease_checker.history.json" for the new JSON format.
+    """
+
+    def __init__(self, history_path):
+        self._path = _confirm_json_format(FilePath(history_path))
+
+        if not self._path.exists():
+            _dump_json_to_file({}, self._path)
+
+    def load(self):
+        """
+        Deserialize the existing data.
+
+        :return dict: the existing history state
+        """
+        with self._path.open("rb") as f:
+            history = json.load(f)
+        return history
+
+    def save(self, new_history):
+        """
+        Serialize the existing data as JSON.
+        """
+        _dump_json_to_file(new_history, self._path)
+        return None
+
 
 class LeaseCheckingCrawler(ShareCrawler):
     """I examine the leases on all shares, determining which are still valid
@@ -63,7 +109,7 @@ class LeaseCheckingCrawler(ShareCrawler):
                  override_lease_duration, # used if expiration_mode=="age"
                  cutoff_date, # used if expiration_mode=="cutoff-date"
                  sharetypes):
-        self.historyfile = historyfile
+        self._history_serializer = _HistorySerializer(historyfile)
         self.expiration_enabled = expiration_enabled
         self.mode = mode
         self.override_lease_duration = None
@@ -90,14 +136,6 @@ class LeaseCheckingCrawler(ShareCrawler):
         # the keys individually
         for k in so_far:
             self.state["cycle-to-date"].setdefault(k, so_far[k])
-
-        # initialize history
-        if not os.path.exists(self.historyfile):
-            history = {} # cyclenum -> dict
-            with open(self.historyfile, "wb") as f:
-                # Newer protocols won't work in Python 2; when it is dropped,
-                # protocol v4 can be used (added in Python 3.4).
-                pickle.dump(history, f, protocol=2)
 
     def create_empty_cycle_dict(self):
         recovered = self.create_empty_recovered_dict()
@@ -142,7 +180,7 @@ class LeaseCheckingCrawler(ShareCrawler):
                     struct.error):
                 twlog.msg("lease-checker error processing %s" % sharefile)
                 twlog.err()
-                which = (storage_index_b32, shnum)
+                which = [storage_index_b32, shnum]
                 self.state["cycle-to-date"]["corrupt-shares"].append(which)
                 wks = (1, 1, 1, "unknown")
             would_keep_shares.append(wks)
@@ -212,7 +250,7 @@ class LeaseCheckingCrawler(ShareCrawler):
                 num_valid_leases_configured += 1
 
         so_far = self.state["cycle-to-date"]
-        self.increment(so_far["leases-per-share-histogram"], num_leases, 1)
+        self.increment(so_far["leases-per-share-histogram"], str(num_leases), 1)
         self.increment_space("examined", s, sharetype)
 
         would_keep_share = [1, 1, 1, sharetype]
@@ -291,12 +329,14 @@ class LeaseCheckingCrawler(ShareCrawler):
 
         start = self.state["current-cycle-start-time"]
         now = time.time()
-        h["cycle-start-finish-times"] = (start, now)
+        h["cycle-start-finish-times"] = [start, now]
         h["expiration-enabled"] = self.expiration_enabled
-        h["configured-expiration-mode"] = (self.mode,
-                                           self.override_lease_duration,
-                                           self.cutoff_date,
-                                           self.sharetypes_to_expire)
+        h["configured-expiration-mode"] = [
+            self.mode,
+            self.override_lease_duration,
+            self.cutoff_date,
+            self.sharetypes_to_expire,
+        ]
 
         s = self.state["cycle-to-date"]
 
@@ -314,16 +354,12 @@ class LeaseCheckingCrawler(ShareCrawler):
         # copy() needs to become a deepcopy
         h["space-recovered"] = s["space-recovered"].copy()
 
-        with open(self.historyfile, "rb") as f:
-            history = pickle.load(f)
-        history[cycle] = h
+        history = self._history_serializer.load()
+        history[str(cycle)] = h
         while len(history) > 10:
-            oldcycles = sorted(history.keys())
-            del history[oldcycles[0]]
-        with open(self.historyfile, "wb") as f:
-            # Newer protocols won't work in Python 2; when it is dropped,
-            # protocol v4 can be used (added in Python 3.4).
-            pickle.dump(history, f, protocol=2)
+            oldcycles = sorted(int(k) for k in history.keys())
+            del history[str(oldcycles[0])]
+        self._history_serializer.save(history)
 
     def get_state(self):
         """In addition to the crawler state described in
@@ -392,9 +428,7 @@ class LeaseCheckingCrawler(ShareCrawler):
         progress = self.get_progress()
 
         state = ShareCrawler.get_state(self) # does a shallow copy
-        with open(self.historyfile, "rb") as f:
-            history = pickle.load(f)
-        state["history"] = history
+        state["history"] = self._history_serializer.load()
 
         if not progress["cycle-in-progress"]:
             del state["cycle-to-date"]
@@ -406,10 +440,12 @@ class LeaseCheckingCrawler(ShareCrawler):
         lah = so_far["lease-age-histogram"]
         so_far["lease-age-histogram"] = self.convert_lease_age_histogram(lah)
         so_far["expiration-enabled"] = self.expiration_enabled
-        so_far["configured-expiration-mode"] = (self.mode,
-                                                self.override_lease_duration,
-                                                self.cutoff_date,
-                                                self.sharetypes_to_expire)
+        so_far["configured-expiration-mode"] = [
+            self.mode,
+            self.override_lease_duration,
+            self.cutoff_date,
+            self.sharetypes_to_expire,
+        ]
 
         so_far_sr = so_far["space-recovered"]
         remaining_sr = {}

@@ -4,28 +4,12 @@
 Ported to Python 3.
 """
 
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-else:
-    from typing import Union
-
+from typing import Union, Optional
 
 import os, sys, textwrap
 import codecs
 from os.path import join
 import urllib.parse
-
-try:
-    from typing import Optional
-    from .types_ import Parameters
-except ImportError:
-    pass
 
 from yaml import (
     safe_dump,
@@ -37,6 +21,8 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import quote_output, \
     quote_local_unicode_path, argv_to_abspath
 from allmydata.scripts.default_nodedir import _default_nodedir
+from .types_ import Parameters
+
 
 def get_default_nodedir():
     return _default_nodedir
@@ -59,7 +45,7 @@ class BaseOptions(usage.Options):
     def opt_version(self):
         raise usage.UsageError("--version not allowed on subcommands")
 
-    description = None  # type: Optional[str]
+    description : Optional[str] = None
     description_unwrapped = None  # type: Optional[str]
 
     def __str__(self):
@@ -80,10 +66,10 @@ class BaseOptions(usage.Options):
 class BasedirOptions(BaseOptions):
     default_nodedir = _default_nodedir
 
-    optParameters = [
+    optParameters : Parameters = [
         ["basedir", "C", None, "Specify which Tahoe base directory should be used. [default: %s]"
          % quote_local_unicode_path(_default_nodedir)],
-    ]  # type: Parameters
+    ]
 
     def parseArgs(self, basedir=None):
         # This finds the node-directory option correctly even if we are in a subcommand.
@@ -141,7 +127,9 @@ def write_introducer(basedir, petname, furl):
     """
     if isinstance(furl, bytes):
         furl = furl.decode("utf-8")
-    basedir.child(b"private").child(b"introducers.yaml").setContent(
+    private = basedir.child(b"private")
+    private.makedirs(ignoreExistingDirectory=True)
+    private.child(b"introducers.yaml").setContent(
         safe_dump({
             "introducers": {
                 petname: {
@@ -281,9 +269,8 @@ def get_alias(aliases, path_unicode, default):
                                 quote_output(alias))
     return uri.from_string_dirnode(aliases[alias]).to_string(), path[colon+1:]
 
-def escape_path(path):
-    # type: (Union[str,bytes]) -> str
-    u"""
+def escape_path(path: Union[str, bytes]) -> str:
+    """
     Return path quoted to US-ASCII, valid URL characters.
 
     >>> path = u'/føö/bar/☃'
@@ -300,9 +287,4 @@ def escape_path(path):
         ]),
         "ascii"
     )
-    # Eventually (i.e. as part of Python 3 port) we want this to always return
-    # Unicode strings. However, to reduce diff sizes in the short term it'll
-    # return native string (i.e. bytes) on Python 2.
-    if PY2:
-        result = result.encode("ascii").__native__()
     return result

@@ -1,17 +1,10 @@
 """
 Ported to Python 3.
 """
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-from six.moves import cStringIO as StringIO
-from twisted.trial import unittest
+from io import StringIO
+from ..common import AsyncTestCase
+from testtools.matchers import Equals, HasLength, Contains
 from twisted.internet import defer
 
 from allmydata.util import base32, consumer
@@ -23,8 +16,9 @@ from allmydata.mutable.retrieve import Retrieve
 from .util import PublishMixin, make_storagebroker, corrupt
 from .. import common_util as testutil
 
-class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
+class Roundtrip(AsyncTestCase, testutil.ShouldFailMixin, PublishMixin):
     def setUp(self):
+        super(Roundtrip, self).setUp()
         return self.publish_one()
 
     def make_servermap(self, mode=MODE_READ, oldmap=None, sb=None):
@@ -73,11 +67,11 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         def _do_retrieve(servermap):
             self._smap = servermap
             #self.dump_servermap(servermap)
-            self.failUnlessEqual(len(servermap.recoverable_versions()), 1)
+            self.assertThat(servermap.recoverable_versions(), HasLength(1))
             return self.do_download(servermap)
         d.addCallback(_do_retrieve)
         def _retrieved(new_contents):
-            self.failUnlessEqual(new_contents, self.CONTENTS)
+            self.assertThat(new_contents, Equals(self.CONTENTS))
         d.addCallback(_retrieved)
         # we should be able to re-use the same servermap, both with and
         # without updating it.
@@ -132,10 +126,10 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         # back empty
         d = self.make_servermap(sb=sb2)
         def _check_servermap(servermap):
-            self.failUnlessEqual(servermap.best_recoverable_version(), None)
-            self.failIf(servermap.recoverable_versions())
-            self.failIf(servermap.unrecoverable_versions())
-            self.failIf(servermap.all_servers())
+            self.assertThat(servermap.best_recoverable_version(), Equals(None))
+            self.assertFalse(servermap.recoverable_versions())
+            self.assertFalse(servermap.unrecoverable_versions())
+            self.assertFalse(servermap.all_servers())
         d.addCallback(_check_servermap)
         return d
 
@@ -154,7 +148,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
             self._fn._storage_broker = self._storage_broker
             return self._fn.download_best_version()
         def _retrieved(new_contents):
-            self.failUnlessEqual(new_contents, self.CONTENTS)
+            self.assertThat(new_contents, Equals(self.CONTENTS))
         d.addCallback(_restore)
         d.addCallback(_retrieved)
         return d
@@ -178,13 +172,13 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
                 # should be noted in the servermap's list of problems.
                 if substring:
                     allproblems = [str(f) for f in servermap.get_problems()]
-                    self.failUnlessIn(substring, "".join(allproblems))
+                    self.assertThat("".join(allproblems), Contains(substring))
                 return servermap
             if should_succeed:
                 d1 = self._fn.download_version(servermap, ver,
                                                fetch_privkey)
                 d1.addCallback(lambda new_contents:
-                               self.failUnlessEqual(new_contents, self.CONTENTS))
+                               self.assertThat(new_contents, Equals(self.CONTENTS)))
             else:
                 d1 = self.shouldFail(NotEnoughSharesError,
                                      "_corrupt_all(offset=%s)" % (offset,),
@@ -207,7 +201,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
             # and the dump should mention the problems
             s = StringIO()
             dump = servermap.dump(s).getvalue()
-            self.failUnless("30 PROBLEMS" in dump, dump)
+            self.assertTrue("30 PROBLEMS" in dump, msg=dump)
         d.addCallback(_check_servermap)
         return d
 
@@ -299,8 +293,8 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         # in NotEnoughSharesError, since each share will look invalid
         def _check(res):
             f = res[0]
-            self.failUnless(f.check(NotEnoughSharesError))
-            self.failUnless("uncoordinated write" in str(f))
+            self.assertThat(f.check(NotEnoughSharesError), HasLength(1))
+            self.assertThat("uncoordinated write" in str(f), Equals(True))
         return self._test_corrupt_all(1, "ran out of servers",
                                       corrupt_early=False,
                                       failure_checker=_check)
@@ -309,7 +303,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
     def test_corrupt_all_block_late(self):
         def _check(res):
             f = res[0]
-            self.failUnless(f.check(NotEnoughSharesError))
+            self.assertTrue(f.check(NotEnoughSharesError))
         return self._test_corrupt_all("share_data", "block hash tree failure",
                                       corrupt_early=False,
                                       failure_checker=_check)
@@ -330,9 +324,9 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
                       shnums_to_corrupt=list(range(0, N-k)))
         d.addCallback(lambda res: self.make_servermap())
         def _do_retrieve(servermap):
-            self.failUnless(servermap.get_problems())
-            self.failUnless("pubkey doesn't match fingerprint"
-                            in str(servermap.get_problems()[0]))
+            self.assertTrue(servermap.get_problems())
+            self.assertThat("pubkey doesn't match fingerprint"
+                            in str(servermap.get_problems()[0]), Equals(True))
             ver = servermap.best_recoverable_version()
             r = Retrieve(self._fn, self._storage_broker, servermap, ver)
             c = consumer.MemoryConsumer()
@@ -340,7 +334,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         d.addCallback(_do_retrieve)
         d.addCallback(lambda mc: b"".join(mc.chunks))
         d.addCallback(lambda new_contents:
-                      self.failUnlessEqual(new_contents, self.CONTENTS))
+                      self.assertThat(new_contents, Equals(self.CONTENTS)))
         return d
 
 
@@ -355,11 +349,11 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
             self.make_servermap())
         def _do_retrieve(servermap):
             ver = servermap.best_recoverable_version()
-            self.failUnless(ver)
+            self.assertTrue(ver)
             return self._fn.download_best_version()
         d.addCallback(_do_retrieve)
         d.addCallback(lambda new_contents:
-            self.failUnlessEqual(new_contents, self.CONTENTS))
+            self.assertThat(new_contents, Equals(self.CONTENTS)))
         return d
 
 

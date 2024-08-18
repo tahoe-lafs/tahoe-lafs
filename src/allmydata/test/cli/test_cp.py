@@ -1,14 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os.path, json
 from twisted.trial import unittest
@@ -17,8 +9,7 @@ from twisted.internet import defer
 
 from allmydata.scripts import cli
 from allmydata.util import fileutil
-from allmydata.util.encodingutil import (quote_output, get_io_encoding,
-                                         unicode_to_output, to_bytes)
+from allmydata.util.encodingutil import (quote_output, unicode_to_output, to_bytes)
 from allmydata.util.assertutil import _assert
 from ..no_network import GridTestMixin
 from .common import CLITestMixin
@@ -77,8 +68,6 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                 self.failUnlessIn("files whose names could not be converted", err)
             else:
                 self.failUnlessReallyEqual(rc, 0)
-                if PY2:
-                    out = out.decode(get_io_encoding())
                 self.failUnlessReallyEqual(out, u"Metallica\n\u00C4rtonwall\n\u00C4rtonwall-2\n")
                 self.assertEqual(len(err), 0, err)
         d.addCallback(_check)
@@ -235,8 +224,6 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                 self.failUnlessIn("files whose names could not be converted", err)
             else:
                 self.failUnlessReallyEqual(rc, 0)
-                if PY2:
-                    out = out.decode(get_io_encoding())
                 self.failUnlessReallyEqual(out, u"\u00C4rtonwall\n")
                 self.assertEqual(len(err), 0, err)
         d.addCallback(_check)

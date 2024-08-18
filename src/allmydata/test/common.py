@@ -1,14 +1,8 @@
 """
-Ported to Python 3.
+Functionality related to a lot of the test suite.
 """
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2, native_str
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from past.builtins import chr as byteschr
 
 __all__ = [
@@ -28,6 +22,7 @@ __all__ = [
 
 import sys
 import os, random, struct
+from contextlib import contextmanager
 import six
 import tempfile
 from tempfile import mktemp
@@ -87,6 +82,7 @@ from allmydata.interfaces import (
     SDMF_VERSION,
     MDMF_VERSION,
     IAddressFamily,
+    NoSpace,
 )
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
@@ -109,35 +105,63 @@ from allmydata.scripts.common import (
 
 from ..crypto import (
     ed25519,
+    rsa,
 )
 from .eliotutil import (
     EliotLoggedRunTest,
 )
 from .common_util import ShouldFailMixin  # noqa: F401
 
-if sys.platform == "win32" and PY2:
-    # Python 2.7 doesn't have good options for launching a process with
-    # non-ASCII in its command line.  So use this alternative that does a
-    # better job.  However, only use it on Windows because it doesn't work
-    # anywhere else.
-    from ._win_subprocess import (
-        Popen,
-    )
-else:
-    from subprocess import (
-        Popen,
-    )
 from subprocess import (
+    Popen,
     PIPE,
 )
 
-TEST_RSA_KEY_SIZE = 522
+# Is the process running as an OS user with elevated privileges (ie, root)?
+# We only know how to determine this for POSIX systems.
+superuser = getattr(os, "getuid", lambda: -1)() == 0
 
 EMPTY_CLIENT_CONFIG = config_from_string(
     "/dev/null",
     "tub.port",
     ""
 )
+
+@attr.s
+class FakeDisk(object):
+    """
+    Just enough of a disk to be able to report free / used information.
+    """
+    total = attr.ib()
+    used = attr.ib()
+
+    def use(self, num_bytes):
+        """
+        Mark some amount of available bytes as used (and no longer available).
+
+        :param int num_bytes: The number of bytes to use.
+
+        :raise NoSpace: If there are fewer bytes available than ``num_bytes``.
+
+        :return: ``None``
+        """
+        if num_bytes > self.total - self.used:
+            raise NoSpace()
+        self.used += num_bytes
+
+    @property
+    def available(self):
+        return self.total - self.used
+
+    def get_disk_stats(self, whichdir, reserved_space):
+        avail = self.available
+        return {
+            'total': self.total,
+            'free_for_root': avail,
+            'free_for_nonroot': avail,
+            'used': self.used,
+            'avail': avail - reserved_space,
+        }
 
 
 @attr.s
@@ -153,8 +177,8 @@ class MemoryIntroducerClient(object):
     sequencer = attr.ib()
     cache_filepath = attr.ib()
 
-    subscribed_to = attr.ib(default=attr.Factory(list))
-    published_announcements = attr.ib(default=attr.Factory(list))
+    subscribed_to : list[Subscription] = attr.ib(default=attr.Factory(list))
+    published_announcements : list[Announcement] = attr.ib(default=attr.Factory(list))
 
 
     def setServiceParent(self, parent):
@@ -262,13 +286,17 @@ class UseNode(object):
     plugin_config = attr.ib()
     storage_plugin = attr.ib()
     basedir = attr.ib(validator=attr.validators.instance_of(FilePath))
-    introducer_furl = attr.ib(validator=attr.validators.instance_of(native_str),
+    introducer_furl = attr.ib(validator=attr.validators.instance_of(str),
                               converter=six.ensure_str)
-    node_config = attr.ib(default=attr.Factory(dict))
+    node_config : dict[bytes,bytes] = attr.ib(default=attr.Factory(dict))
 
     config = attr.ib(default=None)
+    reactor = attr.ib(default=None)
 
     def setUp(self):
+        self.assigner = SameProcessStreamEndpointAssigner()
+        self.assigner.setUp()
+
         def format_config_items(config):
             return "\n".join(
                 " = ".join((key, value))
@@ -279,34 +307,54 @@ class UseNode(object):
         if self.plugin_config is None:
             plugin_config_section = ""
         else:
-            plugin_config_section = """
-[storageclient.plugins.{storage_plugin}]
-{config}
-""".format(
-    storage_plugin=self.storage_plugin,
-    config=format_config_items(self.plugin_config),
-)
+            plugin_config_section = (
+                "[storageclient.plugins.{storage_plugin}]\n"
+                "{config}\n").format(
+                    storage_plugin=self.storage_plugin,
+                    config=format_config_items(self.plugin_config),
+                )
+
+        if self.storage_plugin is None:
+            plugins = ""
+        else:
+            plugins = "storage.plugins = {}".format(self.storage_plugin)
 
         write_introducer(
             self.basedir,
             "default",
             self.introducer_furl,
         )
+
+        node_config = self.node_config.copy()
+        if "tub.port" not in node_config:
+            if "tub.location" in node_config:
+                raise ValueError(
+                    "UseNode fixture does not support specifying tub.location "
+                    "without tub.port"
+                )
+
+            # Don't use the normal port auto-assignment logic.  It produces
+            # collisions and makes tests fail spuriously.
+            tub_location, tub_endpoint = self.assigner.assign(self.reactor)
+            node_config.update({
+                "tub.port": tub_endpoint,
+                "tub.location": tub_location,
+            })
+
         self.config = config_from_string(
             self.basedir.asTextMode().path,
             "tub.port",
-"""
-[node]
-{node_config}
-
-[client]
-storage.plugins = {storage_plugin}
-{plugin_config_section}
-""".format(
-    storage_plugin=self.storage_plugin,
-    node_config=format_config_items(self.node_config),
-    plugin_config_section=plugin_config_section,
-)
+            "[node]\n"
+            "{node_config}\n"
+            "\n"
+            "[client]\n"
+            "{plugins}\n"
+            "{plugin_config_section}\n"
+            .format(
+                plugins=plugins,
+                node_config=format_config_items(node_config),
+                plugin_config_section=plugin_config_section,
+            )
         )
 
     def create_node(self):
@@ -316,7 +364,7 @@ storage.plugins = {storage_plugin}
         )
 
     def cleanUp(self):
-        pass
+        self.assigner.tearDown()
 
 
     def getDetails(self):
@@ -582,15 +630,28 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
 
     MUTABLE_SIZELIMIT = 10000
 
-    def __init__(self, storage_broker, secret_holder,
-                 default_encoding_parameters, history, all_contents):
+    _public_key: rsa.PublicKey | None
+    _private_key: rsa.PrivateKey | None
+
+    def __init__(self,
+                 storage_broker,
+                 secret_holder,
+                 default_encoding_parameters,
+                 history,
+                 all_contents,
+                 keypair: tuple[rsa.PublicKey, rsa.PrivateKey] | None
+                ):
         self.all_contents = all_contents
-        self.file_types = {} # storage index => MDMF_VERSION or SDMF_VERSION
-        self.init_from_cap(make_mutable_file_cap())
+        self.file_types: dict[bytes, int] = {} # storage index => MDMF_VERSION or SDMF_VERSION
+        self.init_from_cap(make_mutable_file_cap(keypair))
         self._k = default_encoding_parameters['k']
         self._segsize = default_encoding_parameters['max_segment_size']
-    def create(self, contents, key_generator=None, keysize=None,
-               version=SDMF_VERSION):
+        if keypair is None:
+            self._public_key = self._private_key = None
+        else:
+            self._public_key, self._private_key = keypair
+
+    def create(self, contents, version=SDMF_VERSION):
         if version == MDMF_VERSION and \
             isinstance(self.my_uri, (uri.ReadonlySSKFileURI,
                                  uri.WriteableSSKFileURI)):
@@ -786,9 +847,28 @@ class FakeMutableFileNode(object):  # type: ignore # incomplete implementation
         return defer.succeed(consumer)
 
 
-def make_mutable_file_cap():
-    return uri.WriteableSSKFileURI(writekey=os.urandom(16),
-                                   fingerprint=os.urandom(32))
+def make_mutable_file_cap(
+        keypair: tuple[rsa.PublicKey, rsa.PrivateKey] | None = None,
+) -> uri.WriteableSSKFileURI:
+    """
+    Create a local representation of a mutable object.
+
+    :param keypair: If None, a random keypair will be generated for the new
+        object.  Otherwise, this is the keypair for that object.
+    """
+    if keypair is None:
+        writekey = os.urandom(16)
+        fingerprint = os.urandom(32)
+    else:
+        pubkey, privkey = keypair
+        pubkey_s = rsa.der_string_from_verifying_key(pubkey)
+        privkey_s = rsa.der_string_from_signing_key(privkey)
+        writekey = hashutil.ssk_writekey_hash(privkey_s)
+        fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
+
+    return uri.WriteableSSKFileURI(
+        writekey=writekey, fingerprint=fingerprint,
+    )
 
 def make_mdmf_mutable_file_cap():
     return uri.WriteableMDMFFileURI(writekey=os.urandom(16),
@@ -818,7 +898,7 @@ def create_mutable_filenode(contents, mdmf=False, all_contents=None):
     encoding_params['max_segment_size'] = 128*1024
 
     filenode = FakeMutableFileNode(None, None, encoding_params, None,
-                                   all_contents)
+                                   all_contents, None)
     filenode.init_from_cap(cap)
     if mdmf:
         filenode.create(MutableData(contents), version=MDMF_VERSION)
@@ -1068,7 +1148,7 @@ def _corrupt_offset_of_uri_extension_to_force_short_read(data, debug=False):
 
 def _corrupt_mutable_share_data(data, debug=False):
     prefix = data[:32]
-    assert prefix == MutableShareFile.MAGIC, "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
+    assert MutableShareFile.is_valid_header(prefix), "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
     data_offset = MutableShareFile.DATA_OFFSET
     sharetype = data[data_offset:data_offset+1]
     assert sharetype == b"\x00", "non-SDMF mutable shares not supported"
@@ -1213,6 +1293,29 @@ class ConstantAddresses(object):
             raise Exception("{!r} has no client endpoint.")
         return self._handler
 
+@contextmanager
+def disable_modules(*names):
+    """
+    A context manager which makes modules appear to be missing while it is
+    active.
+
+    :param *names: The names of the modules to disappear.  Only top-level
+        modules are supported (that is, "." is not allowed in any names).
+        This is an implementation shortcoming which could be lifted if
+        desired.
+    """
+    if any("." in name for name in names):
+        raise ValueError("Names containing '.' are not supported.")
+    missing = object()
+    modules = list(sys.modules.get(n, missing) for n in names)
+    for n in names:
+        sys.modules[n] = None
+    yield
+    for n, original in zip(names, modules):
+        if original is missing:
+            del sys.modules[n]
+        else:
+            sys.modules[n] = original
 
 class _TestCaseMixin(object):
     """
@@ -1248,6 +1351,26 @@ class _TestCaseMixin(object):
 
     def assertRaises(self, *a, **kw):
         return self._dummyCase.assertRaises(*a, **kw)
+
+    def failUnless(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertTrue(*args, **kwargs)
+
+    def failIf(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertFalse(*args, **kwargs)
+
+    def failIfEqual(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertNotEqual(*args, **kwargs)
+
+    def failUnlessEqual(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertEqual(*args, **kwargs)
+
+    def failUnlessReallyEqual(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertReallyEqual(*args, **kwargs)
 
 
 class SyncTestCase(_TestCaseMixin, TestCase):
@@ -1304,7 +1427,4 @@ class TrialTestCase(_TrialTestCase):
         you try to turn that Exception instance into a string.
         """
 
-        if six.PY2:
-            if isinstance(msg, six.text_type):
-                return super(TrialTestCase, self).fail(msg.encode("utf8"))
         return super(TrialTestCase, self).fail(msg)

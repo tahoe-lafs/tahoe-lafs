@@ -1,17 +1,8 @@
 """
 Utilities for getting IP addresses.
-
-Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2, native_str
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from typing import Callable
 
 import os, socket
 
@@ -39,6 +30,7 @@ from .gcutil import (
 
 fcntl = requireModule("fcntl")
 
+allocate_tcp_port: Callable[[], int]
 from foolscap.util import allocate_tcp_port # re-exported
 
 try:
@@ -110,7 +102,7 @@ def get_local_addresses_sync():
         on the local system.
     """
     return list(
-        native_str(address[native_str("addr")])
+        str(address["addr"])
         for iface_name
         in interfaces()
         for address
@@ -167,7 +159,7 @@ def _foolscapEndpointForPortNumber(portnum):
             # approach is error prone for the reasons described on
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2787
             portnum = allocate_tcp_port()
-    return (portnum, native_str("tcp:%d" % (portnum,)))
+    return (portnum, "tcp:%d" % portnum)
 
 
 @implementer(IStreamServerEndpoint)
@@ -216,7 +208,7 @@ def listenOnUnused(tub, portnum=None):
     """
     portnum, endpoint = _foolscapEndpointForPortNumber(portnum)
     tub.listenOn(endpoint)
-    tub.setLocation(native_str("localhost:%d" % (portnum,)))
+    tub.setLocation("localhost:%d" % portnum)
     return portnum
 
 

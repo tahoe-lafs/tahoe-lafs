@@ -1,14 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import six
 import heapq, traceback, stat, struct
@@ -52,9 +44,6 @@ noisy = True
 
 from allmydata.util.log import NOISY, OPERATIONAL, WEIRD, \
     msg as logmsg, PrefixingLogMixin
-
-if six.PY3:
-    long = int
 
 
 def createSFTPError(errorCode, errorMessage):
@@ -1925,7 +1914,11 @@ class FakeTransport(object):
     def loseConnection(self):
         logmsg("FakeTransport.loseConnection()", level=NOISY)
 
-    # getPeer and getHost can just raise errors, since we don't know what to return
+    def getHost(self):
+        raise NotImplementedError()
+
+    def getPeer(self):
+        raise NotImplementedError()
 
 
 @implementer(ISession)
@@ -1990,15 +1983,18 @@ class Dispatcher(object):
     def __init__(self, client):
         self._client = client
 
-    def requestAvatar(self, avatarID, mind, interface):
+    def requestAvatar(self, avatarId, mind, *interfaces):
+        [interface] = interfaces
         _assert(interface == IConchUser, interface=interface)
-        rootnode = self._client.create_node_from_uri(avatarID.rootcap)
-        handler = SFTPUserHandler(self._client, rootnode, avatarID.username)
+        rootnode = self._client.create_node_from_uri(avatarId.rootcap)
+        handler = SFTPUserHandler(self._client, rootnode, avatarId.username)
         return (interface, handler, handler.logout)
 
 
 class SFTPServer(service.MultiService):
-    name = "frontend:sftp"
+    # The type in Twisted for services is wrong in 22.10...
+    # https://github.com/twisted/twisted/issues/10135
+    name = "frontend:sftp"  # type: ignore[assignment]
 
     def __init__(self, client, accountfile,
                  sftp_portstr, pubkey_file, privkey_file):

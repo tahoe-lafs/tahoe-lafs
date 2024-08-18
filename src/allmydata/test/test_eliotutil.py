@@ -1,19 +1,6 @@
 """
 Tests for ``allmydata.util.eliotutil``.
-
-Ported to Python 3.
 """
-
-from __future__ import (
-    unicode_literals,
-    print_function,
-    absolute_import,
-    division,
-)
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from sys import stdout
 import logging
@@ -27,13 +14,12 @@ from fixtures import (
 )
 from testtools import (
     TestCase,
-)
-from testtools import (
     TestResult,
 )
 from testtools.matchers import (
     Is,
     IsInstance,
+    Not,
     MatchesStructure,
     Equals,
     HasLength,
@@ -48,7 +34,6 @@ from eliot import (
     Message,
     MessageType,
     fields,
-    FileDestination,
     MemoryLogger,
 )
 from eliot.twisted import DeferredContext
@@ -69,7 +54,7 @@ from ..util.eliotutil import (
     _parse_destination_description,
     _EliotLogging,
 )
-from ..util.jsonbytes import AnyBytesJSONEncoder
+from ..util.deferredutil import async_to_deferred
 
 from .common import (
     SyncTestCase,
@@ -77,24 +62,105 @@ from .common import (
 )
 
 
-class EliotLoggedTestTests(AsyncTestCase):
+def passes():
+    """
+    Create a matcher that matches a ``TestCase`` that runs without failures or
+    errors.
+    """
+    def run(case):
+        result = TestResult()
+        case.run(result)
+        return result.wasSuccessful()
+    return AfterPreprocessing(run, Equals(True))
+
+
+class EliotLoggedTestTests(TestCase):
+    """
+    Tests for the automatic log-related provided by ``AsyncTestCase``.
+
+    This class uses ``testtools.TestCase`` because it is inconvenient to nest
+    ``AsyncTestCase`` inside ``AsyncTestCase`` (in particular, Eliot messages
+    emitted by the inner test case get observed by the outer test case and if
+    an inner case emits invalid messages they cause the outer test case to
+    fail).
+    """
+    def test_fails(self):
+        """
+        A test method of an ``AsyncTestCase`` subclass can fail.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                self.fail("make sure it can fail")
+
+        self.assertThat(UnderTest("test_it"), Not(passes()))
+
+    def test_unserializable_fails(self):
+        """
+        A test method of an ``AsyncTestCase`` subclass that logs an unserializable
+        value with Eliot fails.
+        """
+        class world(object):
+            """
+            an unserializable object
+            """
+
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello=world)
+
+        self.assertThat(UnderTest("test_it"), Not(passes()))
+
+    def test_logs_non_utf_8_byte(self):
+        """
+        A test method of an ``AsyncTestCase`` subclass can log a message that
+        contains a non-UTF-8 byte string and return ``None`` and pass.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello=b"\xFF")
+
+        self.assertThat(UnderTest("test_it"), passes())
+
     def test_returns_none(self):
-        Message.log(hello="world")
+        """
+        A test method of an ``AsyncTestCase`` subclass can log a message and
+        return ``None`` and pass.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello="world")
+
+        self.assertThat(UnderTest("test_it"), passes())
 
     def test_returns_fired_deferred(self):
-        Message.log(hello="world")
-        return succeed(None)
+        """
+        A test method of an ``AsyncTestCase`` subclass can log a message and
+        return an already-fired ``Deferred`` and pass.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello="world")
+                return succeed(None)
+
+        self.assertThat(UnderTest("test_it"), passes())
 
     def test_returns_unfired_deferred(self):
-        Message.log(hello="world")
-        # @eliot_logged_test automatically gives us an action context but it's
-        # still our responsibility to maintain it across stack-busting
-        # operations.
-        d = DeferredContext(deferLater(reactor, 0.0, lambda: None))
-        d.addCallback(lambda ignored: Message.log(goodbye="world"))
-        # We didn't start an action.  We're not finishing an action.
-        return d.result
+        """
+        A test method of an ``AsyncTestCase`` subclass can log a message and
+        return an unfired ``Deferred`` and pass when the ``Deferred`` fires.
+        """
+        class UnderTest(AsyncTestCase):
+            def test_it(self):
+                Message.log(hello="world")
+                # @eliot_logged_test automatically gives us an action context
+                # but it's still our responsibility to maintain it across
+                # stack-busting operations.
+                d = DeferredContext(deferLater(reactor, 0.0, lambda: None))
+                d.addCallback(lambda ignored: Message.log(goodbye="world"))
+                # We didn't start an action.  We're not finishing an action.
+                return d.result
 
+        self.assertThat(UnderTest("test_it"), passes())
 
 
 class ParseDestinationDescriptionTests(SyncTestCase):
@@ -108,8 +174,8 @@ class ParseDestinationDescriptionTests(SyncTestCase):
         """
         reactor = object()
         self.assertThat(
-            _parse_destination_description("file:-")(reactor),
-            Equals(FileDestination(stdout, encoder=AnyBytesJSONEncoder)),
+            _parse_destination_description("file:-")(reactor).file,
+            Equals(stdout),
         )
 
 
@@ -136,13 +202,14 @@ class ParseDestinationDescriptionTests(SyncTestCase):
         )
 
 
-# Opt out of the great features of common.SyncTestCase because we're
-# interacting with Eliot in a very obscure, particular, fragile way. :/
-class EliotLoggingTests(TestCase):
+# We need AsyncTestCase because logging happens in a thread tied to the
+# reactor.
+class EliotLoggingTests(AsyncTestCase):
     """
     Tests for ``_EliotLogging``.
     """
-    def test_stdlib_event_relayed(self):
+    @async_to_deferred
+    async def test_stdlib_event_relayed(self):
         """
         An event logged using the stdlib logging module is delivered to the Eliot
         destination.
@@ -150,23 +217,16 @@ class EliotLoggingTests(TestCase):
         collected = []
         service = _EliotLogging([collected.append])
         service.startService()
-        self.addCleanup(service.stopService)
-
-        # The first destination added to the global log destinations gets any
-        # buffered messages delivered to it.  We don't care about those.
-        # Throw them on the floor.  Sorry.
-        del collected[:]
 
         logging.critical("oh no")
-        self.assertThat(
-            collected,
-            AfterPreprocessing(
-                len,
-                Equals(1),
-            ),
+        await service.stopService()
+
+        self.assertTrue(
+            "oh no" in str(collected[-1]), collected
         )
 
-    def test_twisted_event_relayed(self):
+    @async_to_deferred
+    async def test_twisted_event_relayed(self):
         """
         An event logged with a ``twisted.logger.Logger`` is delivered to the Eliot
         destination.
@@ -174,15 +234,13 @@ class EliotLoggingTests(TestCase):
         collected = []
         service = _EliotLogging([collected.append])
         service.startService()
-        self.addCleanup(service.stopService)
 
         from twisted.logger import Logger
         Logger().critical("oh no")
-        self.assertThat(
-            collected,
-            AfterPreprocessing(
-                len, Equals(1),
-            ),
+        await service.stopService()
+
+        self.assertTrue(
+            "oh no" in str(collected[-1]), collected
         )
 
     def test_validation_failure(self):
@@ -238,7 +296,6 @@ class EliotLoggingTests(TestCase):
             actual,
             Is(expected),
         )
-
 
 
 class LogCallDeferredTests(TestCase):

@@ -8,7 +8,6 @@ Runs on Python 3.
 Usage: ./check-debugging.py src
 """
 
-from __future__ import print_function
 
 import sys, re, os
 

@@ -1,16 +1,9 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-from twisted.trial import unittest
+from ..common import AsyncTestCase
+from testtools.matchers import Equals, HasLength
 from allmydata.interfaces import IRepairResults, ICheckAndRepairResults
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import MODE_CHECK
@@ -19,7 +12,7 @@ from allmydata.mutable.repairer import MustForceRepairError
 from ..common import ShouldFailMixin
 from .util import PublishMixin
 
-class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
+class Repair(AsyncTestCase, PublishMixin, ShouldFailMixin):
 
     def get_shares(self, s):
         all_shares = {} # maps (peerid, shnum) to share data
@@ -40,8 +33,8 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         d.addCallback(lambda res: self._fn.check(Monitor()))
         d.addCallback(lambda check_results: self._fn.repair(check_results))
         def _check_results(rres):
-            self.failUnless(IRepairResults.providedBy(rres))
-            self.failUnless(rres.get_successful())
+            self.assertThat(IRepairResults.providedBy(rres), Equals(True))
+            self.assertThat(rres.get_successful(), Equals(True))
             # TODO: examine results
 
             self.copy_shares()
@@ -50,11 +43,11 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
             new_shares = self.old_shares[1]
             # TODO: this really shouldn't change anything. When we implement
             # a "minimal-bandwidth" repairer", change this test to assert:
-            #self.failUnlessEqual(new_shares, initial_shares)
+            #self.assertThat(new_shares, Equals(initial_shares))
 
             # all shares should be in the same place as before
-            self.failUnlessEqual(set(initial_shares.keys()),
-                                 set(new_shares.keys()))
+            self.assertThat(set(initial_shares.keys()),
+                                 Equals(set(new_shares.keys())))
             # but they should all be at a newer seqnum. The IV will be
             # different, so the roothash will be too.
             for key in initial_shares:
@@ -70,19 +63,19 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
                  IV1,
                  k1, N1, segsize1, datalen1,
                  o1) = unpack_header(new_shares[key])
-                self.failUnlessEqual(version0, version1)
-                self.failUnlessEqual(seqnum0+1, seqnum1)
-                self.failUnlessEqual(k0, k1)
-                self.failUnlessEqual(N0, N1)
-                self.failUnlessEqual(segsize0, segsize1)
-                self.failUnlessEqual(datalen0, datalen1)
+                self.assertThat(version0, Equals(version1))
+                self.assertThat(seqnum0+1, Equals(seqnum1))
+                self.assertThat(k0, Equals(k1))
+                self.assertThat(N0, Equals(N1))
+                self.assertThat(segsize0, Equals(segsize1))
+                self.assertThat(datalen0, Equals(datalen1))
         d.addCallback(_check_results)
         return d
 
     def failIfSharesChanged(self, ignored=None):
         old_shares = self.old_shares[-2]
         current_shares = self.old_shares[-1]
-        self.failUnlessEqual(old_shares, current_shares)
+        self.assertThat(old_shares, Equals(current_shares))
 
 
     def _test_whether_repairable(self, publisher, nshares, expected_result):
@@ -96,12 +89,12 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         d.addCallback(_delete_some_shares)
         d.addCallback(lambda ign: self._fn.check(Monitor()))
         def _check(cr):
-            self.failIf(cr.is_healthy())
-            self.failUnlessEqual(cr.is_recoverable(), expected_result)
+            self.assertThat(cr.is_healthy(), Equals(False))
+            self.assertThat(cr.is_recoverable(), Equals(expected_result))
             return cr
         d.addCallback(_check)
         d.addCallback(lambda check_results: self._fn.repair(check_results))
-        d.addCallback(lambda crr: self.failUnlessEqual(crr.get_successful(), expected_result))
+        d.addCallback(lambda crr: self.assertThat(crr.get_successful(), Equals(expected_result)))
         return d
 
     def test_unrepairable_0shares(self):
@@ -136,7 +129,7 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
                         del shares[peerid][shnum]
         d.addCallback(_delete_some_shares)
         d.addCallback(lambda ign: self._fn.check_and_repair(Monitor()))
-        d.addCallback(lambda crr: self.failUnlessEqual(crr.get_repair_successful(), expected_result))
+        d.addCallback(lambda crr: self.assertThat(crr.get_repair_successful(), Equals(expected_result)))
         return d
 
     def test_unrepairable_0shares_checkandrepair(self):
@@ -181,13 +174,13 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
                       self._fn.repair(check_results, force=True))
         # this should give us 10 shares of the highest roothash
         def _check_repair_results(rres):
-            self.failUnless(rres.get_successful())
+            self.assertThat(rres.get_successful(), Equals(True))
             pass # TODO
         d.addCallback(_check_repair_results)
         d.addCallback(lambda res: self._fn.get_servermap(MODE_CHECK))
         def _check_smap(smap):
-            self.failUnlessEqual(len(smap.recoverable_versions()), 1)
-            self.failIf(smap.unrecoverable_versions())
+            self.assertThat(smap.recoverable_versions(), HasLength(1))
+            self.assertThat(smap.unrecoverable_versions(), HasLength(0))
             # now, which should have won?
             roothash_s4a = self.get_roothash_for(3)
             roothash_s4b = self.get_roothash_for(4)
@@ -196,9 +189,9 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
             else:
                 expected_contents = self.CONTENTS[3]
             new_versionid = smap.best_recoverable_version()
-            self.failUnlessEqual(new_versionid[0], 5) # seqnum 5
+            self.assertThat(new_versionid[0], Equals(5)) # seqnum 5
             d2 = self._fn.download_version(smap, new_versionid)
-            d2.addCallback(self.failUnlessEqual, expected_contents)
+            d2.addCallback(self.assertEqual, expected_contents)
             return d2
         d.addCallback(_check_smap)
         return d
@@ -216,19 +209,19 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         d.addCallback(lambda check_results: self._fn.repair(check_results))
         # this should give us 10 shares of v3
         def _check_repair_results(rres):
-            self.failUnless(rres.get_successful())
+            self.assertThat(rres.get_successful(), Equals(True))
             pass # TODO
         d.addCallback(_check_repair_results)
         d.addCallback(lambda res: self._fn.get_servermap(MODE_CHECK))
         def _check_smap(smap):
-            self.failUnlessEqual(len(smap.recoverable_versions()), 1)
-            self.failIf(smap.unrecoverable_versions())
+            self.assertThat(smap.recoverable_versions(), HasLength(1))
+            self.assertThat(smap.unrecoverable_versions(), HasLength(0))
             # now, which should have won?
             expected_contents = self.CONTENTS[3]
             new_versionid = smap.best_recoverable_version()
-            self.failUnlessEqual(new_versionid[0], 5) # seqnum 5
+            self.assertThat(new_versionid[0], Equals(5)) # seqnum 5
             d2 = self._fn.download_version(smap, new_versionid)
-            d2.addCallback(self.failUnlessEqual, expected_contents)
+            d2.addCallback(self.assertEquals, expected_contents)
             return d2
         d.addCallback(_check_smap)
         return d
@@ -256,12 +249,12 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         d.addCallback(_get_readcap)
         d.addCallback(lambda res: self._fn3.check_and_repair(Monitor()))
         def _check_results(crr):
-            self.failUnless(ICheckAndRepairResults.providedBy(crr))
+            self.assertThat(ICheckAndRepairResults.providedBy(crr), Equals(True))
             # we should detect the unhealthy, but skip over mutable-readcap
             # repairs until #625 is fixed
-            self.failIf(crr.get_pre_repair_results().is_healthy())
-            self.failIf(crr.get_repair_attempted())
-            self.failIf(crr.get_post_repair_results().is_healthy())
+            self.assertThat(crr.get_pre_repair_results().is_healthy(), Equals(False))
+            self.assertThat(crr.get_repair_attempted(), Equals(False))
+            self.assertThat(crr.get_post_repair_results().is_healthy(), Equals(False))
         d.addCallback(_check_results)
         return d
 
@@ -281,6 +274,6 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         d.addCallback(lambda ign: self._fn2.check(Monitor()))
         d.addCallback(lambda check_results: self._fn2.repair(check_results))
         def _check(crr):
-            self.failUnlessEqual(crr.get_successful(), True)
+            self.assertThat(crr.get_successful(), Equals(True))
         d.addCallback(_check)
         return d

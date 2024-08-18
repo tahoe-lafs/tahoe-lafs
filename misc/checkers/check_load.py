@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 """
 this is a load-generating client program. It does all of its work through a
 given tahoe node (specified by URL), and performs random reads and writes
@@ -33,19 +31,10 @@ a mean of 10kB and a max of 100MB, so filesize=min(int(1.0/random(.0002)),1e8)
 
 
 """
+from __future__ import annotations
 
 import os, sys, httplib, binascii
 import urllib, json, random, time, urlparse
-
-try:
-    from typing import Dict
-except ImportError:
-    pass
-
-# Python 2 compatibility
-from future.utils import PY2
-if PY2:
-    from future.builtins import str  # noqa: F401
 
 if sys.argv[1] == "--stats":
     statsfiles = sys.argv[2:]
@@ -54,9 +43,9 @@ if sys.argv[1] == "--stats":
     DELAY = 10
     MAXSAMPLES = 6
     totals = []
-    last_stats = {}  # type: Dict[str, float]
+    last_stats : dict[str, float] = {}
     while True:
-        stats = {}  # type: Dict[str, float]
+        stats : dict[str, float] = {}
         for sf in statsfiles:
             for line in open(sf, "r").readlines():
                 name, str_value = line.split(":")

@@ -1,14 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import json
 from os.path import join
@@ -83,12 +75,18 @@ def create_introducer_webish(reactor, port_assigner, basedir):
         with the node and its webish service.
     """
     node.create_node_dir(basedir, "testing")
-    _, port_endpoint = port_assigner.assign(reactor)
+    main_tub_location, main_tub_endpoint = port_assigner.assign(reactor)
+    _, web_port_endpoint = port_assigner.assign(reactor)
     with open(join(basedir, "tahoe.cfg"), "w") as f:
         f.write(
             "[node]\n"
-            "tub.location = 127.0.0.1:1\n" +
-            "web.port = {}\n".format(port_endpoint)
+            "tub.port = {main_tub_endpoint}\n"
+            "tub.location = {main_tub_location}\n"
+            "web.port = {web_port_endpoint}\n".format(
+                main_tub_endpoint=main_tub_endpoint,
+                main_tub_location=main_tub_location,
+                web_port_endpoint=web_port_endpoint,
+            )
         )
 
     intro_node = yield create_introducer(basedir)
@@ -211,7 +209,7 @@ class IntroducerRootTests(SyncTestCase):
         main_tub = Tub()
         main_tub.listenOn(b"tcp:0")
         main_tub.setLocation(b"tcp:127.0.0.1:1")
-        introducer_node = _IntroducerNode(config, main_tub, None, None, None)
+        introducer_node = _IntroducerNode(config, main_tub, None, None)
 
         introducer_service = introducer_node.getServiceNamed("introducer")
         for n in range(2):

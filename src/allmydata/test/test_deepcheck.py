@@ -1,25 +1,7 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-# Python 2 compatibility
-# Can't use `builtins.str` because something deep in Twisted callbacks ends up repr'ing
-# a `future.types.newstr.newstr` as a *Python 3* byte string representation under
-# *Python 2*:
-#   File "/home/rpatterson/src/work/sfu/tahoe-lafs/.tox/py27/lib/python2.7/site-packages/allmydata/util/netstring.py", line 43, in split_netstring
-#    assert data[position] == b","[0], position
-# exceptions.AssertionError: 15
-# ...
-# (Pdb) pp data
-# '334:12:b\'mutable-good\',90:URI:SSK-RO:...
-from past.builtins import unicode as str
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
 from six import ensure_text
 
 import os, json

@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 import sys, os, io, re
 from twisted.internet import reactor, protocol, task, defer
@@ -26,10 +25,10 @@ python run-deprecations.py [--warnings=STDERRFILE] [--package=PYTHONPACKAGE ] CO
 class RunPP(protocol.ProcessProtocol):
     def outReceived(self, data):
         self.stdout.write(data)
-        sys.stdout.write(data)
+        sys.stdout.write(str(data, sys.stdout.encoding))
     def errReceived(self, data):
         self.stderr.write(data)
-        sys.stderr.write(data)
+        sys.stderr.write(str(data, sys.stdout.encoding))
     def processEnded(self, reason):
         signal = reason.value.signal
         rc = reason.value.exitCode
@@ -100,17 +99,19 @@ def run_command(main):
 
     pp.stdout.seek(0)
     for line in pp.stdout.readlines():
+        line = str(line, sys.stdout.encoding)
         if match(line):
             add(line) # includes newline
 
     pp.stderr.seek(0)
     for line in pp.stderr.readlines():
+        line = str(line, sys.stdout.encoding)
         if match(line):
             add(line)
 
     if warnings:
         if config["warnings"]:
-            with open(config["warnings"], "wb") as f:
+            with open(config["warnings"], "w") as f:
                 print("".join(warnings), file=f)
         print("ERROR: %d deprecation warnings found" % len(warnings))
         sys.exit(1)

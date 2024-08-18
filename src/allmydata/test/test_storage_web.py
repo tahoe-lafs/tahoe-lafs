@@ -4,41 +4,44 @@ Tests for twisted.storage that uses Web APIs.
 Partially ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    # Omitted list since it broke a test on Python 2. Shouldn't require further
-    # work, when we switch to Python 3 we'll be dropping this, anyway.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, object, range, str, max, min  # noqa: F401
-
 import time
 import os.path
 import re
 import json
+from unittest import skipIf
+from io import StringIO
 
 from twisted.trial import unittest
-
 from twisted.internet import defer
 from twisted.application import service
 from twisted.web.template import flattenString
+from twisted.python.filepath import FilePath
+from twisted.python.runtime import platform
 
 from foolscap.api import fireEventually
 from allmydata.util import fileutil, hashutil, base32, pollmixin
 from allmydata.storage.common import storage_index_to_dir, \
      UnknownMutableContainerVersionError, UnknownImmutableContainerVersionError
 from allmydata.storage.server import StorageServer
-from allmydata.storage.crawler import BucketCountingCrawler
-from allmydata.storage.expirer import LeaseCheckingCrawler
+from allmydata.storage.crawler import (
+    BucketCountingCrawler,
+    _LeaseStateSerializer,
+)
+from allmydata.storage.expirer import (
+    LeaseCheckingCrawler,
+    _HistorySerializer,
+)
 from allmydata.web.storage import (
     StorageStatus,
     StorageStatusElement,
     remove_prefix
 )
-from .common_util import FakeCanary
+from allmydata.scripts.admin import (
+    migrate_crawler,
+)
+from allmydata.scripts.runner import (
+    Options,
+)
 
 from .common_web import (
     render,
@@ -147,7 +150,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             html = renderSynchronously(w)
             s = remove_tags(html)
             self.failUnlessIn(b"Total buckets: 0 (the number of", s)
-            self.failUnless(b"Next crawl in 59 minutes" in s or "Next crawl in 60 minutes" in s, s)
+            self.failUnless(b"Next crawl in 59 minutes" in s or b"Next crawl in 60 minutes" in s, s)
         d.addCallback(_check2)
         return d
 
@@ -289,28 +292,27 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         mutable_si_3, rs3, cs3, we3 = make_mutable(b"\x03" * 16)
         rs3a, cs3a = make_extra_lease(mutable_si_3, 1)
         sharenums = [0]
-        canary = FakeCanary()
         # note: 'tahoe debug dump-share' will not handle this file, since the
         # inner contents are not a valid CHK share
         data = b"\xff" * 1000
 
-        a,w = ss.remote_allocate_buckets(immutable_si_0, rs0, cs0, sharenums,
-                                         1000, canary)
-        w[0].remote_write(0, data)
-        w[0].remote_close()
+        a,w = ss.allocate_buckets(immutable_si_0, rs0, cs0, sharenums,
+                                  1000)
+        w[0].write(0, data)
+        w[0].close()
 
-        a,w = ss.remote_allocate_buckets(immutable_si_1, rs1, cs1, sharenums,
-                                         1000, canary)
-        w[0].remote_write(0, data)
-        w[0].remote_close()
-        ss.remote_add_lease(immutable_si_1, rs1a, cs1a)
+        a,w = ss.allocate_buckets(immutable_si_1, rs1, cs1, sharenums,
+                                  1000)
+        w[0].write(0, data)
+        w[0].close()
+        ss.add_lease(immutable_si_1, rs1a, cs1a)
 
-        writev = ss.remote_slot_testv_and_readv_and_writev
+        writev = ss.slot_testv_and_readv_and_writev
         writev(mutable_si_2, (we2, rs2, cs2),
                {0: ([], [(0,data)], len(data))}, [])
         writev(mutable_si_3, (we3, rs3, cs3),
                {0: ([], [(0,data)], len(data))}, [])
-        ss.remote_add_lease(mutable_si_3, rs3a, cs3a)
+        ss.add_lease(mutable_si_3, rs3a, cs3a)
 
         self.sis = [immutable_si_0, immutable_si_1, mutable_si_2, mutable_si_3]
         self.renew_secrets = [rs0, rs1, rs1a, rs2, rs3, rs3a]
@@ -376,7 +378,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             self.failUnlessEqual(type(lah), list)
             self.failUnlessEqual(len(lah), 1)
             self.failUnlessEqual(lah, [ (0.0, DAY, 1) ] )
-            self.failUnlessEqual(so_far["leases-per-share-histogram"], {1: 1})
+            self.failUnlessEqual(so_far["leases-per-share-histogram"], {"1": 1})
             self.failUnlessEqual(so_far["corrupt-shares"], [])
             sr1 = so_far["space-recovered"]
             self.failUnlessEqual(sr1["examined-buckets"], 1)
@@ -427,9 +429,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             self.failIf("cycle-to-date" in s)
             self.failIf("estimated-remaining-cycle" in s)
             self.failIf("estimated-current-cycle" in s)
-            last = s["history"][0]
+            last = s["history"]["0"]
             self.failUnlessIn("cycle-start-finish-times", last)
-            self.failUnlessEqual(type(last["cycle-start-finish-times"]), tuple)
+            self.failUnlessEqual(type(last["cycle-start-finish-times"]), list)
             self.failUnlessEqual(last["expiration-enabled"], False)
             self.failUnlessIn("configured-expiration-mode", last)
 
@@ -437,9 +439,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             lah = last["lease-age-histogram"]
             self.failUnlessEqual(type(lah), list)
             self.failUnlessEqual(len(lah), 1)
-            self.failUnlessEqual(lah, [ (0.0, DAY, 6) ] )
+            self.failUnlessEqual(lah, [ [0.0, DAY, 6] ] )
 
-            self.failUnlessEqual(last["leases-per-share-histogram"], {1: 2, 2: 2})
+            self.failUnlessEqual(last["leases-per-share-histogram"], {"1": 2, "2": 2})
             self.failUnlessEqual(last["corrupt-shares"], [])
 
             rec = last["space-recovered"]
@@ -485,17 +487,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
         return d
 
     def backdate_lease(self, sf, renew_secret, new_expire_time):
-        # ShareFile.renew_lease ignores attempts to back-date a lease (i.e.
-        # "renew" a lease with a new_expire_time that is older than what the
-        # current lease has), so we have to reach inside it.
-        for i,lease in enumerate(sf.get_leases()):
-            if lease.renew_secret == renew_secret:
-                lease.expiration_time = new_expire_time
-                f = open(sf.home, 'rb+')
-                sf._write_lease_record(f, i, lease)
-                f.close()
-                return
-        raise IndexError("unable to renew non-existent lease")
+        sf.renew_lease(renew_secret, new_expire_time, allow_backdate=True)
 
     def test_expire_age(self):
         basedir = "storage/LeaseCrawler/expire_age"
@@ -597,12 +589,12 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             self.failUnlessEqual(count_leases(mutable_si_3), 1)
 
             s = lc.get_state()
-            last = s["history"][0]
+            last = s["history"]["0"]
 
             self.failUnlessEqual(last["expiration-enabled"], True)
             self.failUnlessEqual(last["configured-expiration-mode"],
-                                 ("age", 2000, None, ("mutable", "immutable")))
-            self.failUnlessEqual(last["leases-per-share-histogram"], {1: 2, 2: 2})
+                                 ["age", 2000, None, ["mutable", "immutable"]])
+            self.failUnlessEqual(last["leases-per-share-histogram"], {"1": 2, "2": 2})
 
             rec = last["space-recovered"]
             self.failUnlessEqual(rec["examined-buckets"], 4)
@@ -741,14 +733,14 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             self.failUnlessEqual(count_leases(mutable_si_3), 1)
 
             s = lc.get_state()
-            last = s["history"][0]
+            last = s["history"]["0"]
 
             self.failUnlessEqual(last["expiration-enabled"], True)
             self.failUnlessEqual(last["configured-expiration-mode"],
-                                 ("cutoff-date", None, then,
-                                  ("mutable", "immutable")))
+                                 ["cutoff-date", None, then,
+                                  ["mutable", "immutable"]])
             self.failUnlessEqual(last["leases-per-share-histogram"],
-                                 {1: 2, 2: 2})
+                                 {"1": 2, "2": 2})
 
             rec = last["space-recovered"]
             self.failUnlessEqual(rec["examined-buckets"], 4)
@@ -934,8 +926,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             s = lc.get_state()
             h = s["history"]
             self.failUnlessEqual(len(h), 10)
-            self.failUnlessEqual(max(h.keys()), 15)
-            self.failUnlessEqual(min(h.keys()), 6)
+            self.failUnlessEqual(max(int(k) for k in h.keys()), 15)
+            self.failUnlessEqual(min(int(k) for k in h.keys()), 6)
         d.addCallback(_check)
         return d
 
@@ -1024,7 +1016,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
 
         def _check(ignored):
             s = lc.get_state()
-            last = s["history"][0]
+            last = s["history"]["0"]
             rec = last["space-recovered"]
             self.failUnlessEqual(rec["configured-buckets"], 4)
             self.failUnlessEqual(rec["configured-shares"], 4)
@@ -1120,7 +1112,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
 
         def _after_first_cycle(ignored):
             s = lc.get_state()
-            last = s["history"][0]
+            last = s["history"]["0"]
             rec = last["space-recovered"]
             self.failUnlessEqual(rec["examined-buckets"], 5)
             self.failUnlessEqual(rec["examined-shares"], 3)
@@ -1148,6 +1140,390 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
             return res
         d.addBoth(_cleanup)
         return d
+
+    @skipIf(platform.isWindows(), "pickle test-data can't be loaded on windows")
+    def test_deserialize_pickle(self):
+        """
+        The crawler can read existing state from the old pickle format
+        """
+        # this file came from an "in the wild" tahoe version 1.16.0
+        original_pickle = FilePath(__file__).parent().child("data").child("lease_checker.state.txt")
+        root = FilePath(self.mktemp())
+        storage = root.child("storage")
+        storage.makedirs()
+        test_pickle = storage.child("lease_checker.state")
+        with test_pickle.open("wb") as local, original_pickle.open("rb") as remote:
+            local.write(remote.read())
+
+        # convert from pickle format to JSON
+        top = Options()
+        top.parseOptions([
+            "admin", "migrate-crawler",
+            "--basedir", storage.parent().path,
+        ])
+        options = top.subOptions
+        while hasattr(options, "subOptions"):
+            options = options.subOptions
+        options.stdout = StringIO()
+        migrate_crawler(options)
+
+        # the (existing) state file should have been upgraded to JSON
+        self.assertFalse(test_pickle.exists())
+        self.assertTrue(test_pickle.siblingExtension(".json").exists())
+        serial = _LeaseStateSerializer(test_pickle.path)
+
+        self.assertEqual(
+            serial.load(),
+            {
+                u'last-complete-prefix': None,
+                u'version': 1,
+                u'current-cycle-start-time': 1635003106.611748,
+                u'last-cycle-finished': 312,
+                u'cycle-to-date': {
+                    u'leases-per-share-histogram': {
+                        u'1': 36793,
+                        u'2': 1,
+                    },
+                    u'space-recovered': {
+                        u'examined-buckets-immutable': 17183,
+                        u'configured-buckets-mutable': 0,
+                        u'examined-shares-mutable': 1796,
+                        u'original-shares-mutable': 1563,
+                        u'configured-buckets-immutable': 0,
+                        u'original-shares-immutable': 27926,
+                        u'original-diskbytes-immutable': 431149056,
+                        u'examined-shares-immutable': 34998,
+                        u'original-buckets': 14661,
+                        u'actual-shares-immutable': 0,
+                        u'configured-shares': 0,
+                        u'original-buckets-mutable': 899,
+                        u'actual-diskbytes': 4096,
+                        u'actual-shares-mutable': 0,
+                        u'configured-buckets': 1,
+                        u'examined-buckets-unknown': 14,
+                        u'actual-sharebytes': 0,
+                        u'original-shares': 29489,
+                        u'actual-buckets-immutable': 0,
+                        u'original-sharebytes': 312664812,
+                        u'examined-sharebytes-immutable': 383801602,
+                        u'actual-shares': 0,
+                        u'actual-sharebytes-immutable': 0,
+                        u'original-diskbytes': 441643008,
+                        u'configured-diskbytes-mutable': 0,
+                        u'configured-sharebytes-immutable': 0,
+                        u'configured-shares-mutable': 0,
+                        u'actual-diskbytes-immutable': 0,
+                        u'configured-diskbytes-immutable': 0,
+                        u'original-diskbytes-mutable': 10489856,
+                        u'actual-sharebytes-mutable': 0,
+                        u'configured-sharebytes': 0,
+                        u'examined-shares': 36794,
+                        u'actual-diskbytes-mutable': 0,
+                        u'actual-buckets': 1,
+                        u'original-buckets-immutable': 13761,
+                        u'configured-sharebytes-mutable': 0,
+                        u'examined-sharebytes': 390369660,
+                        u'original-sharebytes-immutable': 308125753,
+                        u'original-sharebytes-mutable': 4539059,
+                        u'actual-buckets-mutable': 0,
+                        u'examined-buckets-mutable': 1043,
+                        u'configured-shares-immutable': 0,
+                        u'examined-diskbytes': 476598272,
+                        u'examined-diskbytes-mutable': 9154560,
+                        u'examined-sharebytes-mutable': 6568058,
+                        u'examined-buckets': 18241,
+                        u'configured-diskbytes': 4096,
+                        u'examined-diskbytes-immutable': 467443712},
+                    u'corrupt-shares': [
+                        [u'2dn6xnlnsqwtnapwxfdivpm3s4', 4],
+                        [u'2dn6xnlnsqwtnapwxfdivpm3s4', 1],
+                        [u'2rrzthwsrrxolevmwdvbdy3rqi', 4],
+                        [u'2rrzthwsrrxolevmwdvbdy3rqi', 1],
+                        [u'2skfngcto6h7eqmn4uo7ntk3ne', 4],
+                        [u'2skfngcto6h7eqmn4uo7ntk3ne', 1],
+                        [u'32d5swqpqx2mwix7xmqzvhdwje', 4],
+                        [u'32d5swqpqx2mwix7xmqzvhdwje', 1],
+                        [u'5mmayp66yflmpon3o6unsnbaca', 4],
+                        [u'5mmayp66yflmpon3o6unsnbaca', 1],
+                        [u'6ixhpvbtre7fnrl6pehlrlflc4', 4],
+                        [u'6ixhpvbtre7fnrl6pehlrlflc4', 1],
+                        [u'ewzhvswjsz4vp2bqkb6mi3bz2u', 4],
+                        [u'ewzhvswjsz4vp2bqkb6mi3bz2u', 1],
+                        [u'fu7pazf6ogavkqj6z4q5qqex3u', 4],
+                        [u'fu7pazf6ogavkqj6z4q5qqex3u', 1],
+                        [u'hbyjtqvpcimwxiyqbcbbdn2i4a', 4],
+                        [u'hbyjtqvpcimwxiyqbcbbdn2i4a', 1],
+                        [u'pmcjbdkbjdl26k3e6yja77femq', 4],
+                        [u'pmcjbdkbjdl26k3e6yja77femq', 1],
+                        [u'r6swof4v2uttbiiqwj5pi32cm4', 4],
+                        [u'r6swof4v2uttbiiqwj5pi32cm4', 1],
+                        [u't45v5akoktf53evc2fi6gwnv6y', 4],
+                        [u't45v5akoktf53evc2fi6gwnv6y', 1],
+                        [u'y6zb4faar3rdvn3e6pfg4wlotm', 4],
+                        [u'y6zb4faar3rdvn3e6pfg4wlotm', 1],
+                        [u'z3yghutvqoqbchjao4lndnrh3a', 4],
+                        [u'z3yghutvqoqbchjao4lndnrh3a', 1],
+                    ],
+                    u'lease-age-histogram': {
+                        "1641600,1728000": 78,
+                        "12441600,12528000": 78,
+                        "8640000,8726400": 32,
+                        "1814400,1900800": 1860,
+                        "2764800,2851200": 76,
+                        "11491200,11577600": 20,
+                        "10713600,10800000": 183,
+                        "47865600,47952000": 7,
+                        "3110400,3196800": 328,
+                        "10627200,10713600": 43,
+                        "45619200,45705600": 4,
+                        "12873600,12960000": 5,
+                        "7430400,7516800": 7228,
+                        "1555200,1641600": 492,
+                        "38880000,38966400": 3,
+                        "12528000,12614400": 193,
+                        "7344000,7430400": 12689,
+                        "2678400,2764800": 278,
+                        "2332800,2419200": 12,
+                        "9244800,9331200": 73,
+                        "12787200,12873600": 218,
+                        "49075200,49161600": 19,
+                        "10368000,10454400": 117,
+                        "4665600,4752000": 256,
+                        "7516800,7603200": 993,
+                        "42336000,42422400": 33,
+                        "10972800,11059200": 122,
+                        "39052800,39139200": 51,
+                        "12614400,12700800": 210,
+                        "7603200,7689600": 2004,
+                        "10540800,10627200": 16,
+                        "950400,1036800": 4435,
+                        "42076800,42163200": 4,
+                        "8812800,8899200": 57,
+                        "5788800,5875200": 954,
+                        "36374400,36460800": 3,
+                        "9331200,9417600": 12,
+                        "30499200,30585600": 5,
+                        "12700800,12787200": 25,
+                        "2073600,2160000": 388,
+                        "12960000,13046400": 8,
+                        "11923200,12009600": 89,
+                        "3369600,3456000": 79,
+                        "3196800,3283200": 628,
+                        "37497600,37584000": 11,
+                        "33436800,33523200": 7,
+                        "44928000,45014400": 2,
+                        "37929600,38016000": 3,
+                        "38966400,39052800": 61,
+                        "3283200,3369600": 86,
+                        "11750400,11836800": 7,
+                        "3801600,3888000": 32,
+                        "46310400,46396800": 1,
+                        "4838400,4924800": 386,
+                        "8208000,8294400": 38,
+                        "37411200,37497600": 4,
+                        "12009600,12096000": 329,
+                        "10454400,10540800": 1239,
+                        "40176000,40262400": 1,
+                        "3715200,3801600": 104,
+                        "44409600,44496000": 13,
+                        "38361600,38448000": 5,
+                        "12268800,12355200": 2,
+                        "28771200,28857600": 6,
+                        "41990400,42076800": 10,
+                        "2592000,2678400": 40,
+                    },
+                },
+                'current-cycle': None,
+                'last-complete-bucket': None,
+            }
+        )
+        second_serial = _LeaseStateSerializer(serial._path.path)
+        self.assertEqual(
+            serial.load(),
+            second_serial.load(),
+        )
+
+    @skipIf(platform.isWindows(), "pickle test-data can't be loaded on windows")
+    def test_deserialize_history_pickle(self):
+        """
+        The crawler can read existing history state from the old pickle
+        format
+        """
+        # this file came from an "in the wild" tahoe version 1.16.0
+        original_pickle = FilePath(__file__).parent().child("data").child("lease_checker.history.txt")
+        root = FilePath(self.mktemp())
+        storage = root.child("storage")
+        storage.makedirs()
+        test_pickle = storage.child("lease_checker.history")
+        with test_pickle.open("wb") as local, original_pickle.open("rb") as remote:
+            local.write(remote.read())
+
+        # convert from pickle format to JSON
+        top = Options()
+        top.parseOptions([
+            "admin", "migrate-crawler",
+            "--basedir", storage.parent().path,
+        ])
+        options = top.subOptions
+        while hasattr(options, "subOptions"):
+            options = options.subOptions
+        options.stdout = StringIO()
+        migrate_crawler(options)
+
+        serial = _HistorySerializer(test_pickle.path)
+
+        self.maxDiff = None
+        self.assertEqual(
+            serial.load(),
+            {
+                "363": {
+                    'configured-expiration-mode': ['age', None, None, ['immutable', 'mutable']],
+                    'expiration-enabled': False,
+                    'leases-per-share-histogram': {
+                        '1': 39774,
+                    },
+                    'lease-age-histogram': [
+                        [0, 86400, 3125],
+                        [345600, 432000, 4175],
+                        [950400, 1036800, 141],
+                        [1036800, 1123200, 345],
+                        [1123200, 1209600, 81],
+                        [1296000, 1382400, 1832],
+                        [1555200, 1641600, 390],
+                        [1728000, 1814400, 12],
+                        [2073600, 2160000, 84],
+                        [2160000, 2246400, 228],
+                        [2246400, 2332800, 75],
+                        [2592000, 2678400, 644],
+                        [2678400, 2764800, 273],
+                        [2764800, 2851200, 94],
+                        [2851200, 2937600, 97],
+                        [3196800, 3283200, 143],
+                        [3283200, 3369600, 48],
+                        [4147200, 4233600, 374],
+                        [4320000, 4406400, 534],
+                        [5270400, 5356800, 1005],
+                        [6739200, 6825600, 8704],
+                        [6825600, 6912000, 3986],
+                        [6912000, 6998400, 7592],
+                        [6998400, 7084800, 2607],
+                        [7689600, 7776000, 35],
+                        [8035200, 8121600, 33],
+                        [8294400, 8380800, 54],
+                        [8640000, 8726400, 45],
+                        [8726400, 8812800, 27],
+                        [8812800, 8899200, 12],
+                        [9763200, 9849600, 77],
+                        [9849600, 9936000, 91],
+                        [9936000, 10022400, 1210],
+                        [10022400, 10108800, 45],
+                        [10108800, 10195200, 186],
+                        [10368000, 10454400, 113],
+                        [10972800, 11059200, 21],
+                        [11232000, 11318400, 5],
+                        [11318400, 11404800, 19],
+                        [11404800, 11491200, 238],
+                        [11491200, 11577600, 159],
+                        [11750400, 11836800, 1],
+                        [11836800, 11923200, 32],
+                        [11923200, 12009600, 192],
+                        [12009600, 12096000, 222],
+                        [12096000, 12182400, 18],
+                        [12182400, 12268800, 224],
+                        [12268800, 12355200, 9],
+                        [12355200, 12441600, 9],
+                        [12441600, 12528000, 10],
+                        [12528000, 12614400, 6],
+                        [12614400, 12700800, 6],
+                        [12700800, 12787200, 18],
+                        [12787200, 12873600, 6],
+                        [12873600, 12960000, 62],
+                    ],
+                    'cycle-start-finish-times': [1634446505.241972, 1634446666.055401],
+                    'space-recovered': {
+                        'examined-buckets-immutable': 17896,
+                        'configured-buckets-mutable': 0,
+                        'examined-shares-mutable': 2473,
+                        'original-shares-mutable': 1185,
+                        'configured-buckets-immutable': 0,
+                        'original-shares-immutable': 27457,
+                        'original-diskbytes-immutable': 2810982400,
+                        'examined-shares-immutable': 37301,
+                        'original-buckets': 14047,
+                        'actual-shares-immutable': 0,
+                        'configured-shares': 0,
+                        'original-buckets-mutable': 691,
+                        'actual-diskbytes': 4096,
+                        'actual-shares-mutable': 0,
+                        'configured-buckets': 1,
+                        'examined-buckets-unknown': 14,
+                        'actual-sharebytes': 0,
+                        'original-shares': 28642,
+                        'actual-buckets-immutable': 0,
+                        'original-sharebytes': 2695552941,
+                        'examined-sharebytes-immutable': 2754798505,
+                        'actual-shares': 0,
+                        'actual-sharebytes-immutable': 0,
+                        'original-diskbytes': 2818981888,
+                        'configured-diskbytes-mutable': 0,
+                        'configured-sharebytes-immutable': 0,
+                        'configured-shares-mutable': 0,
+                        'actual-diskbytes-immutable': 0,
+                        'configured-diskbytes-immutable': 0,
+                        'original-diskbytes-mutable': 7995392,
+                        'actual-sharebytes-mutable': 0,
+                        'configured-sharebytes': 0,
+                        'examined-shares': 39774,
+                        'actual-diskbytes-mutable': 0,
+                        'actual-buckets': 1,
+                        'original-buckets-immutable': 13355,
+                        'configured-sharebytes-mutable': 0,
+                        'examined-sharebytes': 2763646972,
+                        'original-sharebytes-immutable': 2692076909,
+                        'original-sharebytes-mutable': 3476032,
+                        'actual-buckets-mutable': 0,
+                        'examined-buckets-mutable': 1286,
+                        'configured-shares-immutable': 0,
+                        'examined-diskbytes': 2854801408,
+                        'examined-diskbytes-mutable': 12161024,
+                        'examined-sharebytes-mutable': 8848467,
+                        'examined-buckets': 19197,
+                        'configured-diskbytes': 4096,
+                        'examined-diskbytes-immutable': 2842640384
+                    },
+                    'corrupt-shares': [
+                        ['2dn6xnlnsqwtnapwxfdivpm3s4', 3],
+                        ['2dn6xnlnsqwtnapwxfdivpm3s4', 0],
+                        ['2rrzthwsrrxolevmwdvbdy3rqi', 3],
+                        ['2rrzthwsrrxolevmwdvbdy3rqi', 0],
+                        ['2skfngcto6h7eqmn4uo7ntk3ne', 3],
+                        ['2skfngcto6h7eqmn4uo7ntk3ne', 0],
+                        ['32d5swqpqx2mwix7xmqzvhdwje', 3],
+                        ['32d5swqpqx2mwix7xmqzvhdwje', 0],
+                        ['5mmayp66yflmpon3o6unsnbaca', 3],
+                        ['5mmayp66yflmpon3o6unsnbaca', 0],
+                        ['6ixhpvbtre7fnrl6pehlrlflc4', 3],
+                        ['6ixhpvbtre7fnrl6pehlrlflc4', 0],
+                        ['ewzhvswjsz4vp2bqkb6mi3bz2u', 3],
+                        ['ewzhvswjsz4vp2bqkb6mi3bz2u', 0],
+                        ['fu7pazf6ogavkqj6z4q5qqex3u', 3],
+                        ['fu7pazf6ogavkqj6z4q5qqex3u', 0],
+                        ['hbyjtqvpcimwxiyqbcbbdn2i4a', 3],
+                        ['hbyjtqvpcimwxiyqbcbbdn2i4a', 0],
+                        ['pmcjbdkbjdl26k3e6yja77femq', 3],
+                        ['pmcjbdkbjdl26k3e6yja77femq', 0],
+                        ['r6swof4v2uttbiiqwj5pi32cm4', 3],
+                        ['r6swof4v2uttbiiqwj5pi32cm4', 0],
+                        ['t45v5akoktf53evc2fi6gwnv6y', 3],
+                        ['t45v5akoktf53evc2fi6gwnv6y', 0],
+                        ['y6zb4faar3rdvn3e6pfg4wlotm', 3],
+                        ['y6zb4faar3rdvn3e6pfg4wlotm', 0],
+                        ['z3yghutvqoqbchjao4lndnrh3a', 3],
+                        ['z3yghutvqoqbchjao4lndnrh3a', 0],
+                    ]
+                }
+            }
+        )
 
 
 class WebStatus(unittest.TestCase, pollmixin.PollMixin):

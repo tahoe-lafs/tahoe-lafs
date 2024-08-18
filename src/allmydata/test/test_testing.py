@@ -9,18 +9,7 @@
 
 """
 Tests for the allmydata.testing helpers
-
-Ported to Python 3.
-
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from twisted.internet.defer import (
     inlineCallbacks,
@@ -46,22 +35,25 @@ from hypothesis.strategies import (
     binary,
 )
 
-from testtools import (
-    TestCase,
+from .common import (
+    SyncTestCase,
 )
+
 from testtools.matchers import (
     Always,
     Equals,
     IsInstance,
     MatchesStructure,
     AfterPreprocessing,
+    Contains,
 )
 from testtools.twistedsupport import (
     succeeded,
 )
+from twisted.web.http import GONE
 
 
-class FakeWebTest(TestCase):
+class FakeWebTest(SyncTestCase):
     """
     Test the WebUI verified-fakes infrastucture
     """
@@ -143,7 +135,8 @@ class FakeWebTest(TestCase):
 
     def test_download_missing(self):
         """
-        Error if we download a capability that doesn't exist
+        The response to a request to download a capability that doesn't exist
+        is 410 (GONE).
         """
 
         http_client = create_tahoe_treq_client()
@@ -156,7 +149,11 @@ class FakeWebTest(TestCase):
             resp,
             succeeded(
                 MatchesStructure(
-                    code=Equals(500)
+                    code=Equals(GONE),
+                    content=AfterPreprocessing(
+                        lambda m: m(),
+                        succeeded(Contains(b"No data for")),
+                    ),
                 )
             )
         )

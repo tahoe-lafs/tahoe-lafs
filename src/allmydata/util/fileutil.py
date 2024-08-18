@@ -4,16 +4,6 @@ Ported to Python3.
 Futz with files like a pro.
 """
 
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    # open is not here because we want to use native strings on Py2
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import sys, os, stat, tempfile, time, binascii
 import six
 from collections import namedtuple
@@ -346,8 +336,6 @@ def abspath_expanduser_unicode(path, base=None, long_path=True):
     if not os.path.isabs(path):
         if base is None:
             cwd = os.getcwd()
-            if PY2:
-                cwd = cwd.decode('utf8')
             path = os.path.join(cwd, path)
         else:
             path = os.path.join(base, path)

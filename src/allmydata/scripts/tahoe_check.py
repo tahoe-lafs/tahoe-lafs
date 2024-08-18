@@ -1,16 +1,8 @@
 """
 Ported to Python 3.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-from six import ensure_str, ensure_text
+from six import ensure_text
 
 from urllib.parse import quote as url_quote
 import json
@@ -176,7 +168,7 @@ class DeepCheckOutput(LineOnlyReceiver, object):
             # LIT files and directories do not have a "summary" field.
             summary = cr.get("summary", "Healthy (LIT)")
             # When Python 2 is dropped the ensure_text()/ensure_str() will be unnecessary.
-            print(ensure_text(ensure_str("%s: %s") % (quote_path(path), quote_output(summary, quotemarks=False)),
+            print(ensure_text("%s: %s" % (quote_path(path), quote_output(summary, quotemarks=False)),
                               encoding=get_io_encoding()), file=stdout)
 
         # always print out corrupt shares
@@ -254,13 +246,11 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver, object):
             if not path:
                 path = ["<root>"]
             # we don't seem to have a summary available, so build one
-            # When Python 2 is dropped the ensure_text/ensure_str crap can be
-            # dropped.
             if was_healthy:
-                summary = ensure_str("healthy")
+                summary = "healthy"
             else:
-                summary = ensure_str("not healthy")
-            print(ensure_text(ensure_str("%s: %s") % (quote_path(path), summary),
+                summary = "not healthy"
+            print(ensure_text("%s: %s" % (quote_path(path), summary),
                               encoding=get_io_encoding()), file=stdout)
 
         # always print out corrupt shares

@@ -1,16 +1,6 @@
 """
 Tests for allmydata.util.time_format.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-from past.builtins import long
 
 import time
 
@@ -111,7 +101,7 @@ class TimeFormat(unittest.TestCase, TimezoneMixin):
     def test_parse_date(self):
         p = time_format.parse_date
         self.failUnlessEqual(p("2010-02-21"), 1266710400)
-        self.failUnless(isinstance(p("2009-03-18"), (int, long)), p("2009-03-18"))
+        self.failUnless(isinstance(p("2009-03-18"), int), p("2009-03-18"))
         self.failUnlessEqual(p("2009-03-18"), 1237334400)
 
     def test_format_time(self):

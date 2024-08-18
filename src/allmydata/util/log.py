@@ -3,14 +3,7 @@ Logging utilities.
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_str
 
 from pyutil import nummedobj
@@ -18,14 +11,10 @@ from pyutil import nummedobj
 from foolscap.logging import log
 from twisted.python import log as tw_log
 
-if PY2:
-    def bytes_to_unicode(ign, obj):
-        return obj
-else:
-    # We want to convert bytes keys to Unicode, otherwise JSON serialization
-    # inside foolscap will fail (for details see
-    # https://github.com/warner/foolscap/issues/88)
-    from .jsonbytes import bytes_to_unicode
+# We want to convert bytes keys to Unicode, otherwise JSON serialization
+# inside foolscap will fail (for details see
+# https://github.com/warner/foolscap/issues/88)
+from .jsonbytes import bytes_to_unicode
 
 
 NOISY = log.NOISY # 10

@@ -1,21 +1,13 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 from twisted.trial import unittest
 from twisted.internet import defer, error
 from twisted.python.usage import UsageError
-from six.moves import StringIO
-import mock
+from io import StringIO
+from unittest import mock
 from ..util import i2p_provider
 from ..scripts import create_node, runner
 
@@ -177,7 +169,7 @@ class CreateDest(unittest.TestCase):
                 with mock.patch("allmydata.util.i2p_provider.clientFromString",
                                 return_value=ep) as cfs:
                     d = i2p_provider.create_config(reactor, cli_config)
-        tahoe_config_i2p, i2p_port, i2p_location = self.successResultOf(d)
+                    i2p_config = self.successResultOf(d)
 
         connect_to_i2p.assert_called_with(reactor, cli_config, txi2p)
         cfs.assert_called_with(reactor, "goodport")
@@ -189,9 +181,9 @@ class CreateDest(unittest.TestCase):
                     "dest.private_key_file": os.path.join("private",
                                                           "i2p_dest.privkey"),
                     }
-        self.assertEqual(tahoe_config_i2p, expected)
-        self.assertEqual(i2p_port, "listen:i2p")
-        self.assertEqual(i2p_location, "i2p:FOOBAR.b32.i2p:3457")
+        self.assertEqual(dict(i2p_config.node_config["i2p"]), expected)
+        self.assertEqual(i2p_config.tub_ports, ["listen:i2p"])
+        self.assertEqual(i2p_config.tub_locations, ["i2p:FOOBAR.b32.i2p:3457"])
 
 _None = object()
 class FakeConfig(dict):

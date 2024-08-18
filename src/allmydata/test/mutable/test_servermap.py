@@ -2,16 +2,8 @@
 Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-from twisted.trial import unittest
+from ..common import AsyncTestCase
+from testtools.matchers import Equals, NotEquals, HasLength
 from twisted.internet import defer
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import \
@@ -20,8 +12,9 @@ from allmydata.mutable.publish import MutableData
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 from .util import PublishMixin
 
-class Servermap(unittest.TestCase, PublishMixin):
+class Servermap(AsyncTestCase, PublishMixin):
     def setUp(self):
+        super(Servermap, self).setUp()
         return self.publish_one()
 
     def make_servermap(self, mode=MODE_CHECK, fn=None, sb=None,
@@ -42,17 +35,17 @@ class Servermap(unittest.TestCase, PublishMixin):
         return d
 
     def failUnlessOneRecoverable(self, sm, num_shares):
-        self.failUnlessEqual(len(sm.recoverable_versions()), 1)
-        self.failUnlessEqual(len(sm.unrecoverable_versions()), 0)
+        self.assertThat(sm.recoverable_versions(), HasLength(1))
+        self.assertThat(sm.unrecoverable_versions(), HasLength(0))
         best = sm.best_recoverable_version()
-        self.failIfEqual(best, None)
-        self.failUnlessEqual(sm.recoverable_versions(), set([best]))
-        self.failUnlessEqual(len(sm.shares_available()), 1)
-        self.failUnlessEqual(sm.shares_available()[best], (num_shares, 3, 10))
+        self.assertThat(best, NotEquals(None))
+        self.assertThat(sm.recoverable_versions(), Equals(set([best])))
+        self.assertThat(sm.shares_available(), HasLength(1))
+        self.assertThat(sm.shares_available()[best], Equals((num_shares, 3, 10)))
         shnum, servers = list(sm.make_sharemap().items())[0]
         server = list(servers)[0]
-        self.failUnlessEqual(sm.version_on_server(server, shnum), best)
-        self.failUnlessEqual(sm.version_on_server(server, 666), None)
+        self.assertThat(sm.version_on_server(server, shnum), Equals(best))
+        self.assertThat(sm.version_on_server(server, 666), Equals(None))
         return sm
 
     def test_basic(self):
@@ -117,7 +110,7 @@ class Servermap(unittest.TestCase, PublishMixin):
             v = sm.best_recoverable_version()
             vm = sm.make_versionmap()
             shares = list(vm[v])
-            self.failUnlessEqual(len(shares), 6)
+            self.assertThat(shares, HasLength(6))
             self._corrupted = set()
             # mark the first 5 shares as corrupt, then update the servermap.
             # The map should not have the marked shares it in any more, and
@@ -135,18 +128,17 @@ class Servermap(unittest.TestCase, PublishMixin):
             shares = list(vm[v])
             for (server, shnum) in self._corrupted:
                 server_shares = sm.debug_shares_on_server(server)
-                self.failIf(shnum in server_shares,
-                            "%d was in %s" % (shnum, server_shares))
-            self.failUnlessEqual(len(shares), 5)
+                self.assertFalse(shnum in server_shares, "%d was in %s" % (shnum, server_shares))
+            self.assertThat(shares, HasLength(5))
         d.addCallback(_check_map)
         return d
 
     def failUnlessNoneRecoverable(self, sm):
-        self.failUnlessEqual(len(sm.recoverable_versions()), 0)
-        self.failUnlessEqual(len(sm.unrecoverable_versions()), 0)
+        self.assertThat(sm.recoverable_versions(), HasLength(0))
+        self.assertThat(sm.unrecoverable_versions(), HasLength(0))
         best = sm.best_recoverable_version()
-        self.failUnlessEqual(best, None)
-        self.failUnlessEqual(len(sm.shares_available()), 0)
+        self.assertThat(best, Equals(None))
+        self.assertThat(sm.shares_available(), HasLength(0))
 
     def test_no_shares(self):
         self._storage._peers = {} # delete all shares
@@ -168,12 +160,12 @@ class Servermap(unittest.TestCase, PublishMixin):
         return d
 
     def failUnlessNotQuiteEnough(self, sm):
-        self.failUnlessEqual(len(sm.recoverable_versions()), 0)
-        self.failUnlessEqual(len(sm.unrecoverable_versions()), 1)
+        self.assertThat(sm.recoverable_versions(), HasLength(0))
+        self.assertThat(sm.unrecoverable_versions(), HasLength(1))
         best = sm.best_recoverable_version()
-        self.failUnlessEqual(best, None)
-        self.failUnlessEqual(len(sm.shares_available()), 1)
-        self.failUnlessEqual(list(sm.shares_available().values())[0], (2,3,10) )
+        self.assertThat(best, Equals(None))
+        self.assertThat(sm.shares_available(), HasLength(1))
+        self.assertThat(list(sm.shares_available().values())[0], Equals((2,3,10)))
         return sm
 
     def test_not_quite_enough_shares(self):
@@ -193,7 +185,7 @@ class Servermap(unittest.TestCase, PublishMixin):
         d.addCallback(lambda res: ms(mode=MODE_CHECK))
         d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
         d.addCallback(lambda sm:
-                      self.failUnlessEqual(len(sm.make_sharemap()), 2))
+                      self.assertThat(sm.make_sharemap(), HasLength(2)))
         d.addCallback(lambda res: ms(mode=MODE_ANYTHING))
         d.addCallback(lambda sm: self.failUnlessNotQuiteEnough(sm))
         d.addCallback(lambda res: ms(mode=MODE_WRITE))
@@ -216,7 +208,7 @@ class Servermap(unittest.TestCase, PublishMixin):
         # Calling make_servermap also updates the servermap in the mode
         # that we specify, so we just need to see what it says.
         def _check_servermap(sm):
-            self.failUnlessEqual(len(sm.recoverable_versions()), 1)
+            self.assertThat(sm.recoverable_versions(), HasLength(1))
         d.addCallback(_check_servermap)
         return d
 
@@ -229,10 +221,10 @@ class Servermap(unittest.TestCase, PublishMixin):
             self.make_servermap(mode=MODE_WRITE, update_range=(1, 2)))
         def _check_servermap(sm):
             # 10 shares
-            self.failUnlessEqual(len(sm.update_data), 10)
+            self.assertThat(sm.update_data, HasLength(10))
             # one version
             for data in sm.update_data.values():
-                self.failUnlessEqual(len(data), 1)
+                self.assertThat(data, HasLength(1))
         d.addCallback(_check_servermap)
         return d
 
@@ -244,5 +236,5 @@ class Servermap(unittest.TestCase, PublishMixin):
         d.addCallback(lambda ignored:
             self.make_servermap(mode=MODE_CHECK))
         d.addCallback(lambda servermap:
-            self.failUnlessEqual(len(servermap.recoverable_versions()), 1))
+            self.assertThat(servermap.recoverable_versions(), HasLength(1)))
         return d

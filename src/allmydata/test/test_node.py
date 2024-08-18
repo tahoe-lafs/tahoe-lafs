@@ -1,14 +1,4 @@
-"""
-Ported to Python 3.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 import base64
 import os
@@ -31,6 +21,7 @@ from unittest import skipIf
 from twisted.python.filepath import (
     FilePath,
 )
+from twisted.python.runtime import platform
 from twisted.trial import unittest
 from twisted.internet import defer
 
@@ -69,6 +60,9 @@ import allmydata.test.common_util as testutil
 
 from .common import (
     ConstantAddresses,
+    SameProcessStreamEndpointAssigner,
+    UseNode,
+    superuser,
 )
 
 def port_numbers():
@@ -80,11 +74,10 @@ class LoggingMultiService(service.MultiService):
 
 
 # see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2946
-def testing_tub(config_data=''):
+def testing_tub(reactor, config_data=''):
     """
     Creates a 'main' Tub for testing purposes, from config data
     """
-    from twisted.internet import reactor
     basedir = 'dummy_basedir'
     config = config_from_string(basedir, 'DEFAULT_PORTNUMFILE_BLANK', config_data)
     fileutil.make_dirs(os.path.join(basedir, 'private'))
@@ -112,6 +105,9 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         # try to bind the port.  We'll use a low-numbered one that's likely to
         # conflict with another service to prove it.
         self._available_port = 22
+        self.port_assigner = SameProcessStreamEndpointAssigner()
+        self.port_assigner.setUp()
+        self.addCleanup(self.port_assigner.tearDown)
 
     def _test_location(
             self,
@@ -137,11 +133,23 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         :param local_addresses: If not ``None`` then a list of addresses to
             supply to the system under test as local addresses.
         """
+        from twisted.internet import reactor
+
         basedir = self.mktemp()
         create_node_dir(basedir, "testing")
+        if tub_port is None:
+            # Always configure a usable tub.port address instead of relying on
+            # the automatic port assignment.  The automatic port assignment is
+            # prone to collisions and spurious test failures.
+            _, tub_port = self.port_assigner.assign(reactor)
+
         config_data = "[node]\n"
-        if tub_port:
-            config_data += "tub.port = {}\n".format(tub_port)
+        config_data += "tub.port = {}\n".format(tub_port)
+
+        # If they wanted a certain location, go for it.  This probably won't
+        # agree with the tub.port value we set but that only matters if
+        # anything tries to use this to establish a connection ... which
+        # nothing in this test suite will.
         if tub_location is not None:
             config_data += "tub.location = {}\n".format(tub_location)
 
@@ -149,7 +157,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             self.patch(iputil, 'get_local_addresses_sync',
                        lambda: local_addresses)
 
-        tub = testing_tub(config_data)
+        tub = testing_tub(reactor, config_data)
 
         class Foo(object):
             pass
@@ -245,6 +253,20 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         with self.assertRaises(MissingConfigEntry):
             config.get_config("node", "log_gatherer.furl")
 
+    def test_missing_config_section(self):
+        """
+        Enumerating a missing section returns empty dict
+        """
+        basedir = self.mktemp()
+        fileutil.make_dirs(basedir)
+        with open(os.path.join(basedir, 'tahoe.cfg'), 'w'):
+            pass
+        config = read_config(basedir, "")
+        self.assertEquals(
+            config.enumerate_section("not-a-section"),
+            {}
+        )
+
     def test_config_required(self):
         """
         Asking for missing (but required) configuration is an error
@@ -303,10 +325,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         default = [("hello", "world")]
         self.assertEqual(config.items("nosuch", default), default)
 
-    @skipIf(
-        "win32" in sys.platform.lower() or "cygwin" in sys.platform.lower(),
-        "We don't know how to set permissions on Windows.",
-    )
+    @skipIf(platform.isWindows(), "We don't know how to set permissions on Windows.")
+    @skipIf(superuser, "cannot test as superuser with all permissions")
     def test_private_config_unreadable(self):
         """
         Asking for inaccessible private config is an error
@@ -321,10 +341,8 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         with self.assertRaises(Exception):
             config.get_or_create_private_config("foo")
 
-    @skipIf(
-        "win32" in sys.platform.lower() or "cygwin" in sys.platform.lower(),
-        "We don't know how to set permissions on Windows.",
-    )
+    @skipIf(platform.isWindows(), "We don't know how to set permissions on Windows.")
+    @skipIf(superuser, "cannot test as superuser with all permissions")
     def test_private_config_unreadable_preexisting(self):
         """
         error if reading private config data fails
@@ -381,6 +399,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         self.assertEqual(len(counter), 1) # don't call unless necessary
         self.assertEqual(value, "newer")
 
+    @skipIf(superuser, "cannot test as superuser with all permissions")
     def test_write_config_unwritable_file(self):
         """
         Existing behavior merely logs any errors upon writing
@@ -431,7 +450,12 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
     @defer.inlineCallbacks
     def test_logdir_is_str(self):
-        basedir = "test_node/test_logdir_is_str"
+        from twisted.internet import reactor
+
+        basedir = FilePath(self.mktemp())
+        fixture = UseNode(None, None, basedir, "pb://introducer/furl", {}, reactor=reactor)
+        fixture.setUp()
+        self.addCleanup(fixture.cleanUp)
 
         ns = Namespace()
         ns.called = False
@@ -440,8 +464,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             self.failUnless(isinstance(logdir, str), logdir)
         self.patch(foolscap.logging.log, 'setLogDir', call_setLogDir)
 
-        create_node_dir(basedir, "nothing to see here")
-        yield client.create_client(basedir)
+        yield fixture.create_node()
         self.failUnless(ns.called)
 
     def test_set_config_unescaped_furl_hash(self):

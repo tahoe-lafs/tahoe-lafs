@@ -1,25 +1,13 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2, PY3
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-import os
 import time
 from urllib.parse import quote as urlquote
 
 from hyperlink import DecodedURL, URL
-from pkg_resources import resource_filename
 from twisted.web import (
     http,
     resource,
-    static,
 )
 from twisted.web.util import redirectTo, Redirect
 from twisted.python.filepath import FilePath
@@ -54,6 +42,7 @@ from allmydata.web.common import (
     render_time_delta,
     render_time,
     render_time_attr,
+    add_static_children,
 )
 from allmydata.web.private import (
     create_private_tree,
@@ -251,14 +240,9 @@ class Root(MultiFormatResource):
         self.putChild(b"named", FileHandler(client))
         self.putChild(b"status", status.Status(client.get_history()))
         self.putChild(b"statistics", status.Statistics(client.stats_provider))
-        static_dir = resource_filename("allmydata.web", "static")
-        for filen in os.listdir(static_dir):
-            child_path = filen
-            if PY3:
-                child_path = filen.encode("utf-8")
-            self.putChild(child_path, static.File(os.path.join(static_dir, filen)))
-
         self.putChild(b"report_incident", IncidentReporter())
+
+        add_static_children(self)
 
     @exception_to_child
     def getChild(self, path, request):
@@ -297,14 +281,12 @@ class Root(MultiFormatResource):
         }
         return json.dumps(result, indent=1) + "\n"
 
-
     def _describe_known_servers(self, broker):
-        return sorted(list(
+        return list(
             self._describe_server(server)
             for server
             in broker.get_known_servers()
-        ), key=lambda o: sorted(o.items()))
-
+        )
 
     def _describe_server(self, server):
         status = server.get_connection_status()

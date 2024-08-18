@@ -1,28 +1,14 @@
 """
 Ported to Python 3.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-try:
-    from allmydata.scripts.types_ import SubCommands
-except ImportError:
-    pass
 
 from twisted.python import usage
 from twisted.internet import defer, reactor
 
-from wormhole import wormhole
-
 from allmydata.util.encodingutil import argv_to_abspath
 from allmydata.util import jsonbytes as json
 from allmydata.scripts.common import get_default_nodedir, get_introducer_furl
+from allmydata.scripts.types_ import SubCommands
 from allmydata.client import read_config
 
 
@@ -50,7 +36,7 @@ def _send_config_via_wormhole(options, config):
     err = options.stderr
     relay_url = options.parent['wormhole-server']
     print("Connecting to '{}'...".format(relay_url), file=out)
-    wh = wormhole.create(
+    wh = options.parent.wormhole.create(
         appid=options.parent['wormhole-invite-appid'],
         relay_url=relay_url,
         reactor=reactor,
@@ -114,10 +100,10 @@ def invite(options):
     print("Completed successfully", file=out)
 
 
-subCommands = [
+subCommands : SubCommands = [
     ("invite", None, InviteOptions,
      "Invite a new node to this grid"),
-]  # type: SubCommands
+]
 
 dispatch = {
     "invite": invite,

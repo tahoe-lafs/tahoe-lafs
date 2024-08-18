@@ -1,19 +1,7 @@
 """
 Tests for allmydata.util.dictutil.
-
-Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2, PY3
-if PY2:
-    # dict omitted to match dictutil.py.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, list, object, range, str, max, min  # noqa: F401
-
-from unittest import skipIf
+from __future__ import annotations
 
 from twisted.trial import unittest
 
@@ -96,7 +84,6 @@ class DictUtil(unittest.TestCase):
 class TypedKeyDict(unittest.TestCase):
     """Tests for dictionaries that limit keys."""
 
-    @skipIf(PY2, "Python 2 doesn't have issues mixing bytes and unicode.")
     def setUp(self):
         pass
 
@@ -149,22 +136,16 @@ class TypedKeyDict(unittest.TestCase):
         self.assertEqual(d[u"456"], 300)
 
 
-class TypedKeyDictPython2(unittest.TestCase):
-    """Tests for dictionaries that limit keys on Python 2."""
-
-    @skipIf(PY3, "Testing Python 2 behavior.")
-    def test_python2(self):
+class FilterTests(unittest.TestCase):
+    """
+    Tests for ``dictutil.filter``.
+    """
+    def test_filter(self) -> None:
         """
-        On Python2, BytesKeyDict and UnicodeKeyDict are unnecessary, because
-        dicts can mix both without problem so you don't get confusing behavior
-        if you get the type wrong.
-
-        Eventually in a Python 3-only world mixing bytes and unicode will be
-        bad, thus the existence of these classes, but as we port there will be
-        situations where it's mixed on Python 2, which again is fine.
+        ``dictutil.filter`` returns a ``dict`` that contains the key/value
+        pairs for which the value is matched by the given predicate.
         """
-        self.assertIs(dictutil.UnicodeKeyDict, dict)
-        self.assertIs(dictutil.BytesKeyDict, dict)
-        # Demonstration of how bytes and unicode can be mixed:
-        d = {u"abc": 1}
-        self.assertEqual(d[b"abc"], 1)
+        self.assertEqual(
+            {1: 2},
+            dictutil.filter(lambda v: v == 2, {1: 2, 2: 3}),
+        )

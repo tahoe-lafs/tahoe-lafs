@@ -5,6 +5,309 @@ User-Visible Changes in Tahoe-LAFS
 ==================================
 
 .. towncrier start line
+Release 1.190 (2024-01-04)
+''''''''''''''''''''''''''
+
+Features
+--------
+
+- Tahoe-LAFS now includes a new "Grid Manager" specification and implementation adding more options to control which storage servers a client will use for uploads. (`#2916 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2916>`_)
+- Added support for Python 3.12, and work with Eliot 1.15 (`#3072 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3072>`_)
+- `tahoe run ...` will now exit when its stdin is closed.
+
+  This facilitates subprocess management, specifically cleanup.
+  When a parent process is running tahoe and exits without time to do "proper" cleanup at least the stdin descriptor will be closed.
+  Subsequently "tahoe run" notices this and exits. (`#3921 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3921>`_)
+- Mutable objects can now be created with a pre-determined "signature key" using the ``tahoe put`` CLI or the HTTP API.  This enables deterministic creation of mutable capabilities.  This feature must be used with care to preserve the normal security and reliability properties. (`#3962 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3962>`_)
+- Added support for Python 3.11. (`#3982 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3982>`_)
+- tahoe run now accepts --allow-stdin-close to mean "keep running if stdin closes" (`#4036 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4036>`_)
+- The storage server and client now support a new, HTTPS-based protocol. (`#4041 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4041>`_)
+- Started work on a new end-to-end benchmarking framework. (`#4060 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4060>`_)
+- Some operations now run in threads, improving the responsiveness of Tahoe nodes. (`#4068 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4068>`_)
+- Logs are now written in a thread, which should make the application more responsive under load. (`#4804 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4804>`_)
+
+
+Bug Fixes
+---------
+
+- Provide better feedback from plugin configuration errors
+
+  Local errors now print a useful message and exit.
+  Announcements that only contain invalid / unusable plugins now show a message in the Welcome page. (`#3899 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3899>`_)
+- Work with (and require) newer versions of pycddl. (`#3938 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3938>`_)
+- Uploading immutables will now better use available bandwidth, which should allow for faster uploads in many cases. (`#3939 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3939>`_)
+- Downloads of large immutables should now finish much faster. (`#3946 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3946>`_)
+- Fix incompatibility with transitive dependency charset_normalizer >= 3  when using PyInstaller. (`#3966 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3966>`_)
+- A bug where Introducer nodes configured to listen on Tor or I2P would not actually do so has been fixed. (`#3999 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3999>`_)
+- The (still off-by-default) HTTP storage client will now use Tor when Tor-based client-side anonymity was requested.
+  Previously it would use normal TCP connections and not be anonymous. (`#4029 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4029>`_)
+- Provide our own copy of attrs' "provides()" validator
+
+  This validator is deprecated and slated for removal; that project's suggestion is to copy the code to our project. (`#4056 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4056>`_)
+- Fix a race condition with SegmentFetcher (`#4078 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4078>`_)
+
+
+Dependency/Installation Changes
+-------------------------------
+
+- tenacity is no longer a dependency. (`#3989 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3989>`_)
+
+
+Documentation Changes
+---------------------
+
+- Several minor errors in the Great Black Swamp proposed specification document have been fixed. (`#3922 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3922>`_)
+- Document the ``force_foolscap`` configuration options for ``[storage]`` and ``[client]``. (`#4039 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4039>`_)
+
+
+Removed Features
+----------------
+
+- Python 3.7 is no longer supported, and Debian 10 and Ubuntu 18.04 are no longer tested. (`#3964 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3964>`_)
+
+
+Other Changes
+-------------
+
+- The integration test suite now includes a set of capability test vectors (``integration/vectors/test_vectors.yaml``) which can be used to verify compatibility between Tahoe-LAFS and other implementations. (`#3961 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3961>`_)
+
+
+Misc/Other
+----------
+
+- `#3508 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3508>`_, `#3622 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3622>`_, `#3783 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3783>`_, `#3870 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3870>`_, `#3874 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3874>`_, `#3880 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3880>`_, `#3904 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3904>`_, `#3910 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3910>`_, `#3914 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3914>`_, `#3917 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3917>`_, `#3927 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3927>`_, `#3928 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3928>`_, `#3935 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3935>`_, `#3936 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3936>`_, `#3937 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3937>`_, `#3940 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3940>`_, `#3942 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3942>`_, `#3944 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3944>`_, `#3947 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3947>`_, `#3950 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3950>`_, `#3952 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3952>`_, `#3953 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3953>`_, `#3954 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3954>`_, `#3956 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3956>`_, `#3958 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3958>`_, `#3959 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3959>`_, `#3960 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3960>`_, `#3965 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3965>`_, `#3967 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3967>`_, `#3968 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3968>`_, `#3969 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3969>`_, `#3970 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3970>`_, `#3971 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3971>`_, `#3974 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3974>`_, `#3975 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3975>`_, `#3976 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3976>`_, `#3978 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3978>`_, `#3987 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3987>`_, `#3988 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3988>`_, `#3991 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3991>`_, `#3993 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3993>`_, `#3994 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3994>`_, `#3996 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3996>`_, `#3998 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3998>`_, `#4000 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4000>`_, `#4001 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4001>`_, `#4002 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4002>`_, `#4003 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4003>`_, `#4004 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4004>`_, `#4005 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4005>`_, `#4006 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4006>`_, `#4009 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4009>`_, `#4010 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4010>`_, `#4012 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4012>`_, `#4014 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4014>`_, `#4015 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4015>`_, `#4016 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4016>`_, `#4018 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4018>`_, `#4019 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4019>`_, `#4020 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4020>`_, `#4022 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4022>`_, `#4023 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4023>`_, `#4024 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4024>`_, `#4026 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4026>`_, `#4027 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4027>`_, `#4028 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4028>`_, `#4035 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4035>`_, `#4038 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4038>`_, `#4040 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4040>`_, `#4042 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4042>`_, `#4044 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4044>`_, `#4046 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4046>`_, `#4047 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4047>`_, `#4049 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4049>`_, `#4050 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4050>`_, `#4051 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4051>`_, `#4052 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4052>`_, `#4055 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4055>`_, `#4059 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4059>`_, `#4061 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4061>`_, `#4062 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4062>`_, `#4063 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4063>`_, `#4065 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4065>`_, `#4066 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4066>`_, `#4070 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4070>`_, `#4074 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4074>`_, `#4075 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4075>`_
+
+
+Release 1.18.0 (2022-10-02)
+'''''''''''''''''''''''''''
+
+Backwards Incompatible Changes
+------------------------------
+
+- Python 3.6 is no longer supported, as it has reached end-of-life and is no longer receiving security updates. (`#3865 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3865>`_)
+- Python 3.7 or later is now required; Python 2 is no longer supported. (`#3873 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3873>`_)
+- Share corruption reports stored on disk are now always encoded in UTF-8. (`#3879 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3879>`_)
+- Record both the PID and the process creation-time:
+
+  a new kind of pidfile in `running.process` records both
+  the PID and the creation-time of the process. This facilitates
+  automatic discovery of a "stale" pidfile that points to a
+  currently-running process. If the recorded creation-time matches
+  the creation-time of the running process, then it is a still-running
+  `tahoe run` process. Otherwise, the file is stale.
+
+  The `twistd.pid` file is no longer present. (`#3926 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3926>`_)
+
+
+Features
+--------
+
+- The implementation of SDMF and MDMF (mutables) now requires RSA keys to be exactly 2048 bits, aligning them with the specification.
+
+  Some code existed to allow tests to shorten this and it's
+  conceptually possible a modified client produced mutables
+  with different key-sizes. However, the spec says that they
+  must be 2048 bits. If you happen to have a capability with
+  a key-size different from 2048 you may use 1.17.1 or earlier
+  to read the content. (`#3828 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3828>`_)
+- "make" based release automation (`#3846 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3846>`_)
+
+
+Misc/Other
+----------
+
+- `#3327 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3327>`_, `#3526 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3526>`_, `#3697 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3697>`_, `#3709 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3709>`_, `#3786 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3786>`_, `#3788 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3788>`_, `#3802 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3802>`_, `#3816 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3816>`_, `#3855 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3855>`_, `#3858 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3858>`_, `#3859 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3859>`_, `#3860 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3860>`_, `#3867 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3867>`_, `#3868 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3868>`_, `#3871 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3871>`_, `#3872 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3872>`_, `#3875 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3875>`_, `#3876 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3876>`_, `#3877 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3877>`_, `#3881 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3881>`_, `#3882 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3882>`_, `#3883 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3883>`_, `#3889 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3889>`_, `#3890 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3890>`_, `#3891 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3891>`_, `#3893 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3893>`_, `#3895 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3895>`_, `#3896 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3896>`_, `#3898 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3898>`_, `#3900 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3900>`_, `#3909 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3909>`_, `#3913 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3913>`_, `#3915 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3915>`_, `#3916 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3916>`_
+
+
+Release 1.17.1 (2022-01-07)
+'''''''''''''''''''''''''''
+
+Bug Fixes
+---------
+
+- Fixed regression on Python 3 causing the JSON version of the Welcome page to sometimes produce a 500 error (`#3852 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3852>`_)
+- Fixed regression on Python 3 where JSON HTTP POSTs failed to be processed. (`#3854 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3854>`_)
+
+
+Misc/Other
+----------
+
+- `#3848 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3848>`_, `#3849 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3849>`_, `#3850 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3850>`_, `#3856 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3856>`_
+
+
+Release 1.17.0 (2021-12-06)
+'''''''''''''''''''''''''''
+
+Security-related Changes
+------------------------
+
+- The introducer server no longer writes the sensitive introducer fURL value to its log at startup time.  Instead it writes the well-known path of the file from which this value can be read. (`#3819 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3819>`_)
+- The storage protocol operation ``add_lease`` now safely rejects an attempt to add a 4,294,967,296th lease to an immutable share.
+  Previously this failed with an error after recording the new lease in the share file, resulting in the share file losing track of a one previous lease. (`#3821 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3821>`_)
+- The storage protocol operation ``readv`` now safely rejects attempts to read negative lengths.
+  Previously these read requests were satisfied with the complete contents of the share file (including trailing metadata) starting from the specified offset. (`#3822 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3822>`_)
+- The storage server implementation now respects the ``reserved_space`` configuration value when writing lease information and recording corruption advisories.
+  Previously, new leases could be created and written to disk even when the storage server had less remaining space than the configured reserve space value.
+  Now this operation will fail with an exception and the lease will not be created.
+  Similarly, if there is no space available, corruption advisories will be logged but not written to disk. (`#3823 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3823>`_)
+- The storage server implementation no longer records corruption advisories about storage indexes for which it holds no shares. (`#3824 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3824>`_)
+- The lease-checker now uses JSON instead of pickle to serialize its state.
+
+  tahoe will now refuse to run until you either delete all pickle files or
+  migrate them using the new command::
+
+      tahoe admin migrate-crawler
+
+  This will migrate all crawler-related pickle files. (`#3825 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3825>`_)
+- The SFTP server no longer accepts password-based credentials for authentication.
+  Public/private key-based credentials are now the only supported authentication type.
+  This removes plaintext password storage from the SFTP credentials file.
+  It also removes a possible timing side-channel vulnerability which might have allowed attackers to discover an account's plaintext password. (`#3827 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3827>`_)
+- The storage server now keeps hashes of lease renew and cancel secrets for immutable share files instead of keeping the original secrets. (`#3839 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3839>`_)
+- The storage server now keeps hashes of lease renew and cancel secrets for mutable share files instead of keeping the original secrets. (`#3841 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3841>`_)
+
+
+Features
+--------
+
+- Tahoe-LAFS releases now have just a .tar.gz source release and a (universal) wheel (`#3735 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3735>`_)
+- tahoe-lafs now provides its statistics also in OpenMetrics format (for Prometheus et. al.) at `/statistics?t=openmetrics`. (`#3786 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3786>`_)
+- If uploading an immutable hasn't had a write for 30 minutes, the storage server will abort the upload. (`#3807 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3807>`_)
+
+
+Bug Fixes
+---------
+
+- When uploading an immutable, overlapping writes that include conflicting data are rejected. In practice, this likely didn't happen in real-world usage. (`#3801 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3801>`_)
+
+
+Dependency/Installation Changes
+-------------------------------
+
+- Tahoe-LAFS now supports running on NixOS 21.05 with Python 3. (`#3808 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3808>`_)
+
+
+Documentation Changes
+---------------------
+
+- The news file for future releases will include a section for changes with a security impact. (`#3815 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3815>`_)
+
+
+Removed Features
+----------------
+
+- The little-used "control port" has been removed from all node types. (`#3814 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3814>`_)
+
+
+Other Changes
+-------------
+
+- Tahoe-LAFS no longer runs its Tor integration test suite on Python 2 due to the increased complexity of obtaining compatible versions of necessary dependencies. (`#3837 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3837>`_)
+
+
+Misc/Other
+----------
+
+- `#3525 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3525>`_, `#3527 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3527>`_, `#3754 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3754>`_, `#3758 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3758>`_, `#3784 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3784>`_, `#3792 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3792>`_, `#3793 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3793>`_, `#3795 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3795>`_, `#3797 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3797>`_, `#3798 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3798>`_, `#3799 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3799>`_, `#3800 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3800>`_, `#3805 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3805>`_, `#3806 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3806>`_, `#3810 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3810>`_, `#3812 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3812>`_, `#3820 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3820>`_, `#3829 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3829>`_, `#3830 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3830>`_, `#3831 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3831>`_, `#3832 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3832>`_, `#3833 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3833>`_, `#3834 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3834>`_, `#3835 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3835>`_, `#3836 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3836>`_, `#3838 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3838>`_, `#3842 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3842>`_, `#3843 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3843>`_, `#3847 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3847>`_
+
+
+Release 1.16.0 (2021-09-17)
+'''''''''''''''''''''''''''
+
+Backwards Incompatible Changes
+------------------------------
+
+- The Tahoe command line now always uses UTF-8 to decode its arguments, regardless of locale. (`#3588 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3588>`_)
+- tahoe backup's --exclude-from has been renamed to --exclude-from-utf-8, and correspondingly requires the file to be UTF-8 encoded. (`#3716 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3716>`_)
+
+
+Features
+--------
+
+- Added 'typechecks' environment for tox running mypy and performing static typechecks. (`#3399 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3399>`_)
+- The NixOS-packaged Tahoe-LAFS now knows its own version. (`#3629 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3629>`_)
+
+
+Bug Fixes
+---------
+
+- Fix regression that broke flogtool results on Python 2. (`#3509 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3509>`_)
+- Fix a logging regression on Python 2 involving unicode strings. (`#3510 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3510>`_)
+- Certain implementation-internal weakref KeyErrors are now handled and should no longer cause user-initiated operations to fail. (`#3539 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3539>`_)
+- SFTP public key auth likely works more consistently, and SFTP in general was previously broken. (`#3584 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3584>`_)
+- Fixed issue where redirecting old-style URIs (/uri/?uri=...) didn't work. (`#3590 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3590>`_)
+- ``tahoe invite`` will now read share encoding/placement configuration values from a Tahoe client node configuration file if they are not given on the command line, instead of raising an unhandled exception. (`#3650 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3650>`_)
+- Fix regression where uploading files with non-ASCII names failed. (`#3738 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3738>`_)
+- Fixed annoying UnicodeWarning message on Python 2 when running CLI tools. (`#3739 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3739>`_)
+- Fixed bug where share corruption events were not logged on storage servers running on Windows. (`#3779 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3779>`_)
+
+
+Dependency/Installation Changes
+-------------------------------
+
+- Tahoe-LAFS now requires Twisted 19.10.0 or newer.  As a result, it now has a transitive dependency on bcrypt. (`#1549 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1549>`_)
+- Debian 8 support has been replaced with Debian 10 support. (`#3326 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3326>`_)
+- Tahoe-LAFS no longer depends on Nevow. (`#3433 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3433>`_)
+- Tahoe-LAFS now requires the `netifaces` Python package and no longer requires the external `ip`, `ifconfig`, or `route.exe` executables. (`#3486 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3486>`_)
+- The Tahoe-LAFS project no longer commits to maintaining binary packages for all dependencies at <https://tahoe-lafs.org/deps>.  Please use PyPI instead. (`#3497 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3497>`_)
+- Tahoe-LAFS now uses a forked version of txi2p (named txi2p-tahoe) with Python 3 support. (`#3633 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3633>`_)
+- The Nix package now includes correct version information. (`#3712 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3712>`_)
+- Use netifaces 0.11.0 wheel package from PyPI.org if you use 64-bit Python 2.7 on Windows.  VCPython27 downloads are no longer available at Microsoft's website, which has made building Python 2.7 wheel packages of Python libraries with C extensions (such as netifaces) on Windows difficult. (`#3733 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3733>`_)
+
+
+Configuration Changes
+---------------------
+
+- The ``[client]introducer.furl`` configuration item is now deprecated in favor of the ``private/introducers.yaml`` file. (`#3504 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3504>`_)
+
+
+Documentation Changes
+---------------------
+
+- Documentation now has its own towncrier category. (`#3664 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3664>`_)
+- `tox -e docs` will treat warnings about docs as errors. (`#3666 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3666>`_)
+- The visibility of the Tahoe-LAFS logo has been improved for "dark" themed viewing. (`#3677 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3677>`_)
+- A cheatsheet-style document for contributors was created at CONTRIBUTORS.rst (`#3682 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3682>`_)
+- Our IRC channel, #tahoe-lafs, has been moved to irc.libera.chat. (`#3721 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3721>`_)
+- Tahoe-LAFS project is now registered with Libera.Chat IRC network. (`#3726 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3726>`_)
+- Rewriting the installation guide for Tahoe-LAFS. (`#3747 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3747>`_)
+- Documentation and installation links in the README have been fixed. (`#3749 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3749>`_)
+- The Great Black Swamp proposed specification now includes sample interactions to demonstrate expected usage patterns. (`#3764 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3764>`_)
+- The Great Black Swamp proposed specification now includes a glossary. (`#3765 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3765>`_)
+- The Great Black Swamp specification now allows parallel upload of immutable share data. (`#3769 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3769>`_)
+- There is now a specification for the scheme which Tahoe-LAFS storage clients use to derive their lease renewal secrets. (`#3774 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3774>`_)
+- The Great Black Swamp proposed specification now has a simplified interface for reading data from immutable shares. (`#3777 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3777>`_)
+- tahoe-dev mailing list is now at tahoe-dev@lists.tahoe-lafs.org. (`#3782 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3782>`_)
+- The Great Black Swamp specification now describes the required authorization scheme. (`#3785 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3785>`_)
+- The "Great Black Swamp" proposed specification has been expanded to include two lease management APIs. (`#3037 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3037>`_)
+- The specification section of the Tahoe-LAFS documentation now includes explicit discussion of the security properties of Foolscap "fURLs" on which it depends. (`#3503 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3503>`_)
+- The README, revised by Viktoriia with feedback from the team, is now more focused on the developer community and provides more information about Tahoe-LAFS, why it's important, and how someone can use it or start contributing to it. (`#3545 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3545>`_)
+- The "Great Black Swamp" proposed specification has been changed use ``v=1`` as the URL version identifier. (`#3644 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3644>`_)
+- You can run `make livehtml` in docs directory to invoke sphinx-autobuild. (`#3663 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3663>`_)
+
+
+Removed Features
+----------------
+
+- Announcements delivered through the introducer system are no longer automatically annotated with copious information about the Tahoe-LAFS software version nor the versions of its dependencies. (`#3518 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3518>`_)
+- The stats gatherer, broken since at least Tahoe-LAFS 1.13.0, has been removed.  The ``[client]stats_gatherer.furl`` configuration item in ``tahoe.cfg`` is no longer allowed.  The Tahoe-LAFS project recommends using a third-party metrics aggregation tool instead. (`#3549 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3549>`_)
+- The deprecated ``tahoe`` start, restart, stop, and daemonize sub-commands have been removed. (`#3550 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3550>`_)
+- FTP is no longer supported by Tahoe-LAFS. Please use the SFTP support instead. (`#3583 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3583>`_)
+- Removed support for the Account Server frontend authentication type. (`#3652 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3652>`_)
+
+
+Other Changes
+-------------
+
+- Refactored test_introducer in web tests to use custom base test cases (`#3757 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3757>`_)
+
+
+Misc/Other
+----------
+
+- `#2928 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2928>`_, `#3283 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3283>`_, `#3314 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3314>`_, `#3384 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3384>`_, `#3385 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3385>`_, `#3390 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3390>`_, `#3404 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3404>`_, `#3428 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3428>`_, `#3432 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3432>`_, `#3434 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3434>`_, `#3435 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3435>`_, `#3454 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3454>`_, `#3459 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3459>`_, `#3460 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3460>`_, `#3465 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3465>`_, `#3466 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3466>`_, `#3467 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3467>`_, `#3468 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3468>`_, `#3470 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3470>`_, `#3471 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3471>`_, `#3472 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3472>`_, `#3473 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3473>`_, `#3474 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3474>`_, `#3475 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3475>`_, `#3477 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3477>`_, `#3478 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3478>`_, `#3479 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3479>`_, `#3481 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3481>`_, `#3482 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3482>`_, `#3483 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3483>`_, `#3485 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3485>`_, `#3488 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3488>`_, `#3490 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3490>`_, `#3491 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3491>`_, `#3492 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3492>`_, `#3493 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3493>`_, `#3496 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3496>`_, `#3499 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3499>`_, `#3500 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3500>`_, `#3501 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3501>`_, `#3502 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3502>`_, `#3511 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3511>`_, `#3513 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3513>`_, `#3514 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3514>`_, `#3515 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3515>`_, `#3517 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3517>`_, `#3520 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3520>`_, `#3521 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3521>`_, `#3522 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3522>`_, `#3523 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3523>`_, `#3524 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3524>`_, `#3528 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3528>`_, `#3529 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3529>`_, `#3532 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3532>`_, `#3533 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3533>`_, `#3534 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3534>`_, `#3536 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3536>`_, `#3537 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3537>`_, `#3542 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3542>`_, `#3544 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3544>`_, `#3546 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3546>`_, `#3547 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3547>`_, `#3551 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3551>`_, `#3552 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3552>`_, `#3553 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3553>`_, `#3555 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3555>`_, `#3557 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3557>`_, `#3558 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3558>`_, `#3560 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3560>`_, `#3563 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3563>`_, `#3564 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3564>`_, `#3565 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3565>`_, `#3566 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3566>`_, `#3567 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3567>`_, `#3568 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3568>`_, `#3572 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3572>`_, `#3574 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3574>`_, `#3575 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3575>`_, `#3576 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3576>`_, `#3577 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3577>`_, `#3578 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3578>`_, `#3579 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3579>`_, `#3580 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3580>`_, `#3582 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3582>`_, `#3587 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3587>`_, `#3588 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3588>`_, `#3589 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3589>`_, `#3591 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3591>`_, `#3592 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3592>`_, `#3593 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3593>`_, `#3594 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3594>`_, `#3595 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3595>`_, `#3596 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3596>`_, `#3599 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3599>`_, `#3600 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3600>`_, `#3603 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3603>`_, `#3605 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3605>`_, `#3606 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3606>`_, `#3607 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3607>`_, `#3608 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3608>`_, `#3611 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3611>`_, `#3612 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3612>`_, `#3613 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3613>`_, `#3615 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3615>`_, `#3616 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3616>`_, `#3617 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3617>`_, `#3618 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3618>`_, `#3619 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3619>`_, `#3620 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3620>`_, `#3621 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3621>`_, `#3623 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3623>`_, `#3624 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3624>`_, `#3625 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3625>`_, `#3626 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3626>`_, `#3628 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3628>`_, `#3630 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3630>`_, `#3631 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3631>`_, `#3632 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3632>`_, `#3634 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3634>`_, `#3635 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3635>`_, `#3637 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3637>`_, `#3638 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3638>`_, `#3640 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3640>`_, `#3642 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3642>`_, `#3645 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3645>`_, `#3646 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3646>`_, `#3647 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3647>`_, `#3648 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3648>`_, `#3649 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3649>`_, `#3651 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3651>`_, `#3653 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3653>`_, `#3654 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3654>`_, `#3655 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3655>`_, `#3656 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3656>`_, `#3657 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3657>`_, `#3658 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3658>`_, `#3662 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3662>`_, `#3667 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3667>`_, `#3669 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3669>`_, `#3670 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3670>`_, `#3671 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3671>`_, `#3672 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3672>`_, `#3674 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3674>`_, `#3675 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3675>`_, `#3676 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3676>`_, `#3678 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3678>`_, `#3679 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3679>`_, `#3681 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3681>`_, `#3683 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3683>`_, `#3686 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3686>`_, `#3687 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3687>`_, `#3691 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3691>`_, `#3692 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3692>`_, `#3699 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3699>`_, `#3700 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3700>`_, `#3701 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3701>`_, `#3702 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3702>`_, `#3703 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3703>`_, `#3704 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3704>`_, `#3705 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3705>`_, `#3707 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3707>`_, `#3708 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3708>`_, `#3709 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3709>`_, `#3711 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3711>`_, `#3713 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3713>`_, `#3714 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3714>`_, `#3715 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3715>`_, `#3717 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3717>`_, `#3718 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3718>`_, `#3722 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3722>`_, `#3723 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3723>`_, `#3727 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3727>`_, `#3728 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3728>`_, `#3729 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3729>`_, `#3730 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3730>`_, `#3731 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3731>`_, `#3732 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3732>`_, `#3734 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3734>`_, `#3735 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3735>`_, `#3736 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3736>`_, `#3741 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3741>`_, `#3743 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3743>`_, `#3744 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3744>`_, `#3745 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3745>`_, `#3746 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3746>`_, `#3751 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3751>`_, `#3759 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3759>`_, `#3760 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3760>`_, `#3763 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3763>`_, `#3773 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3773>`_, `#3781 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3781>`_
+
+
 Release 1.15.1
 ''''''''''''''
 

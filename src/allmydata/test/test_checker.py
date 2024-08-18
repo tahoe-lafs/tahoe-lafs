@@ -2,16 +2,6 @@
 Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-
 import json
 import os.path, shutil
 
@@ -773,13 +763,13 @@ class AddLease(GridTestMixin, unittest.TestCase):
         d.addCallback(_check_cr, "mutable-normal")
 
         really_did_break = []
-        # now break the server's remote_add_lease call
+        # now break the server's add_lease call
         def _break_add_lease(ign):
             def broken_add_lease(*args, **kwargs):
                 really_did_break.append(1)
                 raise KeyError("intentional failure, should be ignored")
-            assert self.g.servers_by_number[0].remote_add_lease
-            self.g.servers_by_number[0].remote_add_lease = broken_add_lease
+            assert self.g.servers_by_number[0].add_lease
+            self.g.servers_by_number[0].add_lease = broken_add_lease
         d.addCallback(_break_add_lease)
 
         # and confirm that the files still look healthy

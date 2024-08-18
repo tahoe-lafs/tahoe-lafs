@@ -1,22 +1,16 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 from io import BytesIO
-from twisted.trial import unittest
+from ..common import SyncTestCase
 from allmydata.mutable.publish import MutableFileHandle
 
-class FileHandle(unittest.TestCase):
+
+class FileHandle(SyncTestCase):
     def setUp(self):
+        super(FileHandle, self).setUp()
         self.test_data = b"Test Data" * 50000
         self.sio = BytesIO(self.test_data)
         self.uploadable = MutableFileHandle(self.sio)

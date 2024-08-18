@@ -2,16 +2,6 @@
 Ported to Python 3.
 """
 
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-from past.builtins import long
-
 import itertools
 import hashlib
 import re
@@ -550,7 +540,7 @@ class DownloadStatusElement(Element):
             length = r_ev["length"]
             bytes_returned = r_ev["bytes_returned"]
             decrypt_time = ""
-            if bytes:
+            if bytes_returned:
                 decrypt_time = self._rate_and_time(bytes_returned, r_ev["decrypt_time"])
             speed, rtt = "",""
             if r_ev["finish_time"] is not None:
@@ -1401,7 +1391,7 @@ class StatusElement(Element):
         size = op.get_size()
         if size is None:
             size = "(unknown)"
-        elif isinstance(size, (int, long, float)):
+        elif isinstance(size, (int, float)):
             size = abbreviate_size(size)
 
         result["total_size"] = size
@@ -1616,30 +1606,30 @@ class StatisticsElement(Element):
     @renderer
     def uploads(self, req, tag):
         files = self._stats["counters"].get("uploader.files_uploaded", 0)
-        bytes = self._stats["counters"].get("uploader.bytes_uploaded", 0)
+        bytes_uploaded = self._stats["counters"].get("uploader.bytes_uploaded", 0)
         return tag(("%s files / %s bytes (%s)" %
-                    (files, bytes, abbreviate_size(bytes))))
+                    (files, bytes_uploaded, abbreviate_size(bytes_uploaded))))
 
     @renderer
     def downloads(self, req, tag):
         files = self._stats["counters"].get("downloader.files_downloaded", 0)
-        bytes = self._stats["counters"].get("downloader.bytes_downloaded", 0)
+        bytes_uploaded = self._stats["counters"].get("downloader.bytes_downloaded", 0)
         return tag("%s files / %s bytes (%s)" %
-                   (files, bytes, abbreviate_size(bytes)))
+                   (files, bytes_uploaded, abbreviate_size(bytes_uploaded)))
 
     @renderer
     def publishes(self, req, tag):
         files = self._stats["counters"].get("mutable.files_published", 0)
-        bytes = self._stats["counters"].get("mutable.bytes_published", 0)
-        return tag("%s files / %s bytes (%s)" % (files, bytes,
-                                                 abbreviate_size(bytes)))
+        bytes_uploaded = self._stats["counters"].get("mutable.bytes_published", 0)
+        return tag("%s files / %s bytes (%s)" % (files, bytes_uploaded,
+                                                 abbreviate_size(bytes_uploaded)))
 
     @renderer
     def retrieves(self, req, tag):
         files = self._stats["counters"].get("mutable.files_retrieved", 0)
-        bytes = self._stats["counters"].get("mutable.bytes_retrieved", 0)
-        return tag("%s files / %s bytes (%s)" % (files, bytes,
-                                                 abbreviate_size(bytes)))
+        bytes_uploaded = self._stats["counters"].get("mutable.bytes_retrieved", 0)
+        return tag("%s files / %s bytes (%s)" % (files, bytes_uploaded,
+                                                 abbreviate_size(bytes_uploaded)))
 
     @renderer
     def raw(self, req, tag):

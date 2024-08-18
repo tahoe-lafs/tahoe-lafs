@@ -1,6 +1,5 @@
 #!python
 
-from __future__ import print_function
 
 # range of hash output lengths
 range_L_hash = [128]

@@ -45,14 +45,15 @@ fi
 
 # A prefix for the test command that ensure it will exit after no more than a
 # certain amount of time.  Ideally, we would only enforce a "silent" period
-# timeout but there isn't obviously a ready-made tool for that.  The test
-# suite only takes about 5 - 6 minutes on CircleCI right now.  15 minutes
-# seems like a moderately safe window.
+# timeout but there isn't obviously a ready-made tool for that.  The unit test
+# suite only takes about 5 - 6 minutes on CircleCI right now.  The integration
+# tests are a bit longer than that.  45 minutes seems like a moderately safe
+# window.
 #
 # This is primarily aimed at catching hangs on the PyPy job which runs for
 # about 21 minutes and then gets killed by CircleCI in a way that fails the
 # job and bypasses our "allowed failure" logic.
-TIMEOUT="timeout --kill-after 1m 15m"
+TIMEOUT="timeout --kill-after 1m 45m"
 
 # Run the test suite as a non-root user.  This is the expected usage some
 # small areas of the test suite assume non-root privileges (such as unreadable
@@ -78,9 +79,10 @@ else
     alternative="false"
 fi
 
+WORKDIR=/tmp/tahoe-lafs.tox
 ${TIMEOUT} ${BOOTSTRAP_VENV}/bin/tox \
     -c ${PROJECT_ROOT}/tox.ini \
-    --workdir /tmp/tahoe-lafs.tox \
+    --workdir "${WORKDIR}" \
     -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
     ${TAHOE_LAFS_TOX_ARGS} || "${alternative}"
 
@@ -92,5 +94,6 @@ if [ -n "${ARTIFACTS}" ]; then
 
     # Create a junitxml results area.
     mkdir -p "$(dirname "${JUNITXML}")"
-    "${BOOTSTRAP_VENV}"/bin/subunit2junitxml < "${SUBUNIT2}" > "${JUNITXML}" || "${alternative}"
+
+    "${WORKDIR}/${TAHOE_LAFS_TOX_ENVIRONMENT}/bin/subunit2junitxml" < "${SUBUNIT2}" > "${JUNITXML}" || "${alternative}"
 fi

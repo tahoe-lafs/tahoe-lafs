@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
 
 import sys, math
 from allmydata import uri, storage
 from allmydata.immutable import upload
-from allmydata.interfaces import DEFAULT_MAX_SEGMENT_SIZE
+from allmydata.interfaces import DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
 from allmydata.util import mathutil
 
 def roundup(size, blocksize=4096):
@@ -26,7 +25,7 @@ class BigFakeString(object):
     def tell(self):
         return self.fp
 
-def calc(filesize, params=(3,7,10), segsize=DEFAULT_MAX_SEGMENT_SIZE):
+def calc(filesize, params=(3,7,10), segsize=DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE):
     num_shares = params[2]
     if filesize <= upload.Uploader.URI_LIT_SIZE_THRESHOLD:
         urisize = len(uri.LiteralFileURI("A"*filesize).to_string())

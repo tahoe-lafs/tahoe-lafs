@@ -1,1 +1,0 @@
-The Tahoe-LAFS project no longer commits to maintaining binary packages for all dependencies at <https://tahoe-lafs.org/deps>.  Please use PyPI instead.

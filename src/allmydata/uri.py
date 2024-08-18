@@ -6,26 +6,9 @@ Ported to Python 3.
 Methods ending in to_string() are actually to_bytes(), possibly should be fixed
 in follow-up port.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    # Don't import bytes or str, to prevent future's newbytes leaking and
-    # breaking code that only expects normal bytes.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, max, min  # noqa: F401
-    from past.builtins import unicode as str
-
-from past.builtins import unicode, long
 
 import re
-
-try:
-    from typing import Type
-except ImportError:
-    pass
+from typing import Type
 
 from zope.interface import implementer
 from twisted.python.components import registerAdapter
@@ -106,7 +89,7 @@ class CHKFileURI(_BaseURI):
     def to_string(self):
         assert isinstance(self.needed_shares, int)
         assert isinstance(self.total_shares, int)
-        assert isinstance(self.size, (int,long))
+        assert isinstance(self.size, int)
 
         return (b'URI:CHK:%s:%s:%d:%d:%d' %
                 (base32.b2a(self.key),
@@ -162,7 +145,7 @@ class CHKFileVerifierURI(_BaseURI):
     def to_string(self):
         assert isinstance(self.needed_shares, int)
         assert isinstance(self.total_shares, int)
-        assert isinstance(self.size, (int,long))
+        assert isinstance(self.size, int)
 
         return (b'URI:CHK-Verifier:%s:%s:%d:%d:%d' %
                 (si_b2a(self.storage_index),
@@ -707,7 +690,7 @@ class DirectoryURIVerifier(_DirectoryBaseURI):
 
     BASE_STRING=b'URI:DIR2-Verifier:'
     BASE_STRING_RE=re.compile(b'^'+BASE_STRING)
-    INNER_URI_CLASS=SSKVerifierURI  # type: Type[IVerifierURI]
+    INNER_URI_CLASS : Type[IVerifierURI] = SSKVerifierURI
 
     def __init__(self, filenode_uri=None):
         if filenode_uri:
@@ -757,7 +740,7 @@ ALLEGED_IMMUTABLE_PREFIX = b'imm.'
 
 def from_string(u, deep_immutable=False, name=u"<unknown name>"):
     """Create URI from either unicode or byte string."""
-    if isinstance(u, unicode):
+    if isinstance(u, str):
         u = u.encode("utf-8")
     if not isinstance(u, bytes):
         raise TypeError("URI must be unicode string or bytes: %r" % (u,))
@@ -859,7 +842,7 @@ def is_uri(s):
         return False
 
 def is_literal_file_uri(s):
-    if isinstance(s, unicode):
+    if isinstance(s, str):
         s = s.encode("utf-8")
     if not isinstance(s, bytes):
         return False
@@ -868,7 +851,7 @@ def is_literal_file_uri(s):
             s.startswith(ALLEGED_IMMUTABLE_PREFIX + b'URI:LIT:'))
 
 def has_uri_prefix(s):
-    if isinstance(s, unicode):
+    if isinstance(s, str):
         s = s.encode("utf-8")
     if not isinstance(s, bytes):
         return False
@@ -910,9 +893,9 @@ def pack_extension(data):
     pieces = []
     for k in sorted(data.keys()):
         value = data[k]
-        if isinstance(value, (int, long)):
+        if isinstance(value, int):
             value = b"%d" % value
-        if isinstance(k, unicode):
+        if isinstance(k, str):
             k = k.encode("utf-8")
         assert isinstance(value, bytes), k
         assert re.match(br'^[a-zA-Z_\-]+$', k)

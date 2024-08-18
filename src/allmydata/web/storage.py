@@ -1,14 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 from twisted.python.filepath import FilePath
@@ -256,8 +248,8 @@ class StorageStatusElement(Element):
 
         if so_far["corrupt-shares"]:
             add("Corrupt shares:",
-                T.ul( (T.li( ["SI %s shnum %d" % corrupt_share
-                              for corrupt_share in so_far["corrupt-shares"] ]
+                T.ul( (T.li( ["SI %s shnum %d" % (si, shnum)
+                              for si, shnum in so_far["corrupt-shares"] ]
                              ))))
         return tag("Current cycle:", p)
 
@@ -267,7 +259,8 @@ class StorageStatusElement(Element):
         h = lc.get_state()["history"]
         if not h:
             return ""
-        last = h[max(h.keys())]
+        biggest = str(max(int(k) for k in h.keys()))
+        last = h[biggest]
 
         start, end = last["cycle-start-finish-times"]
         tag("Last complete cycle (which took %s and finished %s ago)"
@@ -290,8 +283,8 @@ class StorageStatusElement(Element):
 
         if last["corrupt-shares"]:
             add("Corrupt shares:",
-                T.ul( (T.li( ["SI %s shnum %d" % corrupt_share
-                              for corrupt_share in last["corrupt-shares"] ]
+                T.ul( (T.li( ["SI %s shnum %d" % (si, shnum)
+                              for si, shnum in last["corrupt-shares"] ]
                              ))))
 
         return tag(p)

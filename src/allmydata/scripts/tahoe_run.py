@@ -1,14 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 __all__ = [
     "RunOptions",
@@ -19,19 +11,37 @@ import os, sys
 from allmydata.scripts.common import BasedirOptions
 from twisted.scripts import twistd
 from twisted.python import usage
+from twisted.python.filepath import FilePath
 from twisted.python.reflect import namedAny
-from twisted.internet.defer import maybeDeferred
+from twisted.python.failure import Failure
+from twisted.internet.defer import maybeDeferred, Deferred
+from twisted.internet.protocol import Protocol
+from twisted.internet.stdio import StandardIO
+from twisted.internet.error import ReactorNotRunning
 from twisted.application.service import Service
 
 from allmydata.scripts.default_nodedir import _default_nodedir
 from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 from allmydata.util.configutil import UnknownConfigError
 from allmydata.util.deferredutil import HookMixin
-
+from allmydata.util.pid import (
+    parse_pidfile,
+    check_pid_process,
+    cleanup_pidfile,
+    ProcessInTheWay,
+    InvalidPidFile,
+)
+from allmydata.storage.crawler import (
+    MigratePickleFileError,
+)
+from allmydata.storage_client import (
+    MissingPlugin,
+)
 from allmydata.node import (
     PortAssignmentRequired,
     PrivacyError,
 )
+
 
 def get_pidfile(basedir):
     """
@@ -39,28 +49,26 @@ def get_pidfile(basedir):
     :param basedir: the node's base directory
     :returns: the path to the PID file
     """
-    return os.path.join(basedir, u"twistd.pid")
+    return os.path.join(basedir, u"running.process")
+
 
 def get_pid_from_pidfile(pidfile):
     """
     Tries to read and return the PID stored in the node's PID file
-    (twistd.pid).
+
     :param pidfile: try to read this PID file
     :returns: A numeric PID on success, ``None`` if PID file absent or
               inaccessible, ``-1`` if PID file invalid.
     """
     try:
-        with open(pidfile, "r") as f:
-            pid = f.read()
+        pid, _ = parse_pidfile(pidfile)
     except EnvironmentError:
         return None
-
-    try:
-        pid = int(pid)
-    except ValueError:
+    except InvalidPidFile:
         return -1
 
     return pid
+
 
 def identify_node_type(basedir):
     """
@@ -90,6 +98,11 @@ class RunOptions(BasedirOptions):
          " This has the same effect as the global --node-directory option."
          " [default: %s]" % quote_local_unicode_path(_default_nodedir)),
         ]
+
+    optFlags = [
+        ("allow-stdin-close", None,
+         'Do not exit when stdin closes ("tahoe run" otherwise will exit).'),
+    ]
 
     def parseArgs(self, basedir=None, *twistd_args):
         # This can't handle e.g. 'tahoe run --reactor=foo', since
@@ -143,8 +156,11 @@ class DaemonizeTheRealService(Service, HookMixin):
             "running": None,
         }
         self.stderr = options.parent.stderr
+        self._close_on_stdin_close = False if options["allow-stdin-close"] else True
 
     def startService(self):
+
+        from twisted.internet import reactor
 
         def start():
             node_to_instance = {
@@ -164,35 +180,104 @@ class DaemonizeTheRealService(Service, HookMixin):
                     self.stderr.write("\ntub.port cannot be 0: you must choose.\n\n")
                 elif reason.check(PrivacyError):
                     self.stderr.write("\n{}\n\n".format(reason.value))
+                elif reason.check(MigratePickleFileError):
+                    self.stderr.write(
+                        "Error\nAt least one 'pickle' format file exists.\n"
+                        "The file is {}\n"
+                        "You must either delete the pickle-format files"
+                        " or migrate them using the command:\n"
+                        "    tahoe admin migrate-crawler --basedir {}\n\n"
+                        .format(
+                            reason.value.args[0].path,
+                            self.basedir,
+                        )
+                    )
+                elif reason.check(MissingPlugin):
+                    self.stderr.write(
+                        "Missing Plugin\n"
+                        "The configuration requests a plugin:\n"
+                        "\n    {}\n\n"
+                        "...which cannot be found.\n"
+                        "This typically means that some software hasn't been installed or the plugin couldn't be instantiated.\n\n"
+                        .format(
+                            reason.value.plugin_name,
+                        )
+                    )
                 else:
-                    self.stderr.write("\nUnknown error\n")
+                    self.stderr.write("\nUnknown error, here's the traceback:\n")
                     reason.printTraceback(self.stderr)
                 reactor.stop()
 
             d = service_factory()
 
             def created(srv):
-                srv.setServiceParent(self.parent)
+                if self.parent is not None:
+                    srv.setServiceParent(self.parent)
+                # exiting on stdin-closed facilitates cleanup when run
+                # as a subprocess
+                if self._close_on_stdin_close:
+                    on_stdin_close(reactor, reactor.stop)
             d.addCallback(created)
             d.addErrback(handle_config_error)
             d.addBoth(self._call_hook, 'running')
             return d
 
-        from twisted.internet import reactor
         reactor.callWhenRunning(start)
 
 
 class DaemonizeTahoeNodePlugin(object):
     tapname = "tahoenode"
-    def __init__(self, nodetype, basedir):
+    def __init__(self, nodetype, basedir, allow_stdin_close):
         self.nodetype = nodetype
         self.basedir = basedir
+        self.allow_stdin_close = allow_stdin_close
 
     def makeService(self, so):
+        so["allow-stdin-close"] = self.allow_stdin_close
         return DaemonizeTheRealService(self.nodetype, self.basedir, so)
 
 
-def run(config, runApp=twistd.runApp):
+def on_stdin_close(reactor, fn):
+    """
+    Arrange for the function `fn` to run when our stdin closes
+    """
+    when_closed_d = Deferred()
+
+    class WhenClosed(Protocol):
+        """
+        Notify a Deferred when our connection is lost .. as this is passed
+        to twisted's StandardIO class, it is used to detect our parent
+        going away.
+        """
+
+        def connectionLost(self, reason):
+            when_closed_d.callback(None)
+
+    def on_close(arg):
+        try:
+            fn()
+        except ReactorNotRunning:
+            pass
+        except Exception:
+            # for our "exit" use-case failures will _mostly_ just be
+            # ReactorNotRunning (because we're already shutting down
+            # when our stdin closes) but no matter what "bad thing"
+            # happens we just want to ignore it .. although other
+            # errors might be interesting so we'll log those
+            print(Failure())
+        return arg
+
+    when_closed_d.addBoth(on_close)
+    # we don't need to do anything with this instance because it gets
+    # hooked into the reactor and thus remembered .. but we return it
+    # for Windows testing purposes.
+    return StandardIO(
+        proto=WhenClosed(),
+        reactor=reactor,
+    )
+
+
+def run(reactor, config, runApp=twistd.runApp):
     """
     Runs a Tahoe-LAFS node in the foreground.
 
@@ -213,10 +298,15 @@ def run(config, runApp=twistd.runApp):
         print("%s is not a recognizable node directory" % quoted_basedir, file=err)
         return 1
 
-    twistd_args = ["--nodaemon", "--rundir", basedir]
+    twistd_args = [
+        # ensure twistd machinery does not daemonize.
+        "--nodaemon",
+        "--rundir", basedir,
+    ]
     if sys.platform != "win32":
-        pidfile = get_pidfile(basedir)
-        twistd_args.extend(["--pidfile", pidfile])
+        # turn off Twisted's pid-file to use our own -- but not on
+        # windows, because twistd doesn't know about pidfiles there
+        twistd_args.extend(["--pidfile", None])
     twistd_args.extend(config.twistd_args)
     twistd_args.append("DaemonizeTahoeNode") # point at our DaemonizeTahoeNodePlugin
 
@@ -230,12 +320,22 @@ def run(config, runApp=twistd.runApp):
         print(config, file=err)
         print("tahoe %s: usage error from twistd: %s\n" % (config.subcommand_name, ue), file=err)
         return 1
-    twistd_config.loadedPlugins = {"DaemonizeTahoeNode": DaemonizeTahoeNodePlugin(nodetype, basedir)}
+    twistd_config.loadedPlugins = {
+        "DaemonizeTahoeNode": DaemonizeTahoeNodePlugin(nodetype, basedir, config["allow-stdin-close"])
+    }
 
-    # handle invalid PID file (twistd might not start otherwise)
-    if sys.platform != "win32" and get_pid_from_pidfile(pidfile) == -1:
-        print("found invalid PID file in %s - deleting it" % basedir, file=err)
-        os.remove(pidfile)
+    # our own pid-style file contains PID and process creation time
+    pidfile = FilePath(get_pidfile(config['basedir']))
+    try:
+        check_pid_process(pidfile)
+    except (ProcessInTheWay, InvalidPidFile) as e:
+        print("ERROR: {}".format(e), file=err)
+        return 1
+    else:
+        reactor.addSystemEventTrigger(
+            "after", "shutdown",
+            lambda: cleanup_pidfile(pidfile)
+        )
 
     # We always pass --nodaemon so twistd.runApp does not daemonize.
     print("running node in %s" % (quoted_basedir,), file=out)

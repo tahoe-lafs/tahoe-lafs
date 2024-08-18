@@ -1,25 +1,16 @@
-# Ported to Python 3
 
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from typing import Optional
 
 import io
 import os
 
-try:
-    from allmydata.scripts.types_ import (
-        SubCommands,
-        Parameters,
-        Flags,
-    )
-except ImportError:
-    pass
+from allmydata.scripts.types_ import (
+    SubCommands,
+    Parameters,
+    Flags,
+)
 
 from twisted.internet import reactor, defer
 from twisted.python.usage import UsageError
@@ -33,12 +24,40 @@ from allmydata.scripts.common import (
     write_introducer,
 )
 from allmydata.scripts.default_nodedir import _default_nodedir
+from allmydata.util import dictutil
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_local_unicode_path, get_io_encoding
-from allmydata.util import fileutil, i2p_provider, iputil, tor_provider, jsonbytes as json
 
-from wormhole import wormhole
+i2p_provider: Listener
+tor_provider: Listener
 
+from allmydata.util import fileutil, i2p_provider, tor_provider, jsonbytes as json
+
+from ..listeners import ListenerConfig, Listener, TCPProvider, StaticProvider
+
+def _get_listeners() -> dict[str, Listener]:
+    """
+    Get all of the kinds of listeners we might be able to use.
+    """
+    return {
+        "tor": tor_provider,
+        "i2p": i2p_provider,
+        "tcp": TCPProvider(),
+        "none": StaticProvider(
+            available=True,
+            hide_ip=False,
+            config=defer.succeed(None),
+            # This is supposed to be an IAddressFamily but we have none for
+            # this kind of provider.  We could implement new client and server
+            # endpoint types that always fail and pass an IAddressFamily here
+            # that uses those.  Nothing would ever even ask for them (at
+            # least, yet), let alone try to use them, so that's a lot of extra
+            # work for no practical result so I'm not doing it now.
+            address=None, # type: ignore[arg-type]
+        ),
+    }
+
+_LISTENERS = _get_listeners()
 
 dummy_tac = """
 import sys
@@ -51,7 +70,7 @@ def write_tac(basedir, nodetype):
     fileutil.write(os.path.join(basedir, "tahoe-%s.tac" % (nodetype,)), dummy_tac)
 
 
-WHERE_OPTS = [
+WHERE_OPTS : Parameters = [
     ("location", None, None,
      "Server location to advertise (e.g. tcp:example.org:12345)"),
     ("port", None, None,
@@ -60,29 +79,29 @@ WHERE_OPTS = [
      "Hostname to automatically set --location/--port when --listen=tcp"),
     ("listen", None, "tcp",
      "Comma-separated list of listener types (tcp,tor,i2p,none)."),
-] # type: Parameters
+]
 
-TOR_OPTS = [
+TOR_OPTS : Parameters = [
     ("tor-control-port", None, None,
      "Tor's control port endpoint descriptor string (e.g. tcp:127.0.0.1:9051 or unix:/var/run/tor/control)"),
     ("tor-executable", None, None,
      "The 'tor' executable to run (default is to search $PATH)."),
-] # type: Parameters
+]
 
-TOR_FLAGS = [
+TOR_FLAGS : Flags = [
     ("tor-launch", None, "Launch a tor instead of connecting to a tor control port."),
-] # type: Flags
+]
 
-I2P_OPTS = [
+I2P_OPTS : Parameters = [
     ("i2p-sam-port", None, None,
      "I2P's SAM API port endpoint descriptor string (e.g. tcp:127.0.0.1:7656)"),
     ("i2p-executable", None, None,
      "(future) The 'i2prouter' executable to run (default is to search $PATH)."),
-] # type: Parameters
+]
 
-I2P_FLAGS = [
+I2P_FLAGS : Flags = [
     ("i2p-launch", None, "(future) Launch an I2P router instead of connecting to a SAM API port."),
-] # type: Flags
+]
 
 def validate_where_options(o):
     if o['listen'] == "none":
@@ -115,8 +134,11 @@ def validate_where_options(o):
         if o['listen'] != "none" and o.get('join', None) is None:
             listeners = o['listen'].split(",")
             for l in listeners:
-                if l not in ["tcp", "tor", "i2p"]:
-                    raise UsageError("--listen= must be none, or one/some of: tcp, tor, i2p")
+                if l not in _LISTENERS:
+                    raise UsageError(
+                        "--listen= must be one/some of: "
+                        f"{', '.join(sorted(_LISTENERS))}",
+                    )
             if 'tcp' in listeners and not o['hostname']:
                 raise UsageError("--listen=tcp requires --hostname=")
             if 'tcp' not in listeners and o['hostname']:
@@ -125,7 +147,7 @@ def validate_where_options(o):
 def validate_tor_options(o):
     use_tor = "tor" in o["listen"].split(",")
     if use_tor or any((o["tor-launch"], o["tor-control-port"])):
-        if tor_provider._import_txtorcon() is None:
+        if not _LISTENERS["tor"].is_available():
             raise UsageError(
                 "Specifying any Tor options requires the 'txtorcon' module"
             )
@@ -140,7 +162,7 @@ def validate_tor_options(o):
 def validate_i2p_options(o):
     use_i2p = "i2p" in o["listen"].split(",")
     if use_i2p or any((o["i2p-launch"], o["i2p-sam-port"])):
-        if i2p_provider._import_txi2p() is None:
+        if not _LISTENERS["i2p"].is_available():
             raise UsageError(
                 "Specifying any I2P options requires the 'txi2p' module"
             )
@@ -162,11 +184,17 @@ class _CreateBaseOptions(BasedirOptions):
     def postOptions(self):
         super(_CreateBaseOptions, self).postOptions()
         if self['hide-ip']:
-            if tor_provider._import_txtorcon() is None and i2p_provider._import_txi2p() is None:
+            ip_hiders = dictutil.filter(lambda v: v.can_hide_ip(), _LISTENERS)
+            available = dictutil.filter(lambda v: v.is_available(), ip_hiders)
+            if not available:
                 raise UsageError(
-                    "--hide-ip was specified but neither 'txtorcon' nor 'txi2p' "
-                    "are installed.\nTo do so:\n   pip install tahoe-lafs[tor]\nor\n"
-                    "   pip install tahoe-lafs[i2p]"
+                    "--hide-ip was specified but no IP-hiding listener is installed.\n"
+                    "Try one of these:\n" +
+                    "".join([
+                        f"\tpip install tahoe-lafs[{name}]\n"
+                        for name
+                        in ip_hiders
+                    ])
                 )
 
 class CreateClientOptions(_CreateBaseOptions):
@@ -235,8 +263,34 @@ class CreateIntroducerOptions(NoDefaultBasedirOptions):
         validate_i2p_options(self)
 
 
-@defer.inlineCallbacks
-def write_node_config(c, config):
+def merge_config(
+        left: Optional[ListenerConfig],
+        right: Optional[ListenerConfig],
+) -> Optional[ListenerConfig]:
+    """
+    Merge two listener configurations into one configuration representing
+    both of them.
+
+    If either is ``None`` then the result is ``None``.  This supports the
+    "disable listeners" functionality.
+
+    :raise ValueError: If the keys in the node configs overlap.
+    """
+    if left is None or right is None:
+        return None
+
+    overlap = set(left.node_config) & set(right.node_config)
+    if overlap:
+        raise ValueError(f"Node configs overlap: {overlap}")
+
+    return ListenerConfig(
+        list(left.tub_ports) + list(right.tub_ports),
+        list(left.tub_locations) + list(right.tub_locations),
+        dict(list(left.node_config.items()) + list(right.node_config.items())),
+    )
+
+
+async def write_node_config(c, config):
     # this is shared between clients and introducers
     c.write("# -*- mode: conf; coding: {c.encoding} -*-\n".format(c=c))
     c.write("\n")
@@ -249,9 +303,10 @@ def write_node_config(c, config):
 
     if config["hide-ip"]:
         c.write("[connections]\n")
-        if tor_provider._import_txtorcon():
+        if _LISTENERS["tor"].is_available():
             c.write("tcp = tor\n")
         else:
+            # XXX What about i2p?
             c.write("tcp = disabled\n")
         c.write("\n")
 
@@ -270,38 +325,23 @@ def write_node_config(c, config):
     c.write("web.port = %s\n" % (webport,))
     c.write("web.static = public_html\n")
 
-    listeners = config['listen'].split(",")
+    listener_config = ListenerConfig([], [], {})
+    for listener_name in config['listen'].split(","):
+        listener = _LISTENERS[listener_name]
+        listener_config = merge_config(
+            (await listener.create_config(reactor, config)),
+            listener_config,
+        )
 
-    tor_config = {}
-    i2p_config = {}
-    tub_ports = []
-    tub_locations = []
-    if listeners == ["none"]:
-        c.write("tub.port = disabled\n")
-        c.write("tub.location = disabled\n")
+    if listener_config is None:
+        tub_ports = ["disabled"]
+        tub_locations = ["disabled"]
     else:
-        if "tor" in listeners:
-            (tor_config, tor_port, tor_location) = \
-                         yield tor_provider.create_config(reactor, config)
-            tub_ports.append(tor_port)
-            tub_locations.append(tor_location)
-        if "i2p" in listeners:
-            (i2p_config, i2p_port, i2p_location) = \
-                         yield i2p_provider.create_config(reactor, config)
-            tub_ports.append(i2p_port)
-            tub_locations.append(i2p_location)
-        if "tcp" in listeners:
-            if config["port"]: # --port/--location are a pair
-                tub_ports.append(config["port"])
-                tub_locations.append(config["location"])
-            else:
-                assert "hostname" in config
-                hostname = config["hostname"]
-                new_port = iputil.allocate_tcp_port()
-                tub_ports.append("tcp:%s" % new_port)
-                tub_locations.append("tcp:%s:%s" % (hostname, new_port))
-        c.write("tub.port = %s\n" % ",".join(tub_ports))
-        c.write("tub.location = %s\n" % ",".join(tub_locations))
+        tub_ports = listener_config.tub_ports
+        tub_locations = listener_config.tub_locations
+
+    c.write("tub.port = %s\n" % ",".join(tub_ports))
+    c.write("tub.location = %s\n" % ",".join(tub_locations))
     c.write("\n")
 
     c.write("#log_gatherer.furl =\n")
@@ -311,17 +351,12 @@ def write_node_config(c, config):
     c.write("#ssh.authorized_keys_file = ~/.ssh/authorized_keys\n")
     c.write("\n")
 
-    if tor_config:
-        c.write("[tor]\n")
-        for key, value in list(tor_config.items()):
-            c.write("%s = %s\n" % (key, value))
-        c.write("\n")
-
-    if i2p_config:
-        c.write("[i2p]\n")
-        for key, value in list(i2p_config.items()):
-            c.write("%s = %s\n" % (key, value))
-        c.write("\n")
+    if listener_config is not None:
+        for section, items in listener_config.node_config.items():
+            c.write(f"[{section}]\n")
+            for k, v in items:
+                c.write(f"{k} = {v}\n")
+            c.write("\n")
 
 
 def write_client_config(c, config):
@@ -377,7 +412,7 @@ def _get_config_via_wormhole(config):
     relay_url = config.parent['wormhole-server']
     print("Connecting to '{}'".format(relay_url), file=out)
 
-    wh = wormhole.create(
+    wh = config.parent.wormhole.create(
         appid=config.parent['wormhole-invite-appid'],
         relay_url=relay_url,
         reactor=reactor,
@@ -462,7 +497,7 @@ def create_node(config):
     fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
     cfg_name = os.path.join(basedir, "tahoe.cfg")
     with io.open(cfg_name, "w", encoding='utf-8') as c:
-        yield write_node_config(c, config)
+        yield defer.Deferred.fromCoroutine(write_node_config(c, config))
         write_client_config(c, config)
 
     print("Node created in %s" % quote_local_unicode_path(basedir), file=out)
@@ -505,17 +540,17 @@ def create_introducer(config):
     fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
     cfg_name = os.path.join(basedir, "tahoe.cfg")
     with io.open(cfg_name, "w", encoding='utf-8') as c:
-        yield write_node_config(c, config)
+        yield defer.Deferred.fromCoroutine(write_node_config(c, config))
 
     print("Introducer created in %s" % quote_local_unicode_path(basedir), file=out)
     defer.returnValue(0)
 
 
-subCommands = [
+subCommands : SubCommands = [
     ("create-node", None, CreateNodeOptions, "Create a node that acts as a client, server or both."),
     ("create-client", None, CreateClientOptions, "Create a client node (with storage initially disabled)."),
     ("create-introducer", None, CreateIntroducerOptions, "Create an introducer node."),
-]  # type: SubCommands
+]
 
 dispatch = {
     "create-node": create_node,

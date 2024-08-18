@@ -2,21 +2,9 @@
 Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2, native_str
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-from past.builtins import long, unicode
 from six import ensure_str
-
-try:
-    from typing import List
-except ImportError:
-    pass
 
 import os, time, weakref, itertools
 
@@ -48,7 +36,7 @@ from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus, \
      NoServersError, InsufficientVersionError, UploadUnhappinessError, \
-     DEFAULT_MAX_SEGMENT_SIZE, IPeerSelector
+     DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE, IPeerSelector
 from allmydata.immutable import layout
 
 from io import BytesIO
@@ -67,7 +55,7 @@ from eliot import (
 
 _TOTAL_SHARES = Field.for_types(
     u"total_shares",
-    [int, long],
+    [int],
     u"The total number of shares desired.",
 )
 
@@ -88,7 +76,7 @@ _READONLY_PEERS = Field(
 
 def _serialize_existing_shares(existing_shares):
     return {
-        server: list(shares)
+        ensure_str(server): list(shares)
         for (server, shares)
         in existing_shares.items()
     }
@@ -101,7 +89,7 @@ _EXISTING_SHARES = Field(
 
 def _serialize_happiness_mappings(happiness_mappings):
     return {
-        sharenum: base32.b2a(serverid)
+        str(sharenum): ensure_str(base32.b2a(serverid))
         for (sharenum, serverid)
         in happiness_mappings.items()
     }
@@ -114,7 +102,7 @@ _HAPPINESS_MAPPINGS = Field(
 
 _HAPPINESS = Field.for_types(
     u"happiness",
-    [int, long],
+    [int],
     u"The computed happiness of a certain placement.",
 )
 
@@ -122,7 +110,7 @@ _UPLOAD_TRACKERS = Field(
     u"upload_trackers",
     lambda trackers: list(
         dict(
-            server=tracker.get_name(),
+            server=ensure_str(tracker.get_name()),
             shareids=sorted(tracker.buckets.keys()),
         )
         for tracker
@@ -133,7 +121,7 @@ _UPLOAD_TRACKERS = Field(
 
 _ALREADY_SERVERIDS = Field(
     u"already_serverids",
-    lambda d: d,
+    lambda d: {str(k): v for k, v in d.items()},
     u"Some servers which are already holding some shares that we were interested in uploading.",
 )
 
@@ -152,7 +140,7 @@ GET_SHARE_PLACEMENTS = MessageType(
 
 _EFFECTIVE_HAPPINESS = Field.for_types(
     u"effective_happiness",
-    [int, long],
+    [int],
     u"The computed happiness value of a share placement map.",
 )
 
@@ -176,7 +164,7 @@ class HelperUploadResults(Copyable, RemoteCopy):
     # package/module/class name
     #
     # Needs to be native string to make Foolscap happy.
-    typeToCopy = native_str("allmydata.upload.UploadResults.tahoe.allmydata.com")
+    typeToCopy = "allmydata.upload.UploadResults.tahoe.allmydata.com"
     copytype = typeToCopy
 
     # also, think twice about changing the shape of any existing attribute,
@@ -242,31 +230,26 @@ class UploadResults(object):
     def get_verifycapstr(self):
         return self._verifycapstr
 
-# our current uri_extension is 846 bytes for small files, a few bytes
-# more for larger ones (since the filesize is encoded in decimal in a
-# few places). Ask for a little bit more just in case we need it. If
-# the extension changes size, we can change EXTENSION_SIZE to
-# allocate a more accurate amount of space.
-EXTENSION_SIZE = 1000
-# TODO: actual extensions are closer to 419 bytes, so we can probably lower
-# this.
 
 def pretty_print_shnum_to_servers(s):
     return ', '.join([ "sh%s: %s" % (k, '+'.join([idlib.shortnodeid_b2a(x) for x in v])) for k, v in s.items() ])
+
 
 class ServerTracker(object):
     def __init__(self, server,
                  sharesize, blocksize, num_segments, num_share_hashes,
                  storage_index,
-                 bucket_renewal_secret, bucket_cancel_secret):
+                 bucket_renewal_secret, bucket_cancel_secret,
+                 uri_extension_size):
         self._server = server
         self.buckets = {} # k: shareid, v: IRemoteBucketWriter
         self.sharesize = sharesize
+        self.uri_extension_size = uri_extension_size
 
         wbp = layout.make_write_bucket_proxy(None, None, sharesize,
                                              blocksize, num_segments,
                                              num_share_hashes,
-                                             EXTENSION_SIZE)
+                                             uri_extension_size)
         self.wbp_class = wbp.__class__ # to create more of them
         self.allocated_size = wbp.get_allocated_size()
         self.blocksize = blocksize
@@ -314,7 +297,7 @@ class ServerTracker(object):
                                 self.blocksize,
                                 self.num_segments,
                                 self.num_share_hashes,
-                                EXTENSION_SIZE)
+                                self.uri_extension_size)
             b[sharenum] = bp
         self.buckets.update(b)
         return (alreadygot, set(b.keys()))
@@ -487,7 +470,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
     def get_shareholders(self, storage_broker, secret_holder,
                          storage_index, share_size, block_size,
                          num_segments, total_shares, needed_shares,
-                         min_happiness):
+                         min_happiness, uri_extension_size):
         """
         @return: (upload_trackers, already_serverids), where upload_trackers
                  is a set of ServerTracker instances that have agreed to hold
@@ -529,7 +512,8 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         # figure out how much space to ask for
         wbp = layout.make_write_bucket_proxy(None, None,
                                              share_size, 0, num_segments,
-                                             num_share_hashes, EXTENSION_SIZE)
+                                             num_share_hashes,
+                                             uri_extension_size)
         allocated_size = wbp.get_allocated_size()
 
         # decide upon the renewal/cancel secrets, to include them in the
@@ -547,14 +531,14 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         # 0. Start with an ordered list of servers. Maybe *2N* of them.
         #
 
-        all_servers = storage_broker.get_servers_for_psi(storage_index)
+        all_servers = storage_broker.get_servers_for_psi(storage_index, for_upload=True)
         if not all_servers:
             raise NoServersError("client gave us zero servers")
 
         def _create_server_tracker(server, renew, cancel):
             return ServerTracker(
                 server, share_size, block_size, num_segments, num_share_hashes,
-                storage_index, renew, cancel,
+                storage_index, renew, cancel, uri_extension_size
             )
 
         readonly_trackers, write_trackers = self._create_trackers(
@@ -919,12 +903,12 @@ class _Accum(object):
     :ivar remaining: The number of bytes still expected.
     :ivar ciphertext: The bytes accumulated so far.
     """
-    remaining = attr.ib(validator=attr.validators.instance_of(int)) # type: int
-    ciphertext = attr.ib(default=attr.Factory(list))                # type: List[bytes]
+    remaining : int = attr.ib(validator=attr.validators.instance_of(int))
+    ciphertext : list[bytes] = attr.ib(default=attr.Factory(list))
 
     def extend(self,
                size,           # type: int
-               ciphertext,     # type: List[bytes]
+               ciphertext,     # type: list[bytes]
     ):
         """
         Accumulate some more ciphertext.
@@ -1326,7 +1310,8 @@ class CHKUploader(object):
         d = server_selector.get_shareholders(storage_broker, secret_holder,
                                              storage_index,
                                              share_size, block_size,
-                                             num_segments, n, k, desired)
+                                             num_segments, n, k, desired,
+                                             encoder.get_uri_extension_size())
         def _done(res):
             self._server_selection_elapsed = time.time() - server_selection_started
             return res
@@ -1404,7 +1389,9 @@ class CHKUploader(object):
     def get_upload_status(self):
         return self._upload_status
 
-def read_this_many_bytes(uploadable, size, prepend_data=[]):
+def read_this_many_bytes(uploadable, size, prepend_data=None):
+    if prepend_data is None:
+        prepend_data = []
     if size == 0:
         return defer.succeed([])
     d = uploadable.read(size)
@@ -1633,7 +1620,7 @@ class AssistedUploader(object):
         # abbreviated), so if we detect old results, just clobber them.
 
         sharemap = upload_results.sharemap
-        if any(isinstance(v, (bytes, unicode)) for v in sharemap.values()):
+        if any(isinstance(v, (bytes, str)) for v in sharemap.values()):
             upload_results.sharemap = None
 
     def _build_verifycap(self, helper_upload_results):
@@ -1695,7 +1682,7 @@ class AssistedUploader(object):
 
 class BaseUploadable(object):
     # this is overridden by max_segment_size
-    default_max_segment_size = DEFAULT_MAX_SEGMENT_SIZE
+    default_max_segment_size = DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
     default_params_set = False
 
     max_segment_size = None
@@ -1712,7 +1699,7 @@ class BaseUploadable(object):
     def set_default_encoding_parameters(self, default_params):
         assert isinstance(default_params, dict)
         for k,v in default_params.items():
-            precondition(isinstance(k, (bytes, unicode)), k, v)
+            precondition(isinstance(k, (bytes, str)), k, v)
             precondition(isinstance(v, int), k, v)
         if "k" in default_params:
             self.default_encoding_param_k = default_params["k"]
@@ -1854,7 +1841,9 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
     """I am a service that allows file uploading. I am a service-child of the
     Client.
     """
-    name = "uploader"
+    # The type in Twisted for services is wrong in 22.10...
+    # https://github.com/twisted/twisted/issues/10135
+    name = "uploader"  # type: ignore[assignment]
     URI_LIT_SIZE_THRESHOLD = 55
 
     def __init__(self, helper_furl=None, stats_provider=None, history=None):

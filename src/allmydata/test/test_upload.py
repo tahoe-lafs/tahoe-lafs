@@ -3,14 +3,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os, shutil
 from io import BytesIO
@@ -983,7 +975,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         num_segments = encoder.get_param("num_segments")
         d = selector.get_shareholders(broker, sh, storage_index,
                                       share_size, block_size, num_segments,
-                                      10, 3, 4)
+                                      10, 3, 4, encoder.get_uri_extension_size())
         def _have_shareholders(upload_trackers_and_already_servers):
             (upload_trackers, already_servers) = upload_trackers_and_already_servers
             assert servers_to_break <= len(upload_trackers)

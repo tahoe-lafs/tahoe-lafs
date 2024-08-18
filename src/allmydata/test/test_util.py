@@ -2,19 +2,10 @@
 Ported to Python3.
 """
 
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    # open is not here because we want to use native strings on Py2
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-import six
 import os, time, sys
 import yaml
 import json
+from threading import current_thread
 
 from twisted.trial import unittest
 from foolscap.api import Violation, RemoteException
@@ -26,11 +17,11 @@ from allmydata.util import pollmixin
 from allmydata.util import yamlutil
 from allmydata.util import rrefutil
 from allmydata.util.fileutil import EncryptedTemporaryFile
+from allmydata.util.cputhreadpool import defer_to_thread, disable_thread_pool_for_test
 from allmydata.test.common_util import ReallyEqualMixin
 from .no_network import fireNow, LocalWrapper
 
-if six.PY3:
-    long = int
+long = int
 
 
 class IDLib(unittest.TestCase):
@@ -191,8 +182,6 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessRaises(AssertionError, fileutil.abspath_expanduser_unicode, b"bytestring")
 
         saved_cwd = os.path.normpath(os.getcwd())
-        if PY2:
-            saved_cwd = saved_cwd.decode("utf8")
         abspath_cwd = fileutil.abspath_expanduser_unicode(u".")
         abspath_cwd_notlong = fileutil.abspath_expanduser_unicode(u".", long_path=False)
         self.failUnless(isinstance(saved_cwd, str), saved_cwd)
@@ -486,7 +475,7 @@ class YAML(unittest.TestCase):
         Unicode and (ASCII) native strings get roundtripped to Unicode strings.
         """
         data = yaml.safe_dump(
-            [six.ensure_str("str"), u"unicode", u"\u1234nicode"]
+            ["str", "unicode", "\u1234nicode"]
         )
         back = yamlutil.safe_load(data)
         self.assertIsInstance(back[0], str)
@@ -558,6 +547,12 @@ class JSONBytes(unittest.TestCase):
             expected
         )
 
+    def test_dumps_bytes_unicode_separators(self):
+        """Unicode separators don't prevent the result from being bytes."""
+        result = jsonbytes.dumps_bytes([1, 2], separators=(u',', u':'))
+        self.assertIsInstance(result, bytes)
+        self.assertEqual(result, b"[1,2]")
+
 
 
 class FakeGetVersion(object):
@@ -593,3 +588,36 @@ class RrefUtilTests(unittest.TestCase):
             )
             self.assertEqual(result.version, "Default")
             self.assertIdentical(result, rref)
+
+
+class CPUThreadPool(unittest.TestCase):
+    """Tests for cputhreadpool."""
+
+    async def test_runs_in_thread(self):
+        """The given function runs in a thread."""
+        def f(*args, **kwargs):
+            return current_thread(), args, kwargs
+
+        this_thread = current_thread().ident
+        thread, args, kwargs = await defer_to_thread(f, 1, 3, key=4, value=5)
+
+        # The task ran in a different thread:
+        self.assertNotEqual(thread.ident, this_thread)
+        self.assertEqual(args, (1, 3))
+        self.assertEqual(kwargs, {"key": 4, "value": 5})
+
+    async def test_when_disabled_runs_in_same_thread(self):
+        """
+        If the CPU thread pool is disabled, the given function runs in the
+        current thread.
+        """
+        disable_thread_pool_for_test(self)
+        def f(*args, **kwargs):
+            return current_thread().ident, args, kwargs
+
+        this_thread = current_thread().ident
+        thread, args, kwargs = await defer_to_thread(f, 1, 3, key=4, value=5)
+
+        self.assertEqual(thread, this_thread)
+        self.assertEqual(args, (1, 3))
+        self.assertEqual(kwargs, {"key": 4, "value": 5})

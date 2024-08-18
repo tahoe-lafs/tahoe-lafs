@@ -4,20 +4,17 @@ Tests for allmydata.util.consumer.
 Ported to Python 3.
 """
 
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 from zope.interface import implementer
-from twisted.trial.unittest import TestCase
 from twisted.internet.interfaces import IPushProducer, IPullProducer
 
 from allmydata.util.consumer import MemoryConsumer
+
+from .common import (
+    SyncTestCase,
+)
+from testtools.matchers import (
+    Equals,
+)
 
 
 @implementer(IPushProducer)
@@ -32,6 +29,12 @@ class Producer(object):
         self.data = data
         self.consumer = consumer
         self.done = False
+
+    def stopProducing(self):
+        pass
+
+    def pauseProducing(self):
+        pass
 
     def resumeProducing(self):
         """Kick off streaming."""
@@ -50,7 +53,7 @@ class Producer(object):
             self.consumer.unregisterProducer()
 
 
-class MemoryConsumerTests(TestCase):
+class MemoryConsumerTests(SyncTestCase):
     """Tests for MemoryConsumer."""
 
     def test_push_producer(self):
@@ -60,14 +63,14 @@ class MemoryConsumerTests(TestCase):
         consumer = MemoryConsumer()
         producer = Producer(consumer, [b"abc", b"def", b"ghi"])
         consumer.registerProducer(producer, True)
-        self.assertEqual(consumer.chunks, [b"abc"])
+        self.assertThat(consumer.chunks, Equals([b"abc"]))
         producer.iterate()
         producer.iterate()
-        self.assertEqual(consumer.chunks, [b"abc", b"def", b"ghi"])
-        self.assertEqual(consumer.done, False)
+        self.assertThat(consumer.chunks, Equals([b"abc", b"def", b"ghi"]))
+        self.assertFalse(consumer.done)
         producer.iterate()
-        self.assertEqual(consumer.chunks, [b"abc", b"def", b"ghi"])
-        self.assertEqual(consumer.done, True)
+        self.assertThat(consumer.chunks, Equals([b"abc", b"def", b"ghi"]))
+        self.assertTrue(consumer.done)
 
     def test_pull_producer(self):
         """
@@ -76,8 +79,8 @@ class MemoryConsumerTests(TestCase):
         consumer = MemoryConsumer()
         producer = Producer(consumer, [b"abc", b"def", b"ghi"])
         consumer.registerProducer(producer, False)
-        self.assertEqual(consumer.chunks, [b"abc", b"def", b"ghi"])
-        self.assertEqual(consumer.done, True)
+        self.assertThat(consumer.chunks, Equals([b"abc", b"def", b"ghi"]))
+        self.assertTrue(consumer.done)
 
 
 # download_to_data() is effectively tested by some of the filenode tests, e.g.

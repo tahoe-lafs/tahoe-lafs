@@ -29,8 +29,7 @@ zope.interface-*.egg
 .pc
 
 /src/allmydata/test/plugins/dropin.cache
-/_trial_temp*
-/_test_memory/
+**/_trial_temp*
 /tmp*
 /*.patch
 /dist/
@@ -54,3 +53,5 @@ zope.interface-*.egg
 # This is the plaintext of the private environment needed for some CircleCI
 # operations.  It's never supposed to be checked in.
 secret-env-plain
+
+.ruff_cache

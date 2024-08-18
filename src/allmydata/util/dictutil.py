@@ -1,21 +1,23 @@
 """
 Tools to mess with dicts.
-
-Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    # IMPORTANT: We deliberately don't import dict. The issue is that we're
-    # subclassing dict, so we'd end up exposing Python 3 dict APIs to lots of
-    # code that doesn't support it.
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, list, object, range, str, max, min  # noqa: F401
-from six import ensure_str
+from __future__ import annotations
+from typing import Callable, TypeVar
 
+K = TypeVar("K")
+V = TypeVar("V")
+
+def filter(pred: Callable[[V], bool], orig: dict[K, V]) -> dict[K, V]:
+    """
+    Filter out key/value pairs whose value fails to match a predicate.
+    """
+    return {
+        k: v
+        for (k, v)
+        in orig.items()
+        if pred(v)
+    }
 
 class DictOfSets(dict):
     def add(self, key, value):
@@ -104,7 +106,7 @@ def _make_enforcing_override(K, method_name):
             raise TypeError("{} must be of type {}".format(
                 repr(key), self.KEY_TYPE))
         return getattr(dict, method_name)(self, key, *args, **kwargs)
-    f.__name__ = ensure_str(method_name)
+    f.__name__ = method_name
     setattr(K, method_name, f)
 
 for _method_name in ["__setitem__", "__getitem__", "setdefault", "get",
@@ -113,18 +115,13 @@ for _method_name in ["__setitem__", "__getitem__", "setdefault", "get",
 del _method_name
 
 
-if PY2:
-    # No need for enforcement, can use either bytes or unicode as keys and it's
-    # fine.
-    BytesKeyDict = UnicodeKeyDict = dict
-else:
-    class BytesKeyDict(_TypedKeyDict):
-        """Keys should be bytes."""
+class BytesKeyDict(_TypedKeyDict):
+    """Keys should be bytes."""
 
-        KEY_TYPE = bytes
+    KEY_TYPE = bytes
 
 
-    class UnicodeKeyDict(_TypedKeyDict):
-        """Keys should be unicode strings."""
+class UnicodeKeyDict(_TypedKeyDict):
+    """Keys should be unicode strings."""
 
-        KEY_TYPE = str
+    KEY_TYPE = str

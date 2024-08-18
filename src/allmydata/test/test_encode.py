@@ -1,15 +1,8 @@
 """
 Ported to Python 3.
 """
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-from past.builtins import chr as byteschr, long
+from past.builtins import chr as byteschr
 
 from zope.interface import implementer
 from twisted.trial import unittest
@@ -106,7 +99,7 @@ class FakeBucketReaderWriterProxy(object):
     def get_block_data(self, blocknum, blocksize, size):
         d = self._start()
         def _try(unused=None):
-            assert isinstance(blocknum, (int, long))
+            assert isinstance(blocknum, int)
             if self.mode == "bad block":
                 return flip_bit(self.blocks[blocknum])
             return self.blocks[blocknum]

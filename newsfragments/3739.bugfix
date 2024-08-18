@@ -1,1 +1,0 @@
-Fixed annoying UnicodeWarning message on Python 2 when running CLI tools.

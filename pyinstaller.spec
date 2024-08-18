@@ -1,6 +1,5 @@
 # -*- mode: python -*-
 
-from __future__ import print_function
 
 from distutils.sysconfig import get_python_lib
 import hashlib
@@ -11,7 +10,10 @@ import struct
 import sys
 
 
-if not hasattr(sys, 'real_prefix'):
+try:
+    import allmydata
+    del allmydata
+except ImportError:
     sys.exit("Please run inside a virtualenv with Tahoe-LAFS installed.")
 
 
@@ -33,6 +35,7 @@ hidden_imports = [
     'allmydata.stats',
     'base64',
     'cffi',
+    'charset_normalizer.md__mypyc',
     'collections',
     'commands',
     'Crypto',

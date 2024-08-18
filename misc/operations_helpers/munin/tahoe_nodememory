@@ -4,7 +4,6 @@
 # by 'allmydata start', then extracts the amount of memory they consume (both
 # VmSize and VmRSS) from /proc
 
-from __future__ import print_function
 
 import os, sys, re
 

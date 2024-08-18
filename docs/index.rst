@@ -40,6 +40,9 @@ preserving your privacy and security.
    :caption: Tahoe-LAFS in Depth
 
    architecture
+   gpg-setup
+   servers
+   managed-grid
    helper
    convergence-secret
    garbage-collection

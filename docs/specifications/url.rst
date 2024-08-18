@@ -7,6 +7,8 @@ These are not to be confused with the URI-like capabilities Tahoe-LAFS uses to r
 An attempt is also made to outline the rationale for certain choices about these URLs.
 The intended audience for this document is Tahoe-LAFS maintainers and other developers interested in interoperating with Tahoe-LAFS or these URLs.
 
+.. _furls:
+
 Background
 ----------
 
@@ -31,12 +33,14 @@ The client's use of the swissnum is what allows the server to authorize the clie
 
 .. _`swiss number`: http://wiki.erights.org/wiki/Swiss_number
 
+.. _NURLs:
+
 NURLs
 -----
 
 The authentication and authorization properties of fURLs are a good fit for Tahoe-LAFS' requirements.
 These are not inherently tied to the Foolscap protocol itself.
-In particular they are beneficial to :doc:`../proposed/http-storage-node-protocol` which uses HTTP instead of Foolscap.
+In particular they are beneficial to :doc:`http-storage-node-protocol` which uses HTTP instead of Foolscap.
 It is conceivable they will also be used with WebSockets at some point as well.
 
 Continuing to refer to these URLs as fURLs when they are being used for other protocols may cause confusion.
@@ -47,26 +51,26 @@ This can be considered to expand to "**N**\ ew URLs" or "Authe\ **N**\ ticating 
 The anticipated use for a **NURL** will still be to establish a TLS connection to a peer.
 The protocol run over that TLS connection could be Foolscap though it is more likely to be an HTTP-based protocol (such as GBS).
 
+Unlike fURLs, only a single net-loc is included, for consistency with other forms of URLs.
+As a result, multiple NURLs may be available for a single server.
+
 Syntax
 ------
 
 The EBNF for a NURL is as follows::
 
-  nurl         = scheme, hash, "@", net-loc-list, "/", swiss-number, [ version1 ]
-
-  scheme       = "pb://"
+  nurl         = tcp-nurl | tor-nurl | i2p-nurl
+  tcp-nurl     = "pb://", hash, "@", tcp-loc, "/", swiss-number, [ version1 ]
+  tor-nurl     = "pb+tor://", hash, "@", tcp-loc, "/", swiss-number, [ version1 ]
+  i2p-nurl     = "pb+i2p://", hash, "@", i2p-loc, "/", swiss-number, [ version1 ]
 
   hash         = unreserved
 
-  net-loc-list = net-loc, [ { ",", net-loc } ]
-  net-loc      = tcp-loc | tor-loc | i2p-loc
-
-  tcp-loc      = [ "tcp:" ], hostname, [ ":" port ]
-  tor-loc      = "tor:", hostname, [ ":" port ]
-  i2p-loc      = "i2p:", i2p-addr, [ ":" port ]
-
-  i2p-addr     = { unreserved }, ".i2p"
+  tcp-loc      = hostname, [ ":" port ]
   hostname     = domain | IPv4address | IPv6address
+
+  i2p-loc      = i2p-addr, [ ":" port ]
+  i2p-addr     = { unreserved }, ".i2p"
 
   swiss-number = segment
 
@@ -87,10 +91,12 @@ These differences are separated into distinct versions.
 Version 0
 ---------
 
-A Foolscap fURL is considered the canonical definition of a version 0 NURL.
+In theory, a Foolscap fURL with a single netloc is considered the canonical definition of a version 0 NURL.
 Notably,
 the hash component is defined as the base32-encoded SHA1 hash of the DER form of an x509v3 certificate.
 A version 0 NURL is identified by the absence of the ``v=1`` fragment.
+
+In practice, real world fURLs may have more than one netloc, so lack of version fragment will likely just involve dispatching the fURL to a different parser.
 
 Examples
 ~~~~~~~~
@@ -103,11 +109,8 @@ Version 1
 
 The hash component of a version 1 NURL differs in three ways from the prior version.
 
-1. The hash function used is SHA3-224 instead of SHA1.
-   The security of SHA1 `continues to be eroded`_.
-   Contrariwise SHA3 is currently the most recent addition to the SHA family by NIST.
-   The 224 bit instance is chosen to keep the output short and because it offers greater collision resistance than SHA1 was thought to offer even at its inception
-   (prior to security research showing actual collision resistance is lower).
+1. The hash function used is SHA-256, to match RFC 7469.
+   The security of SHA1 `continues to be eroded`_; Latacora `SHA-2`_.
 2. The hash is computed over the certificate's SPKI instead of the whole certificate.
    This allows certificate re-generation so long as the public key remains the same.
    This is useful to allow contact information to be updated or extension of validity period.
@@ -122,7 +125,7 @@ The hash component of a version 1 NURL differs in three ways from the prior vers
    *all* certificate fields should be considered within the context of the relationship identified by the SPKI hash.
 
 3. The hash is encoded using urlsafe-base64 (without padding) instead of base32.
-   This provides a more compact representation and minimizes the usability impacts of switching from a 160 bit hash to a 224 bit hash.
+   This provides a more compact representation and minimizes the usability impacts of switching from a 160 bit hash to a 256 bit hash.
 
 A version 1 NURL is identified by the presence of the ``v=1`` fragment.
 Though the length of the hash string (38 bytes) could also be used to differentiate it from a version 0 NURL,
@@ -140,7 +143,8 @@ Examples
 * ``pb://azEu8vlRpnEeYm0DySQDeNY3Z2iJXHC_bsbaAw@localhost:47877/64i4aokv4ej#v=1``
 
 .. _`continues to be eroded`: https://en.wikipedia.org/wiki/SHA-1#Cryptanalysis_and_validation
-.. _`explored by the web community`: https://www.imperialviolet.org/2011/05/04/pinning.html
+.. _`SHA-2`: https://latacora.micro.blog/2018/04/03/cryptographic-right-answers.html
+.. _`explored by the web community`: https://www.rfc-editor.org/rfc/rfc7469
 .. _Foolscap: https://github.com/warner/foolscap
 
 .. [1] ``foolscap.furl.decode_furl`` is taken as the canonical definition of the syntax of a fURL.

@@ -6,15 +6,6 @@ Test coverage currently provided by test_backupdb.py.
 Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import os, sys
 
 import sqlite3
@@ -25,7 +16,7 @@ class DBError(Exception):
 
 
 def get_db(dbfile, stderr=sys.stderr,
-           create_version=(None, None), updaters={}, just_create=False, dbname="db",
+           create_version=(None, None), updaters=None, just_create=False, dbname="db",
            ):
     """Open or create the given db file. The parent directory must exist.
     create_version=(SCHEMA, VERNUM), and SCHEMA must have a 'version' table.
@@ -33,6 +24,8 @@ def get_db(dbfile, stderr=sys.stderr,
     to get from ver=1 to ver=2. Returns a (sqlite3,db) tuple, or raises
     DBError.
     """
+    if updaters is None:
+        updaters = {}
     must_create = not os.path.exists(dbfile)
     try:
         db = sqlite3.connect(dbfile)

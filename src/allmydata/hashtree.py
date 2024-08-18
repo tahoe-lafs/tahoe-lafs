@@ -49,15 +49,6 @@ or eat  your children, but it might.  Use at your own risk.
 Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 from allmydata.util import mathutil # from the pyutil library
 
 from allmydata.util import base32
@@ -332,7 +323,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
             name += " (leaf [%d] of %d)" % (leafnum, numleaves)
         return name
 
-    def set_hashes(self, hashes={}, leaves={}):
+    def set_hashes(self, hashes=None, leaves=None):
         """Add a bunch of hashes to the tree.
 
         I will validate these to the best of my ability. If I already have a
@@ -382,7 +373,10 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
         corrupted or one of the received hashes was corrupted. If it raises
         NotEnoughHashesError, then the otherhashes dictionary was incomplete.
         """
-
+        if hashes is None:
+            hashes = {}
+        if leaves is None:
+            leaves = {}
         assert isinstance(hashes, dict)
         for h in hashes.values():
             assert isinstance(h, bytes)

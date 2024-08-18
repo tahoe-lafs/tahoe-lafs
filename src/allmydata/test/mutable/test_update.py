@@ -1,21 +1,18 @@
 """
 Ported to Python 3.
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import re
-from twisted.trial import unittest
+from ..common import AsyncTestCase
+from testtools.matchers import (
+    Equals,
+    IsInstance,
+    GreaterThan,
+)
 from twisted.internet import defer
 from allmydata.interfaces import MDMF_VERSION
 from allmydata.mutable.filenode import MutableFileNode
-from allmydata.mutable.publish import MutableData, DEFAULT_MAX_SEGMENT_SIZE
+from allmydata.mutable.publish import MutableData, DEFAULT_MUTABLE_MAX_SEGMENT_SIZE
 from ..no_network import GridTestMixin
 from .. import common_util as testutil
 
@@ -25,7 +22,7 @@ from .. import common_util as testutil
 # this up.
 SEGSIZE = 128*1024
 
-class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
+class Update(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin):
     def setUp(self):
         GridTestMixin.setUp(self)
         self.basedir = self.mktemp()
@@ -35,14 +32,14 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # self.data should be at least three segments long.
         td = b"testdata "
         self.data = td*(int(3*SEGSIZE//len(td))+10) # currently about 400kB
-        assert len(self.data) > 3*SEGSIZE
+        self.assertThat(len(self.data), GreaterThan(3*SEGSIZE))
         self.small_data = b"test data" * 10 # 90 B; SDMF
 
 
     def do_upload_sdmf(self):
         d = self.nm.create_mutable_file(MutableData(self.small_data))
         def _then(n):
-            assert isinstance(n, MutableFileNode)
+            self.assertThat(n, IsInstance(MutableFileNode))
             self.sdmf_node = n
         d.addCallback(_then)
         return d
@@ -51,7 +48,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d = self.nm.create_mutable_file(MutableData(self.data),
                                         version=MDMF_VERSION)
         def _then(n):
-            assert isinstance(n, MutableFileNode)
+            self.assertThat(n, IsInstance(MutableFileNode))
             self.mdmf_node = n
         d.addCallback(_then)
         return d
@@ -175,7 +172,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # long -- this is 7 segments in the default segment size. So we
         # need to add 2 segments worth of data to push it over a
         # power-of-two boundary.
-        segment = b"a" * DEFAULT_MAX_SEGMENT_SIZE
+        segment = b"a" * DEFAULT_MUTABLE_MAX_SEGMENT_SIZE
         new_data = self.data + (segment * 2)
         d0 = self.do_upload_mdmf()
         def _run(ign):
@@ -185,7 +182,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                                                len(self.data)))
             d.addCallback(lambda ign: self.mdmf_node.download_best_version())
             d.addCallback(lambda results:
-                          self.failUnlessEqual(results, new_data))
+                          self.assertThat(results, Equals(new_data)))
             return d
         d0.addCallback(_run)
         return d0
@@ -201,7 +198,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                                                len(self.small_data)))
             d.addCallback(lambda ign: self.sdmf_node.download_best_version())
             d.addCallback(lambda results:
-                          self.failUnlessEqual(results, new_data))
+                          self.assertThat(results, Equals(new_data)))
             return d
         d0.addCallback(_run)
         return d0
@@ -221,15 +218,15 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                                                replace_offset))
             d.addCallback(lambda ign: self.mdmf_node.download_best_version())
             d.addCallback(lambda results:
-                          self.failUnlessEqual(results, new_data))
+                          self.assertThat(results, Equals(new_data)))
             return d
         d0.addCallback(_run)
         return d0
 
     def test_multiple_segment_replace(self):
-        replace_offset = 2 * DEFAULT_MAX_SEGMENT_SIZE
+        replace_offset = 2 * DEFAULT_MUTABLE_MAX_SEGMENT_SIZE
         new_data = self.data[:replace_offset]
-        new_segment = b"a" * DEFAULT_MAX_SEGMENT_SIZE
+        new_segment = b"a" * DEFAULT_MUTABLE_MAX_SEGMENT_SIZE
         new_data += 2 * new_segment
         new_data += b"replaced"
         rest_offset = len(new_data)
@@ -242,7 +239,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                                                replace_offset))
             d.addCallback(lambda ignored: self.mdmf_node.download_best_version())
             d.addCallback(lambda results:
-                          self.failUnlessEqual(results, new_data))
+                          self.assertThat(results, Equals(new_data)))
             return d
         d0.addCallback(_run)
         return d0

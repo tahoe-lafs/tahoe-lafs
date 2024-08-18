@@ -1,14 +1,7 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 import random
 
@@ -16,20 +9,25 @@ from zope.interface import implementer
 from twisted.internet import defer, reactor
 from foolscap.api import eventually
 
-from allmydata.crypto import aes
-from allmydata.crypto import rsa
 from allmydata.interfaces import IMutableFileNode, ICheckable, ICheckResults, \
      NotEnoughSharesError, MDMF_VERSION, SDMF_VERSION, IMutableUploadable, \
      IMutableFileVersion, IWriteable
 from allmydata.util import hashutil, log, consumer, deferredutil, mathutil
 from allmydata.util.assertutil import precondition
+from allmydata.util.cputhreadpool import defer_to_thread
 from allmydata.uri import WriteableSSKFileURI, ReadonlySSKFileURI, \
                           WriteableMDMFFileURI, ReadonlyMDMFFileURI
 from allmydata.monitor import Monitor
 from allmydata.mutable.publish import Publish, MutableData,\
                                       TransformingUploadable
-from allmydata.mutable.common import MODE_READ, MODE_WRITE, MODE_CHECK, UnrecoverableFileError, \
-     UncoordinatedWriteError
+from allmydata.mutable.common import (
+    MODE_READ,
+    MODE_WRITE,
+    MODE_CHECK,
+    UnrecoverableFileError,
+    UncoordinatedWriteError,
+    derive_mutable_keys,
+)
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 from allmydata.mutable.retrieve import Retrieve
 from allmydata.mutable.checker import MutableChecker, MutableCheckAndRepairer
@@ -131,7 +129,8 @@ class MutableFileNode(object):
 
         return self
 
-    def create_with_keys(self, keypair, contents,
+    @deferredutil.async_to_deferred
+    async def create_with_keys(self, keypair, contents,
                          version=SDMF_VERSION):
         """Call this to create a brand-new mutable file. It will create the
         shares, find homes for them, and upload the initial contents (created
@@ -139,13 +138,10 @@ class MutableFileNode(object):
         Deferred that fires (with the MutableFileNode instance you should
         use) when it completes.
         """
-        (pubkey, privkey) = keypair
-        self._pubkey, self._privkey = pubkey, privkey
-        pubkey_s = rsa.der_string_from_verifying_key(self._pubkey)
-        privkey_s = rsa.der_string_from_signing_key(self._privkey)
-        self._writekey = hashutil.ssk_writekey_hash(privkey_s)
-        self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
-        self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
+        self._pubkey, self._privkey = keypair
+        self._writekey, self._encprivkey, self._fingerprint = await defer_to_thread(
+            derive_mutable_keys, keypair
+        )
         if version == MDMF_VERSION:
             self._uri = WriteableMDMFFileURI(self._writekey, self._fingerprint)
             self._protocol_version = version
@@ -155,7 +151,7 @@ class MutableFileNode(object):
         self._readkey = self._uri.readkey
         self._storage_index = self._uri.storage_index
         initial_contents = self._get_initial_contents(contents)
-        return self._upload(initial_contents, None)
+        return await self._upload(initial_contents, None)
 
     def _get_initial_contents(self, contents):
         if contents is None:
@@ -170,16 +166,6 @@ class MutableFileNode(object):
         assert callable(contents), "%s should be callable, not %s" % \
                (contents, type(contents))
         return contents(self)
-
-    def _encrypt_privkey(self, writekey, privkey):
-        encryptor = aes.create_encryptor(writekey)
-        crypttext = aes.encrypt_data(encryptor, privkey)
-        return crypttext
-
-    def _decrypt_privkey(self, enc_privkey):
-        decryptor = aes.create_decryptor(self._writekey)
-        privkey = aes.decrypt_data(decryptor, enc_privkey)
-        return privkey
 
     def _populate_pubkey(self, pubkey):
         self._pubkey = pubkey

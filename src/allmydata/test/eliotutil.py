@@ -3,18 +3,6 @@ Tools aimed at the interaction between tests and Eliot.
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-# Python 2 compatibility
-# Can't use `builtins.str` because it's not JSON encodable:
-# `exceptions.TypeError: <class 'future.types.newstr.newstr'> is not JSON-encodeable`
-from past.builtins import unicode as str
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
 
 from six import ensure_text
 
@@ -23,11 +11,7 @@ __all__ = [
     "EliotLoggedRunTest",
 ]
 
-try:
-    from typing import Callable
-except ImportError:
-    pass
-
+from typing import Callable
 from functools import (
     partial,
     wraps,
@@ -42,10 +26,10 @@ from zope.interface import (
 from eliot import (
     ActionType,
     Field,
-    MemoryLogger,
     ILogger,
 )
 from eliot.testing import (
+    MemoryLogger,
     swap_logger,
     check_for_errors,
 )
@@ -54,8 +38,9 @@ from twisted.python.monkey import (
     MonkeyPatcher,
 )
 
-from ..util.jsonbytes import AnyBytesJSONEncoder
-
+from ..util.jsonbytes import (
+    AnyBytesJSONEncoder
+)
 
 _NAME = Field.for_types(
     u"name",
@@ -69,14 +54,6 @@ RUN_TEST = ActionType(
     [],
     u"A test is run.",
 )
-
-
-# On Python 3, we want to use our custom JSON encoder when validating messages
-# can be encoded to JSON:
-if PY2:
-    _memory_logger = MemoryLogger
-else:
-    _memory_logger = lambda: MemoryLogger(encoder=AnyBytesJSONEncoder)
 
 
 @attr.s
@@ -155,8 +132,8 @@ class EliotLoggedRunTest(object):
 
 
 def with_logging(
-        test_id,      # type: str
-        test_method,  # type: Callable
+        test_id: str,
+        test_method: Callable,
 ):
     """
     Decorate a test method with additional log-related behaviors.
@@ -170,7 +147,7 @@ def with_logging(
     """
     @wraps(test_method)
     def run_with_logging(*args, **kwargs):
-        validating_logger = _memory_logger()
+        validating_logger = MemoryLogger(encoder=AnyBytesJSONEncoder)
         original = swap_logger(None)
         try:
             swap_logger(_TwoLoggers(original, validating_logger))

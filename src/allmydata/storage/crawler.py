@@ -4,29 +4,179 @@ Crawl the storage server shares.
 Ported to Python 3.
 """
 
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2, PY3
-if PY2:
-    # We don't import bytes, object, dict, and list just in case they're used,
-    # so as not to create brittle pickles with random magic objects.
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, range, str, max, min  # noqa: F401
-
-import os, time, struct
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle  # type: ignore
+import os
+import time
+import json
+import struct
 from twisted.internet import reactor
 from twisted.application import service
+from twisted.python.filepath import FilePath
 from allmydata.storage.common import si_b2a
 from allmydata.util import fileutil
 
 class TimeSliceExceeded(Exception):
     pass
+
+
+class MigratePickleFileError(Exception):
+    """
+    A pickle-format file exists (the FilePath to the file will be the
+    single arg).
+    """
+    pass
+
+
+def _convert_cycle_data(state):
+    """
+    :param dict state: cycle-to-date or history-item state
+
+    :return dict: the state in the JSON form
+    """
+
+    def _convert_expiration_mode(value):
+        # original is a 4-tuple, with the last element being a 2-tuple
+        # .. convert both to lists
+        return [
+            value[0],
+            value[1],
+            value[2],
+            list(value[3]),
+        ]
+
+    def _convert_lease_age(value):
+        # if we're in cycle-to-date, this is a dict
+        if isinstance(value, dict):
+            return {
+                "{},{}".format(k[0], k[1]): v
+                for k, v in value.items()
+            }
+        # otherwise, it's a history-item and they're 3-tuples
+        return [
+            list(v)
+            for v in value
+        ]
+
+    converters = {
+        "configured-expiration-mode": _convert_expiration_mode,
+        "cycle-start-finish-times": list,
+        "lease-age-histogram": _convert_lease_age,
+        "corrupt-shares": lambda value: [
+            list(x)
+            for x in value
+        ],
+        "leases-per-share-histogram": lambda value: {
+            str(k): v
+            for k, v in value.items()
+        },
+    }
+    return {
+            k: converters.get(k, lambda z: z)(v)
+            for k, v in state.items()
+    }
+
+
+def _convert_pickle_state_to_json(state):
+    """
+    :param dict state: the pickled state
+
+    :return dict: the state in the JSON form
+    """
+    assert state["version"] == 1, "Only known version is 1"
+
+    converters = {
+        "cycle-to-date": _convert_cycle_data,
+    }
+    return {
+        k: converters.get(k, lambda x: x)(v)
+        for k, v in state.items()
+    }
+
+
+def _upgrade_pickle_to_json(state_path, convert_pickle):
+    """
+    :param FilePath state_path: the filepath to ensure is json
+
+    :param Callable[dict] convert_pickle: function to change
+        pickle-style state into JSON-style state
+
+    :returns FilePath: the local path where the state is stored
+
+    If this state is pickle, convert to the JSON format and return the
+    JSON path.
+    """
+    json_state_path = state_path.siblingExtension(".json")
+
+    # if there's no file there at all, we're done because there's
+    # nothing to upgrade
+    if not state_path.exists():
+        return json_state_path
+
+    # upgrade the pickle data to JSON
+    import pickle
+    with state_path.open("rb") as f:
+        state = pickle.load(f)
+    new_state = convert_pickle(state)
+    _dump_json_to_file(new_state, json_state_path)
+
+    # we've written the JSON, delete the pickle
+    state_path.remove()
+    return json_state_path
+
+
+def _confirm_json_format(fp):
+    """
+    :param FilePath fp: the original (pickle) name of a state file
+
+    This confirms that we do _not_ have the pickle-version of a
+    state-file and _do_ either have nothing, or the JSON version. If
+    the pickle-version exists, an exception is raised.
+
+    :returns FilePath: the JSON name of a state file
+    """
+    if fp.path.endswith(".json"):
+        return fp
+    jsonfp = fp.siblingExtension(".json")
+    if fp.exists():
+        raise MigratePickleFileError(fp)
+    return jsonfp
+
+
+def _dump_json_to_file(js, afile):
+    """
+    Dump the JSON object `js` to the FilePath `afile`
+    """
+    with afile.open("wb") as f:
+        data = json.dumps(js)
+        f.write(data.encode("utf8"))
+
+
+class _LeaseStateSerializer(object):
+    """
+    Read and write state for LeaseCheckingCrawler. This understands
+    how to read the legacy pickle format files and upgrade them to the
+    new JSON format (which will occur automatically).
+    """
+
+    def __init__(self, state_path):
+        self._path = _confirm_json_format(FilePath(state_path))
+
+    def load(self):
+        """
+        :returns: deserialized JSON state
+        """
+        with self._path.open("rb") as f:
+            return json.load(f)
+
+    def save(self, data):
+        """
+        Serialize the given data as JSON into the state-path
+        :returns: None
+        """
+        tmpfile = self._path.siblingExtension(".tmp")
+        _dump_json_to_file(data, tmpfile)
+        fileutil.move_into_place(tmpfile.path, self._path.path)
+        return None
+
 
 class ShareCrawler(service.MultiService):
     """A ShareCrawler subclass is attached to a StorageServer, and
@@ -90,12 +240,10 @@ class ShareCrawler(service.MultiService):
             self.allowed_cpu_percentage = allowed_cpu_percentage
         self.server = server
         self.sharedir = server.sharedir
-        self.statefile = statefile
+        self._state_serializer = _LeaseStateSerializer(statefile)
         self.prefixes = [si_b2a(struct.pack(">H", i << (16-10)))[:2]
                          for i in range(2**10)]
-        if PY3:
-            # On Python 3 we expect the paths to be unicode, not bytes.
-            self.prefixes = [p.decode("ascii") for p in self.prefixes]
+        self.prefixes = [p.decode("ascii") for p in self.prefixes]
         self.prefixes.sort()
         self.timer = None
         self.bucket_cache = (None, [])
@@ -213,8 +361,7 @@ class ShareCrawler(service.MultiService):
         #                            of the last bucket to be processed, or
         #                            None if we are sleeping between cycles
         try:
-            with open(self.statefile, "rb") as f:
-                state = pickle.load(f)
+            state = self._state_serializer.load()
         except Exception:
             state = {"version": 1,
                      "last-cycle-finished": None,
@@ -250,12 +397,7 @@ class ShareCrawler(service.MultiService):
         else:
             last_complete_prefix = self.prefixes[lcpi]
         self.state["last-complete-prefix"] = last_complete_prefix
-        tmpfile = self.statefile + ".tmp"
-        with open(tmpfile, "wb") as f:
-            # Newer protocols won't work in Python 2; when it is dropped,
-            # protocol v4 can be used (added in Python 3.4).
-            pickle.dump(self.state, f, protocol=2)
-        fileutil.move_into_place(tmpfile, self.statefile)
+        self._state_serializer.save(self.get_state())
 
     def startService(self):
         # arrange things to look like we were just sleeping, so

@@ -1,15 +1,5 @@
 """Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-from past.builtins import unicode
 
 from zope.interface import implementer
 from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
@@ -71,8 +61,8 @@ class CheckResults(object):
         # On Python 2, we can mix bytes and Unicode. On Python 3, we want
         # unicode.
         if isinstance(summary, bytes):
-            summary = unicode(summary, "utf-8")
-        assert isinstance(summary, unicode)  # should be a single string
+            summary = str(summary, "utf-8")
+        assert isinstance(summary, str)  # should be a single string
         self._summary = summary
         assert not isinstance(report, str) # should be list of strings
         self._report = report

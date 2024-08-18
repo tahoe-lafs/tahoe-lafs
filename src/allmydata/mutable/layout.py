@@ -1,16 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    # Omit dict so Python 3 changes don't leak into API callers on Python 2.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, list, object, range, str, max, min  # noqa: F401
-from past.utils import old_div
 
 import struct
 from allmydata.mutable.common import NeedMoreDataError, UnknownVersionError, \
@@ -268,7 +258,7 @@ class SDMFSlotWriteProxy(object):
                                                        self._required_shares)
         assert expected_segment_size == segment_size
 
-        self._block_size = old_div(self._segment_size, self._required_shares)
+        self._block_size = self._segment_size // self._required_shares
 
         # This is meant to mimic how SDMF files were built before MDMF
         # entered the picture: we generate each share in its entirety,
@@ -801,7 +791,7 @@ class MDMFSlotWriteProxy(object):
         # and also because it provides a useful amount of bounds checking.
         self._num_segments = mathutil.div_ceil(self._data_length,
                                                self._segment_size)
-        self._block_size = old_div(self._segment_size, self._required_shares)
+        self._block_size = self._segment_size // self._required_shares
         # We also calculate the share size, to help us with block
         # constraints later.
         tail_size = self._data_length % self._segment_size
@@ -810,7 +800,7 @@ class MDMFSlotWriteProxy(object):
         else:
             self._tail_block_size = mathutil.next_multiple(tail_size,
                                                            self._required_shares)
-            self._tail_block_size = old_div(self._tail_block_size, self._required_shares)
+            self._tail_block_size = self._tail_block_size // self._required_shares
 
         # We already know where the sharedata starts; right after the end
         # of the header (which is defined as the signable part + the offsets)
@@ -1332,7 +1322,7 @@ class MDMFSlotReadProxy(object):
         self._segment_size = segsize
         self._data_length = datalen
 
-        self._block_size = old_div(self._segment_size, self._required_shares)
+        self._block_size = self._segment_size // self._required_shares
         # We can upload empty files, and need to account for this fact
         # so as to avoid zero-division and zero-modulo errors.
         if datalen > 0:
@@ -1344,7 +1334,7 @@ class MDMFSlotReadProxy(object):
         else:
             self._tail_block_size = mathutil.next_multiple(tail_size,
                                                     self._required_shares)
-            self._tail_block_size = old_div(self._tail_block_size, self._required_shares)
+            self._tail_block_size = self._tail_block_size // self._required_shares
 
         return encoding_parameters
 

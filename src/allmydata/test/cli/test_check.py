@@ -1,17 +1,9 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 from six import ensure_text
 
 import os.path
 import json
 from twisted.trial import unittest
-from six.moves import cStringIO as StringIO
+from io import StringIO
 
 from allmydata import uri
 from allmydata.util import base32
@@ -424,7 +416,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _stash_uri(n):
             self.uriList.append(n.get_uri())
         d.addCallback(_stash_uri)
-        d = c0.create_dirnode()
+        d.addCallback(lambda _: c0.create_dirnode())
         d.addCallback(_stash_uri)
 
         d.addCallback(lambda ign: self.do_cli("check", self.uriList[0], self.uriList[1]))

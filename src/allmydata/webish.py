@@ -1,18 +1,12 @@
 """
-Ported to Python 3.
+General web server-related utilities.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 from six import ensure_str
-
+from typing import IO, Callable, Optional
 import re, time, tempfile
+from urllib.parse import parse_qsl, urlencode
 
 from cgi import (
     FieldStorage,
@@ -45,40 +39,37 @@ from .web.storage_plugins import (
 )
 
 
-if PY2:
-    FileUploadFieldStorage = FieldStorage
-else:
-    class FileUploadFieldStorage(FieldStorage):
-        """
-        Do terrible things to ensure files are still bytes.
+class FileUploadFieldStorage(FieldStorage):
+    """
+    Do terrible things to ensure files are still bytes.
 
-        On Python 2, uploaded files were always bytes.  On Python 3, there's a
-        heuristic: if the filename is set on a field, it's assumed to be a file
-        upload and therefore bytes.  If no filename is set, it's Unicode.
+    On Python 2, uploaded files were always bytes.  On Python 3, there's a
+    heuristic: if the filename is set on a field, it's assumed to be a file
+    upload and therefore bytes.  If no filename is set, it's Unicode.
 
-        Unfortunately, we always want it to be bytes, and Tahoe-LAFS also
-        enables setting the filename not via the MIME filename, but via a
-        separate field called "name".
+    Unfortunately, we always want it to be bytes, and Tahoe-LAFS also
+    enables setting the filename not via the MIME filename, but via a
+    separate field called "name".
 
-        Thus we need to do this ridiculous workaround.  Mypy doesn't like it
-        either, thus the ``# type: ignore`` below.
+    Thus we need to do this ridiculous workaround.  Mypy doesn't like it
+    either, thus the ``# type: ignore`` below.
 
-        Source for idea:
-        https://mail.python.org/pipermail/python-dev/2017-February/147402.html
-        """
-        @property  # type: ignore
-        def filename(self):
-            if self.name == "file" and not self._mime_filename:
-                # We use the file field to upload files, see directory.py's
-                # _POST_upload. Lack of _mime_filename means we need to trick
-                # FieldStorage into thinking there is a filename so it'll
-                # return bytes.
-                return "unknown-filename"
-            return self._mime_filename
+    Source for idea:
+    https://mail.python.org/pipermail/python-dev/2017-February/147402.html
+    """
+    @property  # type: ignore
+    def filename(self):
+        if self.name == "file" and not self._mime_filename:
+            # We use the file field to upload files, see directory.py's
+            # _POST_upload. Lack of _mime_filename means we need to trick
+            # FieldStorage into thinking there is a filename so it'll
+            # return bytes.
+            return "unknown-filename"
+        return self._mime_filename
 
-        @filename.setter
-        def filename(self, value):
-            self._mime_filename = value
+    @filename.setter
+    def filename(self, value):
+        self._mime_filename = value
 
 
 class TahoeLAFSRequest(Request, object):
@@ -114,7 +105,8 @@ class TahoeLAFSRequest(Request, object):
             self.path, argstring = x
             self.args = parse_qs(argstring, 1)
 
-        if self.method == b'POST':
+        content_type = (self.requestHeaders.getRawHeaders("content-type") or [""])[0]
+        if self.method == b'POST' and content_type.split(";")[0] in ("multipart/form-data", "application/x-www-form-urlencoded"):
             # We use FieldStorage here because it performs better than
             # cgi.parse_multipart(self.content, pdict) which is what
             # twisted.web.http.Request uses.
@@ -179,12 +171,7 @@ def _logFormatter(logDateTime, request):
         queryargs = b""
     else:
         path, queryargs = x
-        # there is a form handler which redirects POST /uri?uri=FOO into
-        # GET /uri/FOO so folks can paste in non-HTTP-prefixed uris. Make
-        # sure we censor these too.
-        if queryargs.startswith(b"uri="):
-            queryargs = b"uri=[CENSORED]"
-        queryargs = b"?" + queryargs
+        queryargs = b"?" + censor(queryargs)
     if path.startswith(b"/uri/"):
         path = b"/uri/[CENSORED]"
     elif path.startswith(b"/file/"):
@@ -206,34 +193,74 @@ def _logFormatter(logDateTime, request):
     )
 
 
+def censor(queryargs: bytes) -> bytes:
+    """
+    Replace potentially sensitive values in query arguments with a
+    constant string.
+    """
+    args = parse_qsl(queryargs.decode("ascii"), keep_blank_values=True, encoding="utf8")
+    result = []
+    for k, v in args:
+        if k == "uri":
+            # there is a form handler which redirects POST /uri?uri=FOO into
+            # GET /uri/FOO so folks can paste in non-HTTP-prefixed uris. Make
+            # sure we censor these.
+            v = "[CENSORED]"
+        elif k == "private-key":
+            # Likewise, sometimes a private key is supplied with mutable
+            # creation.
+            v = "[CENSORED]"
+
+        result.append((k, v))
+
+    # Customize safe to try to leave our markers intact.
+    return urlencode(result, safe="[]").encode("ascii")
+
+
+def anonymous_tempfile_factory(tempdir: bytes) -> Callable[[], IO[bytes]]:
+    """
+    Create a no-argument callable for creating a new temporary file in the
+    given directory.
+
+    :param tempdir: The directory in which temporary files with be created.
+
+    :return: The callable.
+    """
+    return lambda: tempfile.TemporaryFile(dir=tempdir)
+
+
 class TahoeLAFSSite(Site, object):
     """
     The HTTP protocol factory used by Tahoe-LAFS.
 
     Among the behaviors provided:
 
-    * A configurable temporary directory where large request bodies can be
-      written so they don't stay in memory.
+    * A configurable temporary file factory for large request bodies to avoid
+      keeping them in memory.
 
     * A log formatter that writes some access logs but omits capability
       strings to help keep them secret.
     """
     requestFactory = TahoeLAFSRequest
 
-    def __init__(self, tempdir, *args, **kwargs):
+    def __init__(self, make_tempfile: Callable[[], IO[bytes]], *args, **kwargs):
         Site.__init__(self, *args, logFormatter=_logFormatter, **kwargs)
-        self._tempdir = tempdir
+        assert callable(make_tempfile)
+        with make_tempfile():
+            pass
+        self._make_tempfile = make_tempfile
 
-    def getContentFile(self, length):
+    def getContentFile(self, length: Optional[int]) -> IO[bytes]:
         if length is None or length >= 1024 * 1024:
-            return tempfile.TemporaryFile(dir=self._tempdir)
+            return self._make_tempfile()
         return BytesIO()
 
-
 class WebishServer(service.MultiService):
-    name = "webish"
+    # The type in Twisted for services is wrong in 22.10...
+    # https://github.com/twisted/twisted/issues/10135
+    name = "webish"  # type: ignore[assignment]
 
-    def __init__(self, client, webport, tempdir, nodeurl_path=None, staticdir=None,
+    def __init__(self, client, webport, make_tempfile, nodeurl_path=None, staticdir=None,
                  clock=None, now_fn=time.time):
         service.MultiService.__init__(self)
         # the 'data' argument to all render() methods default to the Client
@@ -243,7 +270,7 @@ class WebishServer(service.MultiService):
         # time in a deterministic manner.
 
         self.root = root.Root(client, clock, now_fn)
-        self.buildServer(webport, tempdir, nodeurl_path, staticdir)
+        self.buildServer(webport, make_tempfile, nodeurl_path, staticdir)
 
         # If set, clock is a twisted.internet.task.Clock that the tests
         # use to test ophandle expiration.
@@ -253,9 +280,9 @@ class WebishServer(service.MultiService):
 
         self.root.putChild(b"storage-plugins", StoragePlugins(client))
 
-    def buildServer(self, webport, tempdir, nodeurl_path, staticdir):
+    def buildServer(self, webport, make_tempfile, nodeurl_path, staticdir):
         self.webport = webport
-        self.site = TahoeLAFSSite(tempdir, self.root)
+        self.site = TahoeLAFSSite(make_tempfile, self.root)
         self.staticdir = staticdir # so tests can check
         if staticdir:
             self.root.putChild(b"static", static.File(staticdir))
@@ -333,4 +360,4 @@ class IntroducerWebishServer(WebishServer):
     def __init__(self, introducer, webport, nodeurl_path=None, staticdir=None):
         service.MultiService.__init__(self)
         self.root = introweb.IntroducerRoot(introducer)
-        self.buildServer(webport, tempfile.tempdir, nodeurl_path, staticdir)
+        self.buildServer(webport, tempfile.TemporaryFile, nodeurl_path, staticdir)

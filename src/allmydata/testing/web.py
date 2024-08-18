@@ -6,22 +6,15 @@
 # This file is part of Tahoe-LAFS.
 #
 # See the docs/about.rst file for licensing information.
-"""Test-helpers for clients that use the WebUI.
-
-Ported to Python 3.
 
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+Test-helpers for clients that use the WebUI.
+"""
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
+from __future__ import annotations
 
 import hashlib
+from typing import Iterable
 
 import attr
 
@@ -54,6 +47,7 @@ import allmydata.uri
 from allmydata.util import (
     base32,
 )
+from ..util.dictutil import BytesKeyDict
 
 
 __all__ = (
@@ -147,8 +141,8 @@ class _FakeTahoeUriHandler(Resource, object):
 
     isLeaf = True
 
-    data = attr.ib(default=attr.Factory(dict))
-    capability_generators = attr.ib(default=attr.Factory(dict))
+    data: BytesKeyDict = attr.ib(default=attr.Factory(BytesKeyDict))
+    capability_generators: dict[bytes,Iterable[bytes]] = attr.ib(default=attr.Factory(dict))
 
     def _generate_capability(self, kind):
         """
@@ -209,7 +203,7 @@ class _FakeTahoeUriHandler(Resource, object):
         capability = None
         for arg, value in uri.query:
             if arg == u"uri":
-                capability = value
+                capability = value.encode("utf-8")
         # it's legal to use the form "/uri/<capability>"
         if capability is None and request.postpath and request.postpath[0]:
             capability = request.postpath[0]
@@ -221,10 +215,9 @@ class _FakeTahoeUriHandler(Resource, object):
 
         # the user gave us a capability; if our Grid doesn't have any
         # data for it, that's an error.
-        capability = capability.encode('ascii')
         if capability not in self.data:
-            request.setResponseCode(http.BAD_REQUEST)
-            return u"No data for '{}'".format(capability.decode('ascii'))
+            request.setResponseCode(http.GONE)
+            return u"No data for '{}'".format(capability.decode('ascii')).encode("utf-8")
 
         return self.data[capability]
 
@@ -283,6 +276,15 @@ class _SynchronousProducer(object):
         """
         consumer.write(self.body)
         return succeed(None)
+
+    def stopProducing(self):
+        pass
+
+    def pauseProducing(self):
+        pass
+
+    def resumeProducing(self):
+        pass
 
 
 def create_tahoe_treq_client(root=None):

@@ -1,22 +1,10 @@
 """
 Tests for ``allmydata.webish``.
-
-Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
+import tempfile
 from uuid import (
     uuid4,
-)
-from errno import (
-    EACCES,
 )
 from io import (
     BytesIO,
@@ -39,9 +27,6 @@ from testtools.matchers import (
     HasLength,
 )
 
-from twisted.python.runtime import (
-    platform,
-)
 from twisted.python.filepath import (
     FilePath,
 )
@@ -59,6 +44,7 @@ from ..common import (
 from ...webish import (
     TahoeLAFSRequest,
     TahoeLAFSSite,
+    anonymous_tempfile_factory,
 )
 
 
@@ -90,10 +76,11 @@ class TahoeLAFSRequestTests(SyncTestCase):
         """
         self._fields_test(b"GET", {}, b"", Equals(None))
 
-    def test_form_fields(self):
+    def test_form_fields_if_filename_set(self):
         """
         When a ``POST`` request is received, form fields are parsed into
-        ``TahoeLAFSRequest.fields``.
+        ``TahoeLAFSRequest.fields`` and the body is bytes (presuming ``filename``
+        is set).
         """
         form_data, boundary = multipart_formdata([
             [param(u"name", u"foo"),
@@ -121,6 +108,49 @@ class TahoeLAFSRequestTests(SyncTestCase):
             ),
         )
 
+    def test_form_fields_if_name_is_file(self):
+        """
+        When a ``POST`` request is received, form fields are parsed into
+        ``TahoeLAFSRequest.fields`` and the body is bytes when ``name``
+        is set to ``"file"``.
+        """
+        form_data, boundary = multipart_formdata([
+            [param(u"name", u"foo"),
+             body(u"bar"),
+            ],
+            [param(u"name", u"file"),
+             body(u"some file contents"),
+            ],
+        ])
+        self._fields_test(
+            b"POST",
+            {b"content-type": b"multipart/form-data; boundary=" + bytes(boundary, 'ascii')},
+            form_data.encode("ascii"),
+            AfterPreprocessing(
+                lambda fs: {
+                    k: fs.getvalue(k)
+                    for k
+                    in fs.keys()
+                },
+                Equals({
+                    "foo": "bar",
+                    "file": b"some file contents",
+                }),
+            ),
+        )
+
+    def test_form_fields_require_correct_mime_type(self):
+        """
+        The body of a ``POST`` is not parsed into fields if its mime type is
+        not ``multipart/form-data``.
+
+        Reproducer for https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3854
+        """
+        data = u'{"lalala": "lolo"}'
+        data = data.encode("utf-8")
+        self._fields_test(b"POST", {"content-type": "application/json"},
+                          data, Equals(None))
+
 
 class TahoeLAFSSiteTests(SyncTestCase):
     """
@@ -139,8 +169,14 @@ class TahoeLAFSSiteTests(SyncTestCase):
         :return: ``None`` if the logging looks good.
         """
         logPath = self.mktemp()
+        tempdir = self.mktemp()
+        FilePath(tempdir).makedirs()
 
-        site = TahoeLAFSSite(self.mktemp(), Resource(), logPath=logPath)
+        site = TahoeLAFSSite(
+            anonymous_tempfile_factory(tempdir),
+            Resource(),
+            logPath=logPath,
+        )
         site.startFactory()
 
         channel = DummyChannel()
@@ -156,6 +192,16 @@ class TahoeLAFSSiteTests(SyncTestCase):
                 Contains(censored),
                 Not(Contains(path)),
             ),
+        )
+
+    def test_private_key_censoring(self):
+        """
+        The log event for a request including a **private-key** query
+        argument has the private key value censored.
+        """
+        self._test_censoring(
+            b"/uri?uri=URI:CHK:aaa:bbb&private-key=AAAAaaaabbbb==",
+            b"/uri?uri=[CENSORED]&private-key=[CENSORED]",
         )
 
     def test_uri_censoring(self):
@@ -203,11 +249,17 @@ class TahoeLAFSSiteTests(SyncTestCase):
         Create and return a new ``TahoeLAFSRequest`` hooked up to a
         ``TahoeLAFSSite``.
 
-        :param bytes tempdir: The temporary directory to give to the site.
+        :param FilePath tempdir: The temporary directory to configure the site
+            to write large temporary request bodies to.  The temporary files
+            will be named for ease of testing.
 
         :return TahoeLAFSRequest: The new request instance.
         """
-        site = TahoeLAFSSite(tempdir.path, Resource(), logPath=self.mktemp())
+        site = TahoeLAFSSite(
+            lambda: tempfile.NamedTemporaryFile(dir=tempdir.path),
+            Resource(),
+            logPath=self.mktemp(),
+        )
         site.startFactory()
 
         channel = DummyChannel()
@@ -221,6 +273,7 @@ class TahoeLAFSSiteTests(SyncTestCase):
         A request body smaller than 1 MiB is kept in memory.
         """
         tempdir = FilePath(self.mktemp())
+        tempdir.makedirs()
         request = self._create_request(tempdir)
         request.gotLength(request_body_size)
         self.assertThat(
@@ -230,57 +283,21 @@ class TahoeLAFSSiteTests(SyncTestCase):
 
     def _large_request_test(self, request_body_size):
         """
-        Assert that when a request with a body of of the given size is received
-        its content is written to the directory the ``TahoeLAFSSite`` is
-        configured with.
+        Assert that when a request with a body of the given size is
+        received its content is written a temporary file created by the given
+        tempfile factory.
         """
         tempdir = FilePath(self.mktemp())
         tempdir.makedirs()
         request = self._create_request(tempdir)
-
-        # So.  Bad news.  The temporary file for the uploaded content is
-        # unnamed (and this isn't even necessarily a bad thing since it is how
-        # you get automatic on-process-exit cleanup behavior on POSIX).  It's
-        # not visible by inspecting the filesystem.  It has no name we can
-        # discover.  Then how do we verify it is written to the right place?
-        # The question itself is meaningless if we try to be too precise.  It
-        # *has* no filesystem location.  However, it is still stored *on* some
-        # filesystem.  We still want to make sure it is on the filesystem we
-        # specified because otherwise it might be on a filesystem that's too
-        # small or undesirable in some other way.
-        #
-        # I don't know of any way to ask a file descriptor which filesystem
-        # it's on, either, though.  It might be the case that the [f]statvfs()
-        # result could be compared somehow to infer the filesystem but
-        # ... it's not clear what the failure modes might be there, across
-        # different filesystems and runtime environments.
-        #
-        # Another approach is to make the temp directory unwriteable and
-        # observe the failure when an attempt is made to create a file there.
-        # This is hardly a lovely solution but at least it's kind of simple.
-        #
-        # It would be nice if it worked consistently cross-platform but on
-        # Windows os.chmod is more or less broken.
-        if platform.isWindows():
-            request.gotLength(request_body_size)
-            self.assertThat(
-                tempdir.children(),
-                HasLength(1),
-            )
-        else:
-            tempdir.chmod(0o550)
-            with self.assertRaises(OSError) as ctx:
-                request.gotLength(request_body_size)
-                raise Exception(
-                    "OSError not raised, instead tempdir.children() = {}".format(
-                        tempdir.children(),
-                    ),
-                )
-
-            self.assertThat(
-                ctx.exception.errno,
-                Equals(EACCES),
-            )
+        request.gotLength(request_body_size)
+        # We can see the temporary file in the temporary directory we
+        # specified because _create_request makes a request that uses named
+        # temporary files instead of the usual anonymous temporary files.
+        self.assertThat(
+            tempdir.children(),
+            HasLength(1),
+        )
 
     def test_unknown_request_size(self):
         """

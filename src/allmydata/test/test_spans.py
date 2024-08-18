@@ -2,17 +2,6 @@
 Tests for allmydata.util.spans.
 """
 
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-from past.builtins import long
-
 import binascii
 import hashlib
 
@@ -123,9 +112,6 @@ class ByteSpans(unittest.TestCase):
         self.failUnlessEqual(s.len(), 0)
 
         s1 = Spans(3, 4) # 3,4,5,6
-        self._check1(s1)
-
-        s1 = Spans(long(3), long(4)) # 3,4,5,6
         self._check1(s1)
 
         s2 = Spans(s1)
@@ -455,9 +441,9 @@ class StringSpans(unittest.TestCase):
         self.failUnlessEqual(ds.get(2, 4), b"fear")
 
         ds = klass()
-        ds.add(long(2), b"four")
-        ds.add(long(3), b"ea")
-        self.failUnlessEqual(ds.get(long(2), long(4)), b"fear")
+        ds.add(2, b"four")
+        ds.add(3, b"ea")
+        self.failUnlessEqual(ds.get(2, 4), b"fear")
 
 
     def do_scan(self, klass):

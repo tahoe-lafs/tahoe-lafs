@@ -1,16 +1,9 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-from twisted.trial import unittest
+from ..common import AsyncTestCase
+from testtools.matchers import Equals
 from allmydata.interfaces import SDMF_VERSION
 from allmydata.monitor import Monitor
 from foolscap.logging import log
@@ -20,8 +13,9 @@ from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 from ..common_util import DevNullDictionary
 from .util import FakeStorage, make_nodemaker
 
-class MultipleEncodings(unittest.TestCase):
+class MultipleEncodings(AsyncTestCase):
     def setUp(self):
+        super(MultipleEncodings, self).setUp()
         self.CONTENTS = b"New contents go here"
         self.uploadable = MutableData(self.CONTENTS)
         self._storage = FakeStorage()
@@ -159,6 +153,6 @@ class MultipleEncodings(unittest.TestCase):
         d.addCallback(lambda res: fn3.download_best_version())
         def _retrieved(new_contents):
             # the current specified behavior is "first version recoverable"
-            self.failUnlessEqual(new_contents, contents1)
+            self.assertThat(new_contents, Equals(contents1))
         d.addCallback(_retrieved)
         return d

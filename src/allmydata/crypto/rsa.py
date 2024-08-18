@@ -9,17 +9,14 @@ features of any objects that `cryptography` documents.
 
 That is, the public and private keys are opaque objects; DO NOT depend
 on any of their methods.
-
-Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
+
+from typing_extensions import TypeAlias
+from typing import Callable
+
+from functools import partial
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
@@ -30,6 +27,8 @@ from cryptography.hazmat.primitives.serialization import load_der_private_key, l
 
 from allmydata.crypto.error import BadSignature
 
+PublicKey: TypeAlias = rsa.RSAPublicKey
+PrivateKey: TypeAlias = rsa.RSAPrivateKey
 
 # This is the value that was used by `pycryptopp`, and we must continue to use it for
 # both backwards compatibility and interoperability.
@@ -46,12 +45,12 @@ RSA_PADDING = padding.PSS(
 
 
 
-def create_signing_keypair(key_size):
+def create_signing_keypair(key_size: int) -> tuple[PrivateKey, PublicKey]:
     """
     Create a new RSA signing (private) keypair from scratch. Can be used with
     `sign_data` function.
 
-    :param int key_size: length of key in bits
+    :param key_size: length of key in bits
 
     :returns: 2-tuple of (private_key, public_key)
     """
@@ -63,24 +62,62 @@ def create_signing_keypair(key_size):
     return priv_key, priv_key.public_key()
 
 
-def create_signing_keypair_from_string(private_key_der):
+def create_signing_keypair_from_string(private_key_der: bytes) -> tuple[PrivateKey, PublicKey]:
     """
     Create an RSA signing (private) key from previously serialized
     private key bytes.
 
-    :param bytes private_key_der: blob as returned from `der_string_from_signing_keypair`
+    :param private_key_der: blob as returned from `der_string_from_signing_keypair`
 
     :returns: 2-tuple of (private_key, public_key)
     """
-    priv_key = load_der_private_key(
+    _load = partial(
+        load_der_private_key,
         private_key_der,
         password=None,
         backend=default_backend(),
     )
-    return priv_key, priv_key.public_key()
+
+    def load_with_validation() -> PrivateKey:
+        k = _load()
+        assert isinstance(k, PrivateKey)
+        return k
+
+    def load_without_validation() -> PrivateKey:
+        k = _load(unsafe_skip_rsa_key_validation=True)
+        assert isinstance(k, PrivateKey)
+        return k
+
+    # Load it once without the potentially expensive OpenSSL validation
+    # checks.  These have superlinear complexity.  We *will* run them just
+    # below - but first we'll apply our own constant-time checks.
+    load: Callable[[], PrivateKey] = load_without_validation
+    try:
+        unsafe_priv_key = load()
+    except TypeError:
+        # cryptography<39 does not support this parameter, so just load the
+        # key with validation...
+        unsafe_priv_key = load_with_validation()
+        # But avoid *reloading* it since that will run the expensive
+        # validation *again*.
+        load = lambda: unsafe_priv_key
+
+    if not isinstance(unsafe_priv_key, rsa.RSAPrivateKey):
+        raise ValueError(
+            "Private Key did not decode to an RSA key"
+        )
+    if unsafe_priv_key.key_size != 2048:
+        raise ValueError(
+            "Private Key must be 2048 bits"
+        )
+
+    # Now re-load it with OpenSSL's validation applied.
+    safe_priv_key = load()
+
+    return safe_priv_key, safe_priv_key.public_key()
 
 
-def der_string_from_signing_key(private_key):
+def der_string_from_signing_key(private_key: PrivateKey) -> bytes:
     """
     Serializes a given RSA private key to a DER string
 
@@ -90,14 +127,14 @@ def der_string_from_signing_key(private_key):
     :returns: bytes representing `private_key`
     """
     _validate_private_key(private_key)
-    return private_key.private_bytes(
+    return private_key.private_bytes( # type: ignore[attr-defined]
         encoding=Encoding.DER,
         format=PrivateFormat.PKCS8,
         encryption_algorithm=NoEncryption(),
     )
 
 
-def der_string_from_verifying_key(public_key):
+def der_string_from_verifying_key(public_key: PublicKey) -> bytes:
     """
     Serializes a given RSA public key to a DER string.
 
@@ -113,7 +150,7 @@ def der_string_from_verifying_key(public_key):
     )
 
 
-def create_verifying_key_from_string(public_key_der):
+def create_verifying_key_from_string(public_key_der: bytes) -> PublicKey:
     """
     Create an RSA verifying key from a previously serialized public key
 
@@ -126,15 +163,16 @@ def create_verifying_key_from_string(public_key_der):
         public_key_der,
         backend=default_backend(),
     )
+    assert isinstance(pub_key, PublicKey)
     return pub_key
 
 
-def sign_data(private_key, data):
+def sign_data(private_key: PrivateKey, data: bytes) -> bytes:
     """
     :param private_key: the private part of a keypair returned from
         `create_signing_keypair_from_string` or `create_signing_keypair`
 
-    :param bytes data: the bytes to sign
+    :param data: the bytes to sign
 
     :returns: bytes which are a signature of the bytes given as `data`.
     """
@@ -145,7 +183,7 @@ def sign_data(private_key, data):
         hashes.SHA256(),
     )
 
-def verify_signature(public_key, alleged_signature, data):
+def verify_signature(public_key: PublicKey, alleged_signature: bytes, data: bytes) -> None:
     """
     :param public_key: a verifying key, returned from `create_verifying_key_from_string` or `create_verifying_key_from_private_key`
 
@@ -165,23 +203,23 @@ def verify_signature(public_key, alleged_signature, data):
         raise BadSignature()
 
 
-def _validate_public_key(public_key):
+def _validate_public_key(public_key: PublicKey) -> None:
     """
     Internal helper. Checks that `public_key` is a valid cryptography
     object
     """
     if not isinstance(public_key, rsa.RSAPublicKey):
         raise ValueError(
-            "public_key must be an RSAPublicKey"
+            f"public_key must be an RSAPublicKey not {type(public_key)}"
         )
 
 
-def _validate_private_key(private_key):
+def _validate_private_key(private_key: PrivateKey) -> None:
     """
     Internal helper. Checks that `public_key` is a valid cryptography
     object
     """
     if not isinstance(private_key, rsa.RSAPrivateKey):
         raise ValueError(
-            "private_key must be an RSAPrivateKey"
+            f"private_key must be an RSAPrivateKey not {type(private_key)}"
         )

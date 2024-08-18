@@ -679,6 +679,13 @@ Client Configuration
     location to prefer their local servers so that they can maintain access to
     all of their uploads without using the internet.
 
+``force_foolscap = (boolean, optional)``
+
+    If this is ``True``, the client will only connect to storage servers via
+    Foolscap, regardless of whether they support HTTPS. If this is ``False``,
+    the client will prefer HTTPS when it is available on the server. The default
+    value is ``False``.
+
 In addition,
 see :doc:`accepting-donations` for a convention for donating to storage server operators.
 
@@ -795,6 +802,13 @@ Storage Server Configuration
     The default value is the ``storage`` directory in the node's base directory
     (i.e. ``BASEDIR/storage``), but it can be placed elsewhere. Relative paths
     will be interpreted relative to the node's base directory.
+
+``force_foolscap = (boolean, optional)``
+
+    If this is ``True``, the node will expose the storage server via Foolscap
+    only, with no support for HTTPS. If this is ``False``, the server will
+    support both Foolscap and HTTPS on the same port. The default value is
+    ``False``.
 
 In addition,
 see :doc:`accepting-donations` for a convention encouraging donations to storage server operators.
@@ -979,6 +993,9 @@ If you omit the introducer definitions from ``introducers.yaml``,
 the node will not use an Introducer at all.
 Such "introducerless" clients must be configured with static servers (described
 below), or they will not be able to upload and download files.
+
+
+.. _server_list:
 
 Static Server Definitions
 =========================

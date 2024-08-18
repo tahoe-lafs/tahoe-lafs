@@ -4,17 +4,6 @@ Tests for allmydata.storage.crawler.
 Ported to Python 3.
 """
 
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
-from future.utils import PY2, PY3
-if PY2:
-    # Don't use future bytes, since it breaks tests. No further works is
-    # needed, once we're only on Python 3 we'll be deleting this future imports
-    # anyway, and tests pass just fine on Python 3.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 import os.path
@@ -27,7 +16,7 @@ from allmydata.util import fileutil, hashutil, pollmixin
 from allmydata.storage.server import StorageServer, si_b2a
 from allmydata.storage.crawler import ShareCrawler, TimeSliceExceeded
 
-from allmydata.test.common_util import StallMixin, FakeCanary
+from allmydata.test.common_util import StallMixin
 
 class BucketEnumeratingCrawler(ShareCrawler):
     cpu_slice = 500 # make sure it can complete in a single slice
@@ -37,10 +26,9 @@ class BucketEnumeratingCrawler(ShareCrawler):
         self.all_buckets = []
         self.finished_d = defer.Deferred()
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
-        if PY3:
-            # Bucket _inputs_ are bytes, and that's what we will compare this
-            # to:
-            storage_index_b32 = storage_index_b32.encode("ascii")
+        # Bucket _inputs_ are bytes, and that's what we will compare this
+        # to:
+        storage_index_b32 = storage_index_b32.encode("ascii")
         self.all_buckets.append(storage_index_b32)
     def finished_cycle(self, cycle):
         eventually(self.finished_d.callback, None)
@@ -55,10 +43,9 @@ class PacedCrawler(ShareCrawler):
         self.finished_d = defer.Deferred()
         self.yield_cb = None
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
-        if PY3:
-            # Bucket _inputs_ are bytes, and that's what we will compare this
-            # to:
-            storage_index_b32 = storage_index_b32.encode("ascii")
+        # Bucket _inputs_ are bytes, and that's what we will compare this
+        # to:
+        storage_index_b32 = storage_index_b32.encode("ascii")
         self.all_buckets.append(storage_index_b32)
         self.countdown -= 1
         if self.countdown == 0:
@@ -124,12 +111,12 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
     def write(self, i, ss, serverid, tail=0):
         si = self.si(i)
         si = si[:-1] + bytes(bytearray((tail,)))
-        had,made = ss.remote_allocate_buckets(si,
-                                              self.rs(i, serverid),
-                                              self.cs(i, serverid),
-                                              set([0]), 99, FakeCanary())
-        made[0].remote_write(0, b"data")
-        made[0].remote_close()
+        had,made = ss.allocate_buckets(si,
+                                       self.rs(i, serverid),
+                                       self.cs(i, serverid),
+                                       set([0]), 99)
+        made[0].write(0, b"data")
+        made[0].close()
         return si_b2a(si)
 
     def test_immediate(self):

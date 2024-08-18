@@ -1,15 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-from past.builtins import long
 
 from six import ensure_text, ensure_str
 
@@ -35,7 +26,7 @@ class InvalidCacheError(Exception):
 
 V2 = b"http://allmydata.org/tahoe/protocols/introducer/v2"
 
-@implementer(RIIntroducerSubscriberClient_v2, IIntroducerClient)
+@implementer(RIIntroducerSubscriberClient_v2, IIntroducerClient)  # type: ignore[misc]
 class IntroducerClient(service.Service, Referenceable):
 
     def __init__(self, tub, introducer_furl,
@@ -311,7 +302,7 @@ class IntroducerClient(service.Service, Referenceable):
             if "seqnum" in old:
                 # must beat previous sequence number to replace
                 if ("seqnum" not in ann
-                    or not isinstance(ann["seqnum"], (int,long))):
+                    or not isinstance(ann["seqnum"], int)):
                     self.log("not replacing old announcement, no valid seqnum: %s"
                              % (ann,),
                              parent=lp2, level=log.NOISY, umid="zFGH3Q")

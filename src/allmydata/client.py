@@ -1,23 +1,18 @@
 """
-Ported to Python 3.
+Functionality related to operating a Tahoe-LAFS node (client _or_ server).
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
-    # Don't use future str to prevent leaking future's newbytes into foolscap, which they break.
-    from past.builtins import unicode as str
-
-import os, stat, time, weakref
+import os
+import stat
+import time
+import weakref
+from typing import Optional, Iterable
 from base64 import urlsafe_b64encode
 from functools import partial
-# On Python 2 this will be the backported package:
 from configparser import NoSectionError
 
+from six import ensure_text
 from foolscap.furl import (
     decode_furl,
 )
@@ -34,13 +29,15 @@ from twisted.application.internet import TimerService
 from twisted.python.filepath import FilePath
 
 import allmydata
+from allmydata import node
 from allmydata.crypto import rsa, ed25519
 from allmydata.crypto.util import remove_prefix
-from allmydata.storage.server import StorageServer
+from allmydata.dirnode import DirectoryNode
+from allmydata.storage.server import StorageServer, FoolscapStorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
-from allmydata.control import ControlServer
+from allmydata.mutable.filenode import MutableFileNode
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import (
     hashutil, base32, pollmixin, log, idlib,
@@ -51,21 +48,22 @@ from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.util.i2p_provider import create as create_i2p_provider
-from allmydata.util.tor_provider import create as create_tor_provider
+from allmydata.util.tor_provider import create as create_tor_provider, _Provider as TorProvider
+from allmydata.util.cputhreadpool import defer_to_thread
+from allmydata.util.deferredutil import async_to_deferred
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import (
     IStatsProducer,
     SDMF_VERSION,
     MDMF_VERSION,
-    DEFAULT_MAX_SEGMENT_SIZE,
+    DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE,
     IFoolscapStoragePlugin,
     IAnnounceableStorageServer,
 )
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
-from allmydata import node
-
+from allmydata.node import _Config
 
 KiB=1024
 MiB=1024*KiB
@@ -81,7 +79,8 @@ def _is_valid_section(section_name):
     """
     return (
         section_name.startswith("storageserver.plugins.") or
-        section_name.startswith("storageclient.plugins.")
+        section_name.startswith("storageclient.plugins.") or
+        section_name in ("grid_managers", "grid_manager_certificates")
     )
 
 
@@ -96,7 +95,9 @@ _client_config = configutil.ValidConfiguration(
             "shares.happy",
             "shares.needed",
             "shares.total",
+            "shares._max_immutable_segment_size_for_testing",
             "storage.plugins",
+            "force_foolscap",
         ),
         "storage": (
             "debug_discard",
@@ -113,6 +114,8 @@ _client_config = configutil.ValidConfiguration(
             "reserved_space",
             "storage_dir",
             "plugins",
+            "grid_management",
+            "force_foolscap",
         ),
         "sftpd": (
             "accounts.file",
@@ -169,33 +172,20 @@ class SecretHolder(object):
 
 class KeyGenerator(object):
     """I create RSA keys for mutable files. Each call to generate() returns a
-    single keypair. The keysize is specified first by the keysize= argument
-    to generate(), then with a default set by set_default_keysize(), then
-    with a built-in default of 2048 bits."""
-    def __init__(self):
-        self.default_keysize = 2048
+    single keypair."""
 
-    def set_default_keysize(self, keysize):
-        """Call this to override the size of the RSA keys created for new
-        mutable files which don't otherwise specify a size. This will affect
-        all subsequent calls to generate() without a keysize= argument. The
-        default size is 2048 bits. Test cases should call this method once
-        during setup, to cause me to create smaller keys, so the unit tests
-        run faster."""
-        self.default_keysize = keysize
+    @async_to_deferred
+    async def generate(self) -> tuple[rsa.PublicKey, rsa.PrivateKey]:
+        """
+        I return a Deferred that fires with a (verifyingkey, signingkey)
+        pair. The returned key will be 2048 bit.
+        """
+        keysize = 2048
+        private, public = await defer_to_thread(
+            rsa.create_signing_keypair, keysize
+        )
+        return public, private
 
-    def generate(self, keysize=None):
-        """I return a Deferred that fires with a (verifyingkey, signingkey)
-        pair. I accept a keysize in bits (2048 bit keys are standard, smaller
-        keys are used for testing). If you do not provide a keysize, I will
-        use my default, which is set by a call to set_default_keysize(). If
-        set_default_keysize() has never been called, I will create 2048 bit
-        keys."""
-        keysize = keysize or self.default_keysize
-        # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
-        # secs
-        signer, verifier = rsa.create_signing_keypair(keysize)
-        return defer.succeed( (verifier, signer) )
 
 class Terminator(service.Service):
     def __init__(self):
@@ -208,7 +198,7 @@ class Terminator(service.Service):
         return service.Service.stopService(self)
 
 
-def read_config(basedir, portnumfile, generated_files=[]):
+def read_config(basedir, portnumfile, generated_files: Iterable=()):
     """
     Read and validate configuration for a client-style Node. See
     :method:`allmydata.node.read_config` for parameter meanings (the
@@ -283,18 +273,16 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
         config, tub_options, default_connection_handlers,
         foolscap_connection_handlers, i2p_provider, tor_provider,
     )
-    control_tub = node.create_control_tub()
 
     introducer_clients = create_introducer_clients(config, main_tub, _introducer_factory)
     storage_broker = create_storage_farm_broker(
         config, default_connection_handlers, foolscap_connection_handlers,
-        tub_options, introducer_clients
+        tub_options, introducer_clients, tor_provider
     )
 
     client = _client_factory(
         config,
         main_tub,
-        control_tub,
         i2p_provider,
         tor_provider,
         introducer_clients,
@@ -485,7 +473,7 @@ def create_introducer_clients(config, main_tub, _introducer_factory=None):
     return introducer_clients
 
 
-def create_storage_farm_broker(config, default_connection_handlers, foolscap_connection_handlers, tub_options, introducer_clients):
+def create_storage_farm_broker(config: _Config, default_connection_handlers, foolscap_connection_handlers, tub_options, introducer_clients, tor_provider: Optional[TorProvider]):
     """
     Create a StorageFarmBroker object, for use by Uploader/Downloader
     (and everybody else who wants to use storage servers)
@@ -505,6 +493,11 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
     storage_client_config = storage_client.StorageClientConfig.from_node_config(
         config,
     )
+    # ensure that we can at least load all plugins that the
+    # configuration mentions; doing this early (i.e. before creating
+    # storage-clients themselves) allows us to exit in case of a
+    # problem.
+    storage_client_config.get_configured_storage_plugins()
 
     def tub_creator(handler_overrides=None, **kwargs):
         return node.create_tub(
@@ -515,11 +508,14 @@ def create_storage_farm_broker(config, default_connection_handlers, foolscap_con
             **kwargs
         )
 
+    # create the actual storage-broker
     sb = storage_client.StorageFarmBroker(
         permute_peers=True,
         tub_maker=tub_creator,
         node_config=config,
         storage_client_config=storage_client_config,
+        default_connection_handlers=default_connection_handlers,
+        tor_provider=tor_provider,
     )
     for ic in introducer_clients:
         sb.use_introducer(ic)
@@ -611,6 +607,10 @@ def anonymous_storage_enabled(config):
 
 @implementer(IStatsProducer)
 class _Client(node.Node, pollmixin.PollMixin):
+    """
+    This class should be refactored; see
+    https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3931
+    """
 
     STOREDIR = 'storage'
     NODETYPE = "client"
@@ -628,15 +628,15 @@ class _Client(node.Node, pollmixin.PollMixin):
     DEFAULT_ENCODING_PARAMETERS = {"k": 3,
                                    "happy": 7,
                                    "n": 10,
-                                   "max_segment_size": DEFAULT_MAX_SEGMENT_SIZE,
+                                   "max_segment_size": DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE,
                                    }
 
-    def __init__(self, config, main_tub, control_tub, i2p_provider, tor_provider, introducer_clients,
+    def __init__(self, config, main_tub, i2p_provider, tor_provider, introducer_clients,
                  storage_farm_broker):
         """
         Use :func:`allmydata.client.create_client` to instantiate one of these.
         """
-        node.Node.__init__(self, config, main_tub, control_tub, i2p_provider, tor_provider)
+        node.Node.__init__(self, config, main_tub, i2p_provider, tor_provider)
 
         self.started_timestamp = time.time()
         self.logSource = "Client"
@@ -648,7 +648,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         self.init_stats_provider()
         self.init_secrets()
         self.init_node_key()
-        self.init_control()
         self._key_generator = KeyGenerator()
         key_gen_furl = config.get_config("client", "key_generator.furl", None)
         if key_gen_furl:
@@ -678,6 +677,14 @@ class _Client(node.Node, pollmixin.PollMixin):
         webport = config.get_config("node", "web.port", None)
         if webport:
             self.init_web(webport) # strports string
+
+        # TODO this may be the wrong location for now? but as temporary measure
+        # it allows us to get NURLs for testing in test_istorageserver.py. This
+        # will eventually get fixed one way or another in
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3901. See also
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3931 for the bigger
+        # picture issue.
+        self.storage_nurls : Optional[set] = None
 
     def init_stats_provider(self):
         self.stats_provider = StatsProvider(self)
@@ -810,16 +817,18 @@ class _Client(node.Node, pollmixin.PollMixin):
             sharetypes.append("mutable")
         expiration_sharetypes = tuple(sharetypes)
 
-        ss = StorageServer(storedir, self.nodeid,
-                           reserved_space=reserved,
-                           discard_storage=discard,
-                           readonly_storage=readonly,
-                           stats_provider=self.stats_provider,
-                           expiration_enabled=expire,
-                           expiration_mode=mode,
-                           expiration_override_lease_duration=o_l_d,
-                           expiration_cutoff_date=cutoff_date,
-                           expiration_sharetypes=expiration_sharetypes)
+        ss = StorageServer(
+            storedir, self.nodeid,
+            reserved_space=reserved,
+            discard_storage=discard,
+            readonly_storage=readonly,
+            stats_provider=self.stats_provider,
+            expiration_enabled=expire,
+            expiration_mode=mode,
+            expiration_override_lease_duration=o_l_d,
+            expiration_cutoff_date=cutoff_date,
+            expiration_sharetypes=expiration_sharetypes,
+        )
         ss.setServiceParent(self)
         return ss
 
@@ -838,7 +847,16 @@ class _Client(node.Node, pollmixin.PollMixin):
 
         if anonymous_storage_enabled(self.config):
             furl_file = self.config.get_private_path("storage.furl").encode(get_filesystem_encoding())
-            furl = self.tub.registerReference(ss, furlFile=furl_file)
+            furl = self.tub.registerReference(FoolscapStorageServer(ss), furlFile=furl_file)
+            (_, _, swissnum) = decode_furl(furl)
+            if hasattr(self.tub.negotiationClass, "add_storage_server"):
+                nurls = self.tub.negotiationClass.add_storage_server(ss, swissnum.encode("ascii"))
+                self.storage_nurls = nurls
+                # There is code in e.g. storage_client.py that checks if an
+                # announcement has changed. Since NURL order isn't meaningful,
+                # we don't want a change in the order to count as a change, so we
+                # send the NURLs as a set. CBOR supports sets, as does Foolscap.
+                announcement[storage_client.ANONYMOUS_STORAGE_NURLS] = {n.to_text() for n in nurls}
             announcement["anonymous-storage-FURL"] = furl
 
         enabled_storage_servers = self._enable_storage_servers(
@@ -855,6 +873,14 @@ class _Client(node.Node, pollmixin.PollMixin):
             plugins_announcement[u"storage-options"] = storage_options
 
         announcement.update(plugins_announcement)
+
+        if self.config.get_config("storage", "grid_management", default=False, boolean=True):
+            grid_manager_certificates = self.config.get_grid_manager_certificates()
+            announcement[u"grid-manager-certificates"] = grid_manager_certificates
+
+        # Note: certificates are not verified for validity here, but
+        # that may be useful. See:
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3977
 
         for ic in self.introducer_clients:
             ic.publish("storage", announcement, self._node_private_key)
@@ -906,6 +932,13 @@ class _Client(node.Node, pollmixin.PollMixin):
         DEP["k"] = int(self.config.get_config("client", "shares.needed", DEP["k"]))
         DEP["n"] = int(self.config.get_config("client", "shares.total", DEP["n"]))
         DEP["happy"] = int(self.config.get_config("client", "shares.happy", DEP["happy"]))
+        # At the moment this is only used for testing, thus the janky config
+        # attribute name.
+        DEP["max_segment_size"] = int(self.config.get_config(
+            "client",
+            "shares._max_immutable_segment_size_for_testing",
+            DEP["max_segment_size"])
+        )
 
         # for the CLI to authenticate to local JSON endpoints
         self._create_auth_token()
@@ -958,6 +991,9 @@ class _Client(node.Node, pollmixin.PollMixin):
             static_servers = servers_yaml.get("storage", {})
             log.msg("found %d static servers in private/servers.yaml" %
                     len(static_servers))
+            static_servers = {
+                ensure_text(key): value for (key, value) in static_servers.items()
+            }
             self.storage_broker.set_static_servers(static_servers)
         except EnvironmentError:
             pass
@@ -985,12 +1021,6 @@ class _Client(node.Node, pollmixin.PollMixin):
     def get_history(self):
         return self.history
 
-    def init_control(self):
-        c = ControlServer()
-        c.setServiceParent(self)
-        control_url = self.control_tub.registerReference(c)
-        self.config.write_private_config("control.furl", control_url + "\n")
-
     def init_helper(self):
         self.helper = Helper(self.config.get_config_path("helper"),
                              self.storage_broker, self._secret_holder,
@@ -1002,9 +1032,6 @@ class _Client(node.Node, pollmixin.PollMixin):
         # inputs and generated outputs is hard to see.
         helper_furlfile = self.config.get_private_path("helper.furl").encode(get_filesystem_encoding())
         self.tub.registerReference(self.helper, furlFile=helper_furlfile)
-
-    def set_default_mutable_keysize(self, keysize):
-        self._key_generator.set_default_keysize(keysize)
 
     def _get_tempdir(self):
         """
@@ -1024,14 +1051,14 @@ class _Client(node.Node, pollmixin.PollMixin):
     def init_web(self, webport):
         self.log("init_web(webport=%s)", args=(webport,))
 
-        from allmydata.webish import WebishServer
+        from allmydata.webish import WebishServer, anonymous_tempfile_factory
         nodeurl_path = self.config.get_config_path("node.url")
         staticdir_config = self.config.get_config("node", "web.static", "public_html")
         staticdir = self.config.get_config_path(staticdir_config)
         ws = WebishServer(
             self,
             webport,
-            self._get_tempdir(),
+            anonymous_tempfile_factory(self._get_tempdir()),
             nodeurl_path,
             staticdir,
         )
@@ -1099,16 +1126,83 @@ class _Client(node.Node, pollmixin.PollMixin):
         # may get an opaque node if there were any problems.
         return self.nodemaker.create_from_cap(write_uri, read_uri, deep_immutable=deep_immutable, name=name)
 
-    def create_dirnode(self, initial_children={}, version=None):
-        d = self.nodemaker.create_new_mutable_directory(initial_children, version=version)
+    def create_dirnode(
+        self,
+        initial_children: dict | None = None,
+        version: int | None = None,
+        *,
+        unique_keypair: tuple[rsa.PublicKey, rsa.PrivateKey] | None = None
+    ) -> DirectoryNode:
+        """
+        Create a new directory.
+
+        :param initial_children: If given, a structured dict representing the
+            initial content of the created directory. See
+            `docs/frontends/webapi.rst` for examples.
+
+        :param version: If given, an int representing the mutable file format
+            of the new object. Acceptable values are currently `SDMF_VERSION`
+            or `MDMF_VERSION` (corresponding to 0 or 1, respectively, as
+            defined in `allmydata.interfaces`). If no such value is provided,
+            the default mutable format will be used (currently SDMF).
+
+        :param unique_keypair: an optional tuple containing the RSA public
+            and private key to be used for the new directory. Typically, this
+            value is omitted (in which case a new random keypair will be
+            generated at creation time).
+
+            **Warning** This value independently determines the identity of
+            the mutable object to create.  There cannot be two different
+            mutable objects that share a keypair.  They will merge into one
+            object (with undefined contents).
+
+        :return: A Deferred which will fire with a representation of the new
+            directory after it has been created.
+        """
+        d = self.nodemaker.create_new_mutable_directory(
+            initial_children,
+            version=version,
+            keypair=unique_keypair,
+        )
         return d
 
     def create_immutable_dirnode(self, children, convergence=None):
         return self.nodemaker.create_immutable_directory(children, convergence)
 
-    def create_mutable_file(self, contents=None, keysize=None, version=None):
-        return self.nodemaker.create_mutable_file(contents, keysize,
-                                                  version=version)
+    def create_mutable_file(
+            self,
+            contents: bytes | None = None,
+            version: int | None = None,
+            *,
+            unique_keypair: tuple[rsa.PublicKey, rsa.PrivateKey] | None = None,
+    ) -> MutableFileNode:
+        """
+        Create *and upload* a new mutable object.
+
+        :param contents: If given, the initial contents for the new object.
+
+        :param version: If given, the mutable file format for the new object
+            (otherwise a format will be chosen automatically).
+
+        :param unique_keypair: **Warning** This value independently determines
+            the identity of the mutable object to create.  There cannot be two
+            different mutable objects that share a keypair.  They will merge
+            into one object (with undefined contents).
+
+            It is common to pass a None value (or not pass a valuye) for this
+            parameter.  In these cases, a new random keypair will be
+            generated.
+
+            If non-None, the given public/private keypair will be used for the
+            new object.  The expected use-case is for implementing compliance
+            tests.
+
+        :return: A Deferred which will fire with a representation of the new
+            mutable object after it has been uploaded.
+        """
+        return self.nodemaker.create_mutable_file(contents,
+                                                  version=version,
+                                                  keypair=unique_keypair)
 
     def upload(self, uploadable, reactor=None):
         uploader = self.getServiceNamed("uploader")

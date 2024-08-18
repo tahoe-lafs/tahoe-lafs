@@ -1,20 +1,13 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-from twisted.trial import unittest
+from ..common import AsyncTestCase
 from .util import FakeStorage, make_nodemaker
 
-class DifferentEncoding(unittest.TestCase):
+class DifferentEncoding(AsyncTestCase):
     def setUp(self):
+        super(DifferentEncoding, self).setUp()
         self._storage = s = FakeStorage()
         self.nodemaker = make_nodemaker(s)
 

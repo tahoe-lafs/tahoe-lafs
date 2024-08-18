@@ -1,33 +1,29 @@
 """
 Utilities for working with Twisted Deferreds.
-
-Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from __future__ import annotations
 
 import time
+from functools import wraps
 
-try:
-    from typing import (
-        Callable,
-        Any,
-    )
-except ImportError:
-    pass
+from typing import (
+    Callable,
+    Any,
+    Sequence,
+    TypeVar,
+    Optional,
+    Coroutine,
+    Generator
+)
+from typing_extensions import ParamSpec
 
 from foolscap.api import eventually
 from eliot.twisted import (
     inline_callbacks,
 )
 from twisted.internet import defer, reactor, error
+from twisted.internet.defer import Deferred
 from twisted.python.failure import Failure
 
 from allmydata.util import log
@@ -215,10 +211,9 @@ class WaitForDelayedCallsMixin(PollMixin):
 
 @inline_callbacks
 def until(
-        action,     # type: Callable[[], defer.Deferred[Any]]
-        condition,  # type: Callable[[], bool]
-):
-    # type: (...) -> defer.Deferred[None]
+        action: Callable[[], defer.Deferred[Any]],
+        condition: Callable[[], bool],
+) -> Generator[Any, None, None]:
     """
     Run a Deferred-returning function until a condition is true.
 
@@ -231,3 +226,113 @@ def until(
         yield action()
         if condition():
             break
+
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def async_to_deferred(f: Callable[P, Coroutine[defer.Deferred[R], None, R]]) -> Callable[P, Deferred[R]]:
+    """
+    Wrap an async function to return a Deferred instead.
+
+    Maybe solution to https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3886
+    """
+
+    @wraps(f)
+    def not_async(*args: P.args, **kwargs: P.kwargs) -> Deferred[R]:
+        return defer.Deferred.fromCoroutine(f(*args, **kwargs))
+
+    return not_async
+
+
+class MultiFailure(Exception):
+    """
+    More than one failure occurred.
+    """
+
+    def __init__(self, failures: Sequence[Failure]) -> None:
+        super(MultiFailure, self).__init__()
+        self.failures = failures
+
+
+_T = TypeVar("_T")
+
+# Eventually this should be in Twisted upstream:
+# https://github.com/twisted/twisted/pull/11818
+def race(ds: Sequence[Deferred[_T]]) -> Deferred[tuple[int, _T]]:
+    """
+    Select the first available result from the sequence of Deferreds and
+    cancel the rest.
+    @return: A cancellable L{Deferred} that fires with the index and output of
+        the element of C{ds} to have a success result first, or that fires
+        with L{MultiFailure} holding a list of their failures if they all
+        fail.
+    """
+    # Keep track of the Deferred for the action which completed first.  When
+    # it completes, all of the other Deferreds will get cancelled but this one
+    # shouldn't be.  Even though it "completed" it isn't really done - the
+    # caller will still be using it for something.  If we cancelled it,
+    # cancellation could propagate down to them.
+    winner: Optional[Deferred] = None
+
+    # The cancellation function for the Deferred this function returns.
+    def cancel(result: Deferred) -> None:
+        # If it is cancelled then we cancel all of the Deferreds for the
+        # individual actions because there is no longer the possibility of
+        # delivering any of their results anywhere.  We don't have to fire
+        # `result` because the Deferred will do that for us.
+        for d in to_cancel:
+            d.cancel()
+
+    # The Deferred that this function will return.  It will fire with the
+    # index and output of the action that completes first, or None if all of
+    # the actions fail.  If it is cancelled, all of the actions will be
+    # cancelled.
+    final_result: Deferred[tuple[int, _T]] = Deferred(canceller=cancel)
+
+    # A callback for an individual action.
+    def succeeded(this_output: _T, this_index: int) -> None:
+        # If it is the first action to succeed then it becomes the "winner",
+        # its index/output become the externally visible result, and the rest
+        # of the action Deferreds get cancelled.  If it is not the first
+        # action to succeed (because some action did not support
+        # cancellation), just ignore the result.  It is uncommon for this
+        # callback to be entered twice.  The only way it can happen is if one
+        # of the input Deferreds has a cancellation function that fires the
+        # Deferred with a success result.
+        nonlocal winner
+        if winner is None:
+            # This is the first success.  Act on it.
+            winner = to_cancel[this_index]
+
+            # Cancel the rest.
+            for d in to_cancel:
+                if d is not winner:
+                    d.cancel()
+
+            # Fire our Deferred
+            final_result.callback((this_index, this_output))
+
+    # Keep track of how many actions have failed.  If they all fail we need to
+    # deliver failure notification on our externally visible result.
+    failure_state = []
+
+    def failed(failure: Failure, this_index: int) -> None:
+        failure_state.append((this_index, failure))
+        if len(failure_state) == len(to_cancel):
+            # Every operation failed.
+            failure_state.sort()
+            failures = [f for (ignored, f) in failure_state]
+            final_result.errback(MultiFailure(failures))
+
+    # Copy the sequence of Deferreds so we know it doesn't get mutated out
+    # from under us.
+    to_cancel = list(ds)
+    for index, d in enumerate(ds):
+        # Propagate the position of this action as well as the argument to f
+        # to the success callback so we can cancel the right Deferreds and
+        # propagate the result outwards.
+        d.addCallbacks(succeeded, failed, callbackArgs=(index,), errbackArgs=(index,))
+
+    return final_result

@@ -1,24 +1,15 @@
 """
 Ported to Python 3.
 """
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os.path, re
 from urllib.parse import quote as url_quote
 import json
-from six.moves import StringIO
+from io import StringIO
 
 from bs4 import BeautifulSoup
 
 from twisted.web import resource
-from twisted.trial import unittest
 from allmydata import uri, dirnode
 from allmydata.util import base32
 from allmydata.util.encodingutil import to_bytes
@@ -43,6 +34,21 @@ from .common import (
     unknown_rwcap,
 )
 
+from ..common import (
+    AsyncTestCase,
+)
+
+from testtools.matchers import (
+    Equals,
+    Contains,
+    Not,
+    HasLength,
+    EndsWith,
+)
+
+from testtools.twistedsupport import flush_logged_errors
+
+
 DIR_HTML_TAG = '<html lang="en">'
 
 class CompletelyUnhandledError(Exception):
@@ -53,7 +59,7 @@ class ErrorBoom(resource.Resource, object):
     def render(self, req):
         raise CompletelyUnhandledError("whoops")
 
-class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMixin, unittest.TestCase):
+class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMixin, AsyncTestCase):
 
     def CHECK(self, ign, which, args, clientnum=0):
         fileurl = self.fileurls[which]
@@ -117,37 +123,37 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "good", "t=check")
         def _got_html_good(res):
-            self.failUnlessIn("Healthy", res)
-            self.failIfIn("Not Healthy", res)
+            self.assertThat(res, Contains("Healthy"))
+            self.assertThat(res, Not(Contains("Not Healthy", )))
             soup = BeautifulSoup(res, 'html5lib')
             assert_soup_has_favicon(self, soup)
 
         d.addCallback(_got_html_good)
         d.addCallback(self.CHECK, "good", "t=check&return_to=somewhere")
         def _got_html_good_return_to(res):
-            self.failUnlessIn("Healthy", res)
-            self.failIfIn("Not Healthy", res)
-            self.failUnlessIn('<a href="somewhere">Return to file', res)
+            self.assertThat(res, Contains("Healthy"))
+            self.assertThat(res, Not(Contains("Not Healthy")))
+            self.assertThat(res, Contains('<a href="somewhere">Return to file'))
         d.addCallback(_got_html_good_return_to)
         d.addCallback(self.CHECK, "good", "t=check&output=json")
         def _got_json_good(res):
             r = json.loads(res)
             self.failUnlessEqual(r["summary"], "Healthy")
             self.failUnless(r["results"]["healthy"])
-            self.failIfIn("needs-rebalancing", r["results"])
+            self.assertThat(r["results"], Not(Contains("needs-rebalancing",)))
             self.failUnless(r["results"]["recoverable"])
         d.addCallback(_got_json_good)
 
         d.addCallback(self.CHECK, "small", "t=check")
         def _got_html_small(res):
-            self.failUnlessIn("Literal files are always healthy", res)
-            self.failIfIn("Not Healthy", res)
+            self.assertThat(res, Contains("Literal files are always healthy"))
+            self.assertThat(res, Not(Contains("Not Healthy")))
         d.addCallback(_got_html_small)
         d.addCallback(self.CHECK, "small", "t=check&return_to=somewhere")
         def _got_html_small_return_to(res):
-            self.failUnlessIn("Literal files are always healthy", res)
-            self.failIfIn("Not Healthy", res)
-            self.failUnlessIn('<a href="somewhere">Return to file', res)
+            self.assertThat(res, Contains("Literal files are always healthy"))
+            self.assertThat(res, Not(Contains("Not Healthy")))
+            self.assertThat(res, Contains('<a href="somewhere">Return to file'))
         d.addCallback(_got_html_small_return_to)
         d.addCallback(self.CHECK, "small", "t=check&output=json")
         def _got_json_small(res):
@@ -158,8 +164,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "smalldir", "t=check")
         def _got_html_smalldir(res):
-            self.failUnlessIn("Literal files are always healthy", res)
-            self.failIfIn("Not Healthy", res)
+            self.assertThat(res, Contains("Literal files are always healthy"))
+            self.assertThat(res, Not(Contains("Not Healthy")))
         d.addCallback(_got_html_smalldir)
         d.addCallback(self.CHECK, "smalldir", "t=check&output=json")
         def _got_json_smalldir(res):
@@ -170,43 +176,43 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "sick", "t=check")
         def _got_html_sick(res):
-            self.failUnlessIn("Not Healthy", res)
+            self.assertThat(res, Contains("Not Healthy"))
         d.addCallback(_got_html_sick)
         d.addCallback(self.CHECK, "sick", "t=check&output=json")
         def _got_json_sick(res):
             r = json.loads(res)
             self.failUnlessEqual(r["summary"],
                                  "Not Healthy: 9 shares (enc 3-of-10)")
-            self.failIf(r["results"]["healthy"])
+            self.assertThat(r["results"]["healthy"], Equals(False))
             self.failUnless(r["results"]["recoverable"])
-            self.failIfIn("needs-rebalancing", r["results"])
+            self.assertThat(r["results"], Not(Contains("needs-rebalancing")))
         d.addCallback(_got_json_sick)
 
         d.addCallback(self.CHECK, "dead", "t=check")
         def _got_html_dead(res):
-            self.failUnlessIn("Not Healthy", res)
+            self.assertThat(res, Contains("Not Healthy"))
         d.addCallback(_got_html_dead)
         d.addCallback(self.CHECK, "dead", "t=check&output=json")
         def _got_json_dead(res):
             r = json.loads(res)
             self.failUnlessEqual(r["summary"],
                                  "Not Healthy: 1 shares (enc 3-of-10)")
-            self.failIf(r["results"]["healthy"])
-            self.failIf(r["results"]["recoverable"])
-            self.failIfIn("needs-rebalancing", r["results"])
+            self.assertThat(r["results"]["healthy"], Equals(False))
+            self.assertThat(r["results"]["recoverable"], Equals(False))
+            self.assertThat(r["results"], Not(Contains("needs-rebalancing")))
         d.addCallback(_got_json_dead)
 
         d.addCallback(self.CHECK, "corrupt", "t=check&verify=true")
         def _got_html_corrupt(res):
-            self.failUnlessIn("Not Healthy! : Unhealthy", res)
+            self.assertThat(res, Contains("Not Healthy! : Unhealthy"))
         d.addCallback(_got_html_corrupt)
         d.addCallback(self.CHECK, "corrupt", "t=check&verify=true&output=json")
         def _got_json_corrupt(res):
             r = json.loads(res)
-            self.failUnlessIn("Unhealthy: 9 shares (enc 3-of-10)", r["summary"])
-            self.failIf(r["results"]["healthy"])
+            self.assertThat(r["summary"], Contains("Unhealthy: 9 shares (enc 3-of-10)"))
+            self.assertThat(r["results"]["healthy"], Equals(False))
             self.failUnless(r["results"]["recoverable"])
-            self.failIfIn("needs-rebalancing", r["results"])
+            self.assertThat(r["results"], Not(Contains("needs-rebalancing")))
             self.failUnlessReallyEqual(r["results"]["count-happiness"], 9)
             self.failUnlessReallyEqual(r["results"]["count-shares-good"], 9)
             self.failUnlessReallyEqual(r["results"]["count-corrupt-shares"], 1)
@@ -261,9 +267,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "good", "t=check&repair=true")
         def _got_html_good(res):
-            self.failUnlessIn("Healthy", res)
-            self.failIfIn("Not Healthy", res)
-            self.failUnlessIn("No repair necessary", res)
+            self.assertThat(res, Contains("Healthy"))
+            self.assertThat(res, Not(Contains("Not Healthy")))
+            self.assertThat(res, Contains("No repair necessary", ))
             soup = BeautifulSoup(res, 'html5lib')
             assert_soup_has_favicon(self, soup)
 
@@ -271,9 +277,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "sick", "t=check&repair=true")
         def _got_html_sick(res):
-            self.failUnlessIn("Healthy : healthy", res)
-            self.failIfIn("Not Healthy", res)
-            self.failUnlessIn("Repair successful", res)
+            self.assertThat(res, Contains("Healthy : healthy"))
+            self.assertThat(res, Not(Contains("Not Healthy")))
+            self.assertThat(res, Contains("Repair successful"))
         d.addCallback(_got_html_sick)
 
         # repair of a dead file will fail, of course, but it isn't yet
@@ -290,9 +296,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "corrupt", "t=check&verify=true&repair=true")
         def _got_html_corrupt(res):
-            self.failUnlessIn("Healthy : Healthy", res)
-            self.failIfIn("Not Healthy", res)
-            self.failUnlessIn("Repair successful", res)
+            self.assertThat(res, Contains("Healthy : Healthy"))
+            self.assertThat(res, Not(Contains("Not Healthy")))
+            self.assertThat(res, Contains("Repair successful"))
         d.addCallback(_got_html_corrupt)
 
         d.addErrback(self.explain_web_error)
@@ -392,31 +398,31 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             if expect_rw_uri:
                 self.failUnlessReallyEqual(to_bytes(f[1]["rw_uri"]), unknown_rwcap, data)
             else:
-                self.failIfIn("rw_uri", f[1])
+                self.assertThat(f[1], Not(Contains("rw_uri")))
             if immutable:
                 self.failUnlessReallyEqual(to_bytes(f[1]["ro_uri"]), unknown_immcap, data)
             else:
                 self.failUnlessReallyEqual(to_bytes(f[1]["ro_uri"]), unknown_rocap, data)
-            self.failUnlessIn("metadata", f[1])
+            self.assertThat(f[1], Contains("metadata"))
         d.addCallback(_check_directory_json, expect_rw_uri=not immutable)
 
         def _check_info(res, expect_rw_uri, expect_ro_uri):
             if expect_rw_uri:
-                self.failUnlessIn(unknown_rwcap, res)
+                self.assertThat(res, Contains(unknown_rwcap))
             if expect_ro_uri:
                 if immutable:
-                    self.failUnlessIn(unknown_immcap, res)
+                    self.assertThat(res, Contains(unknown_immcap))
                 else:
-                    self.failUnlessIn(unknown_rocap, res)
+                    self.assertThat(res, Contains(unknown_rocap))
             else:
-                self.failIfIn(unknown_rocap, res)
+                self.assertThat(res, Not(Contains(unknown_rocap)))
             res = str(res, "utf-8")
-            self.failUnlessIn("Object Type: <span>unknown</span>", res)
-            self.failIfIn("Raw data as", res)
-            self.failIfIn("Directory writecap", res)
-            self.failIfIn("Checker Operations", res)
-            self.failIfIn("Mutable File Operations", res)
-            self.failIfIn("Directory Operations", res)
+            self.assertThat(res, Contains("Object Type: <span>unknown</span>"))
+            self.assertThat(res, Not(Contains("Raw data as")))
+            self.assertThat(res, Not(Contains("Directory writecap")))
+            self.assertThat(res, Not(Contains("Checker Operations")))
+            self.assertThat(res, Not(Contains("Mutable File Operations")))
+            self.assertThat(res, Not(Contains("Directory Operations")))
 
         # FIXME: these should have expect_rw_uri=not immutable; I don't know
         # why they fail. Possibly related to ticket #922.
@@ -432,7 +438,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             if expect_rw_uri:
                 self.failUnlessReallyEqual(to_bytes(data[1]["rw_uri"]), unknown_rwcap, data)
             else:
-                self.failIfIn("rw_uri", data[1])
+                self.assertThat(data[1], Not(Contains("rw_uri")))
 
             if immutable:
                 self.failUnlessReallyEqual(to_bytes(data[1]["ro_uri"]), unknown_immcap, data)
@@ -442,10 +448,10 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 self.failUnlessReallyEqual(data[1]["mutable"], True)
             else:
                 self.failUnlessReallyEqual(to_bytes(data[1]["ro_uri"]), unknown_rocap, data)
-                self.failIfIn("mutable", data[1])
+                self.assertThat(data[1], Not(Contains("mutable")))
 
             # TODO: check metadata contents
-            self.failUnlessIn("metadata", data[1])
+            self.assertThat(data[1], Contains("metadata"))
 
         d.addCallback(lambda ign: self.GET("%s/%s?t=json" % (self.rooturl, str(name))))
         d.addCallback(_check_json, expect_rw_uri=not immutable)
@@ -519,14 +525,14 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         def _created(dn):
             self.failUnless(isinstance(dn, dirnode.DirectoryNode))
-            self.failIf(dn.is_mutable())
+            self.assertThat(dn.is_mutable(), Equals(False))
             self.failUnless(dn.is_readonly())
             # This checks that if we somehow ended up calling dn._decrypt_rwcapdata, it would fail.
-            self.failIf(hasattr(dn._node, 'get_writekey'))
+            self.assertThat(hasattr(dn._node, 'get_writekey'), Equals(False))
             rep = str(dn)
-            self.failUnlessIn("RO-IMM", rep)
+            self.assertThat(rep, Contains("RO-IMM"))
             cap = dn.get_cap()
-            self.failUnlessIn(b"CHK", cap.to_string())
+            self.assertThat(cap.to_string(), Contains(b"CHK"))
             self.cap = cap
             self.rootnode = dn
             self.rooturl = "uri/" + url_quote(dn.get_uri())
@@ -546,7 +552,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 (name_utf8, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
                 name = name_utf8.decode("utf-8")
                 self.failUnlessEqual(rwcapdata, b"")
-                self.failUnlessIn(name, kids)
+                self.assertThat(kids, Contains(name))
                 (expected_child, ign) = kids[name]
                 self.failUnlessReallyEqual(ro_uri, expected_child.get_readonly_uri())
                 numkids += 1
@@ -572,27 +578,27 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(lambda ign: self.GET(self.rooturl))
         def _check_html(res):
             soup = BeautifulSoup(res, 'html5lib')
-            self.failIfIn(b"URI:SSK", res)
+            self.assertThat(res, Not(Contains(b"URI:SSK")))
             found = False
             for td in soup.find_all(u"td"):
                 if td.text != u"FILE":
                     continue
                 a = td.findNextSibling()(u"a")[0]
-                self.assertIn(url_quote(lonely_uri), a[u"href"])
-                self.assertEqual(u"lonely", a.text)
-                self.assertEqual(a[u"rel"], [u"noreferrer"])
-                self.assertEqual(u"{}".format(len("one")), td.findNextSibling().findNextSibling().text)
+                self.assertThat(a[u"href"], Contains(url_quote(lonely_uri)))
+                self.assertThat(a.text, Equals(u"lonely"))
+                self.assertThat(a[u"rel"], Equals([u"noreferrer"]))
+                self.assertThat(td.findNextSibling().findNextSibling().text, Equals(u"{}".format(len("one"))))
                 found = True
                 break
-            self.assertTrue(found)
+            self.assertThat(found, Equals(True))
 
             infos = list(
                 a[u"href"]
                 for a in soup.find_all(u"a")
                 if a.text == u"More Info"
             )
-            self.assertEqual(1, len(infos))
-            self.assertTrue(infos[0].endswith(url_quote(lonely_uri) + "?t=info"))
+            self.assertThat(infos, HasLength(1))
+            self.assertThat(infos[0], EndsWith(url_quote(lonely_uri) + "?t=info"))
         d.addCallback(_check_html)
 
         # ... and in JSON.
@@ -604,7 +610,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessReallyEqual(sorted(listed_children.keys()), [u"lonely"])
             ll_type, ll_data = listed_children[u"lonely"]
             self.failUnlessEqual(ll_type, "filenode")
-            self.failIfIn("rw_uri", ll_data)
+            self.assertThat(ll_data, Not(Contains("rw_uri")))
             self.failUnlessReallyEqual(to_bytes(ll_data["ro_uri"]), lonely_uri)
         d.addCallback(_check_json)
         return d
@@ -744,8 +750,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             error_line = lines[first_error]
             error_msg = lines[first_error+1:]
             error_msg_s = "\n".join(error_msg) + "\n"
-            self.failUnlessIn("ERROR: UnrecoverableFileError(no recoverable versions)",
-                              error_line)
+            self.assertThat(error_line, Contains("ERROR: UnrecoverableFileError(no recoverable versions)"))
             self.failUnless(len(error_msg) > 2, error_msg_s) # some traceback
             units = [json.loads(line) for line in lines[:first_error]]
             self.failUnlessReallyEqual(len(units), 6) # includes subdir
@@ -765,8 +770,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             error_line = lines[first_error]
             error_msg = lines[first_error+1:]
             error_msg_s = "\n".join(error_msg) + "\n"
-            self.failUnlessIn("ERROR: UnrecoverableFileError(no recoverable versions)",
-                              error_line)
+            self.assertThat(error_line, Contains("ERROR: UnrecoverableFileError(no recoverable versions)"))
             self.failUnless(len(error_msg) > 2, error_msg_s) # some traceback
             units = [json.loads(line) for line in lines[:first_error]]
             self.failUnlessReallyEqual(len(units), 6) # includes subdir
@@ -936,8 +940,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "one", "t=check") # no add-lease
         def _got_html_good(res):
-            self.failUnlessIn("Healthy", res)
-            self.failIfIn("Not Healthy", res)
+            self.assertThat(res, Contains("Healthy"))
+            self.assertThat(res, Not(Contains("Not Healthy")))
         d.addCallback(_got_html_good)
 
         d.addCallback(self._count_leases, "one")
@@ -1111,7 +1115,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, self.fileurls["0shares"]))
         def _check_zero_shares(body):
             body = str(body, "utf-8")
-            self.failIfIn("<html>", body)
+            self.assertThat(body, Not(Contains("<html>")))
             body = " ".join(body.strip().split())
             exp = ("NoSharesError: no shares could be found. "
                    "Zero shares usually indicates a corrupt URI, or that "
@@ -1129,7 +1133,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, self.fileurls["1share"]))
         def _check_one_share(body):
             body = str(body, "utf-8")
-            self.failIfIn("<html>", body)
+            self.assertThat(body, Not(Contains("<html>")))
             body = " ".join(body.strip().split())
             msgbase = ("NotEnoughSharesError: This indicates that some "
                        "servers were unavailable, or that shares have been "
@@ -1154,17 +1158,16 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, self.fileurls["imaginary"]))
         def _missing_child(body):
             body = str(body, "utf-8")
-            self.failUnlessIn("No such child: imaginary", body)
+            self.assertThat(body, Contains("No such child: imaginary"))
         d.addCallback(_missing_child)
 
         d.addCallback(lambda ignored: self.GET_unicode(self.fileurls["dir-0share"]))
         def _check_0shares_dir_html(body):
-            self.failUnlessIn(DIR_HTML_TAG, body)
+            self.assertThat(body, Contains(DIR_HTML_TAG))
             # we should see the regular page, but without the child table or
             # the dirops forms
             body = " ".join(body.strip().split())
-            self.failUnlessIn('href="?t=info">More info on this directory',
-                              body)
+            self.assertThat(body, Contains('href="?t=info">More info on this directory'))
             exp = ("UnrecoverableFileError: the directory (or mutable file) "
                    "could not be retrieved, because there were insufficient "
                    "good shares. This might indicate that no servers were "
@@ -1172,8 +1175,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                    "was corrupt, or that shares have been lost due to server "
                    "departure, hard drive failure, or disk corruption. You "
                    "should perform a filecheck on this object to learn more.")
-            self.failUnlessIn(exp, body)
-            self.failUnlessIn("No upload forms: directory is unreadable", body)
+            self.assertThat(body, Contains(exp))
+            self.assertThat(body, Contains("No upload forms: directory is unreadable"))
         d.addCallback(_check_0shares_dir_html)
 
         d.addCallback(lambda ignored: self.GET_unicode(self.fileurls["dir-1share"]))
@@ -1182,10 +1185,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             # and some-shares like we did for immutable files (since there
             # are different sorts of advice to offer in each case). For now,
             # they present the same way.
-            self.failUnlessIn(DIR_HTML_TAG, body)
+            self.assertThat(body, Contains(DIR_HTML_TAG))
             body = " ".join(body.strip().split())
-            self.failUnlessIn('href="?t=info">More info on this directory',
-                              body)
+            self.assertThat(body, Contains('href="?t=info">More info on this directory'))
             exp = ("UnrecoverableFileError: the directory (or mutable file) "
                    "could not be retrieved, because there were insufficient "
                    "good shares. This might indicate that no servers were "
@@ -1193,8 +1195,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                    "was corrupt, or that shares have been lost due to server "
                    "departure, hard drive failure, or disk corruption. You "
                    "should perform a filecheck on this object to learn more.")
-            self.failUnlessIn(exp, body)
-            self.failUnlessIn("No upload forms: directory is unreadable", body)
+            self.assertThat(body, Contains(exp))
+            self.assertThat(body, Contains("No upload forms: directory is unreadable"))
         d.addCallback(_check_1shares_dir_html)
 
         d.addCallback(lambda ignored:
@@ -1204,7 +1206,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.fileurls["dir-0share-json"]))
         def _check_unrecoverable_file(body):
             body = str(body, "utf-8")
-            self.failIfIn("<html>", body)
+            self.assertThat(body, Not(Contains("<html>")))
             body = " ".join(body.strip().split())
             exp = ("UnrecoverableFileError: the directory (or mutable file) "
                    "could not be retrieved, because there were insufficient "
@@ -1213,7 +1215,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                    "was corrupt, or that shares have been lost due to server "
                    "departure, hard drive failure, or disk corruption. You "
                    "should perform a filecheck on this object to learn more.")
-            self.failUnlessIn(exp, body)
+            self.assertThat(body, Contains(exp))
         d.addCallback(_check_unrecoverable_file)
 
         d.addCallback(lambda ignored:
@@ -1245,7 +1247,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            headers={"accept": "*/*"}))
         def _internal_error_html1(body):
             body = str(body, "utf-8")
-            self.failUnlessIn("<html>", "expected HTML, not '%s'" % body)
+            self.assertThat("expected HTML, not '%s'" % body, Contains("<html>"))
         d.addCallback(_internal_error_html1)
 
         d.addCallback(lambda ignored:
@@ -1255,8 +1257,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            headers={"accept": "text/plain"}))
         def _internal_error_text2(body):
             body = str(body, "utf-8")
-            self.failIfIn("<html>", body)
+            self.assertThat(body, Not(Contains("<html>")))
             self.failUnless(body.startswith("Traceback "), body)
+
         d.addCallback(_internal_error_text2)
 
         CLI_accepts = "text/plain, application/octet-stream"
@@ -1267,7 +1270,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            headers={"accept": CLI_accepts}))
         def _internal_error_text3(body):
             body = str(body, "utf-8")
-            self.failIfIn("<html>", body)
+            self.assertThat(body, Not(Contains("<html>")))
             self.failUnless(body.startswith("Traceback "), body)
         d.addCallback(_internal_error_text3)
 
@@ -1276,12 +1279,12 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            500, "Internal Server Error", None,
                                            self.GET, "ERRORBOOM"))
         def _internal_error_html4(body):
-            self.failUnlessIn(b"<html>", body)
+            self.assertThat(body, Contains(b"<html>"))
         d.addCallback(_internal_error_html4)
 
         def _flush_errors(res):
             # Trial: please ignore the CompletelyUnhandledError in the logs
-            self.flushLoggedErrors(CompletelyUnhandledError)
+            flush_logged_errors(CompletelyUnhandledError)
             return res
         d.addBoth(_flush_errors)
 
@@ -1312,8 +1315,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_stash_dir)
         d.addCallback(lambda ign: self.GET_unicode(self.dir_url, followRedirect=True))
         def _check_dir_html(body):
-            self.failUnlessIn(DIR_HTML_TAG, body)
-            self.failUnlessIn("blacklisted.txt</a>", body)
+            self.assertThat(body, Contains(DIR_HTML_TAG))
+            self.assertThat(body, Contains("blacklisted.txt</a>"))
         d.addCallback(_check_dir_html)
         d.addCallback(lambda ign: self.GET(self.url))
         d.addCallback(lambda body: self.failUnlessEqual(DATA, body))
@@ -1336,8 +1339,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         # We should still be able to list the parent directory, in HTML...
         d.addCallback(lambda ign: self.GET_unicode(self.dir_url, followRedirect=True))
         def _check_dir_html2(body):
-            self.failUnlessIn(DIR_HTML_TAG, body)
-            self.failUnlessIn("blacklisted.txt</strike>", body)
+            self.assertThat(body, Contains(DIR_HTML_TAG))
+            self.assertThat(body, Contains("blacklisted.txt</strike>"))
         d.addCallback(_check_dir_html2)
 
         # ... and in JSON (used by CLI).
@@ -1347,8 +1350,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnless(isinstance(data, list), data)
             self.failUnlessEqual(data[0], "dirnode")
             self.failUnless(isinstance(data[1], dict), data)
-            self.failUnlessIn("children", data[1])
-            self.failUnlessIn("blacklisted.txt", data[1]["children"])
+            self.assertThat(data[1], Contains("children"))
+            self.assertThat(data[1]["children"], Contains("blacklisted.txt"))
             childdata = data[1]["children"]["blacklisted.txt"]
             self.failUnless(isinstance(childdata, list), data)
             self.failUnlessEqual(childdata[0], "filenode")
@@ -1387,7 +1390,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.child_url = b"uri/"+dn.get_readonly_uri()+b"/child"
         d.addCallback(_get_dircap)
         d.addCallback(lambda ign: self.GET(self.dir_url_base, followRedirect=True))
-        d.addCallback(lambda body: self.failUnlessIn(DIR_HTML_TAG, str(body, "utf-8")))
+        d.addCallback(lambda body: self.assertThat(str(body, "utf-8"), Contains(DIR_HTML_TAG)))
         d.addCallback(lambda ign: self.GET(self.dir_url_json1))
         d.addCallback(lambda res: json.loads(res))  # just check it decodes
         d.addCallback(lambda ign: self.GET(self.dir_url_json2))
