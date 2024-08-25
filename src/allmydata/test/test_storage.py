@@ -5,7 +5,7 @@ Ported to Python 3.
 """
 
 from __future__ import annotations
-from future.utils import native_str, bytes_to_native_str, bchr
+from future.utils import bchr
 from six import ensure_str
 
 from io import (
@@ -109,7 +109,7 @@ class UtilTests(SyncTestCase):
         path = storage_index_to_dir(s)
         parts = os.path.split(path)
         self.assertThat(parts[0], Equals(parts[1][:2]))
-        self.assertThat(path, IsInstance(native_str))
+        self.assertThat(path, IsInstance(str))
 
     def test_get_share_file_mutable(self):
         """A mutable share is identified by get_share_file()."""
@@ -1242,7 +1242,7 @@ class Server(AsyncTestCase):
 
         reports = os.listdir(reportdir)
         self.assertThat(reports, HasLength(2))
-        report_si1 = [r for r in reports if bytes_to_native_str(si1_s) in r][0]
+        report_si1 = [r for r in reports if si1_s.decode() in r][0]
         f = open(os.path.join(reportdir, report_si1), "rb")
         report = f.read()
         f.close()
@@ -1809,10 +1809,10 @@ class MutableServer(SyncTestCase):
         self.assertThat(readv(b"si1", [], [(0,10)]),
                              Equals({}))
         # and the bucket directory should now be gone
-        si = base32.b2a(b"si1")
+        si = base32.b2a(b"si1").decode()
         # note: this is a detail of the storage server implementation, and
         # may change in the future
-        si = bytes_to_native_str(si)  # filesystem paths are native strings
+        # filesystem paths are native strings
         prefix = si[:2]
         prefixdir = os.path.join(self.workdir("test_remove"), "shares", prefix)
         bucketdir = os.path.join(prefixdir, si)

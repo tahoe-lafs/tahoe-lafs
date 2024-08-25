@@ -4,9 +4,6 @@ Tests for allmydata.util.log.
 Ported to Python 3.
 """
 
-
-from future.utils import native_str
-
 from twisted.trial import unittest
 from twisted.python.failure import Failure
 
@@ -161,4 +158,4 @@ class Log(unittest.TestCase):
         obj.log(**{"my": "message"})
         for message in self.messages:
             for k in message[-1].keys():
-                self.assertIsInstance(k, native_str)
+                self.assertIsInstance(k, str)
