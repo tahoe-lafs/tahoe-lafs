@@ -2,8 +2,6 @@
 Utilities for getting IP addresses.
 """
 
-from future.utils import native_str
-
 from typing import Callable
 
 import os, socket
@@ -104,7 +102,7 @@ def get_local_addresses_sync():
         on the local system.
     """
     return list(
-        native_str(address["addr"])
+        str(address["addr"])
         for iface_name
         in interfaces()
         for address
