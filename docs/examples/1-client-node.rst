@@ -2,12 +2,22 @@
 Step 2, a client node
 ======================
 
-To interact with tahoe-lafs services, you need a client. Create a simple client configuration::
+.. note:: Estimated time is 15 minutes
 
-    $ tahoe --node-directory=client0 create-client \
-    --nickname=client0
+
+To interact with tahoe-lafs services, you need a client.
 
 .. note:: Ignore the response ``Please add introducers ... The node cannot connect to a grid without it.``
+
+Create a simple client configuration::
+
+    $ tahoe --node-directory=client0 create-client \
+    --shares-happy=1 \
+    --shares-needed=1 \
+    --shares-total=1 \
+    --nickname=client0
+
+.. info:: These options are explained in `Client Configuration`_ .
 
 
 Point the client to the server
