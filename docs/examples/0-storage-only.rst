@@ -3,22 +3,23 @@ Step 1, create the simplest node
 
 .. note:: Estimated time is 5 minutes
 
-1. Create a simple node to serve as storage server ::
+1. Create a simple node to serve as storage server:
+
+.. code-block::
 
     $ tahoe --node-directory=./storage0 create-node \
      --hostname=localhost \
      --nickname=storage0 \
      --webport=none
 
-
 .. note:: Ignore the response ``Please add introducers ... The node cannot connect to a grid without it.``
 
 Start the node process
 ----------------------
 
-Now, in the  terminal session called ``storage_console``::
+Now, in the terminal session you created earlier and called ``storage_console``::
 
-    $ cd storage0 && tahoe run ./
+    $ tahoe run storage0
 
 At the end of the console listing, you should see something similar to::
 

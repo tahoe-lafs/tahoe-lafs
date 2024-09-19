@@ -21,14 +21,14 @@ Update the new venv and install tahoe-lafs::
     pip install -U pip setuptools wheel && \
     pip install attrs==23.2.0 cryptography==42.0.8 tahoe-lafs
 
+.. note:: Use multiple terminal sessions for each of the various consoles you will eventually start. Most IDE's support independent terminals.
 
 ``tmux`` is your friend
 -----------------------
 
-Since you will be running several processes, it helps to have multiple terminal windows.
+Most Tahoe operators are running Linux in terminal sessions. Using ``tmux`` will make life easier because you will be running several processes, it helps to have multiple terminal windows.
 A Linux terminal user would create several sessions like this::
 
     $ tmux new -s storage_console
     $ tmux new -s client_console
 
-Most IDEs also support the ability to have several terminal sessions.

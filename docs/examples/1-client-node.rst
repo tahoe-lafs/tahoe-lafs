@@ -5,7 +5,7 @@ Step 2, a client node
 .. note:: Estimated time is 15 minutes
 
 
-To interact with tahoe-lafs services, you need a client.
+To interact with tahoe-lafs services, you need to creat and start a client.
 
 .. note:: Ignore the response ``Please add introducers ... The node cannot connect to a grid without it.``
 
@@ -18,6 +18,19 @@ Create a simple client configuration::
     --nickname=client0
 
 .. info:: These options are explained in `Client Configuration`_ .
+
+You will see the console output end with something like:
+
+.. code-block::console
+
+    2024-09-19T13:31:13-0400 [foolscap.pb.Listener#info] Starting factory <Listener at 0x10f1624e0 on CleanupEndpoint(_wrapped=<twisted.internet.endpoints.AdoptedStreamServerEndpoint object at 0x10f161ca0>, _fd=10, _listened=True) with tub x2hgwovdakx3kdelyetg3duzh4chyt22>
+    2024-09-19T13:31:13-0400 [-] client running
+
+
+Start the client
+================
+
+``tahoe run client0``
 
 
 Point the client to the server
@@ -57,8 +70,8 @@ In the console output, you will notice that the client runs two network connecti
     - A web app using a REST API on TCP port 3456
     - A protobuf style client using Foolscap on TCP port 57635
 
-Verify the the client
-=====================
+Verify the HTML client
+=================== ===
 
 Open the client's web UI at http://localhost:3456
 
