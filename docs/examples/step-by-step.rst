@@ -9,6 +9,9 @@ This series is for newcomers to Tahoe-lafs who want to get familiar with the pie
 
 .. note:: The complete series takes about 1 hour
 
+
+.. _install tahoe client::
+
 Before you begin
 ================
 
@@ -19,7 +22,7 @@ Create and activate a local venv for tahoe::
 Update the new venv and install tahoe-lafs::
 
     pip install -U pip setuptools wheel && \
-    pip install attrs==23.2.0 cryptography==42.0.8 tahoe-lafs
+    pip install attrs==23.2.0 'cryptography<42' tahoe-lafs
 
 .. note:: Use multiple terminal sessions for each of the various consoles you will eventually start. Most IDE's support independent terminals.
 
