@@ -27,14 +27,11 @@ You will see the console output end with something like:
     2024-09-19T13:31:13-0400 [-] client running
 
 
-Start the client
-================
+Prepare the client
+===================
 
-``tahoe run client0``
-
-
-Point the client to the server
-------------------------------
+Point the client to the storage node
+------------------------------------
 
 For now, we will tell the client how to find server, using a static configuration setting.
 Create a ``./client0/private/servers.yaml`` file in the client configuration directory::
@@ -61,7 +58,7 @@ Start the client process
 
 In the console window called ``client_node``::
 
-    $ cd client0 && tahoe run ./
+    $ tahoe run client0/
 
 The console output should include something like:
 ``2024-09-10T13:25:33-0700 [-] TahoeLAFSSite starting on 3456`` and end with ``- client running``
