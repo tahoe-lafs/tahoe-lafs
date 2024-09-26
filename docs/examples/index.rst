@@ -14,10 +14,21 @@ If you are new to Tahoe, these docs will give you a concrete experience operatin
 
 .. toctree::
     :titlesonly:
-    :caption: Tahoe Operator tutorials
+    :caption: The step-by-step guide to operating Tahoe
+
+    step-by-step
+    0-storage-node
+    1-client-node
+    2-availability
+    3-capabilities
+    4-scaling
 
     The step-by-step guide to operating Tahoe <step-by-step>
 
+
+
+Examples
+========
 
 .. toctree::
     :titlesonly:
