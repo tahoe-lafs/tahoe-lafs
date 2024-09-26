@@ -411,7 +411,7 @@ class DownloadNode(object):
 
     def process_blocks(self, segnum, blocks):
         start = now()
-        d = defer.maybeDeferred(self._decode_blocks, segnum, blocks)
+        d = self._decode_blocks(segnum, blocks)
         d.addCallback(self._check_ciphertext_hash, segnum)
         def _deliver(result):
             log.msg(format="delivering segment(%(segnum)d)",

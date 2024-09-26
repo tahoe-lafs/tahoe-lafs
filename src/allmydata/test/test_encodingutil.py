@@ -343,8 +343,7 @@ class FilePaths(ReallyEqualMixin, unittest.TestCase):
 
         for fp in (nosep_fp, sep_fp):
             self.failUnlessReallyEqual(fp, FilePath(foo_u))
-            if encodingutil.use_unicode_filepath:
-                self.failUnlessReallyEqual(fp.path, foo_u)
+            self.failUnlessReallyEqual(fp.path, foo_u)
 
         if sys.platform == "win32":
             long_u = u'\\\\?\\C:\\foo'
@@ -360,8 +359,7 @@ class FilePaths(ReallyEqualMixin, unittest.TestCase):
         for foo_fp in (foo_bfp, foo_ufp):
             fp = extend_filepath(foo_fp, [u'bar', u'baz'])
             self.failUnlessReallyEqual(fp, FilePath(foo_bar_baz_u))
-            if encodingutil.use_unicode_filepath:
-                self.failUnlessReallyEqual(fp.path, foo_bar_baz_u)
+            self.failUnlessReallyEqual(fp.path, foo_bar_baz_u)
 
     def test_unicode_from_filepath(self):
         foo_bfp = FilePath(win32_other(b'C:\\foo', b'/foo'))

@@ -173,12 +173,35 @@ Open Collective
 ---------------
 
 In August 2023, we started working with Open Collective to fund a
-grant covering development work performed over the last year.
+grant covering development work performed over the last year, and
+onwards into 2024.
 
 * Recipient: Open Collective (US)
-* Address: 1KZYr8UU2XjuEdSPzn2pF8eRPZZvffByDf
 
-The first phase transferred 7.5 BTC (about $260K).
+  * Transfer Address: 1KZYr8UU2XjuEdSPzn2pF8eRPZZvffByDf
 
-* (txid)
-  (amount)
+The first phase transferred 7.5 BTC (about $250K).
+
+* 25-26-oct-2023: ~7.5 BTC ($250k)
+  * transfer address: 1KZYr8UU2XjuEdSPzn2pF8eRPZZvffByDf
+  * xfer 0.1 BTC: txid 9bfe10e3f240724d0d15bcd6405f4e568b5f1fb1dc2069d0ecf20df22d6ee502
+  * xfer 7.39994304 BTC: txid 882dca0e1acc2e203b2ecfbb20d70dc2018840bed7f4ad4e1b8c629d2b3f1136
+  * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
+  * send 0.01 BTC txid 24ca9a87e8022802ccae2db1310636973d2caf0e3f46892490cb896d03f2e795
+  * send 7.48969257 BTC txid a83ff318a1d56b8f95c10d1740fbd1fd1065958d4e1c83ef39a8ec9e50f08ddf
+* 06-jan-2024: 5.0 BTC ($224k)
+  * transfer address: 1KZYr8UU2XjuEdSPzn2pF8eRPZZvffByDf
+  * xfer 5.0 BTC: txid 6f0af3fe6eeaf51d9054a7f666c90898aaa7b203deb2cbf89164fca0517953c0
+  * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
+  * send 0.01 BTC: txid 20e4afdf6eec1dad8968164eed187de1e840a5064c09f03bbded48fee24deb71
+  * send 4.989379 BTC: txid 0f210c9ae279d912482cc3cbcd40df53fd4fe7644ba8d25fbb3e42de5140ad15
+* 25-apr-2024: 5.0 BTC ($316k) (current price: $64,385.24)
+  * transfer address: 1KZYr8UU2XjuEdSPzn2pF8eRPZZvffByDf
+  * xfer 5.0 BTC: txid 01a4c2cb18b95025ac8074aa1ccd46ec1f3783d5d9b15ef5bb0d57a59fe09e5b , block 840,915
+  * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
+  * send 4.9999487 BTC: txid a840f2c14a9acc2d2d3ecd35dff69a0d1904151825262a52dd397a22487e9ec8
+* 21-aug-2024: 6.0 BTC ($350k) (current price: $59,308)
+  * transfer address: 1KZYr8UU2XjuEdSPzn2pF8eRPZZvffByDf
+  * xfer 6.0 BTC: txid 766fa17b43ab0d2a0c3d2839a59e9887abf3026d44ccecee42a348fb2cc05474, block 857,777
+  * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
+  * send 5.999943 BTC: txid b44c8d4dbbfcef6eee2681700ccb8e3c6d7d56b3796ce8813848d2c91022d7a4, block 857,788

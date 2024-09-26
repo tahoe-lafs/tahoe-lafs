@@ -17,3 +17,4 @@ the data formats used by Tahoe.
    lease
    servers-of-happiness
    backends/raic
+   http-storage-node-protocol
