@@ -1,6 +1,6 @@
 
-Tahoe-LAFS
-==========
+The Next Gen Docs for Tahoe-LAFS
+================================
 
 .. Please view a nicely formatted version of this documentation at
    http://tahoe-lafs.readthedocs.io/en/latest/
