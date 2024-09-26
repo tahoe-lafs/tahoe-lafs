@@ -1,6 +1,6 @@
 =================================
 Private sharing with Magic Folder
-================================
+=================================
 
 Summary
 
@@ -28,7 +28,7 @@ Prepare the storage node
 
 Needs to be internet accessible because it will be accessed by several services running on other machines.
 
- install tahoe-lafs using the :ref:`install tahoe client` process.
+ install tahoe-lafs using the :ref:`install tahoe client`_ process.
 
 .. code-block::
     # configure the storage node...

@@ -1,6 +1,6 @@
-
-Step 2, a client node
-======================
+=====================
+Create a client node
+=====================
 
 .. note:: Estimated time is 15 minutes
 
@@ -68,7 +68,7 @@ In the console output, you will notice that the client runs two network connecti
     - A protobuf style client using Foolscap on TCP port 57635
 
 Verify the HTML client
-=================== ===
+======================
 
 Open the client's web UI at http://localhost:3456
 

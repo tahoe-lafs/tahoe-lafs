@@ -7,14 +7,14 @@ Availability
 
 .. Once done, we'll add the time estimate .. note:: Estimated time is 35 minutes
 
-Now we want to see how Tahoe provides :term:`availability`. So we will add storage nodes, upload files and see what happens in a failure scenario.
+Now we want to see how Tahoe provides availability in the event of a storage failure. So we will add storage nodes, upload files and see what happens in a failure scenario.
 
 
 .. consider using conrete concrete names like desktop storage, laptop, etc.
 
 
-Summary
-=======
+See how Tahoe handles failures
+==============================
 
 
     - Upload ``image0`` to ``storage00``
@@ -25,7 +25,7 @@ Summary
     - Download the ``image0`` = fail
     - Download the ``image1``= success
 
-.. note:: Details about :ref:`Reliability`
+.. note:: Learn more about failure scenarios in the section about Reliability under architecture.
 
 Upload a file to Tahoe
 ======================
@@ -118,6 +118,7 @@ A node goes offline
 Check with CLI
 ---------------
 
+tahoe status ...
 
 Download the second file
 =========================

@@ -35,3 +35,13 @@ A Linux terminal user would create several sessions like this::
     $ tmux new -s storage_console
     $ tmux new -s client_console
 
+
+.. toctree::
+    :titlesonly:
+    :caption: Step-by Step Guide to operating a Tahoe deployment
+
+    0-storage-node
+    1-client-node
+    2-availability
+    3-capabilities
+    4-scaling

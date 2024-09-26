@@ -20,6 +20,10 @@ Glossary of Tahoe terms
     fURL
         A Foolscap URL. A Foolscap connection setup takes as an input.
 
+    grid
+    storage grid
+        A collection of storage nodes working in concert. A Tahoe client may access a grid via an introducer or via static settings.
+
     helper
         The “Helper” is a service that can mitigate the expansion penalty by arranging for the client node to send data to a central Helper node instead of sending it directly to the storage servers. :doc:`Helper Overview </helper>`
 
