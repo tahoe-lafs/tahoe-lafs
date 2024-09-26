@@ -10,6 +10,9 @@ Glossary of Tahoe terms
     cap
     capability
         dircap, filecap, write cap, read cap, verify cap; all these refer to a capability or privilege associated with a key.
+        The word "Capability" comes from "Object Capability" or OCap theory, in the manner of `the E language <http://erights.org/elib/capability/ode/ode-capabilities.html>`_.
+        In the context of Tahoe-LAFS these capability objects are somewhat short strings of data giving the holder necessary and sufficient secret information to carry out the operation and turn the capability into a less-capable one.
+        For example, a "verify cap" gives only enough information to confirm the ciphertext is available (but not to decode or read it); a "read cap" can decode and read the data (but not modify it) and can be turned into a "verify cap".
 
     client
         Be aware that the term "client" is ambiguously used as a "client (to gateway) program" and as a gateway node. It generally refers to the network process for a data or control plane.
