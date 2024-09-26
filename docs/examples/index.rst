@@ -1,39 +1,27 @@
-============================
-Tahoe by Example(s)
-============================
+=========================
+The Tahoe Operator Guide
+=========================
 
+About this guide
+================
+
+If you are new to Tahoe, these docs will give you a concrete experience operating Tahoe. Each section provides excercises, expanding on the previous examples, so that you can:
+    * build a working Tahoe-lafs deployment
+    * practice using the CLI
+    * understand the purpose, capabilities and limitations of each feature.
 
 .. toctree::
-    :glob:
+    :titlesonly:
+    :caption: Tahoe Operator tutorials
 
     The step-by-step guide to operating Tahoe <step-by-step>
-    Personal storage with Tahoe <8*>
-    Tahoe as a backup server <9*>
 
-
-
-Step-by-step
-============
 
 .. toctree::
-    :glob:
+    :titlesonly:
+    :caption: Tahoe Scenarios by Example
 
-    <1*>
-    <2*>
-    <3*>
-    <4*>
+    Example: Private Sharing & Sync of Files <7-magicfolder>
+    Example: User control of private data <8-app-storage>
+    Example: Tahoe as a backup server <9-backup>
 
-
-
-
-FAQ
-===
-
-Questions as we move through the process
-
-    - WTF is the ``.tac`` file?
-        A twisted config file.
-
-    - Can I skip the CLI to "create-node", if I create files manually?
-
-    - Do we need a separate ``quickstart`` instead?

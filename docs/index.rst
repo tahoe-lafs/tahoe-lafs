@@ -21,6 +21,7 @@ preserving your privacy and security.
    about-tahoe
 
    Installation/install-tahoe
+   examples/index
 
    running
    configuration

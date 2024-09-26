@@ -1,5 +1,6 @@
-Step 1, create the simplest node
-=================================
+============================
+Create a simple storage node
+============================
 
 .. note:: Estimated time is 5 minutes
 
