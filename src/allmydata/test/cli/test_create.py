@@ -241,6 +241,13 @@ class Config(unittest.TestCase):
         self.assertFalse(cfg.has_section("connections"))
 
     @defer.inlineCallbacks
+    def test_storage_dir(self):
+        basedir = self.mktemp()
+        rc, out, err = yield run_cli("create-node", "--storage-dir", "/tmp/storage", "--hostname=foo", basedir)
+        cfg = read_config(basedir)
+        self.assertEqual(cfg.get("storage", "storage_dir"), "/tmp/storage")
+
+    @defer.inlineCallbacks
     def test_node_hide_ip(self):
         basedir = self.mktemp()
         rc, out, err = yield run_cli("create-node", "--hide-ip",
