@@ -9,8 +9,6 @@ Glossary of Tahoe terms
 
     cap
     capability
-        dircap, filecap, write cap, read cap, verify cap; all these refer to a capability or privilege associated with a key.
-        The word "Capability" comes from "Object Capability" or OCap theory, in the manner of `the E language <http://erights.org/elib/capability/ode/ode-capabilities.html>`_.
         In the context of Tahoe-LAFS these capability objects are somewhat short strings of data giving the holder necessary and sufficient secret information to carry out the operation and turn the capability into a less-capable one.
         For example, a "verify cap" gives only enough information to confirm the ciphertext is available (but not to decode or read it); a "read cap" can decode and read the data (but not modify it) and can be turned into a "verify cap".
 
@@ -22,6 +20,9 @@ Glossary of Tahoe terms
 
     fURL
         A Foolscap URL. A Foolscap connection setup takes as an input.
+
+    grid
+        A collection of storage nodes represented as a single "pool".
 
     helper
         The “Helper” is a service that can mitigate the expansion penalty by arranging for the client node to send data to a central Helper node instead of sending it directly to the storage servers. :doc:`Helper Overview </helper>`
@@ -39,16 +40,13 @@ Glossary of Tahoe terms
         Refers to a subset of Tahoe URI permitting view, but not modification.  Directories, for example, have a read-cap which is derived from the write-cap: anyone with read/write access to the directory can produce a limited URI that grants read-only access, but not the other way around.
 
     share
-        A share is a piece of a file that is stored on a server. The complete file is encrypted and then encoded into blocks. An instance of those blocks is called a "share". (Eventually we need a whole section on out data structures.)
-
-    stats gatherer
-        Each Tahoe node collects and publishes statistics about its operations as it runs. These include counters of how many files have been uploaded and downloaded, CPU usage information, performance numbers like latency of storage server operations, and available disk space.
+        A share is a piece of a file that is stored on a server. The complete file is encrypted and then encoded into blocks. An instance of those blocks is called a "share". :doc:`specifications/file-encoding`
 
     storage
-        Persistence of {client,server,protocol}.
+        The media device that provides the persistence. It can also refer to the endpoint of the process listening for requests from a client or introducer.
 
     Tahoe URI
-        Each file and directory in a Tahoe-LAFS file store is described by a “URI”. There are different kinds of URIs for different kinds of objects, and there are different kinds of URIs to provide different kinds of access to those objects.
+        Each file and directory in a Tahoe-LAFS file store is described by a “URI”. This string must be treated as a secret because it will provide access to the content in the clear. There are different kinds of URIs for different kinds of objects, and there are different kinds of URIs to provide different kinds of access to those objects.
 
     Zooko's Triangle
        `Wikipedia <https://en.wikipedia.org/wiki/Zooko%27s_triangle>`_ defines it as "a trilemma which defines three traits of a network protocol identifier as Human-meaningful, Decentralized and Secure."
