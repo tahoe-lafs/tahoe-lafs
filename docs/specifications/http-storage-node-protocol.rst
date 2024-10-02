@@ -18,21 +18,8 @@ Glossary
 
 .. glossary::
 
-   `Foolscap <https://github.com/warner/foolscap/>`_
-     an RPC/RMI (Remote Procedure Call / Remote Method Invocation) protocol for use with Twisted
-
-   storage server
-     a Tahoe-LAFS process configured to offer storage and reachable over the network for store and retrieve operations
-
    storage service
      a Python object held in memory in the storage server which provides the implementation of the storage protocol
-
-   introducer
-     a Tahoe-LAFS process at a known location configured to re-publish announcements about the location of storage servers
-
-   :ref:`fURLs <fURLs>`
-     a self-authenticating URL-like string which can be used to locate a remote object using the Foolscap protocol
-     (the storage service is an example of such an object)
 
    :ref:`NURLs <NURLs>`
      a self-authenticating URL-like string almost exactly like a fURL but without being tied to Foolscap
@@ -42,10 +29,6 @@ Glossary
 
    lease
      state associated with a share informing a storage server of the duration of storage desired by a client
-
-   share
-     a single unit of client-provided arbitrary data to be stored by a storage server
-     (in practice, one of the outputs of applying ZFEC encoding to some ciphertext with some additional metadata attached)
 
    bucket
      a group of one or more immutable shares held by a storage server and having a common storage index
