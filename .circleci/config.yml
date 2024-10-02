@@ -730,7 +730,7 @@ executors:
     # requirements and goals.
     # https://circleci.com/developer/orbs/orb/circleci/windows#executors-server-2022
     machine:
-      image: "windows-server-2022-gui:2023.06.1"
+      image: "windows-server-2022-gui:current"
       shell: "powershell.exe -ExecutionPolicy Bypass"
     resource_class: "windows.large"
 
