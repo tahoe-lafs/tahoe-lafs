@@ -31,6 +31,7 @@ preserving your privacy and security.
    magic-wormhole-invites
    anonymity-configuration
    known_issues
+   glossary
 
 .. toctree::
    :maxdepth: 1
