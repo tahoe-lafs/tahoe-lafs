@@ -56,18 +56,52 @@ def block_with_timeout(deferred, reactor, timeout=120):
     deferred.addTimeout(timeout, reactor)
     return pytest_twisted.blockon(deferred)
 
+def dump_python_output(reactor, argv: list[str], path: str) -> Deferred[object]:
+    """
+    Run a Python process and let it write to our stdout.
+
+    :return: A Deferred that fires when the process has ended.
+    """
+    return dump_output(
+        reactor,
+        executable=sys.executable,
+        argv=["python"] + argv,
+        path=path,
+        env=environ,
+    )
+
+def dump_output(reactor, executable: str, argv: list[str], path: str, env: dict[str, str]) -> Deferred[object]:
+    """
+    Run a process and let it write to our stdout.
+
+    :return: A Deferred that fires when the process has ended.
+    """
+    print(f"Spawning: {argv}")
+    proto = _DumpOutputProtocol(None)
+    reactor.spawnProcess(
+        proto,
+        executable,
+        argv,
+        path=path,
+        env=env,
+    )
+    return proto.done
+
 
 class _ProcessExitedProtocol(ProcessProtocol):
     """
-    Internal helper that .callback()s on self.done when the process
-    exits (for any reason).
+    Internal helper that fires ``self.done`` when the process exits (for
+    any reason).
     """
 
     def __init__(self):
         self.done = Deferred()
 
     def processEnded(self, reason):
-        self.done.callback(None)
+        if reason.check(ProcessDone):
+            self.done.callback(None)
+        else:
+            self.done.errback(reason)
 
 
 class ProcessFailed(Exception):
@@ -245,6 +279,7 @@ def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
     else:
         args = [sys.executable, '-b', '-m', 'allmydata.scripts.runner']
     args += other_args
+    print(f"Spawning: {args}")
     return reactor.spawnProcess(
         proto,
         sys.executable,
