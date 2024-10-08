@@ -552,13 +552,13 @@ jobs:
       - <<: *DOCKERHUB_AUTH
         image: "tahoelafsci/oraclelinux:8-py3.8"
         user: "nobody"
-      # XXX FIXME: test_verify_one_bad_encprivkey -- maybe real, but very complex test
-      # (why only on circle-ci?)
-      ALLOWED_FAILURE: "yes"
 
     environment:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py38"
+      # XXX FIXME: test_verify_one_bad_encprivkey -- maybe real, but very complex test
+      # (why only on circle-ci?)
+      ALLOWED_FAILURE: "yes"
 
     # pip cannot install packages if the working directory is not readable.
     # We want to run a lot of steps as nobody instead of as root.
