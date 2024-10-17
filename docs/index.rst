@@ -32,6 +32,8 @@ preserving your privacy and security.
    anonymity-configuration
    known_issues
 
+   glossary
+
 .. toctree::
    :maxdepth: 1
    :caption: Tahoe-LAFS in Depth
