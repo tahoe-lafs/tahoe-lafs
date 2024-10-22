@@ -179,11 +179,6 @@ jobs:
             Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$p;$q;`$env:PATH`""
 
       - "run":
-          name: "Display tool versions"
-          command: |
-            python misc/build_helpers/show-tool-versions.py
-
-      - "run":
           # It's faster to install a wheel than a source package.  If we don't
           # have a cached wheelhouse then build all of the wheels and dump
           # them into a directory where they can become a cached wheelhouse.
@@ -209,6 +204,11 @@ jobs:
             PIP_NO_INDEX: "1"
           command: |
             python -m pip install .[testenv] .[test]
+
+      - "run":
+          name: "Display tool versions"
+          command: |
+            python misc/build_helpers/show-tool-versions.py
 
       - "run":
           name: "Run Unit Tests"
