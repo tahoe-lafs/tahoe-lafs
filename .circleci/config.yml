@@ -191,7 +191,7 @@ jobs:
           # doesn't cost us anything extra and saves us effort next time.
           name: "(Maybe) Build Wheels"
           command: |
-              make make-version # Cheat so we win the race to write the version string into _version.py
+              python setup.py update_version # Cheat so we win the race to write the version string into _version.py
               python -m pip install wheel
               python -m pip wheel --wheel-dir $env:PIP_FIND_LINKS .[testenv] .[test]
 
