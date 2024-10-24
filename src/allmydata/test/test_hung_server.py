@@ -300,16 +300,16 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
     # mutable-file downloader does not yet handle hung servers, and the tests
     # hang forever (hence the use of SkipTest rather than .todo)
 
-    @unittest.skip("still broken")
     def test_3_good_7_hung_mutable(self):
+        raise unittest.SkipTest("still broken")
         d = defer.succeed(None)
         d.addCallback(lambda ign: self._set_up(True, "test_3_good_7_hung"))
         d.addCallback(lambda ign: self._hang(self.servers[3:]))
         d.addCallback(lambda ign: self._download_and_check())
         return d
 
-    @unittest.skip("still broken")
     def test_2_good_8_hung_then_1_recovers_mutable(self):
+        raise unittest.SkipTest("still broken")
         d = defer.succeed(None)
         d.addCallback(lambda ign: self._set_up(True, "test_2_good_8_hung_then_1_recovers"))
         d.addCallback(lambda ign: self._hang(self.servers[2:3]))
@@ -318,8 +318,8 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         d.addCallback(lambda ign: self._download_and_check())
         return d
 
-    @unittest.skip("still broken")
     def test_2_good_8_hung_then_1_recovers_with_2_shares_mutable(self):
+        raise unittest.SkipTest("still broken")
         d = defer.succeed(None)
         d.addCallback(lambda ign: self._set_up(True, "test_2_good_8_hung_then_1_recovers_with_2_shares"))
         d.addCallback(lambda ign: self._copy_all_shares_from(self.servers[0:1], self.servers[2]))
