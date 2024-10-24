@@ -78,6 +78,16 @@ workflows:
   ci:
     when: "<< pipeline.parameters.run-tests >>"
     jobs:
+      # Start with jobs testing various platforms.
+      - "nixos":
+          name: "<<matrix.pythonVersion>>"
+          nixpkgs: "nixpkgs-unstable"
+          matrix:
+            parameters:
+              pythonVersion:
+                - "python39"
+                - "python310"
+                - "python311"
 
   images:
     <<: *IMAGES
@@ -100,165 +110,106 @@ jobs:
             pip install coveralls==3.3.1
             python -m coveralls --finish
 
-  windows-server-2022:
+  nixos:
     parameters:
+      nixpkgs:
+        description: >-
+          Reference the name of a flake-managed nixpkgs input (see `nix flake
+          metadata` and flake.nix)
+        type: "string"
       pythonVersion:
         description: >-
-          An argument to pass to the `py` launcher to choose a Python version.
+          Reference the name of a Python package in nixpkgs to use.
         type: "string"
-        default: ""
 
-    executor: "windows"
-    environment:
-      # Tweak Hypothesis to make its behavior more suitable for the CI
-      # environment.  This should improve reproducibility and lessen the
-      # effects of variable compute resources.
-      TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
-
-      # Tell pip where its download cache lives.  This must agree with the
-      # "save_cache" step below or caching won't really work right.
-      PIP_CACHE_DIR: "pip-cache"
-
-      # And tell pip where it can find out cached wheelhouse for fast wheel
-      # installation, even for projects that don't distribute wheels.  This
-      # must also agree with the "save_cache" step below.
-      PIP_FIND_LINKS: "wheelhouse"
+    executor: "nix"
 
     steps:
-      - "checkout"
+      - "nix-build":
+          nixpkgs: "<<parameters.nixpkgs>>"
+          pythonVersion: "<<parameters.pythonVersion>>"
+          buildSteps:
+            - "run":                                                                                                                                                           -                name: "Unit Test"                                                                                                                                              -                command: |                                                                                                                                                     -                  source .circleci/lib.sh
 
-      # If possible, restore a pip download cache to save us from having to
-      # download all our Python dependencies from PyPI.
-      - "restore_cache":
-          keys:
-            # The download cache and/or the wheelhouse may contain Python
-            # version-specific binary packages so include the Python version
-            # in this key, as well as the canonical source of our
-            # dependencies.
-            - &CACHE_KEY "pip-packages-v1-<< parameters.pythonVersion >>-{{ checksum \"setup.py\" }}"
+                  # Translate the nixpkgs selection into a flake reference we
+                  # can use to override the default nixpkgs input.
+                  NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
 
-      - "run":
-          name: "Fix $env:PATH"
-          command: |
-            # The Python this job is parameterized is not necessarily the one
-            # at the front of $env:PATH.  Modify $env:PATH so that it is so we
-            # can just say "python" in the rest of the steps.  Also get the
-            # related Scripts directory so tools from packages we install are
-            # also available.
-            $p = py -<<parameters.pythonVersion>> -c "import sys; print(sys.prefix)"
-            $q = py -<<parameters.pythonVersion>> -c "import sysconfig; print(sysconfig.get_path('scripts'))"
-
-            New-Item $Profile.CurrentUserAllHosts -Force
-            # $p gets "python" on PATH and $q gets tools from packages we
-            # install.  Note we carefully construct the string so that
-            # $env:PATH is not substituted now but $p and $q are.  ` is the
-            # PowerShell string escape character.
-            Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$p;$q;`$env:PATH`""
-
-      - "run":
-          # It's faster to install a wheel than a source package.  If we don't
-          # have a cached wheelhouse then build all of the wheels and dump
-          # them into a directory where they can become a cached wheelhouse.
-          # We would have built these wheels during installation anyway so it
-          # doesn't cost us anything extra and saves us effort next time.
-          name: "(Maybe) Build Wheels"
-          command: |
-              python -m pip install wheel setuptools
-              python setup.py update_version # Cheat so we win the race to write the version string into _version.py
-              python -m pip wheel --wheel-dir $env:PIP_FIND_LINKS .[testenv] .[test]
-
-      - "save_cache":
-          paths:
-            # Make sure this agrees with PIP_CACHE_DIR in the environment.
-            - "pip-cache"
-            - "wheelhouse"
-          key: *CACHE_KEY
-
-      - "run":
-          name: "Install Dependencies"
-          environment:
-            # By this point we should no longer need an index.
-            PIP_NO_INDEX: "1"
-          command: |
-            python -m pip install .[testenv] .[test]
-
-      - "run":
-          name: "Display tool versions"
-          command: |
-            python misc/build_helpers/show-tool-versions.py
-
-      - "run":
-          name: "Run Unit Tests"
-          environment:
-            # Configure the results location for the subunitv2-file reporter
-            # from subunitreporter
-            SUBUNITREPORTER_OUTPUT_PATH: "test-results.subunit2"
-
-            # Try to get prompt output from the reporter to avoid no-output
-            # timeouts.
-            PYTHONUNBUFFERED: "1"
-
-          command: |
-            # Run the test suite under coverage measurement using the
-            # parameterized version of Python, writing subunitv2-format
-            # results to the file given in the environment.
-            python -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata
-
-      - "run":
-          name: "Upload Coverage"
-          environment:
-            <<: *COVERALLS_ENVIRONMENT
-            # Mark the data as just one piece of many because we have more
-            # than one instance of this job (two on Windows now, some on other
-            # platforms later) which collects and reports coverage.  This is
-            # necessary to cause Coveralls to merge multiple coverage results
-            # into a single report.  Note the merge only happens when we
-            # "finish" a particular build, as identified by its "build_num"
-            # (aka "service_number").
-            COVERALLS_PARALLEL: "true"
-          command: |
-            python -m pip install coveralls==3.3.1
-
-            # .coveragerc sets parallel = True so we don't have a `.coverage`
-            # file but a `.coverage.<unique stuff>` file (or maybe more than
-            # one, but probably not).  coveralls can't work with these so
-            # merge them before invoking it.
-            python -m coverage combine
-
-            # Now coveralls will be able to find the data, so have it do the
-            # upload.  Also, have it strip the system config-specific prefix
-            # from all of the source paths.
-            $prefix = python -c "import sysconfig; print(sysconfig.get_path('purelib'))"
-            python -m coveralls --basedir $prefix
-
-      - "run":
-          name: "Convert Result Log"
-          command: |
-            # subunit2junitxml exits with error if the result stream it is
-            # converting has test failures in it!  So this step might fail.
-            # Since the step in which we actually _ran_ the tests won't fail
-            # even if there are test failures, this is a good thing for now.
-            subunit2junitxml.exe --output-to=test-results.xml test-results.subunit2
-
-      - "store_test_results":
-          path: "test-results.xml"
-
-      - "store_artifacts":
-          path: "_trial_temp/test.log"
-
-      - "store_artifacts":
-          path: "eliot.log"
-
-      - "store_artifacts":
-          path: ".coverage"
-
+                  cache_if_able nix run \
+                    --override-input nixpkgs "$NIXPKGS" \
+                    .#<<parameters.pythonVersion>>-unittest -- \
+                    --jobs $UNITTEST_CORES \
+                    allmydata
 
 executors:
-  windows:
-    # Choose a Windows environment that closest matches our testing
-    # requirements and goals.
-    # https://circleci.com/developer/orbs/orb/circleci/windows#executors-server-2022
-    machine:
-      image: "windows-server-2022-gui:current"
-      shell: "powershell.exe -ExecutionPolicy Bypass"
-    resource_class: "windows.large"
+  nix:
+    docker:
+      # Run in a highly Nix-capable environment.
+      - <<: *DOCKERHUB_AUTH
+        image: "nixos/nix:2.16.1"
+    environment:
+      # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and allows us
+      # to push to CACHIX_NAME.  CACHIX_NAME tells cachix which cache to push
+      # to.
+      CACHIX_NAME: "tahoe-lafs-opensource"
+      # Let us use features marked "experimental".  For example, most/all of
+      # the `nix <subcommand>` forms.
+      NIX_CONFIG: "experimental-features = nix-command flakes"
+
+
+commands:
+  nix-build:
+    parameters:
+      nixpkgs:
+        description: >-
+          Reference the name of a flake-managed nixpkgs input (see `nix flake
+          metadata` and flake.nix)
+        type: "string"
+      pythonVersion:
+        description: >-
+          Reference the name of a Python package in nixpkgs to use.
+        type: "string"
+      buildSteps:
+        description: >-
+          The build steps to execute after setting up the build environment.
+        type: "steps"
+
+    steps:
+      - "run":
+          # Get cachix for Nix-friendly caching.
+          name: "Install Basic Dependencies"
+          command: |
+            # Get some build environment dependencies and let them float on a
+            # certain release branch.  These aren't involved in the actual
+            # package build (only in CI environment setup) so the fact that
+            # they float shouldn't hurt reproducibility.
+            NIXPKGS="nixpkgs/nixos-23.05"
+            nix profile install $NIXPKGS#cachix $NIXPKGS#bash $NIXPKGS#jp
+
+            # Activate our cachix cache for "binary substitution".  This sets
+            # up configuration tht lets Nix download something from the cache
+            # instead of building it locally, if possible.
+            cachix use "${CACHIX_NAME}"
+
+      - "checkout"
+
+      - "run":
+          # The Nix package doesn't know how to do this part, unfortunately.
+          name: "Generate version"
+          command: |
+            nix-shell \
+              -p 'python3.withPackages (ps: [ ps.setuptools ])' \
+              --run 'python setup.py update_version'
+
+      - "run":
+          name: "Build Package"
+          command: |
+            source .circleci/lib.sh
+            NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
+            cache_if_able nix build \
+              --verbose \
+              --print-build-logs \
+              --cores "$DEPENDENCY_CORES" \
+              --override-input nixpkgs "$NIXPKGS" \
+              .#<<parameters.pythonVersion>>-tahoe-lafs
+
