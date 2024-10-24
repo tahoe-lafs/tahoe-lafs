@@ -1886,6 +1886,8 @@ class HTTPSystemTest(SystemTest):
 
     FORCE_FOOLSCAP_FOR_STORAGE = False
 
+    # In CI this test can be very slow, so give it a longer timeout:
+    timeout = 360  # type: ignore[attr-defined]
 
 
 class HTTPConnections(Connections):

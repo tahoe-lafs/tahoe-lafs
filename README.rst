@@ -2,6 +2,10 @@
 Free and Open Decentralized Data Store
 ======================================
 
+This PR is to try out how CircleCI reacts to my changes and is to be discarded.
+
+First Experiment:  Does this branch/PR also fail to retrieve the Tahoe-LAFS version number from GIT?
+
 |image0|
 
 `Tahoe-LAFS <https://www.tahoe-lafs.org>`__ (Tahoe Least-Authority File Store) is the first free software / open-source storage technology that distributes your data across multiple servers. Even if some servers fail or are taken over by an attacker, the entire file store continues to function correctly, preserving your privacy and security.

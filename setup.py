@@ -108,7 +108,7 @@ install_requires = [
 
     "six >= 1.10.0",
 
-    # for 'tahoe invite' and 'tahoe join'
+    # For 'tahoe invite' and 'tahoe join'
     "magic-wormhole >= 0.10.2",
 
     # We want a new enough version to support custom JSON encoders.

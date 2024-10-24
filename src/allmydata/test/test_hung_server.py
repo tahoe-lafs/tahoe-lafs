@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Ported to Python 3.
+  More CI runs, pLease
 """
 
 import os, shutil
