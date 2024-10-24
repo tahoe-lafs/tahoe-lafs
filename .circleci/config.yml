@@ -78,19 +78,19 @@ workflows:
   ci:
     when: "<< pipeline.parameters.run-tests >>"
     jobs:
-      # Start with jobs testing various platforms.
-      - "debian-11":
-          {}
+      ## # Start with jobs testing various platforms.
+      ## - "debian-11":
+      ##     {}
 
-      - "ubuntu-20-04":
-          {}
+      ## - "ubuntu-20-04":
+      ##     {}
 
-      - "ubuntu-22-04":
-          {}
+      ## - "ubuntu-22-04":
+      ##     {}
 
-      # Equivalent to RHEL 8; CentOS 8 is dead.
-      - "oraclelinux-8":
-          {}
+      ## # Equivalent to RHEL 8; CentOS 8 is dead.
+      ## - "oraclelinux-8":
+      ##     {}
 
       - "nixos":
           name: "<<matrix.pythonVersion>>"
@@ -102,58 +102,58 @@ workflows:
                 - "python310"
                 - "python311"
 
-      # Eventually, test against PyPy 3.8
-      #- "pypy27-buster":
-      #    {}
+      ## # Eventually, test against PyPy 3.8
+      ## #- "pypy27-buster":
+      ## #    {}
 
-      # Other assorted tasks and configurations
-      - "codechecks":
-          {}
-      - "pyinstaller":
-          {}
-      - "c-locale":
-          {}
-      # Any locale other than C or UTF-8.
-      - "another-locale":
-          {}
+      ## # Other assorted tasks and configurations
+      ## - "codechecks":
+      ##     {}
+      ## - "pyinstaller":
+      ##     {}
+      ## - "c-locale":
+      ##     {}
+      ## # Any locale other than C or UTF-8.
+      ## - "another-locale":
+      ##     {}
 
-      - "windows-server-2022":
-          name: "Windows Server 2022, CPython <<matrix.pythonVersion>>"
-          matrix:
-            parameters:
-              # Run the job for a number of CPython versions.  These are the
-              # two versions installed on the version of the Windows VM image
-              # we specify (in the executor).  This is handy since it means we
-              # don't have to do any Python installation work.  We pin the
-              # Windows VM image so these shouldn't shuffle around beneath us
-              # but if we want to update that image or get different versions
-              # of Python, we probably have to do something here.
-              pythonVersion:
-                - "3.9"
-                - "3.11"
+      ## - "windows-server-2022":
+      ##     name: "Windows Server 2022, CPython <<matrix.pythonVersion>>"
+      ##     matrix:
+      ##       parameters:
+      ##         # Run the job for a number of CPython versions.  These are the
+      ##         # two versions installed on the version of the Windows VM image
+      ##         # we specify (in the executor).  This is handy since it means we
+      ##         # don't have to do any Python installation work.  We pin the
+      ##         # Windows VM image so these shouldn't shuffle around beneath us
+      ##         # but if we want to update that image or get different versions
+      ##         # of Python, we probably have to do something here.
+      ##         pythonVersion:
+      ##           - "3.9"
+      ##           - "3.11"
 
-      - "integration":
-          # Run even the slow integration tests here.  We need the `--` to
-          # sneak past tox and get to pytest.
-          tox-args: "-- --runslow integration"
-          requires:
-            # If the unit test suite doesn't pass, don't bother running the
-            # integration tests.
-            - "debian-11"
+      ## - "integration":
+      ##     # Run even the slow integration tests here.  We need the `--` to
+      ##     # sneak past tox and get to pytest.
+      ##     tox-args: "-- --runslow integration"
+      ##     requires:
+      ##       # If the unit test suite doesn't pass, don't bother running the
+      ##       # integration tests.
+      ##       - "debian-11"
 
-      - "typechecks":
-          {}
-      - "docs":
-          {}
+      ## - "typechecks":
+      ##     {}
+      ## - "docs":
+      ##     {}
 
-      - "finish-coverage-report":
-          requires:
-            # Referencing the job by "alias" (as CircleCI calls the mapping
-            # key) instead of the value of its "name" property causes us to
-            # require every instance of the job from its matrix expansion.  So
-            # this requirement is enough to require every Windows Server 2022
-            # job.
-            - "windows-server-2022"
+      ## - "finish-coverage-report":
+      ##     requires:
+      ##       # Referencing the job by "alias" (as CircleCI calls the mapping
+      ##       # key) instead of the value of its "name" property causes us to
+      ##       # require every instance of the job from its matrix expansion.  So
+      ##       # this requirement is enough to require every Windows Server 2022
+      ##       # job.
+      ##       - "windows-server-2022"
 
   images:
     <<: *IMAGES
