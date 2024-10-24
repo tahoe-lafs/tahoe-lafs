@@ -125,11 +125,14 @@ jobs:
     executor: "nix"
 
     steps:
-      - "nix-build":
+       "nix-build":
           nixpkgs: "<<parameters.nixpkgs>>"
           pythonVersion: "<<parameters.pythonVersion>>"
           buildSteps:
-            - "run":                                                                                                                                                           -                name: "Unit Test"                                                                                                                                              -                command: |                                                                                                                                                     -                  source .circleci/lib.sh
+            - "run":
+                name: "Unit Test"
+                command: |
+                  source .circleci/lib.sh
 
                   # Translate the nixpkgs selection into a flake reference we
                   # can use to override the default nixpkgs input.
