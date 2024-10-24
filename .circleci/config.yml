@@ -79,6 +79,19 @@ workflows:
     when: "<< pipeline.parameters.run-tests >>"
     jobs:
       # Start with jobs testing various platforms.
+      - "debian-11":
+          {}
+
+      - "ubuntu-20-04":
+          {}
+
+      - "ubuntu-22-04":
+          {}
+
+      # Equivalent to RHEL 8; CentOS 8 is dead.
+      - "oraclelinux-8":
+          {}
+
       - "nixos":
           name: "<<matrix.pythonVersion>>"
           nixpkgs: "nixpkgs-unstable"
@@ -88,6 +101,59 @@ workflows:
                 - "python39"
                 - "python310"
                 - "python311"
+
+      # Eventually, test against PyPy 3.8
+      #- "pypy27-buster":
+      #    {}
+
+      # Other assorted tasks and configurations
+      - "codechecks":
+          {}
+      - "pyinstaller":
+          {}
+      - "c-locale":
+          {}
+      # Any locale other than C or UTF-8.
+      - "another-locale":
+          {}
+
+      - "windows-server-2022":
+          name: "Windows Server 2022, CPython <<matrix.pythonVersion>>"
+          matrix:
+            parameters:
+              # Run the job for a number of CPython versions.  These are the
+              # two versions installed on the version of the Windows VM image
+              # we specify (in the executor).  This is handy since it means we
+              # don't have to do any Python installation work.  We pin the
+              # Windows VM image so these shouldn't shuffle around beneath us
+              # but if we want to update that image or get different versions
+              # of Python, we probably have to do something here.
+              pythonVersion:
+                - "3.9"
+                - "3.11"
+
+      - "integration":
+          # Run even the slow integration tests here.  We need the `--` to
+          # sneak past tox and get to pytest.
+          tox-args: "-- --runslow integration"
+          requires:
+            # If the unit test suite doesn't pass, don't bother running the
+            # integration tests.
+            - "debian-11"
+
+      - "typechecks":
+          {}
+      - "docs":
+          {}
+
+      - "finish-coverage-report":
+          requires:
+            # Referencing the job by "alias" (as CircleCI calls the mapping
+            # key) instead of the value of its "name" property causes us to
+            # require every instance of the job from its matrix expansion.  So
+            # this requirement is enough to require every Windows Server 2022
+            # job.
+            - "windows-server-2022"
 
   images:
     <<: *IMAGES
@@ -110,6 +176,401 @@ jobs:
             pip install coveralls==3.3.1
             python -m coveralls --finish
 
+  codechecks:
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "cimg/python:3.9"
+
+    steps:
+      - "checkout"
+
+      - run: &INSTALL_TOX
+          name: "Install tox"
+          command: |
+            pip install --user 'tox~=3.0'
+
+      - run:
+          name: "Static-ish code checks"
+          command: |
+            ~/.local/bin/tox -e codechecks
+
+  windows-server-2022:
+    parameters:
+      pythonVersion:
+        description: >-
+          An argument to pass to the `py` launcher to choose a Python version.
+        type: "string"
+        default: ""
+
+    executor: "windows"
+    environment:
+      # Tweak Hypothesis to make its behavior more suitable for the CI
+      # environment.  This should improve reproducibility and lessen the
+      # effects of variable compute resources.
+      TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
+
+      # Tell pip where its download cache lives.  This must agree with the
+      # "save_cache" step below or caching won't really work right.
+      PIP_CACHE_DIR: "pip-cache"
+
+      # And tell pip where it can find out cached wheelhouse for fast wheel
+      # installation, even for projects that don't distribute wheels.  This
+      # must also agree with the "save_cache" step below.
+      PIP_FIND_LINKS: "wheelhouse"
+
+    steps:
+      - "checkout"
+
+      # If possible, restore a pip download cache to save us from having to
+      # download all our Python dependencies from PyPI.
+      - "restore_cache":
+          keys:
+            # The download cache and/or the wheelhouse may contain Python
+            # version-specific binary packages so include the Python version
+            # in this key, as well as the canonical source of our
+            # dependencies.
+            - &CACHE_KEY "pip-packages-v1-<< parameters.pythonVersion >>-{{ checksum \"setup.py\" }}"
+
+      - "run":
+          name: "Fix $env:PATH"
+          command: |
+            # The Python this job is parameterized is not necessarily the one
+            # at the front of $env:PATH.  Modify $env:PATH so that it is so we
+            # can just say "python" in the rest of the steps.  Also get the
+            # related Scripts directory so tools from packages we install are
+            # also available.
+            $p = py -<<parameters.pythonVersion>> -c "import sys; print(sys.prefix)"
+            $q = py -<<parameters.pythonVersion>> -c "import sysconfig; print(sysconfig.get_path('scripts'))"
+
+            New-Item $Profile.CurrentUserAllHosts -Force
+            # $p gets "python" on PATH and $q gets tools from packages we
+            # install.  Note we carefully construct the string so that
+            # $env:PATH is not substituted now but $p and $q are.  ` is the
+            # PowerShell string escape character.
+            Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$p;$q;`$env:PATH`""
+
+      - "run":
+          name: "Display tool versions"
+          command: |
+            python misc/build_helpers/show-tool-versions.py
+
+      - "run":
+          # It's faster to install a wheel than a source package.  If we don't
+          # have a cached wheelhouse then build all of the wheels and dump
+          # them into a directory where they can become a cached wheelhouse.
+          # We would have built these wheels during installation anyway so it
+          # doesn't cost us anything extra and saves us effort next time.
+          name: "(Maybe) Build Wheels"
+          command: |
+            if ((Test-Path .\wheelhouse) -and (Test-Path .\wheelhouse\*)) {
+              echo "Found populated wheelhouse, skipping wheel building."
+            } else {
+              python -m pip install wheel
+              python -m pip wheel --wheel-dir $env:PIP_FIND_LINKS .[testenv] .[test]
+            }
+
+      - "save_cache":
+          paths:
+            # Make sure this agrees with PIP_CACHE_DIR in the environment.
+            - "pip-cache"
+            - "wheelhouse"
+          key: *CACHE_KEY
+
+      - "run":
+          name: "Install Dependencies"
+          environment:
+            # By this point we should no longer need an index.
+            PIP_NO_INDEX: "1"
+          command: |
+            python -m pip install .[testenv] .[test]
+
+      - "run":
+          name: "Run Unit Tests"
+          environment:
+            # Configure the results location for the subunitv2-file reporter
+            # from subunitreporter
+            SUBUNITREPORTER_OUTPUT_PATH: "test-results.subunit2"
+
+            # Try to get prompt output from the reporter to avoid no-output
+            # timeouts.
+            PYTHONUNBUFFERED: "1"
+
+          command: |
+            # Run the test suite under coverage measurement using the
+            # parameterized version of Python, writing subunitv2-format
+            # results to the file given in the environment.
+            python -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata
+
+      - "run":
+          name: "Upload Coverage"
+          environment:
+            <<: *COVERALLS_ENVIRONMENT
+            # Mark the data as just one piece of many because we have more
+            # than one instance of this job (two on Windows now, some on other
+            # platforms later) which collects and reports coverage.  This is
+            # necessary to cause Coveralls to merge multiple coverage results
+            # into a single report.  Note the merge only happens when we
+            # "finish" a particular build, as identified by its "build_num"
+            # (aka "service_number").
+            COVERALLS_PARALLEL: "true"
+          command: |
+            python -m pip install coveralls==3.3.1
+
+            # .coveragerc sets parallel = True so we don't have a `.coverage`
+            # file but a `.coverage.<unique stuff>` file (or maybe more than
+            # one, but probably not).  coveralls can't work with these so
+            # merge them before invoking it.
+            python -m coverage combine
+
+            # Now coveralls will be able to find the data, so have it do the
+            # upload.  Also, have it strip the system config-specific prefix
+            # from all of the source paths.
+            $prefix = python -c "import sysconfig; print(sysconfig.get_path('purelib'))"
+            python -m coveralls --basedir $prefix
+
+      - "run":
+          name: "Convert Result Log"
+          command: |
+            # subunit2junitxml exits with error if the result stream it is
+            # converting has test failures in it!  So this step might fail.
+            # Since the step in which we actually _ran_ the tests won't fail
+            # even if there are test failures, this is a good thing for now.
+            subunit2junitxml.exe --output-to=test-results.xml test-results.subunit2
+
+      - "store_test_results":
+          path: "test-results.xml"
+
+      - "store_artifacts":
+          path: "_trial_temp/test.log"
+
+      - "store_artifacts":
+          path: "eliot.log"
+
+      - "store_artifacts":
+          path: ".coverage"
+
+  pyinstaller:
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "cimg/python:3.9"
+
+    steps:
+      - "checkout"
+
+      - run:
+          <<: *INSTALL_TOX
+
+      - run:
+          name: "Make PyInstaller executable"
+          command: |
+            ~/.local/bin/tox -e pyinstaller
+
+      - run:
+          # To verify that the resultant PyInstaller-generated binary executes
+          # cleanly (i.e., that it terminates with an exit code of 0 and isn't
+          # failing due to import/packaging-related errors, etc.).
+          name: "Test PyInstaller executable"
+          command: |
+            dist/Tahoe-LAFS/tahoe --version
+
+  debian-11: &DEBIAN
+    environment: &UTF_8_ENVIRONMENT
+      # In general, the test suite is not allowed to fail while the job
+      # succeeds.  But you can set this to "yes" if you want it to be
+      # otherwise.
+      ALLOWED_FAILURE: "no"
+      # Tell Hypothesis which configuration we want it to use.
+      TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
+      # Tell the C runtime things about character encoding (mainly to do with
+      # filenames and argv).
+      LANG: "en_US.UTF-8"
+      # Select a tox environment to run for this job.
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
+      # Additional arguments to pass to tox.
+      TAHOE_LAFS_TOX_ARGS: ""
+      # The path in which test artifacts will be placed.
+      ARTIFACTS_OUTPUT_PATH: "/tmp/artifacts"
+      # Convince all of our pip invocations to look at the cached wheelhouse
+      # we maintain.
+      WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
+      PIP_FIND_LINKS: "file:///tmp/wheelhouse"
+      # Upload the coverage report.
+      UPLOAD_COVERAGE: ""
+
+    # pip cannot install packages if the working directory is not readable.
+    # We want to run a lot of steps as nobody instead of as root.
+    working_directory: "/tmp/project"
+
+    steps:
+      - "checkout"
+      - run: &SETUP_VIRTUALENV
+          name: "Setup virtualenv"
+          command: |
+            /tmp/project/.circleci/setup-virtualenv.sh \
+                "/tmp/venv" \
+                "/tmp/project" \
+                "${WHEELHOUSE_PATH}" \
+                "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
+                "${TAHOE_LAFS_TOX_ARGS}"
+
+      - run: &RUN_TESTS
+          name: "Run test suite"
+          command: |
+            /tmp/project/.circleci/run-tests.sh \
+                "/tmp/venv" \
+                "/tmp/project" \
+                "${ALLOWED_FAILURE}" \
+                "${ARTIFACTS_OUTPUT_PATH}" \
+                "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
+                "${TAHOE_LAFS_TOX_ARGS}"
+          # trial output gets directed straight to a log.  avoid the circleci
+          # timeout while the test suite runs.
+          no_output_timeout: "20m"
+
+      - store_test_results: &STORE_TEST_RESULTS
+          path: "/tmp/artifacts/junit"
+
+      - store_artifacts: &STORE_TEST_LOG
+          # Despite passing --workdir /tmp to tox above, it still runs trial
+          # in the project source checkout.
+          path: "/tmp/project/_trial_temp/test.log"
+
+      - store_artifacts: &STORE_ELIOT_LOG
+          # Despite passing --workdir /tmp to tox above, it still runs trial
+          # in the project source checkout.
+          path: "/tmp/project/eliot.log"
+
+      - store_artifacts: &STORE_OTHER_ARTIFACTS
+          # Store any other artifacts, too.  This is handy to allow other jobs
+          # sharing most of the definition of this one to be able to
+          # contribute artifacts easily.
+          path: "/tmp/artifacts"
+
+      - run: &SUBMIT_COVERAGE
+          name: "Submit coverage results"
+          command: |
+            if [ -n "${UPLOAD_COVERAGE}" ]; then
+              echo "TODO: Need a new coverage solution, see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4011"
+            fi
+
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/debian:11-py3.9"
+        user: "nobody"
+
+
+  # Restore later using PyPy3.8
+  # pypy27-buster:
+  #   <<: *DEBIAN
+  #   docker:
+  #     - <<: *DOCKERHUB_AUTH
+  #       image: "tahoelafsci/pypy:buster-py2"
+  #       user: "nobody"
+  #   environment:
+  #     <<: *UTF_8_ENVIRONMENT
+  #     # We don't do coverage since it makes PyPy far too slow:
+  #     TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27"
+  #     # Since we didn't collect it, don't upload it.
+  #     UPLOAD_COVERAGE: ""
+
+  c-locale:
+    <<: *DEBIAN
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      LANG: "C"
+
+
+  another-locale:
+    <<: *DEBIAN
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      # aka "Latin 1"
+      LANG: "en_US.ISO-8859-1"
+
+  integration:
+    <<: *DEBIAN
+
+    parameters:
+      tox-args:
+        description: >-
+          Additional arguments to pass to the tox command.
+        type: "string"
+        default: ""
+
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/debian:11-py3.9"
+        user: "nobody"
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      # Select the integration tests tox environments.
+      TAHOE_LAFS_TOX_ENVIRONMENT: "integration"
+      # Disable artifact collection because py.test can't produce any.
+      ARTIFACTS_OUTPUT_PATH: ""
+
+      # Pass on anything we got in our parameters.
+      TAHOE_LAFS_TOX_ARGS: "<< parameters.tox-args >>"
+
+    steps:
+      - "checkout"
+      # DRY, YAML-style.  See the debian-9 steps.
+      - run: *SETUP_VIRTUALENV
+      - run: *RUN_TESTS
+
+  ubuntu-20-04:
+    <<: *DEBIAN
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:20.04-py3.9"
+        user: "nobody"
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
+
+  ubuntu-22-04:
+    <<: *DEBIAN
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:22.04-py3.10"
+        user: "nobody"
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py310"
+
+  oraclelinux-8: &RHEL_DERIV
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/oraclelinux:8-py3.8"
+        user: "nobody"
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py38"
+
+    # pip cannot install packages if the working directory is not readable.
+    # We want to run a lot of steps as nobody instead of as root.
+    working_directory: "/tmp/project"
+
+    steps:
+      - "checkout"
+      - run: *SETUP_VIRTUALENV
+      - run: *RUN_TESTS
+      - store_test_results: *STORE_TEST_RESULTS
+      - store_artifacts: *STORE_TEST_LOG
+      - store_artifacts: *STORE_ELIOT_LOG
+      - store_artifacts: *STORE_OTHER_ARTIFACTS
+      - run: *SUBMIT_COVERAGE
+
+  fedora-35:
+    <<: *RHEL_DERIV
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/fedora:35-py3"
+        user: "nobody"
+
   nixos:
     parameters:
       nixpkgs:
@@ -125,7 +586,7 @@ jobs:
     executor: "nix"
 
     steps:
-       "nix-build":
+      - "nix-build":
           nixpkgs: "<<parameters.nixpkgs>>"
           pythonVersion: "<<parameters.pythonVersion>>"
           buildSteps:
@@ -144,7 +605,135 @@ jobs:
                     --jobs $UNITTEST_CORES \
                     allmydata
 
+  typechecks:
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:20.04-py3.9"
+
+    steps:
+      - "checkout"
+      - run:
+          name: "Validate Types"
+          command: |
+            /tmp/venv/bin/tox -e typechecks
+
+  docs:
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/ubuntu:20.04-py3.9"
+
+    steps:
+      - "checkout"
+      - run:
+          name: "Build documentation"
+          command: |
+            /tmp/venv/bin/tox -e docs
+
+  build-image: &BUILD_IMAGE
+    # This is a template for a job to build a Docker image that has as much of
+    # the setup as we can manage already done and baked in.  This cuts down on
+    # the per-job setup time the actual testing jobs have to perform - by
+    # perhaps 10% - 20%.
+    #
+    # https://circleci.com/blog/how-to-build-a-docker-image-on-circleci-2-0/
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        # CircleCI build images; https://github.com/CircleCI-Public/cimg-base
+        # for details.
+        image: "cimg/base:2022.01"
+
+    environment:
+      DISTRO: "tahoelafsci/<DISTRO>:foo-py3.9"
+      TAG: "tahoelafsci/distro:<TAG>-py3.9"
+      PYTHON_VERSION: "tahoelafsci/distro:tag-py<PYTHON_VERSION}"
+
+    steps:
+      - "checkout"
+      - setup_remote_docker:
+          version: "20.10.11"
+      - run:
+          name: "Log in to Dockerhub"
+          command: |
+            docker login -u ${DOCKERHUB_USERNAME} -p ${DOCKERHUB_PASSWORD}
+      - run:
+          name: "Build image"
+          command: |
+            docker \
+                build \
+                --build-arg TAG=${TAG} \
+                --build-arg PYTHON_VERSION=${PYTHON_VERSION} \
+                -t tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION} \
+                -f ~/project/.circleci/Dockerfile.${DISTRO} \
+                ~/project/
+      - run:
+          name: "Push image"
+          command: |
+            docker push tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION}
+
+
+  build-image-debian-11:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "debian"
+      TAG: "11"
+      PYTHON_VERSION: "3.9"
+
+
+  build-image-ubuntu-20-04:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "20.04"
+      PYTHON_VERSION: "3.9"
+
+
+  build-image-ubuntu-22-04:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "22.04"
+      PYTHON_VERSION: "3.10"
+
+
+  build-image-oraclelinux-8:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "oraclelinux"
+      TAG: "8"
+      PYTHON_VERSION: "3.8"
+
+  build-image-fedora-35:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "fedora"
+      TAG: "35"
+      PYTHON_VERSION: "3"
+
+  # build-image-pypy27-buster:
+  #   <<: *BUILD_IMAGE
+  #   environment:
+  #     DISTRO: "pypy"
+  #     TAG: "buster"
+  #     # We only have Python 2 for PyPy right now so there's no support for
+  #     # setting up PyPy 3 in the image building toolchain.  This value is just
+  #     # for constructing the right Docker image tag.
+  #     PYTHON_VERSION: "2"
+
 executors:
+  windows:
+    # Choose a Windows environment that closest matches our testing
+    # requirements and goals.
+    # https://circleci.com/developer/orbs/orb/circleci/windows#executors-server-2022
+    machine:
+      image: "windows-server-2022-gui:current"
+      shell: "powershell.exe -ExecutionPolicy Bypass"
+    resource_class: "windows.large"
+
   nix:
     docker:
       # Run in a highly Nix-capable environment.
@@ -158,7 +747,6 @@ executors:
       # Let us use features marked "experimental".  For example, most/all of
       # the `nix <subcommand>` forms.
       NIX_CONFIG: "experimental-features = nix-command flakes"
-
 
 commands:
   nix-build:
@@ -216,3 +804,4 @@ commands:
               --override-input nixpkgs "$NIXPKGS" \
               .#<<parameters.pythonVersion>>-tahoe-lafs
 
+      - steps: "<<parameters.buildSteps>>"
