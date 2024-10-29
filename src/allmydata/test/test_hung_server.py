@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-  More CI runs, pleasE
+  More CI runs, please
 """
 
 import os, shutil
