@@ -256,6 +256,8 @@ jobs:
           # We would have built these wheels during installation anyway so it
           # doesn't cost us anything extra and saves us effort next time.
           name: "(Maybe) Build Wheels"
+          environment: &UTF_8_ENVIRONMENT
+            ALLOWED_FAILURE: "yes"
           command: |
             python -m pip install setuptools # Some Pythons for Windows do not come with setuptools
             python setup.py update_version # Cheat to win a race about writing _version.py
