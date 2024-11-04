@@ -160,7 +160,13 @@ def test_anonymous_client(reactor, request, temp_dir, flog_gatherer, tor_network
     )
     yield util.await_client_ready(normie)
 
-    anonymoose = yield _create_anonymous_node(reactor, 'anonymoose', 8102, request, temp_dir, flog_gatherer, tor_network, introducer_furl, 1)
-    yield util.await_client_ready(anonymoose, minimum_number_of_servers=1, timeout=600)
+    try:
+        anonymoose = yield _create_anonymous_node(reactor, 'anonymoose', 8102, request, temp_dir, flog_gatherer, tor_network, introducer_furl, 1)
+        yield util.await_client_ready(anonymoose, minimum_number_of_servers=1, timeout=600)
 
-    yield upload_to_one_download_from_the_other(reactor, temp_dir, normie, anonymoose)
+        try:
+            yield upload_to_one_download_from_the_other(reactor, temp_dir, normie, anonymoose)
+        finally:
+            yield anonymoose.kill_async()
+    finally:
+        yield normie.kill_async()
