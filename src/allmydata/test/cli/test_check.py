@@ -151,6 +151,18 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failIf(" corrupt shares:" in lines, out)
         d.addCallback(_check5)
 
+        # Testing verbose option
+        d.addCallback(lambda ign: self.do_cli("check", "--verbose", self.uri))
+        def _check6(args):
+            (rc, out, err) = args
+            self.assertEqual(len(err), 0, err)
+            self.failUnlessReallyEqual(rc, 0)
+            lines = out.splitlines()
+            self.failUnless("Summary: Healthy" in lines, out)
+            self.failUnless(" good-shares: 10 (encoding is 3-of-10)" in lines, out)
+        d.addCallback(_check1)
+
+
         return d
 
     def test_deep_check(self):
