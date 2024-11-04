@@ -434,7 +434,8 @@ class StorageClient(object):
     # The URL should be a HTTPS URL ("https://...")
     _base_url: DecodedURL
     _swissnum: bytes
-    _treq: Union[treq, StubTreq, HTTPClient]
+    # see ticket #4115 -- treq isn't type-checkable like this
+    _treq: Union[treq, StubTreq, HTTPClient]  # type: ignore
     _pool: HTTPConnectionPool
     _clock: IReactorTime
     # Are we running unit tests?
@@ -543,7 +544,7 @@ class StorageClient(object):
             kwargs["data"] = await defer_to_thread(dumps, message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
-        response = await self._treq.request(
+        response = await self._treq.request(  # type: ignore
             method, url, headers=headers, timeout=timeout, **kwargs
         )
         self._analyze_response(response)
