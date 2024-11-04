@@ -256,8 +256,6 @@ jobs:
           # We would have built these wheels during installation anyway so it
           # doesn't cost us anything extra and saves us effort next time.
           name: "(Maybe) Build Wheels"
-          environment: &UTF_8_ENVIRONMENT
-            ALLOWED_FAILURE: "yes"
           command: |
             python -m pip install setuptools # Some Pythons for Windows do not come with setuptools
             python setup.py update_version # Cheat to win a race about writing _version.py
@@ -267,6 +265,7 @@ jobs:
             } else {
               python -m pip install wheel
               python -m pip wheel --wheel-dir $env:PIP_FIND_LINKS .[testenv] .[test]
+              echo "it is okay to fail this step"
             }
 
       - "save_cache":
