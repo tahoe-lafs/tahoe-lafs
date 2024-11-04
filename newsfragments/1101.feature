@@ -1,0 +1,1 @@
+Adding support for --verbose option
