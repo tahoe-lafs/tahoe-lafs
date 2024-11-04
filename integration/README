@@ -13,3 +13,14 @@ If you want to keep the created temp-dir around:
 The fixtures also set up a "flogtool gather" process and dump all the
 logs from all the running processes (introducer, 5 storage nodes,
 alice, bob) to a tempfile.
+
+
+Some Things To Remember
+-----------------------
+
+The "normal" grid uses the fixture-provided "introducer"; if you
+create a new node under it (especially one that provides storage) you
+SHOULD clean it up (so subsequent tests don't get surprised by missing
+/ weird storage nodes).
+
+Same for the "tor_introducer" grid.

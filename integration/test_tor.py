@@ -30,6 +30,7 @@ from allmydata.util.deferredutil import async_to_deferred
 if sys.platform.startswith('win'):
     pytest.skip('Skipping Tor tests on Windows', allow_module_level=True)
 
+
 @pytest.mark.skipif(sys.version_info[:2] > (3, 11), reason='Chutney still does not support 3.12')
 @pytest_twisted.inlineCallbacks
 def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):
@@ -43,7 +44,11 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
     dave = yield _create_anonymous_node(reactor, 'dave', 8101, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl, 2)
     yield util.await_client_ready(carol, minimum_number_of_servers=2, timeout=600)
     yield util.await_client_ready(dave, minimum_number_of_servers=2, timeout=600)
-    yield upload_to_one_download_from_the_other(reactor, temp_dir, carol, dave)
+    try:
+        yield upload_to_one_download_from_the_other(reactor, temp_dir, carol, dave)
+    finally:
+        yield carol.kill_async()
+        yield dave.kill_async()
 
 
 @async_to_deferred
