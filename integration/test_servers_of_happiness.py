@@ -22,6 +22,7 @@ def test_upload_immutable(reactor, temp_dir, introducer_furl, flog_gatherer, sto
         happy=7,
         total=10,
     )
+    request.addfinalizer(edna.kill)
     yield util.await_client_ready(edna)
 
     node_dir = join(temp_dir, 'edna')
