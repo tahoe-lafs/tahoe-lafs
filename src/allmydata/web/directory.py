@@ -367,16 +367,16 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     def _POST_upload(self, req):
         charset = str(get_arg(req, "_charset", b"utf-8"), "utf-8")
-        contents = req.fields["file"]
+        contents = req.args["file"][0]
 
         # The filename embedded in the MIME file upload will be bytes on Python
         # 2, Unicode on Python 3, or missing (i.e. None). The "name" field in
         # the upload will be bytes on Python 2, Unicode on Python 3, or missing
         # (i.e. None). We go through all these variations until we have a name
         # that is Unicode.
-        assert contents.filename is None or isinstance(contents.filename, (bytes, str))
-        name = get_arg(req, "name")  # returns bytes or None
-        name = name or contents.filename  # unicode, bytes or None
+        breakpoint()
+        name = get_arg(req, b"name")  # returns bytes or None
+        name = name or get_arg(req, "filename")  # unicode, bytes or None
         if name is not None:
             name = name.strip()
         if not name:

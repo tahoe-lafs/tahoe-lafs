@@ -3,6 +3,8 @@ Ported to Python 3.
 """
 from __future__ import annotations
 
+from io import BytesIO
+
 from twisted.web import http, static
 from twisted.internet import defer
 from twisted.web.resource import (
@@ -92,10 +94,10 @@ class ReplaceMeMixin(object):
     def replace_me_with_a_formpost(self, req, client, replace):
         # create a new file, maybe mutable, maybe immutable
         file_format = get_format(req, "CHK")
-        contents = req.fields["file"]
+        contents = req.args["file"][0]
         if file_format in ("SDMF", "MDMF"):
             mutable_type = get_mutable_type(file_format)
-            uploadable = MutableFileHandle(contents.file)
+            uploadable = MutableFileHandle(BytesIO(contents))
             keypair = get_keypair(req)
             d = client.create_mutable_file(uploadable, version=mutable_type, unique_keypair=keypair)
             def _uploaded(newnode):
@@ -365,8 +367,8 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
     def replace_my_contents_with_a_formpost(self, req):
         # we have a mutable file. Get the data from the formpost, and replace
         # the mutable file's contents with it.
-        new_contents = req.fields['file']
-        new_contents = MutableFileHandle(new_contents.file)
+        new_contents = req.args['file'][0]
+        new_contents = MutableFileHandle(BytesIO(new_contents))
 
         d = self.node.overwrite(new_contents)
         d.addCallback(lambda res: self.node.get_uri())

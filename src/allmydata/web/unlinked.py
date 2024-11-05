@@ -4,6 +4,7 @@ Ported to Python 3.
 from __future__ import annotations
 
 from urllib.parse import quote as urlquote
+from io import BytesIO
 
 from twisted.web import http
 from twisted.internet import defer
@@ -63,7 +64,7 @@ def PUTUnlinkedCreateDirectory(req, client):
 
 
 def POSTUnlinkedCHK(req, client):
-    fileobj = req.fields["file"].file
+    fileobj = BytesIO(req.args[b"file"][0])
     uploadable = FileHandle(fileobj, client.convergence)
     d = client.upload(uploadable)
     when_done = get_arg(req, "when_done", None)
@@ -132,7 +133,7 @@ class UploadResultsElement(status.UploadResultsRendererMixin):
 def POSTUnlinkedSSK(req, client, version):
     # "POST /uri", to create an unlinked file.
     # SDMF: files are small, and we can only upload data
-    contents = req.fields["file"].file
+    contents = BytesIO(req.args[b"file"][0])
     data = MutableFileHandle(contents)
     d = client.create_mutable_file(data, version=version)
     d.addCallback(lambda n: n.get_uri())

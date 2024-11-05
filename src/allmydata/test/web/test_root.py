@@ -190,7 +190,6 @@ class RenderRoot(AsyncTestCase):
         lines = []
 
         req = DummyRequest(b"")
-        req.fields = {}
         req.args = {
             b"t": [b"json"],
         }

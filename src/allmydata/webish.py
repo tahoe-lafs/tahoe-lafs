@@ -8,9 +8,6 @@ from typing import IO, Callable, Optional
 import re, time, tempfile
 from urllib.parse import parse_qsl, urlencode
 
-from cgi import (
-    FieldStorage,
-)
 from io import (
     BytesIO,
 )
@@ -39,51 +36,13 @@ from .web.storage_plugins import (
 )
 
 
-class FileUploadFieldStorage(FieldStorage):
-    """
-    Do terrible things to ensure files are still bytes.
-
-    On Python 2, uploaded files were always bytes.  On Python 3, there's a
-    heuristic: if the filename is set on a field, it's assumed to be a file
-    upload and therefore bytes.  If no filename is set, it's Unicode.
-
-    Unfortunately, we always want it to be bytes, and Tahoe-LAFS also
-    enables setting the filename not via the MIME filename, but via a
-    separate field called "name".
-
-    Thus we need to do this ridiculous workaround.  Mypy doesn't like it
-    either, thus the ``# type: ignore`` below.
-
-    Source for idea:
-    https://mail.python.org/pipermail/python-dev/2017-February/147402.html
-    """
-    @property  # type: ignore
-    def filename(self):
-        if self.name == "file" and not self._mime_filename:
-            # We use the file field to upload files, see directory.py's
-            # _POST_upload. Lack of _mime_filename means we need to trick
-            # FieldStorage into thinking there is a filename so it'll
-            # return bytes.
-            return "unknown-filename"
-        return self._mime_filename
-
-    @filename.setter
-    def filename(self, value):
-        self._mime_filename = value
-
-
-class TahoeLAFSRequest(Request, object):
+class TahoeLAFSRequest(Request):
     """
     ``TahoeLAFSRequest`` adds several features to a Twisted Web ``Request``
     that are useful for Tahoe-LAFS.
-
-    :ivar NoneType|FieldStorage fields: For POST requests, a structured
-        representation of the contents of the request body.  For anything
-        else, ``None``.
     """
-    fields = None
 
-    def requestReceived(self, command, path, version):
+    def requestReceived(self, *args, **kwargs):
         """
         Called by channel when all data has been received.
 
@@ -91,6 +50,10 @@ class TahoeLAFSRequest(Request, object):
         and to provide less memory-intensive multipart/form-post handling for
         large file uploads.
         """
+        result = Request.requestReceived(self, *args, **kwargs)
+        self._tahoeLAFSSecurityPolicy()
+        return result
+
         self.content.seek(0)
         self.args = {}
         self.stack = []

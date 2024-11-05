@@ -66,7 +66,7 @@ class TahoeLAFSRequestTests(SyncTestCase):
         # We don't really care what happened to the request.  What we do care
         # about is what the `fields` attribute is set to.
         self.assertThat(
-            request.fields,
+            request.args,
             match_fields,
         )
 
@@ -74,7 +74,7 @@ class TahoeLAFSRequestTests(SyncTestCase):
         """
         When a ``GET`` request is received, ``TahoeLAFSRequest.fields`` is None.
         """
-        self._fields_test(b"GET", {}, b"", Equals(None))
+        self._fields_test(b"GET", {}, b"", Equals({}))
 
     def test_form_fields_if_filename_set(self):
         """
@@ -97,13 +97,13 @@ class TahoeLAFSRequestTests(SyncTestCase):
             form_data.encode("ascii"),
             AfterPreprocessing(
                 lambda fs: {
-                    k: fs.getvalue(k)
+                    k: fs[k]
                     for k
                     in fs.keys()
                 },
                 Equals({
-                    "foo": "bar",
-                    "baz": b"some file contents",
+                    b"foo": [b"bar"],
+                    b"baz": [b"some file contents"],
                 }),
             ),
         )
@@ -128,13 +128,13 @@ class TahoeLAFSRequestTests(SyncTestCase):
             form_data.encode("ascii"),
             AfterPreprocessing(
                 lambda fs: {
-                    k: fs.getvalue(k)
+                    k: fs[k]
                     for k
                     in fs.keys()
                 },
                 Equals({
-                    "foo": "bar",
-                    "file": b"some file contents",
+                    b"foo": [b"bar"],
+                    b"file": [b"some file contents"],
                 }),
             ),
         )
@@ -149,7 +149,7 @@ class TahoeLAFSRequestTests(SyncTestCase):
         data = u'{"lalala": "lolo"}'
         data = data.encode("utf-8")
         self._fields_test(b"POST", {"content-type": "application/json"},
-                          data, Equals(None))
+                          data, Equals({}))
 
 
 class TahoeLAFSSiteTests(SyncTestCase):

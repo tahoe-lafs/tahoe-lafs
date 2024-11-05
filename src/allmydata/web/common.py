@@ -722,7 +722,7 @@ def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *,
 
 def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *, multiple: bool = False) -> None | T | bytes | tuple[bytes, ...]:
     """Extract an argument from either the query args (req.args) or the form
-    body fields (req.fields). If multiple=False, this returns a single value
+    body fields (also req.args). If multiple=False, this returns a single value
     (or the default, which defaults to None), and the query args take
     precedence. If multiple=True, this returns a tuple of arguments (possibly
     empty), starting with all those in the query args.
@@ -731,9 +731,6 @@ def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *,
 
     :return: Either bytes or tuple of bytes.
     """
-    # Need to import here to prevent circular import:
-    from ..webish import TahoeLAFSRequest
-
     if isinstance(argname, str):
         argname_bytes = argname.encode("utf-8")
     else:
@@ -742,14 +739,6 @@ def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *,
     results : list[bytes] = []
     if req.args is not None and argname_bytes in req.args:
         results.extend(req.args[argname_bytes])
-    argname_unicode = str(argname_bytes, "utf-8")
-    if isinstance(req, TahoeLAFSRequest) and req.fields and argname_unicode in req.fields:
-        # In all but one or two unit tests, the request will be a
-        # TahoeLAFSRequest.
-        value = req.fields[argname_unicode].value
-        if isinstance(value, str):
-            value = value.encode("utf-8")
-        results.append(value)
     if multiple:
         return tuple(results)
     if results:
