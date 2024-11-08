@@ -258,7 +258,7 @@ jobs:
           name: "(Maybe) Build Wheels"
           command: |
             python -m pip install setuptools # Some Pythons for Windows do not come with setuptools
-            python setup.py update_version # Cheat to win a race on about writing _version.py
+            python setup.py update_version # Cheat to win a race about writing _version.py
 
             if ((Test-Path .\wheelhouse) -and (Test-Path .\wheelhouse\*)) {
               echo "Found populated wheelhouse, skipping wheel building."
