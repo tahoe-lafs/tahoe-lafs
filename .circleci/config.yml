@@ -130,7 +130,7 @@ workflows:
               # of Python, we probably have to do something here.
               pythonVersion:
                 - "3.9"
-                - "3.11"
+                - "3.12"
 
       - "integration":
           # Run even the slow integration tests here.  We need the `--` to
