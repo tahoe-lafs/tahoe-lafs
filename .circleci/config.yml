@@ -182,7 +182,21 @@ jobs:
         image: "cimg/python:3.9"
 
     steps:
-      - "checkout"
+      - run: &CHECKOUT
+          # Custom checkout step using https URL instead of ssh even if a key is present
+          # This avoids us having to manage keys only to read a public repo - until we have to push?
+          # But we have to handle remote branches from external fork (CIRCLE_PR_XXX)
+          # and local branches from the project itself (CIRCLE_PROJECT)
+          name: Checkout code
+          command: |
+            USERNAME=${CIRCLE_PR_USERNAME:-${CIRCLE_PROJECT_USERNAME}}
+            REPONAME=${CIRCLE_PR_REPONAME:-${CIRCLE_PROJECT_REPONAME}}
+            git status > /dev/null 2>&1 \
+            && { git remote set-url origin "https://github.com/${USERNAME}/${REPONAME}.git"; \
+                 git fetch origin "${CIRCLE_SHA1}"; } \
+            || git clone "https://github.com/${USERNAME}/${REPONAME}.git" .
+            git checkout -B "${CIRCLE_BRANCH}" "${CIRCLE_SHA1}"
+            TERM=ansi git log -1 --format="%H - %s"
 
       - run: &INSTALL_TOX
           name: "Install tox"
@@ -219,7 +233,18 @@ jobs:
       PIP_FIND_LINKS: "wheelhouse"
 
     steps:
-      - "checkout"
+      - "run":
+          # Custom checkout step using https URL instead of ssh even if a key is present
+          # This avoids us having to manage keys only to read a public repo - until we have to push?
+          # But we have to handle remote branches from external fork (CIRCLE_PR_XXX)
+          # and local branches from the project itself (CIRCLE_PROJECT)
+          name: Checkout code
+          command: |
+            $USERNAME = if ($Env:CIRCLE_PR_USERNAME -ne $null) { $Env:CIRCLE_PR_USERNAME } else { $Env:CIRCLE_PROJECT_USERNAME }
+            $REPONAME = if ($Env:CIRCLE_PR_REPONAME -ne $null) { $Env:CIRCLE_PR_REPONAME } else { $Env:CIRCLE_PROJECT_REPONAME }
+            git clone "https://github.com/$USERNAME/$REPONAME.git" .
+            git checkout -B "$Env:CIRCLE_BRANCH" "$Env:CIRCLE_SHA1"
+            git log -1 --format="%H - %s"
 
       # If possible, restore a pip download cache to save us from having to
       # download all our Python dependencies from PyPI.
@@ -358,7 +383,8 @@ jobs:
         image: "cimg/python:3.9"
 
     steps:
-      - "checkout"
+      - run:
+          <<: *CHECKOUT
 
       - run:
           <<: *INSTALL_TOX
@@ -405,7 +431,8 @@ jobs:
     working_directory: "/tmp/project"
 
     steps:
-      - "checkout"
+      - run:
+          <<: *CHECKOUT
       - run: &SETUP_VIRTUALENV
           name: "Setup virtualenv"
           command: |
@@ -518,7 +545,8 @@ jobs:
       TAHOE_LAFS_TOX_ARGS: "<< parameters.tox-args >>"
 
     steps:
-      - "checkout"
+      - run:
+          <<: *CHECKOUT
       # DRY, YAML-style.  See the debian-9 steps.
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
@@ -558,7 +586,6 @@ jobs:
     working_directory: "/tmp/project"
 
     steps:
-      - "checkout"
       - run: *SETUP_VIRTUALENV
       - run: *RUN_TESTS
       - store_test_results: *STORE_TEST_RESULTS
@@ -614,7 +641,8 @@ jobs:
         image: "tahoelafsci/ubuntu:20.04-py3.9"
 
     steps:
-      - "checkout"
+      - run:
+          <<: *CHECKOUT
       - run:
           name: "Validate Types"
           command: |
@@ -626,7 +654,8 @@ jobs:
         image: "tahoelafsci/ubuntu:20.04-py3.9"
 
     steps:
-      - "checkout"
+      - run:
+          <<: *CHECKOUT
       - run:
           name: "Build documentation"
           command: |
@@ -651,7 +680,8 @@ jobs:
       PYTHON_VERSION: "tahoelafsci/distro:tag-py<PYTHON_VERSION}"
 
     steps:
-      - "checkout"
+      - run:
+          <<: *CHECKOUT
       - setup_remote_docker:
           version: "20.10.11"
       - run:
@@ -785,7 +815,8 @@ commands:
             # instead of building it locally, if possible.
             cachix use "${CACHIX_NAME}"
 
-      - "checkout"
+      - run:
+          <<: *CHECKOUT
 
       - "run":
           # The Nix package doesn't know how to do this part, unfortunately.
