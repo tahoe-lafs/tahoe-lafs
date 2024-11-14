@@ -6,7 +6,6 @@ from __future__ import annotations
 
 
 from typing import (
-    Union,
     Optional,
     Sequence,
     Mapping,
@@ -45,7 +44,6 @@ from zope.interface import implementer
 from hyperlink import DecodedURL
 import treq
 from treq.client import HTTPClient
-from treq.testing import StubTreq
 from OpenSSL import SSL
 from werkzeug.http import parse_content_range_header
 
