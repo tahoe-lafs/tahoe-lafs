@@ -434,7 +434,7 @@ class StorageClient(object):
     # The URL should be a HTTPS URL ("https://...")
     _base_url: DecodedURL
     _swissnum: bytes
-    _treq: Union[treq, StubTreq, HTTPClient]
+    _treq: HTTPClient
     _pool: HTTPConnectionPool
     _clock: IReactorTime
     # Are we running unit tests?
