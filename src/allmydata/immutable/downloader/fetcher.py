@@ -64,6 +64,7 @@ class SegmentFetcher(object):
             self._running = False
             # help GC ???
             print("DEL", self, hasattr(self, "_shares"))
+            assert hasattr(self, "_shares"), "it did The Thing"
             del self._shares, self._shares_from_server, self._active_share_map
             del self._share_observers
 
