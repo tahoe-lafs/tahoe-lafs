@@ -3,8 +3,6 @@
 Ported to Python 3.
 """
 
-from past.builtins import unicode
-
 import time
 
 from zope.interface import implementer
@@ -39,31 +37,29 @@ from eliot.twisted import (
 )
 
 NAME = Field.for_types(
-    u"name",
-    # Make sure this works on Python 2; with str, it gets Future str which
-    # breaks Eliot.
-    [unicode],
-    u"The name linking the parent to this node.",
+    "name",
+    [str],
+    "The name linking the parent to this node.",
 )
 
 METADATA = Field.for_types(
-    u"metadata",
+    "metadata",
     [dict],
-    u"Data about a node.",
+    "Data about a node.",
 )
 
 OVERWRITE = Field.for_types(
-    u"overwrite",
+    "overwrite",
     [bool],
-    u"True to replace an existing file of the same name, "
-    u"false to fail with a collision error.",
+    "True to replace an existing file of the same name, "
+    "false to fail with a collision error.",
 )
 
 ADD_FILE = ActionType(
-    u"dirnode:add-file",
+    "dirnode:add-file",
     [NAME, METADATA, OVERWRITE],
     [],
-    u"Add a new file as a child of a directory.",
+    "Add a new file as a child of a directory.",
 )
 
 

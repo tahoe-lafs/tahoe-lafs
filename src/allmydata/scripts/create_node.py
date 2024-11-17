@@ -234,13 +234,15 @@ class CreateClientOptions(_CreateBaseOptions):
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
         ("no-storage", None, "Do not offer storage service to other nodes."),
-        ("storage-dir", None, "Path where the storage will be placed."),
         ("helper", None, "Enable helper"),
     ] + TOR_FLAGS + I2P_FLAGS
 
     synopsis = "[options] [NODEDIR]"
     description = "Create a full Tahoe-LAFS node (client+server)."
-    optParameters = CreateClientOptions.optParameters + WHERE_OPTS + TOR_OPTS + I2P_OPTS
+
+    optParameters = [
+        ("storage-dir", None, None, "Path where the storage will be placed."),
+    ] + CreateClientOptions.optParameters + WHERE_OPTS + TOR_OPTS + I2P_OPTS
 
     def parseArgs(self, basedir=None):
         CreateClientOptions.parseArgs(self, basedir)

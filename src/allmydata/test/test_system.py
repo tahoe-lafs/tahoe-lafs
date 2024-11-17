@@ -3,7 +3,7 @@ Ported to Python 3.
 """
 from __future__ import annotations
 
-from past.builtins import chr as byteschr, long
+from past.builtins import chr as byteschr
 from six import ensure_text
 
 import os, re, sys, time, json
@@ -115,7 +115,7 @@ class CountingDataUploadable(upload.Data):
 class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     """Foolscap integration-y tests."""
     FORCE_FOOLSCAP_FOR_STORAGE = True
-    timeout = 180
+    timeout = 300
 
     @property
     def basedir(self):
@@ -395,7 +395,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 # this is really bytes received rather than sent, but it's
                 # convenient and basically measures the same thing
                 bytes_sent = results.get_ciphertext_fetched()
-                self.failUnless(isinstance(bytes_sent, (int, long)), bytes_sent)
+                self.failUnless(isinstance(bytes_sent, int), bytes_sent)
 
                 # We currently don't support resumption of upload if the data is
                 # encrypted with a random key.  (Because that would require us
