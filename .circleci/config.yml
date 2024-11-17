@@ -99,38 +99,6 @@ workflows:
     when: "<< pipeline.parameters.build-images >>"
 
 jobs:
-  finish-coverage-report:
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "python:3-slim"
-
-    steps:
-      - run:
-          name: "Indicate completion to coveralls.io"
-          environment:
-            <<: *COVERALLS_ENVIRONMENT
-          command: |
-            pip install coveralls==3.3.1
-            python -m coveralls --finish
-
-  codechecks:
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "cimg/python:3.9"
-
-    steps:
-      - "checkout"
-
-      - run: &INSTALL_TOX
-          name: "Install tox"
-          command: |
-            pip install --user 'tox~=3.0'
-
-      - run:
-          name: "Static-ish code checks"
-          command: |
-            ~/.local/bin/tox -e codechecks
-
   windows-server-2022:
     parameters:
       pythonVersion:
