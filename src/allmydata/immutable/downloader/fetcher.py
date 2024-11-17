@@ -63,6 +63,7 @@ class SegmentFetcher(object):
             self._cancel_all_requests()
             self._running = False
             # help GC ???
+            print("DEL", self)
             del self._shares, self._shares_from_server, self._active_share_map
             del self._share_observers
 
