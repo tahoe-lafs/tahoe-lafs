@@ -716,7 +716,7 @@ class GenericHTTPAPITests(SyncTestCase):
         """
         client = StubTreq(self.http.http_server.get_resource())
         response = self.http.result_of_with_flush(
-            client.request(  # type: ignore[attr-defined]
+            client.request(
                 "GET",
                 "http://127.0.0.1/storage/v1/version",
             ),
