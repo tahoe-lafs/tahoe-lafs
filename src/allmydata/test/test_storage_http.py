@@ -27,6 +27,7 @@ from queue import Queue
 from pycddl import ValidationError as CDDLValidationError
 from hypothesis import assume, given, strategies as st, settings as hypothesis_settings
 from fixtures import Fixture, TempDir, MonkeyPatch
+from treq.client import HTTPClient
 from treq.testing import StubTreq
 from klein import Klein
 from hyperlink import DecodedURL
@@ -714,7 +715,7 @@ class GenericHTTPAPITests(SyncTestCase):
         If nothing is given in the ``Authorization`` header at all an
         ``Unauthorized`` response is returned.
         """
-        client = StubTreq(self.http.http_server.get_resource())
+        client = HTTPClient(self.http.http_server.get_resource())
         response = self.http.result_of_with_flush(
             client.request(
                 "GET",
