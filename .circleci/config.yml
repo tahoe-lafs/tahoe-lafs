@@ -265,6 +265,7 @@ jobs:
             } else {
               python -m pip install wheel
               python -m pip wheel --wheel-dir $env:PIP_FIND_LINKS .[testenv] .[test]
+            }
 
       - "save_cache":
           paths:
