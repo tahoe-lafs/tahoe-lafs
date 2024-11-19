@@ -605,7 +605,6 @@ jobs:
                   cache_if_able nix run \
                     --override-input nixpkgs "$NIXPKGS" \
                     .#<<parameters.pythonVersion>>-unittest -- \
-                    --jobs $UNITTEST_CORES \
                     allmydata
 
   typechecks:
