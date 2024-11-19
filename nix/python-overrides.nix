@@ -149,4 +149,8 @@ in {
 
   # CircleCI build systems don't have enough memory to run this test suite.
   lz4 = onPyPy dontCheck super.lz4;
+
+  # (At least) one of our dependencies depend on iPython and that doesn't work
+  # with Python 3.9 anymore.  We're not interested in iPython.
+  ipython = null;
 }
