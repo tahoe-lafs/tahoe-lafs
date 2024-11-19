@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-  More CI runs, please
+Ported to Python 3.
 """
 
 import os, shutil

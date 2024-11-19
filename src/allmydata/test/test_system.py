@@ -115,7 +115,7 @@ class CountingDataUploadable(upload.Data):
 class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     """Foolscap integration-y tests."""
     FORCE_FOOLSCAP_FOR_STORAGE = True
-    timeout = 180
+    timeout = 300
 
     @property
     def basedir(self):
@@ -1886,8 +1886,6 @@ class HTTPSystemTest(SystemTest):
 
     FORCE_FOOLSCAP_FOR_STORAGE = False
 
-    # In CI this test can be very slow, so give it a longer timeout:
-    timeout = 360  # type: ignore[attr-defined]
 
 
 class HTTPConnections(Connections):
