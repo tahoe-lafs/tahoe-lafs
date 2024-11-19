@@ -101,6 +101,7 @@ workflows:
                 - "python39"
                 - "python310"
                 - "python311"
+                - "python312"
 
       # Eventually, test against PyPy 3.8
       #- "pypy27-buster":
