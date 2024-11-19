@@ -94,7 +94,7 @@ workflows:
 
       - "nixos":
           name: "<<matrix.pythonVersion>>"
-          nixpkgs: "nixpkgs.follows"
+          nixpkgs: "nixpkgs"
           matrix:
             parameters:
               pythonVersion:
