@@ -73,18 +73,15 @@ export PIP_NO_INDEX="1"
 # and notify CircleCI we're still alive.
 export PYTHONUNBUFFERED=1
 
-if [ "${ALLOWED_FAILURE}" = "yes" ]; then
-    alternative="true"
-else
-    alternative="false"
-fi
-
 WORKDIR=/tmp/tahoe-lafs.tox
+set +e
 ${TIMEOUT} ${BOOTSTRAP_VENV}/bin/tox \
     -c ${PROJECT_ROOT}/tox.ini \
     --workdir "${WORKDIR}" \
     -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
-    ${TAHOE_LAFS_TOX_ARGS} || "${alternative}"
+    ${TAHOE_LAFS_TOX_ARGS}
+TOX_SUCCESS=$?
+set -e
 
 if [ -n "${ARTIFACTS}" ]; then
     if [ ! -e "${SUBUNIT2}" ]; then
@@ -95,5 +92,14 @@ if [ -n "${ARTIFACTS}" ]; then
     # Create a junitxml results area.
     mkdir -p "$(dirname "${JUNITXML}")"
 
-    "${WORKDIR}/${TAHOE_LAFS_TOX_ENVIRONMENT}/bin/subunit2junitxml" < "${SUBUNIT2}" > "${JUNITXML}" || "${alternative}"
+    # Subunit2junitxml exits non-zero when there were test failures.
+    # Let's not have that.
+    "${WORKDIR}/${TAHOE_LAFS_TOX_ENVIRONMENT}/bin/subunit2junitxml" < "${SUBUNIT2}" > "${JUNITXML}" || true
+fi
+
+# If we don't allow failures, we want the test suite return value.
+if [ "${ALLOWED_FAILURE}" = "yes" ]; then
+    exit 0
+else
+    exit $TOX_SUCCESS
 fi
