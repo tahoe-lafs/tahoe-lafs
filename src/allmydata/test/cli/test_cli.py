@@ -60,6 +60,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         return output
 
     def test_dump_cap_chk(self):
+        assert false, "Fail some random test!"
         key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
         uri_extension_hash = hashutil.uri_extension_hash(b"stuff")
         needed_shares = 25
