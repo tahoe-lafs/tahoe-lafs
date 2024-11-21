@@ -84,7 +84,7 @@ ${TIMEOUT} ${BOOTSTRAP_VENV}/bin/tox \
     -c ${PROJECT_ROOT}/tox.ini \
     --workdir "${WORKDIR}" \
     -e "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
-    ${TAHOE_LAFS_TOX_ARGS} || "${alternative}"
+    ${TAHOE_LAFS_TOX_ARGS} allmydata.test.test_system.HTTPSystemTest || "${alternative}"
 
 if [ -n "${ARTIFACTS}" ]; then
     if [ ! -e "${SUBUNIT2}" ]; then
