@@ -88,20 +88,6 @@ workflows:
       - "ubuntu-22-04":
           {}
 
-      - "nixos":
-          name: "<<matrix.pythonVersion>>"
-          nixpkgs: "nixpkgs-unstable"
-          matrix:
-            parameters:
-              pythonVersion:
-                - "python39"
-                - "python310"
-                - "python311"
-
-      # Eventually, test against PyPy 3.8
-      #- "pypy27-buster":
-      #    {}
-
       # Other assorted tasks and configurations
       - "c-locale":
           {}
