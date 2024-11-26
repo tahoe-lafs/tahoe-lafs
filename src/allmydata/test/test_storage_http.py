@@ -719,7 +719,7 @@ class GenericHTTPAPITests(SyncTestCase):
             RequestTraversalAgent(self.http.http_server.get_resource())
         )
         response = self.http.result_of_with_flush(
-            client.request(
+            client.request(  # type: ignore
                 "GET",
                 "http://127.0.0.1/storage/v1/version",
             ),

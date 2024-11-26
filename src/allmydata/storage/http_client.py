@@ -541,7 +541,7 @@ class StorageClient(object):
             kwargs["data"] = await defer_to_thread(dumps, message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
-        response = await self._treq.request(
+        response = await self._treq.request(  # type: ignore
             method, url, headers=headers, timeout=timeout, **kwargs
         )
         self._analyze_response(response)
