@@ -54,12 +54,17 @@ class SegmentFetcher(object):
         self._running = True
 
     def stop(self):
+        # this may be stopped at least twice: once from the Terminator
+        # of the Node and once when/if we have all the blocks (i.e. we
+        # call self.stop on ourself)
         if self._running:
             log.msg("SegmentFetcher(%r).stop" % self._node._si_prefix,
                     level=log.NOISY, parent=self._lp, umid="LWyqpg")
             self._cancel_all_requests()
             self._running = False
             # help GC ???
+            print("DEL", self, hasattr(self, "_shares"))
+            assert hasattr(self, "_shares"), "it did The Thing..."
             del self._shares, self._shares_from_server, self._active_share_map
             del self._share_observers
 

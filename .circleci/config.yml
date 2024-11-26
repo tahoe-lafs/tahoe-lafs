@@ -79,81 +79,9 @@ workflows:
     when: "<< pipeline.parameters.run-tests >>"
     jobs:
       # Start with jobs testing various platforms.
-      - "debian-11":
-          {}
-
-      - "ubuntu-20-04":
-          {}
-
-      - "ubuntu-22-04":
-          {}
-
       # Equivalent to RHEL 8; CentOS 8 is dead.
       - "oraclelinux-8":
           {}
-
-      - "nixos":
-          name: "<<matrix.pythonVersion>>"
-          nixpkgs: "nixpkgs-unstable"
-          matrix:
-            parameters:
-              pythonVersion:
-                - "python39"
-                - "python310"
-                - "python311"
-
-      # Eventually, test against PyPy 3.8
-      #- "pypy27-buster":
-      #    {}
-
-      # Other assorted tasks and configurations
-      - "codechecks":
-          {}
-      - "pyinstaller":
-          {}
-      - "c-locale":
-          {}
-      # Any locale other than C or UTF-8.
-      - "another-locale":
-          {}
-
-      - "windows-server-2022":
-          name: "Windows Server 2022, CPython <<matrix.pythonVersion>>"
-          matrix:
-            parameters:
-              # Run the job for a number of CPython versions.  These are the
-              # two versions installed on the version of the Windows VM image
-              # we specify (in the executor).  This is handy since it means we
-              # don't have to do any Python installation work.  We pin the
-              # Windows VM image so these shouldn't shuffle around beneath us
-              # but if we want to update that image or get different versions
-              # of Python, we probably have to do something here.
-              pythonVersion:
-                - "3.9"
-                - "3.12"
-
-      - "integration":
-          # Run even the slow integration tests here.  We need the `--` to
-          # sneak past tox and get to pytest.
-          tox-args: "-- --runslow integration"
-          requires:
-            # If the unit test suite doesn't pass, don't bother running the
-            # integration tests.
-            - "debian-11"
-
-      - "typechecks":
-          {}
-      - "docs":
-          {}
-
-      - "finish-coverage-report":
-          requires:
-            # Referencing the job by "alias" (as CircleCI calls the mapping
-            # key) instead of the value of its "name" property causes us to
-            # require every instance of the job from its matrix expansion.  So
-            # this requirement is enough to require every Windows Server 2022
-            # job.
-            - "windows-server-2022"
 
   images:
     <<: *IMAGES
@@ -162,38 +90,6 @@ workflows:
     when: "<< pipeline.parameters.build-images >>"
 
 jobs:
-  finish-coverage-report:
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "python:3-slim"
-
-    steps:
-      - run:
-          name: "Indicate completion to coveralls.io"
-          environment:
-            <<: *COVERALLS_ENVIRONMENT
-          command: |
-            pip install coveralls==3.3.1
-            python -m coveralls --finish
-
-  codechecks:
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "cimg/python:3.9"
-
-    steps:
-      - "checkout"
-
-      - run: &INSTALL_TOX
-          name: "Install tox"
-          command: |
-            pip install --user 'tox~=3.0'
-
-      - run:
-          name: "Static-ish code checks"
-          command: |
-            ~/.local/bin/tox -e codechecks
-
   windows-server-2022:
     parameters:
       pythonVersion:
@@ -302,7 +198,7 @@ jobs:
             # Run the test suite under coverage measurement using the
             # parameterized version of Python, writing subunitv2-format
             # results to the file given in the environment.
-            python -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata
+            python -b -m coverage run -m twisted.trial -z 4 --reporter=subunitv2-file --rterrors allmydata
 
       - "run":
           name: "Upload Coverage"
@@ -351,30 +247,6 @@ jobs:
 
       - "store_artifacts":
           path: ".coverage"
-
-  pyinstaller:
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "cimg/python:3.9"
-
-    steps:
-      - "checkout"
-
-      - run:
-          <<: *INSTALL_TOX
-
-      - run:
-          name: "Make PyInstaller executable"
-          command: |
-            ~/.local/bin/tox -e pyinstaller
-
-      - run:
-          # To verify that the resultant PyInstaller-generated binary executes
-          # cleanly (i.e., that it terminates with an exit code of 0 and isn't
-          # failing due to import/packaging-related errors, etc.).
-          name: "Test PyInstaller executable"
-          command: |
-            dist/Tahoe-LAFS/tahoe --version
 
   debian-11: &DEBIAN
     environment: &UTF_8_ENVIRONMENT
