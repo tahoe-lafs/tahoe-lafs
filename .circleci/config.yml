@@ -245,7 +245,7 @@ jobs:
             # Run the test suite under coverage measurement using the
             # parameterized version of Python, writing subunitv2-format
             # results to the file given in the environment.
-            python -b -m coverage run -m twisted.trial --debug-stacktraces --reporter=subunitv2-file --rterrors allmydata
+            python -b -m coverage run -m twisted.trial --reporter=subunitv2-file --rterrors allmydata
 
       - "run":
           name: "Upload Coverage"
@@ -548,7 +548,8 @@ jobs:
                   cache_if_able nix run \
                     --override-input nixpkgs "$NIXPKGS" \
                     .#<<parameters.pythonVersion>>-unittest -- \
-                    allmydata.test.test_system.HTTPSystemTest
+                    --jobs $UNITTEST_CORES \
+                    allmydata
 
   typechecks:
     docker:
