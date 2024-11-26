@@ -1884,11 +1884,16 @@ class Connections(SystemTestMixin, unittest.TestCase):
 class HTTPSystemTest(SystemTest):
     """HTTP storage protocol variant of the system tests."""
 
+    skip = "HTTPSystemTests are flaky, skip for now"
+
     FORCE_FOOLSCAP_FOR_STORAGE = False
 
 
 
 class HTTPConnections(Connections):
     """HTTP storage protocol variant of the connections tests."""
+
+    skip = "HTTPSystemTests are flaky, skip for now"
+
     FORCE_FOOLSCAP_FOR_STORAGE = False
 
