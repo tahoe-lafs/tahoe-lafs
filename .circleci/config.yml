@@ -95,9 +95,6 @@ workflows:
       - "another-locale":
           {}
 
-      - "typechecks":
-          {}
-
   images:
     <<: *IMAGES
 

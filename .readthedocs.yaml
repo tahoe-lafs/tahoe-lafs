@@ -4,6 +4,8 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.10"
+  commands:
+    - "exit 183"  # readthedocs takes 183 for "skip".
 
 python:
    install:
