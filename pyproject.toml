@@ -190,6 +190,8 @@ i2p = [
 build = [
   "dulwich",
   "gpg",
+  "hatchling",
+  "hatch-vcs"
 ]
 
 testenv = [
@@ -209,7 +211,7 @@ testenv = [
 ]
 
 # Here are the library dependencies of the test suite.
-"test" = [
+test = [
     "mock",
     "pytest",
     "pytest-twisted",
