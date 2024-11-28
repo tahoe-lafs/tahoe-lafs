@@ -1,3 +1,12 @@
+[project]
+name = "tahoe-lafs"
+
+
+[tool.hatch.version]
+source = "vcs"
+tag-pattern = "tahoe-lafs-(.*)"
+
+
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
