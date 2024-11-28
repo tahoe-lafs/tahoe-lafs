@@ -257,14 +257,11 @@ jobs:
           # doesn't cost us anything extra and saves us effort next time.
           name: "(Maybe) Build Wheels"
           command: |
-            python -m pip install setuptools # Some Pythons for Windows do not come with setuptools
-            python setup.py update_version # Cheat to win a race about writing _version.py
-
             if ((Test-Path .\wheelhouse) -and (Test-Path .\wheelhouse\*)) {
               echo "Found populated wheelhouse, skipping wheel building."
             } else {
               python -m pip install wheel
-              python -m pip wheel --wheel-dir $env:PIP_FIND_LINKS .[testenv] .[test]
+              python -m pip wheel --wheel-dir $env:PIP_FIND_LINKS .[testenv] .[test] .[build]
             }
 
       - "save_cache":
