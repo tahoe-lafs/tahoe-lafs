@@ -229,7 +229,7 @@ jobs:
             # version-specific binary packages so include the Python version
             # in this key, as well as the canonical source of our
             # dependencies.
-            - &CACHE_KEY "pip-packages-v1-<< parameters.pythonVersion >>-{{ checksum \"setup.py\" }}"
+            - &CACHE_KEY "pip-packages-v1-<< parameters.pythonVersion >>-{{ checksum \"pyproject.toml\" }}"
 
       - "run":
           name: "Fix $env:PATH"
@@ -785,6 +785,7 @@ commands:
       - "checkout"
 
       - "run":
+# python -m hatch <something-somethong>
           # The Nix package doesn't know how to do this part, unfortunately.
           name: "Generate version"
           command: |
