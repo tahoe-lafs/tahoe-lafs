@@ -253,8 +253,9 @@ version-file = "src/allmydata/_version.py"
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build.targets.sdist]
-packages = ["src/allmydata"]
+# https://github.com/ofek/hatch-vcs/issues/35#issuecomment-1452025896
+[tool.hatch.build]
+include = ["src"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/allmydata"]
