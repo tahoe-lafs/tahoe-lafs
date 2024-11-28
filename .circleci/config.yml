@@ -275,7 +275,7 @@ jobs:
           name: "Install Dependencies"
           environment:
             # By this point we should no longer need an index.
-            PIP_NO_INDEX: "1"
+##            PIP_NO_INDEX: "1"
           command: |
             python -m pip install .[testenv] .[test]
 
