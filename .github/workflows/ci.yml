@@ -49,8 +49,6 @@ jobs:
             python-version: "3.12"
           # We only support PyPy on Linux at the moment.
           - os: ubuntu-latest
-            python-version: "pypy-3.8"
-          - os: ubuntu-latest
             python-version: "pypy-3.9"
           - os: ubuntu-latest
             python-version: "3.12"
@@ -95,15 +93,15 @@ jobs:
           python -m tox | python misc/windows-enospc/passthrough.py
 
       - name: Upload eliot.log
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: eliot.log
+          name: eliot-${{ matrix.runs-on }}.log
           path: eliot.log
 
       - name: Upload trial log
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: test.log
+          name: test-${{ matrix.runs-on }}.log
           path: _trial_temp/test.log
 
       # Upload this job's coverage data to Coveralls.  While there is a GitHub
@@ -232,10 +230,10 @@ jobs:
           tox -e integration -- --force-foolscap integration/
 
       - name: Upload eliot.log in case of failure
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: integration.eliot.json
+          name: integration.eliot-${{ matrix.run-on }}.json
           path: integration.eliot.json
 
   packaging:
@@ -279,7 +277,7 @@ jobs:
         run: dist/Tahoe-LAFS/tahoe --version
 
       - name: Upload PyInstaller package
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Tahoe-LAFS-${{ matrix.os }}-Python-${{ matrix.python-version }}
           path: dist/Tahoe-LAFS-*-*.*

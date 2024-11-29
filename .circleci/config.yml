@@ -130,7 +130,7 @@ workflows:
               # of Python, we probably have to do something here.
               pythonVersion:
                 - "3.9"
-                - "3.11"
+                - "3.12"
 
       - "integration":
           # Run even the slow integration tests here.  We need the `--` to
@@ -250,11 +250,6 @@ jobs:
             Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$p;$q;`$env:PATH`""
 
       - "run":
-          name: "Display tool versions"
-          command: |
-            python misc/build_helpers/show-tool-versions.py
-
-      - "run":
           # It's faster to install a wheel than a source package.  If we don't
           # have a cached wheelhouse then build all of the wheels and dump
           # them into a directory where they can become a cached wheelhouse.
@@ -262,6 +257,9 @@ jobs:
           # doesn't cost us anything extra and saves us effort next time.
           name: "(Maybe) Build Wheels"
           command: |
+            python -m pip install setuptools # Some Pythons for Windows do not come with setuptools
+            python setup.py update_version # Cheat to win a race about writing _version.py
+
             if ((Test-Path .\wheelhouse) -and (Test-Path .\wheelhouse\*)) {
               echo "Found populated wheelhouse, skipping wheel building."
             } else {
@@ -283,6 +281,11 @@ jobs:
             PIP_NO_INDEX: "1"
           command: |
             python -m pip install .[testenv] .[test]
+
+      - "run":
+          name: "Display tool versions"
+          command: |
+            python misc/build_helpers/show-tool-versions.py
 
       - "run":
           name: "Run Unit Tests"
@@ -730,7 +733,7 @@ executors:
     # requirements and goals.
     # https://circleci.com/developer/orbs/orb/circleci/windows#executors-server-2022
     machine:
-      image: "windows-server-2022-gui:2023.06.1"
+      image: "windows-server-2022-gui:current"
       shell: "powershell.exe -ExecutionPolicy Bypass"
     resource_class: "windows.large"
 
