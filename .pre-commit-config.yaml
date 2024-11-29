@@ -7,4 +7,4 @@ repos:
       language: "system"
       files: ".py$"
       entry: "tox -e codechecks"
-      pass_filenames: true
+      pass_filenames: false
