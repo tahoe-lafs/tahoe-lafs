@@ -219,6 +219,8 @@ jobs:
 #      PIP_FIND_LINKS: "wheelhouse"
 
     steps:
+      - run: choco install gpg4win
+
       - "checkout"
 
       # If possible, restore a pip download cache to save us from having to
