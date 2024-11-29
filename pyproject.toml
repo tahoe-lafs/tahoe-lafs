@@ -1,3 +1,23 @@
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+# If using Setuptools:
+[build-system]
+requires = [
+    "setuptools",
+    "versioningit",
+]
+build-backend = "setuptools.build_meta"
+
+# If using Hatch:
+[build-system]
+requires = [
+    "hatchling",
+    "versioningit",
+]
+build-backend = "hatchling.build"
+
+# This setting is also required if you're using Hatch:
+[tool.hatch.version]
+source = "versioningit"
