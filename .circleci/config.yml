@@ -219,7 +219,7 @@ jobs:
 #      PIP_FIND_LINKS: "wheelhouse"
 
     steps:
-      - run: choco install gpg4win
+      - run: choco install gpg4win -y
 
       - "checkout"
 
