@@ -1,0 +1,56 @@
+WIP 4133 Towards a consolidated CI config
+
+## Problem: Wheels get incorrect `version`
+
+```shell
+python -m venv venv && . venv/bin/activate
+pip install git+https://github.com/tahoe-lafs/tahoe-lafs
+```
+fails with:
+
+```
+WARNING: Built wheel for tahoe-lafs is invalid: Wheel has unexpected file name: expected '0.0.0', got '1.19.0.post194'
+Failed to build tahoe-lafs
+ERROR: Could not build wheels for tahoe-lafs, which is required to install pyproject.toml-based projects
+```
+## Description
+- setup.py has version logic that is not accessible from pyproject.toml
+- "new tooling" (eg. `pip install` Tahoe from git.)
+- new tooling does *NOT* run `setup.py update-version`
+- new tooling does not get to use the version info
+- modern tools prioritize
+
+## Proposal: For release 1.20:
+Make a smaller change: Choose one of the many bandaid approaches making setup.py use pyproject.toml (eg. versioningit or setuptools-scm)
+- Now: patch pyproject.toml to include version info
+- Next: move declarative items to pyproject.toml
+- Later:
+  - change `setuptools` to take version info from pyproject.toml
+  - Deprecate `setup.py`
+
+## Proposal for >1.20: adopt Hatch
+
+Edit `pyproject.toml`
+to include"
+```
+# If using Hatch:
+[build-system]
+requires = [
+    "hatchling",
+    "versioningit",
+]
+build-backend = "hatchling.build"
+
+# This setting is also required if you're using Hatch:
+[tool.hatch.version]
+source = "versioningit"
+```
+
+## References
+
+- https://packaging.python.org/en/latest/key_projects/
+- https://github.com/jwodder/versioningit?tab=readme-ov-file#installation--setup
+- https://github.com/jwodder/versioningit
+- https://github.com/pypa/setuptools-scm?tab=readme-ov-file#pyprojecttoml-usage
+
+Co-authored-by: Jeff Jacobson <jeffjacobsonhimself@gmail.com>
