@@ -227,7 +227,10 @@ test = [
     "pytest-timeout",
     # Does our OpenMetrics endpoint adhere to the spec:
     "prometheus-client == 0.11.0",
-] # can i express this too, in pyproject? that we want "tor" + "i2p" as well?
+
+    "tahoe-lafs[tor]",  # our own "tor" extra
+    "tahoe-lafs[i2p]"  # our own "i2p" extra
+]
 
 
 [project.scripts]
