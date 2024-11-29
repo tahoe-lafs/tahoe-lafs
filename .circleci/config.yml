@@ -785,15 +785,6 @@ commands:
       - "checkout"
 
       - "run":
-# python -m hatch <something-somethong>
-          # The Nix package doesn't know how to do this part, unfortunately.
-          name: "Generate version"
-          command: |
-            nix-shell \
-              -p 'python3.withPackages (ps: [ ps.setuptools ])' \
-              --run 'python setup.py update_version'
-
-      - "run":
           name: "Build Package"
           command: |
             source .circleci/lib.sh
