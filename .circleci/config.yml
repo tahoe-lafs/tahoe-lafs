@@ -535,13 +535,6 @@ jobs:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py310"
 
-  fedora-35:
-    <<: *RHEL_DERIV
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/fedora:35-py3"
-        user: "nobody"
-
   nixos:
     parameters:
       nixpkgs:
