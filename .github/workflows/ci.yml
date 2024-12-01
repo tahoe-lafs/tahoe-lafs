@@ -95,13 +95,13 @@ jobs:
       - name: Upload eliot.log
         uses: actions/upload-artifact@v4
         with:
-          name: eliot-${{ matrix.runs-on }}-${{ matrix.python-version }}.log
+          name: eliot-${{ matrix.os }}-${{ matrix.python-version }}.log
           path: eliot.log
 
       - name: Upload trial log
         uses: actions/upload-artifact@v4
         with:
-          name: test-${{ matrix.runs-on }}-${{ matrix.python-version }}.log
+          name: test-${{ matrix.os }}-${{ matrix.python-version }}.log
           path: _trial_temp/test.log
 
       # Upload this job's coverage data to Coveralls.  While there is a GitHub
@@ -233,7 +233,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: integration.eliot-${{ matrix.run-on }}-${{ matrix.python-version }}.json
+          name: integration.eliot-${{ matrix.os }}-${{ matrix.python-version }}.json
           path: integration.eliot.json
 
   packaging:
