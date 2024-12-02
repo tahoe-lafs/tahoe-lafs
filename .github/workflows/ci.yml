@@ -233,11 +233,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-<<<<<<< HEAD
-          name: integration.eliot-${{ matrix.os }}-${{ matrix.python-version }}.json
-=======
           name: "integration.eliot-${{ matrix.os }}-Python-${{ matrix.python-version }}.json"
->>>>>>> master
           path: integration.eliot.json
 
   packaging:
