@@ -603,6 +603,7 @@ jobs:
                   NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
 
                   cache_if_able nix run \
+                    --accept-flake-config \
                     --override-input nixpkgs "$NIXPKGS" \
                     .#<<parameters.pythonVersion>>-unittest -- \
                     --jobs $UNITTEST_CORES \
@@ -801,6 +802,7 @@ commands:
             source .circleci/lib.sh
             NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
             cache_if_able nix build \
+              --accept-flake-config \
               --verbose \
               --print-build-logs \
               --cores "$DEPENDENCY_CORES" \
