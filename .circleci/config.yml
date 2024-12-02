@@ -778,7 +778,7 @@ commands:
             # certain release branch.  These aren't involved in the actual
             # package build (only in CI environment setup) so the fact that
             # they float shouldn't hurt reproducibility.
-            NIXPKGS="nixpkgs/nixos-23.05"
+            NIXPKGS="nixpkgs/nixos-24.05"
             nix profile install $NIXPKGS#cachix $NIXPKGS#bash $NIXPKGS#jp
 
             # Activate our cachix cache for "binary substitution".  This sets
