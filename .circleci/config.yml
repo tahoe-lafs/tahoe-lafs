@@ -86,16 +86,17 @@ workflows:
       - "ubuntu-22-04":
           {}
 
-      # not NixOS .. if someone wants to maintain this, great.
-      - "nixos":
-          name: "<<matrix.pythonVersion>>"
-          nixpkgs: "nixpkgs-unstable"
-          matrix:
-            parameters:
-              pythonVersion:
-                - "python39"
-                - "python310"
-                - "python311"
+      # these are broken because CahceIX is broken, see:
+      # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4134
+      # - "nixos":
+      #     name: "<<matrix.pythonVersion>>"
+      #     nixpkgs: "nixpkgs-unstable"
+      #     matrix:
+      #       parameters:
+      #         pythonVersion:
+      #           - "python39"
+      #           - "python310"
+      #           - "python311"
 
       # Eventually, test against PyPy 3.8
       #- "pypy27-buster":
