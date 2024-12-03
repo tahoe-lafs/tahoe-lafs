@@ -1,0 +1,92 @@
+name: Nix
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/nix.yml'
+      - 'flake.*'
+      - 'setup.cfg'
+      - '*.nix'
+      - '*.py'
+      - '*.ini'
+  pull_request:
+    paths:
+      - '.github/workflows/nix.yml'
+      - 'flake.*'
+      - 'setup.cfg'
+      - '*.nix'
+      - '*.py'
+      - '*.ini'
+
+jobs:
+  check:
+    name: CI
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - 39
+          - 310
+          - 311
+        nixpkgs:
+          - nixpkgs-stable
+          - nixpkgs-unstable
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        id: install_nix
+        uses: nixbuild/nix-quick-install-action@v28
+
+      - name: Check Nix Flake
+        id: check
+        run: |
+          nix flake show
+          nix flake check
+
+      - name: Restore and cache Nix store ${{ matrix.target }}
+        uses: nix-community/cache-nix-action@v5
+        with:
+          # restore and save a cache using this key
+          primary-key: Nix-${{ matrix.python-version }}-${{ hashFiles('flake.*', '*.nix')) }}
+          # if there's no cache hit, restore a cache by this prefix
+          restore-prefixes-first-match: ${{ runner.os }}-Nix-${{ matrix.target }}-
+          # collect garbage until Nix store size (in bytes) is at most this number
+          # before trying to save a new cache
+          gc-max-store-size-linux: 1073741824
+          # do purge caches
+          purge: true
+          # purge all versions of the cache
+          purge-prefixes: ${{ runner.os }}-Nix-${{ matrix.target }}-
+          # created more than 0 seconds ago relative to the start of the `Post Restore` phase
+          purge-created: 0
+          # except the version with the `primary-key`, if it exists
+          purge-primary-key: never
+
+      - name: Build nixosConfiguration for ${{ matrix.target }}
+        id: check_target
+        run: |
+          nix build .#nixosConfigurations.${{ matrix.target }}.config.system.build.toplevel
+
+      - name: Generate version
+        # The Nix package doesn't know how to do this part, unfortunately.
+        run: |
+          nix-shell \
+            -p 'python3.withPackages (ps: [ ps.setuptools ])' \
+            --run 'python setup.py update_version'
+
+      - name: Build Package
+        run: |
+          source .circleci/lib.sh
+          NIXPKGS=$(nixpkgs_flake_reference ${{ matrix.nixpkgs }})
+          nix build \
+            --verbose \
+            --print-build-logs \
+            --cores "$DEPENDENCY_CORES" \
+            --override-input nixpkgs "$NIXPKGS" \
+            .#python${{ matrix.python-version }}-tahoe-lafs
