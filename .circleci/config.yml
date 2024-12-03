@@ -94,7 +94,7 @@ workflows:
 
       - "nixos":
           name: "<<matrix.pythonVersion>>"
-          nixpkgs: "nixpkgs-unstable"
+          nixpkgs: "nixpkgs-24.04"
           matrix:
             parameters:
               pythonVersion:
