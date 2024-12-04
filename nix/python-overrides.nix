@@ -51,17 +51,6 @@ in {
     inherit (super) txtorcon;
   };
 
-  # With our customized package set a Twisted unit test fails.  Patch the
-  # Twisted test suite to skip that test.
-  # Filed upstream at https://github.com/twisted/twisted/issues/11877
-  twisted = super.twisted.overrideAttrs (old: {
-    patches = (old.patches or []) ++ [ ./twisted.patch ];
-  });
-
-  # The cryptography that we get from nixpkgs to satisfy the pyopenssl upgrade
-  # that we did breaks service-identity ... so get a newer version that works.
-  service-identity = self.callPackage ./service-identity.nix { };
-
   # collections-extended is currently broken for Python 3.11 in nixpkgs but
   # we know where a working version lives.
   collections-extended = self.callPackage ./collections-extended.nix {
