@@ -101,6 +101,7 @@ jobs:
         python-version:
           - 310
           - 311
+          - 312
         nixpkgs:
           - nixos-24_11
     steps:
