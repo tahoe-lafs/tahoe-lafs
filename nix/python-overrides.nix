@@ -43,7 +43,6 @@ in {
   };
 
   # Some dependencies aren't packaged in nixpkgs so supply our own packages.
-  pycddl = self.callPackage ./pycddl.nix { };
   txi2p = self.callPackage ./txi2p.nix { };
 
   # Some packages are of somewhat too-old versions - update them.
