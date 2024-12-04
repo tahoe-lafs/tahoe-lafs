@@ -20,8 +20,8 @@
     # requirements.  We could decide in the future that supporting multiple
     # releases of NixOS at a time is worthwhile and then pins like these will
     # help us test each of those releases.
-    "nixpkgs-24_05" = {
-      url = github:NixOS/nixpkgs?ref=nixos-24.05;
+    "nixpkgs-24_11" = {
+      url = github:NixOS/nixpkgs?ref=nixos-24.11;
     };
 
     # We depend on a very new python-cryptography which is not yet available
@@ -35,7 +35,7 @@
     # _third_ package set involved and gives a way to provide what should be a
     # working experience by default (that is, if nixpkgs doesn't get
     # overridden).
-    nixpkgs.follows = "nixpkgs-24_05";
+    nixpkgs.follows = "nixpkgs-24_11";
 
     # Also get flake-utils for simplified multi-system definitions.
     flake-utils = {
