@@ -42,9 +42,6 @@ in {
     tahoe-lafs-src = self.lib.cleanSource ../.;
   };
 
-  # Some dependencies aren't packaged in nixpkgs so supply our own packages.
-  txi2p = self.callPackage ./txi2p.nix { };
-
   # collections-extended is currently broken for Python 3.11 in nixpkgs but
   # we know where a working version lives.
   collections-extended = self.callPackage ./collections-extended.nix {
