@@ -58,13 +58,6 @@ in {
     patches = (old.patches or []) ++ [ ./twisted.patch ];
   });
 
-  # Update the version of pyopenssl - and since we're doing that anyway, we
-  # don't need the docs.  Unfortunately this triggers a lot of rebuilding of
-  # dependent packages.
-  pyopenssl = dontBuildDocs (self.callPackage ./pyopenssl.nix {
-    inherit (super) pyopenssl;
-  });
-
   # The cryptography that we get from nixpkgs to satisfy the pyopenssl upgrade
   # that we did breaks service-identity ... so get a newer version that works.
   service-identity = self.callPackage ./service-identity.nix { };
