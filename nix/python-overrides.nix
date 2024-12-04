@@ -46,11 +46,8 @@ in {
   txi2p = self.callPackage ./txi2p.nix { };
 
   # Some packages are of somewhat too-old versions - update them.
-  klein = self.callPackage ./klein.nix {
-    # Avoid infinite recursion.
-    inherit (super) klein;
-  };
   txtorcon = self.callPackage ./txtorcon.nix {
+    # Avoid infinite recursion.
     inherit (super) txtorcon;
   };
 
