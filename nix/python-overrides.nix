@@ -45,15 +45,10 @@ in {
   # Some dependencies aren't packaged in nixpkgs so supply our own packages.
   txi2p = self.callPackage ./txi2p.nix { };
 
-  # Some packages are of somewhat too-old versions - update them.
-  txtorcon = self.callPackage ./txtorcon.nix {
-    # Avoid infinite recursion.
-    inherit (super) txtorcon;
-  };
-
   # collections-extended is currently broken for Python 3.11 in nixpkgs but
   # we know where a working version lives.
   collections-extended = self.callPackage ./collections-extended.nix {
+    # Avoid infinite recursion.
     inherit (super) collections-extended;
   };
 
