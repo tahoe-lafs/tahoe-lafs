@@ -27,7 +27,7 @@ jobs:
       NIXPKGS: ${{ steps.prep.outputs.NIXPKGS }}
       NIX_PATH: ${{ steps.prep.outputs.NIX_PATH }}
     env:
-      nixpkgs: nixos-24_05
+      nixpkgs: nixos-24_11
     steps:
       - name: Checkout
         id: checkout
@@ -102,7 +102,7 @@ jobs:
           - 310
           - 311
         nixpkgs:
-          - nixos-24_05
+          - nixos-24_11
     steps:
       - name: Checkout
         id: checkout
