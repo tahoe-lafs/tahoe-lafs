@@ -50,7 +50,7 @@ buildPythonPackage rec {
         txtorcon
       ];
       i2p = [
-        txi2p
+        txi2p-tahoe
       ];
       unittest = [
         beautifulsoup4
