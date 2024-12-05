@@ -21,12 +21,82 @@ on:
       - '*.ini'
 
 jobs:
+  check:
+    runs-on: ubuntu-22.04
+    outputs:
+      NIXPKGS: ${{ steps.prep.outputs.NIXPKGS }}
+      NIX_PATH: ${{ steps.prep.outputs.NIX_PATH }}
+    env:
+      nixpkgs: nixos-24_11
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          # We need all the tags to generate a version
+          # WARN: tags could be missing in forks!
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install nix
+        id: install_nix
+        uses: nixbuild/nix-quick-install-action@v28
+
+      - name: Flake check
+        id: flake
+        run: |
+          nix flake show
+          echo ==========
+          nix flake check
+
+      - name: Restore and cache Nix store for nixpkgs-${{ env.nixpkgs }}
+        uses: nix-community/cache-nix-action@v5
+        with:
+          # restore and save a cache using this key
+          primary-key: nixpkgs-${{ env.nixpkgs }}-${{ hashFiles('flake.*', '*.nix') }}
+          # if there's no cache hit, restore a cache by this prefix
+          restore-prefixes-first-match: nixpkgs-${{ env.nixpkgs }}-
+          # collect garbage until Nix store size (in bytes) is at most this number
+          # before trying to save a new cache
+          gc-max-store-size-linux: 1073741824
+          # do purge caches
+          purge: true
+          # purge all versions of the cache
+          purge-prefixes: nixpkgs-${{ env.nixpkgs }}-
+          # created more than 0 seconds ago relative to the start of the `Post Restore` phase
+          purge-created: 0
+          # except the version with the `primary-key`, if it exists
+          purge-primary-key: never
+
+      - name: Prepare environment
+        id: prep
+        run: |
+          # Get the reference to the nixpkgs pinned in the flake - dirty way
+          NIXPKGS=$(nix flake metadata | grep -E '[^\w]+nixpkgs-${{ matrix.nixpkgs }}[^\w]+:' | cut -d' ' -f2 | cut -d'?' -f1)
+          NIX_PATH=nixpkgs=https://github.com/NixOS/nixpkgs/archive/${NIXPKGS##*/}.tar.gz
+          # Pass those variables to the next steps and jobs
+          echo NIXPKGS=$NIXPKGS | tee -a $GITHUB_ENV >> $GITHUB_OUTPUT
+          echo NIX_PATH=$NIX_PATH | tee -a $GITHUB_ENV >> $GITHUB_OUTPUT
+
+      - name: Generate version
+        # The Nix package doesn't know how to do this part, unfortunately.
+        run: |
+          nix-shell \
+            -p 'python3.withPackages (ps: [ ps.setuptools ])' \
+            --run 'python setup.py update_version'
+
   packaging:
     runs-on: ubuntu-22.04
+    needs: check
+    env:
+      NIXPKGS: ${{ needs.check.outputs.NIXPKGS }}
+      NIX_PATH: ${{ needs.check.outputs.NIX_PATH }}
     strategy:
       fail-fast: false
       matrix:
         python-version:
+          - 310
+          - 311
           - 312
         nixpkgs:
           - nixos-24_11
@@ -35,6 +105,8 @@ jobs:
         id: checkout
         uses: actions/checkout@v4
         with:
+          # We need all the tags to generate a version
+          # WARN: tags could be missing in forks!
           fetch-depth: 0
           fetch-tags: true
 
