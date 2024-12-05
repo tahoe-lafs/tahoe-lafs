@@ -596,15 +596,12 @@ jobs:
           buildSteps:
             - "run":
                 name: "Unit Test"
+                environment:
+                  # Once dependencies are built, we can allow some more concurrency for our own
+                  # test suite.
+                  UNITTEST_CORES: 8
                 command: |
-                  source .circleci/lib.sh
-
-                  # Translate the nixpkgs selection into a flake reference we
-                  # can use to override the default nixpkgs input.
-                  NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
-
                   nix run \
-                    --override-input nixpkgs "$NIXPKGS" \
                     .#<<parameters.pythonVersion>>-unittest -- \
                     --jobs $UNITTEST_CORES \
                     allmydata
@@ -766,16 +763,6 @@ commands:
         type: "steps"
 
     steps:
-      - "run":
-          name: "Install Basic Dependencies"
-          command: |
-            # Get some build environment dependencies and let them float on a
-            # certain release branch.  These aren't involved in the actual
-            # package build (only in CI environment setup) so the fact that
-            # they float shouldn't hurt reproducibility.
-            NIXPKGS="nixpkgs/nixos-24.11"
-            nix profile install $NIXPKGS#bash $NIXPKGS#jp
-
       - "checkout"
 
       - "run":
@@ -788,14 +775,17 @@ commands:
 
       - "run":
           name: "Build Package"
+          environment:
+            # CircleCI build environment looks like it has a zillion and a half cores.
+            # Don't let Nix autodetect this high core count because it blows up memory
+            # usage and fails the test run.  Pick a number of cores that suits the build
+            # environment we're paying for (the free one!).
+            DEPENDENCY_CORES: 3
           command: |
-            source .circleci/lib.sh
-            NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
             nix build \
               --verbose \
               --print-build-logs \
               --cores "$DEPENDENCY_CORES" \
-              --override-input nixpkgs "$NIXPKGS" \
               .#<<parameters.pythonVersion>>-tahoe-lafs
 
       - steps: "<<parameters.buildSteps>>"
