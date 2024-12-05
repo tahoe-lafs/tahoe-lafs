@@ -62,14 +62,26 @@ jobs:
           purge-primary-key: never
 
       - name: Build package
+        env:
+          # CircleCI build environment looks like it has a zillion and a half cores.
+          # Don't let Nix autodetect this high core count because it blows up memory
+          # usage and fails the test run.  Pick a number of cores that suits the build
+          # environment we're paying for (the free one!).
+          DEPENDENCY_CORES: 3
         run: |
           nix build \
             --verbose \
             --print-build-logs \
+            --cores "$DEPENDENCY_CORES" \
             .#python${{ matrix.python-version }}-tahoe-lafs
 
       - name: Unit test
+        env:
+          # Once dependencies are built, we can allow some more concurrency for our own
+          # test suite.
+          UNITTEST_CORES: 8
         run: |
           nix run \
             .#python${{ matrix.python-version }}-unittest -- \
+            --jobs $UNITTEST_CORES \
             allmydata
