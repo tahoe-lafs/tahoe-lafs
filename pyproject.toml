@@ -262,7 +262,38 @@ build-backend = "hatchling.build"
 
 # https://github.com/ofek/hatch-vcs/issues/35#issuecomment-1452025896
 [tool.hatch.build]
-include = ["src"]
+include = [
+        "src/",
+        "COPYING.GPL",
+        "COPYING.TGPPL.rst",
+        "CREDITS",
+        "Makefile",
+        "NEWS.rst",
+        "Tahoe.home",
+        "relnotes.txt",
+        "Dockerfile",
+        "tox.ini",
+        ".appveyor.yml",
+        ".travis.yml",
+        ".coveragerc",
+        "*.xhtml",
+        "*.png",
+        "*.css",
+        "*.svg",
+        "docs/",
+        "misc/",
+        "static/",
+        "integration/",
+        "src/allmydata/test/data/*.txt",
+        "src/allmydata/test/data/*.yaml"
+]
+exclude = [
+        "*~",
+        "*.pyc",
+        "#*#",
+        "venv*/",
+        ".tox/"
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/allmydata"]
