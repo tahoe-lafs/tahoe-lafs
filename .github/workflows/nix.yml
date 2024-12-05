@@ -99,7 +99,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - 310
           - 311
           - 312
         nixpkgs:
