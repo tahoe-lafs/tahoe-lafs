@@ -71,7 +71,7 @@ jobs:
 
       - name: Install Python packages
         run: |
-          pip install --upgrade tox tox-gh-actions setuptools
+          pip install --upgrade tox tox-gh-actions
           pip list
 
       - name: Display tool versions
