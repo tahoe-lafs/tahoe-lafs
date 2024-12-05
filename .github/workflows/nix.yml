@@ -23,9 +23,6 @@ on:
 jobs:
   packaging:
     runs-on: ubuntu-22.04
-    env:
-      NIXPKGS: ${{ needs.check.outputs.NIXPKGS }}
-      NIX_PATH: ${{ needs.check.outputs.NIX_PATH }}
     strategy:
       fail-fast: false
       matrix:
@@ -40,6 +37,11 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+
+      - name: Set environment variables
+        run: |
+          echo "NIXPKGS=$(nix flake metadata | grep -E '[^\w]+nixpkgs-${{ matrix.nixpkgs }}[^\w]+:' | cut -d' ' -f2 | cut -d'?' -f1)" >> $GITHUB_ENV
+          echo "NIX_PATH=nixpkgs=https://github.com/NixOS/nixpkgs/archive/${NIXPKGS##*/}.tar.gz" >> $GITHUB_ENV
 
       - name: Install nix
         id: install_nix
