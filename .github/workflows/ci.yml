@@ -45,14 +45,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          - os: macos-14
             python-version: "3.12"
           # We only support PyPy on Linux at the moment.
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             python-version: "pypy-3.9"
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             python-version: "3.12"
-          - os: windows-latest
+          - os: windows-2022
             python-version: "3.12"
 
     steps:
@@ -140,7 +140,7 @@ jobs:
   finish-coverage-report:
     needs:
       - "coverage"
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-22.04"
     container: "python:3-slim"
     steps:
       - name: "Indicate completion to coveralls.io"
@@ -160,8 +160,8 @@ jobs:
           # 22.04 has some issue with Tor at the moment:
           # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3943
           - ubuntu-20.04
-          - macos-latest
-          - windows-latest
+          - macos-14
+          - windows-2022
         python-version:
           - "3.11"
         force-foolscap:
@@ -185,7 +185,7 @@ jobs:
           brew install tor
 
       - name: Install Tor [Windows]
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2022'
         uses: crazy-max/ghaction-chocolatey@v2
         with:
           args: install tor
@@ -242,9 +242,9 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-latest
-          - windows-latest
-          - ubuntu-latest
+          - macos-14
+          - windows-2022
+          - ubuntu-22.04
         python-version:
           - 3.9
 
