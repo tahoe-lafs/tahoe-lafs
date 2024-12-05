@@ -1,14 +1,6 @@
 {
   description = "Tahoe-LAFS, free and open decentralized data store";
 
-  nixConfig = {
-    # Supply configuration for the build cache updated by our CI system.  This
-    # should allow most users to avoid having to build a large number of
-    # packages (otherwise necessary due to our Python package overrides).
-    substituters = ["https://tahoe-lafs-opensource.cachix.org"];
-    trusted-public-keys = ["tahoe-lafs-opensource.cachix.org-1:eIKCHOPJYceJ2gb74l6e0mayuSdXqiavxYeAio0LFGo="];
-  };
-
   inputs = {
     # A couple possible nixpkgs pins.  Ideally these could be selected easily
     # from the command line but there seems to be no syntax/support for that.

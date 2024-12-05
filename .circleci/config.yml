@@ -602,7 +602,7 @@ jobs:
                   # can use to override the default nixpkgs input.
                   NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
 
-                  cache_if_able nix run \
+                  nix run \
                     --override-input nixpkgs "$NIXPKGS" \
                     .#<<parameters.pythonVersion>>-unittest -- \
                     --jobs $UNITTEST_CORES \
@@ -743,10 +743,6 @@ executors:
       - <<: *DOCKERHUB_AUTH
         image: "nixos/nix:2.16.1"
     environment:
-      # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and allows us
-      # to push to CACHIX_NAME.  CACHIX_NAME tells cachix which cache to push
-      # to.
-      CACHIX_NAME: "tahoe-lafs-opensource"
       # Let us use features marked "experimental".  For example, most/all of
       # the `nix <subcommand>` forms.
       NIX_CONFIG: "experimental-features = nix-command flakes"
@@ -770,7 +766,6 @@ commands:
 
     steps:
       - "run":
-          # Get cachix for Nix-friendly caching.
           name: "Install Basic Dependencies"
           command: |
             # Get some build environment dependencies and let them float on a
@@ -778,12 +773,7 @@ commands:
             # package build (only in CI environment setup) so the fact that
             # they float shouldn't hurt reproducibility.
             NIXPKGS="nixpkgs/nixos-23.05"
-            nix profile install $NIXPKGS#cachix $NIXPKGS#bash $NIXPKGS#jp
-
-            # Activate our cachix cache for "binary substitution".  This sets
-            # up configuration tht lets Nix download something from the cache
-            # instead of building it locally, if possible.
-            cachix use "${CACHIX_NAME}"
+            nix profile install $NIXPKGS#bash $NIXPKGS#jp
 
       - "checkout"
 
@@ -800,7 +790,7 @@ commands:
           command: |
             source .circleci/lib.sh
             NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
-            cache_if_able nix build \
+            nix build \
               --verbose \
               --print-build-logs \
               --cores "$DEPENDENCY_CORES" \
