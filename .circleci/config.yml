@@ -93,14 +93,15 @@ workflows:
           {}
 
       - "nixos":
-          name: "<<matrix.pythonVersion>>"
-          nixpkgs: "nixpkgs-unstable"
+          name: "<<matrix.nixpkgs>>-<<matrix.pythonVersion>>"
           matrix:
             parameters:
+              nixpkgs:
+                - "nixpkgs-24_11"
               pythonVersion:
-                - "python39"
                 - "python310"
                 - "python311"
+                - "python312"
 
       # Eventually, test against PyPy 3.8
       #- "pypy27-buster":
@@ -741,7 +742,7 @@ executors:
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
-        image: "nixos/nix:2.16.1"
+        image: "nixos/nix:2.25.3"
     environment:
       # Let us use features marked "experimental".  For example, most/all of
       # the `nix <subcommand>` forms.
@@ -772,7 +773,7 @@ commands:
             # certain release branch.  These aren't involved in the actual
             # package build (only in CI environment setup) so the fact that
             # they float shouldn't hurt reproducibility.
-            NIXPKGS="nixpkgs/nixos-23.05"
+            NIXPKGS="nixpkgs/nixos-24.11"
             nix profile install $NIXPKGS#bash $NIXPKGS#jp
 
       - "checkout"
