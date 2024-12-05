@@ -4,8 +4,8 @@ Ported to Python 3.
 from __future__ import annotations
 
 from six import ensure_str
-import sys
-from importlib.resources import files as resource_files, as_file
+from importlib.resources import files as resource_files
+from importlib.resources import as_file
 from contextlib import ExitStack
 import weakref
 from typing import Optional, Union, TypeVar, overload
