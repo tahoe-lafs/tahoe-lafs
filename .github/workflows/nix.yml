@@ -42,11 +42,6 @@ jobs:
         id: install_nix
         uses: nixbuild/nix-quick-install-action@v28
 
-      - name: Set environment variables
-        run: |
-          echo "NIXPKGS=$(nix flake metadata | grep -E '[^\w]+nixpkgs-${{ matrix.nixpkgs }}[^\w]+:' | cut -d' ' -f2 | cut -d'?' -f1)" >> $GITHUB_ENV
-          echo "NIX_PATH=nixpkgs=https://github.com/NixOS/nixpkgs/archive/${NIXPKGS##*/}.tar.gz" >> $GITHUB_ENV
-
       - name: Restore and cache Nix store for nixpkgs-${{ matrix.nixpkgs }}
         uses: nix-community/cache-nix-action@v5
         with:
@@ -78,7 +73,6 @@ jobs:
             --verbose \
             --print-build-logs \
             --cores "$DEPENDENCY_CORES" \
-            --override-input nixpkgs "$NIXPKGS" \
             .#python${{ matrix.python-version }}-tahoe-lafs
 
       - name: Unit test
@@ -88,7 +82,6 @@ jobs:
           UNITTEST_CORES: 8
         run: |
           nix run \
-            --override-input nixpkgs "$NIXPKGS" \
             .#python${{ matrix.python-version }}-unittest -- \
             --jobs $UNITTEST_CORES \
             allmydata
