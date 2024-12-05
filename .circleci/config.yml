@@ -210,7 +210,7 @@ jobs:
       # And tell pip where it can find out cached wheelhouse for fast wheel
       # installation, even for projects that don't distribute wheels.  This
       # must also agree with the "save_cache" step below.
-#      PIP_FIND_LINKS: "wheelhouse"
+      PIP_FIND_LINKS: "wheelhouse"
 
     steps:
       - "checkout"
@@ -387,7 +387,7 @@ jobs:
       # Convince all of our pip invocations to look at the cached wheelhouse
       # we maintain.
       WHEELHOUSE_PATH: &WHEELHOUSE_PATH "/tmp/wheelhouse"
-#      PIP_FIND_LINKS: "file:///tmp/wheelhouse"
+      PIP_FIND_LINKS: "file:///tmp/wheelhouse"
       # Upload the coverage report.
       UPLOAD_COVERAGE: ""
 
