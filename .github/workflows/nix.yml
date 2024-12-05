@@ -23,7 +23,6 @@ on:
 jobs:
   packaging:
     runs-on: ubuntu-22.04
-    needs: check
     env:
       NIXPKGS: ${{ needs.check.outputs.NIXPKGS }}
       NIX_PATH: ${{ needs.check.outputs.NIX_PATH }}
@@ -31,7 +30,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - 311
           - 312
         nixpkgs:
           - nixos-24_11
