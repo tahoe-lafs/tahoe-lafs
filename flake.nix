@@ -56,10 +56,9 @@
       pythonVersions =
         let
           # Match attribute names that look like a Python derivation - CPython
-          # or PyPy.  We take care to avoid things like "python-foo" and
-          # "python3Full-unittest" though.  We only want things like "pypy38"
-          # or "python311".
-          nameMatches = name: null != builtins.match "(python|pypy)3[[:digit:]]{0,2}" name;
+          # only for now.  We take care to avoid things like "python-foo" and
+          # "python3Full-unittest" though.  We only want things like "python311".
+          nameMatches = name: null != builtins.match "(python)3(10|11|12)?" name;
 
           # Sometimes an old version is left in the package set as an error
           # saying something like "we remove this".  Make sure we whatever we
