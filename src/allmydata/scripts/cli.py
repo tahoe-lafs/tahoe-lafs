@@ -445,6 +445,7 @@ class CheckOptions(FileStoreOptions):
         ("verify", None, "Verify all hashes, instead of merely querying share presence."),
         ("repair", None, "Automatically repair any problems found."),
         ("add-lease", None, "Add/renew lease on all shares."),
+        ("verbose", None, "Provide verbose output (unimplemented)."),
         ]
     def parseArgs(self, *locations):
         self.locations = list(map(argv_to_unicode, locations))
