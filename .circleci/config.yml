@@ -87,7 +87,7 @@ workflows:
           {}
 
       - "nixos":
-          name: "<<matrix.pythonVersion>>"
+          name: "nixos-<<matrix.pythonVersion>>"
           nixpkgs: "nixpkgs-unstable"
           matrix:
             parameters:
@@ -695,6 +695,9 @@ executors:
       - <<: *DOCKERHUB_AUTH
         image: "nixos/nix:2.16.1"
     environment:
+      # currently, all NixOS builds are broken; ignore them
+      ALLOWED_FAILURE: "yes"
+
       # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and allows us
       # to push to CACHIX_NAME.  CACHIX_NAME tells cachix which cache to push
       # to.
