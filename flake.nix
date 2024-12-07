@@ -1,14 +1,6 @@
 {
   description = "Tahoe-LAFS, free and open decentralized data store";
 
-  nixConfig = {
-    # Supply configuration for the build cache updated by our CI system.  This
-    # should allow most users to avoid having to build a large number of
-    # packages (otherwise necessary due to our Python package overrides).
-    substituters = ["https://tahoe-lafs-opensource.cachix.org"];
-    trusted-public-keys = ["tahoe-lafs-opensource.cachix.org-1:eIKCHOPJYceJ2gb74l6e0mayuSdXqiavxYeAio0LFGo="];
-  };
-
   inputs = {
     # A couple possible nixpkgs pins.  Ideally these could be selected easily
     # from the command line but there seems to be no syntax/support for that.
@@ -20,25 +12,12 @@
     # requirements.  We could decide in the future that supporting multiple
     # releases of NixOS at a time is worthwhile and then pins like these will
     # help us test each of those releases.
-    "nixpkgs-22_11" = {
-      url = github:NixOS/nixpkgs?ref=nixos-22.11;
-    };
-    "nixpkgs-23_05" = {
-      url = github:NixOS/nixpkgs?ref=nixos-23.05;
+    "nixpkgs-24_11" = {
+      url = github:NixOS/nixpkgs?ref=nixos-24.11;
     };
 
-    # We depend on a very new python-cryptography which is not yet available
-    # from any release branch of nixpkgs.  However, it is contained in a PR
-    # currently up for review.  Point our nixpkgs at that for now.
-    "nixpkgs-unstable" = {
-      url = github:NixOS/nixpkgs?ref=pull/244135/head;
-    };
-
-    # Point the default nixpkgs at one of those.  This avoids having getting a
-    # _third_ package set involved and gives a way to provide what should be a
-    # working experience by default (that is, if nixpkgs doesn't get
-    # overridden).
-    nixpkgs.follows = "nixpkgs-unstable";
+    # Point the default nixpkgs at one of those.
+    nixpkgs.follows = "nixpkgs-24_11";
 
     # Also get flake-utils for simplified multi-system definitions.
     flake-utils = {

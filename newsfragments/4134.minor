@@ -1,0 +1,4 @@
+Avoid private cache from Cachix until we can restore it.
+Update nixpkgs to 24.11 wich is well cached for now.
+Stop packaging and testing on nixpkgs/python39 (too old).
+Start packaging and testing on nixpkgs/python312 instead.
