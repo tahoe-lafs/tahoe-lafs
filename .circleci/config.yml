@@ -48,8 +48,6 @@ dockerhub-auth-template: &DOCKERHUB_AUTH
         <<: *DOCKERHUB_CONTEXT
     - "build-image-fedora-35":
         <<: *DOCKERHUB_CONTEXT
-    - "build-image-oraclelinux-8":
-        <<: *DOCKERHUB_CONTEXT
     # Restore later as PyPy38
     #- "build-image-pypy27-buster":
     #    <<: *DOCKERHUB_CONTEXT
@@ -88,8 +86,7 @@ workflows:
       - "ubuntu-22-04":
           {}
 
-      # Equivalent to RHEL 8; CentOS 8 is dead.
-      - "oraclelinux-8":
+      - "fedora-35":
           {}
 
       - "nixos":
@@ -543,15 +540,15 @@ jobs:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py310"
 
-  oraclelinux-8: &RHEL_DERIV
+  fedora-35: &RHEL_DERIV
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/oraclelinux:8-py3.8"
+        image: "tahoelafsci/fedora:35-py3"
         user: "nobody"
 
     environment:
       <<: *UTF_8_ENVIRONMENT
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py38"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py310"
 
     # pip cannot install packages if the working directory is not readable.
     # We want to run a lot of steps as nobody instead of as root.
@@ -566,13 +563,6 @@ jobs:
       - store_artifacts: *STORE_ELIOT_LOG
       - store_artifacts: *STORE_OTHER_ARTIFACTS
       - run: *SUBMIT_COVERAGE
-
-  fedora-35:
-    <<: *RHEL_DERIV
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/fedora:35-py3"
-        user: "nobody"
 
   nixos:
     parameters:
@@ -700,14 +690,6 @@ jobs:
       TAG: "22.04"
       PYTHON_VERSION: "3.10"
 
-
-  build-image-oraclelinux-8:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "oraclelinux"
-      TAG: "8"
-      PYTHON_VERSION: "3.8"
 
   build-image-fedora-35:
     <<: *BUILD_IMAGE
