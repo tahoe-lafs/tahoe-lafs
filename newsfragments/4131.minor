@@ -1,0 +1,1 @@
+Removing python 3.8 (EOL) and anything related, including CI checks
