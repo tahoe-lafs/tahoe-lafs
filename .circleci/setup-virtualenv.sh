@@ -25,8 +25,8 @@ TAHOE_LAFS_TOX_ARGS=$1
 shift || :
 
 # Tell pip where it can find any existing wheels.
-export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
-export PIP_NO_INDEX="1"
+##export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
+##export PIP_NO_INDEX="1"
 
 # Get everything else installed in it, too.
 "${BOOTSTRAP_VENV}"/bin/tox \

@@ -26,7 +26,7 @@ virtualenv --python "${PYTHON}" "${BOOTSTRAP_VENV}"
 PIP="${BOOTSTRAP_VENV}/bin/pip"
 
 # Tell pip where it can find any existing wheels.
-export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
+##export PIP_FIND_LINKS="file://${WHEELHOUSE_PATH}"
 
 # Get "certifi" to avoid bug #2913. Basically if a `setup_requires=...` causes
 # a package to be installed (with setuptools) then it'll fail on certain

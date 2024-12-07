@@ -67,7 +67,7 @@ TIMEOUT="timeout --kill-after 1m 45m"
 # via tox and then scraping it out is hideous and failure prone.
 export SUBUNITREPORTER_OUTPUT_PATH="${SUBUNIT2}"
 export TAHOE_LAFS_TRIAL_ARGS="${TAHOE_LAFS_TRIAL_ARGS:---reporter=subunitv2-file --rterrors}"
-export PIP_NO_INDEX="1"
+##export PIP_NO_INDEX="1"
 
 # Make output unbuffered, so progress reports from subunitv2-file get streamed
 # and notify CircleCI we're still alive.
