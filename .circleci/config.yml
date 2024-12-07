@@ -102,10 +102,6 @@ workflows:
                 - "python310"
                 - "python311"
 
-      # Eventually, test against PyPy 3.8
-      #- "pypy27-buster":
-      #    {}
-
       # Other assorted tasks and configurations
       - "codechecks":
           {}
@@ -460,21 +456,6 @@ jobs:
       - <<: *DOCKERHUB_AUTH
         image: "tahoelafsci/debian:11-py3.9"
         user: "nobody"
-
-
-  # Restore later using PyPy3.8
-  # pypy27-buster:
-  #   <<: *DEBIAN
-  #   docker:
-  #     - <<: *DOCKERHUB_AUTH
-  #       image: "tahoelafsci/pypy:buster-py2"
-  #       user: "nobody"
-  #   environment:
-  #     <<: *UTF_8_ENVIRONMENT
-  #     # We don't do coverage since it makes PyPy far too slow:
-  #     TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27"
-  #     # Since we didn't collect it, don't upload it.
-  #     UPLOAD_COVERAGE: ""
 
   c-locale:
     <<: *DEBIAN
