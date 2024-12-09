@@ -56,7 +56,7 @@ Once ``tahoe --version`` works, see `How to Run Tahoe-LAFS <docs/running.rst>`__
 🐍 Python 2
 -----------
 
-Python 3.8 or later is required.
+Python 3.9 or later is required.
 If you are still using Python 2.7, use Tahoe-LAFS version 1.17.1.
 
 

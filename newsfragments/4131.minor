@@ -1,0 +1,1 @@
+Removing python 3.8 (EOL) and anything related, and bump CI checks to 3.9
