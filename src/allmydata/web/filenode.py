@@ -94,7 +94,7 @@ class ReplaceMeMixin(object):
     def replace_me_with_a_formpost(self, req, client, replace):
         # create a new file, maybe mutable, maybe immutable
         file_format = get_format(req, "CHK")
-        contents = req.args["file"][0]
+        contents = req.args[b"file"][0]
         if file_format in ("SDMF", "MDMF"):
             mutable_type = get_mutable_type(file_format)
             uploadable = MutableFileHandle(BytesIO(contents))
@@ -108,7 +108,7 @@ class ReplaceMeMixin(object):
             d.addCallback(_uploaded)
             return d
 
-        uploadable = FileHandle(contents.file, convergence=client.convergence)
+        uploadable = FileHandle(BytesIO(contents), convergence=client.convergence)
         d = self.parentnode.add_file(self.name, uploadable, overwrite=replace)
         d.addCallback(lambda newnode: newnode.get_uri())
         return d
@@ -367,7 +367,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
     def replace_my_contents_with_a_formpost(self, req):
         # we have a mutable file. Get the data from the formpost, and replace
         # the mutable file's contents with it.
-        new_contents = req.args['file'][0]
+        new_contents = req.args[b'file'][0]
         new_contents = MutableFileHandle(BytesIO(new_contents))
 
         d = self.node.overwrite(new_contents)
