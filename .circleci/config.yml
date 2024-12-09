@@ -546,12 +546,12 @@ jobs:
   oraclelinux-8: &RHEL_DERIV
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/oraclelinux:8-py3.8"
+        image: "tahoelafsci/oraclelinux:8-py3.9"
         user: "nobody"
 
     environment:
       <<: *UTF_8_ENVIRONMENT
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py38"
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
 
     # pip cannot install packages if the working directory is not readable.
     # We want to run a lot of steps as nobody instead of as root.
@@ -707,7 +707,7 @@ jobs:
     environment:
       DISTRO: "oraclelinux"
       TAG: "8"
-      PYTHON_VERSION: "3.8"
+      PYTHON_VERSION: "3.9"
 
   build-image-fedora-35:
     <<: *BUILD_IMAGE
