@@ -4,6 +4,7 @@ Ported to Python 3.
 
 from urllib.parse import quote as url_quote
 from datetime import timedelta
+from email import message_from_bytes
 
 from zope.interface import implementer
 from twisted.internet import defer
@@ -87,6 +88,41 @@ def make_handler_for(node, client, parentnode=None, name=None):
     if IDirectoryNode.providedBy(node):
         return DirectoryNodeHandler(client, node, parentnode, name)
     return UnknownNodeHandler(client, node, parentnode, name)
+
+
+def _getFirstFilenameForMimeUpload(
+    request: http.Request
+) -> str | None:
+    """
+    Parse the content of a multipart/form-data request.
+
+    Twisted doesn't yet include filenames in parsed uploads
+    (https://github.com/twisted/twisted/issues/12358) so we have to parse it
+    ourselves.  This means extra processing so ideally it'd get fixed in
+    Twisted, but an initial attempt to get it merged failed cause doing it
+    generically is rather more work than our limited use case.
+
+    TODO maybe rewrite with one of the multipart non-standard library packages.
+    """
+    ctype = request.requestHeaders.getRawHeaders(b"Content-Type")
+    if ctype is not None and not ctype[0].startswith(b"multipart/form-data"):
+        return None
+
+    multiPartHeaders = b"MIME-Version: 1.0\r\n" + b"Content-Type: " + ctype[0] + b"\r\n"
+    request.content.seek(0, 0)
+    content = request.content.read()  # Not good, high memory usage! But Twisted does this too at the moment
+    msg = message_from_bytes(multiPartHeaders + content)
+    if not msg.is_multipart():
+        raise ValueError("Not a multipart.")
+
+    for part in msg.get_payload():  # type: ignore[assignment]
+        name: str | None = part.get_param(
+            "name", header="content-disposition"
+        )  # type:ignore[assignment]
+        if not name or name != "file":
+            continue
+        return part.get_param("filename", header="content-disposition")  # type: ignore[return-type]
+    return None
 
 
 class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
@@ -367,16 +403,14 @@ class DirectoryNodeHandler(ReplaceMeMixin, Resource, object):
 
     def _POST_upload(self, req):
         charset = str(get_arg(req, "_charset", b"utf-8"), "utf-8")
-        contents = req.args["file"][0]
 
         # The filename embedded in the MIME file upload will be bytes on Python
         # 2, Unicode on Python 3, or missing (i.e. None). The "name" field in
         # the upload will be bytes on Python 2, Unicode on Python 3, or missing
         # (i.e. None). We go through all these variations until we have a name
         # that is Unicode.
-        breakpoint()
         name = get_arg(req, b"name")  # returns bytes or None
-        name = name or get_arg(req, "filename")  # unicode, bytes or None
+        name = name or _getFirstFilenameForMimeUpload(req)
         if name is not None:
             name = name.strip()
         if not name:
