@@ -42,11 +42,19 @@ dockerhub-auth-template: &DOCKERHUB_AUTH
   jobs:
     - "build-image-debian-11":
         <<: *DOCKERHUB_CONTEXT
+    - "build-image-debian-12":
+        <<: *DOCKERHUB_CONTEXT
     - "build-image-ubuntu-20-04":
         <<: *DOCKERHUB_CONTEXT
     - "build-image-ubuntu-22-04":
         <<: *DOCKERHUB_CONTEXT
+    - "build-image-ubuntu-24-04":
+        <<: *DOCKERHUB_CONTEXT
+    - "build-image-oraclelinux-8":
+        <<: *DOCKERHUB_CONTEXT
     - "build-image-fedora-35":
+        <<: *DOCKERHUB_CONTEXT
+    - "build-image-fedora-40":
         <<: *DOCKERHUB_CONTEXT
     # Restore later as PyPy38
     #- "build-image-pypy27-buster":
@@ -603,7 +611,7 @@ jobs:
       - <<: *DOCKERHUB_AUTH
         # CircleCI build images; https://github.com/CircleCI-Public/cimg-base
         # for details.
-        image: "cimg/base:2022.01"
+        image: "cimg/base:2022.09"
 
     environment:
       DISTRO: "tahoelafsci/<DISTRO>:foo-py3.9"
@@ -613,7 +621,7 @@ jobs:
     steps:
       - "checkout"
       - setup_remote_docker:
-          version: "20.10.11"
+          docker_layer_caching: true
       - run:
           name: "Log in to Dockerhub"
           command: |
@@ -642,6 +650,13 @@ jobs:
       TAG: "11"
       PYTHON_VERSION: "3.9"
 
+  build-image-debian-12:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "debian"
+      TAG: "12"
+      PYTHON_VERSION: "3.11"
 
   build-image-ubuntu-20-04:
     <<: *BUILD_IMAGE
@@ -660,6 +675,21 @@ jobs:
       TAG: "22.04"
       PYTHON_VERSION: "3.10"
 
+  build-image-ubuntu-24-04:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "ubuntu"
+      TAG: "24.04"
+      PYTHON_VERSION: "3.12"
+
+  build-image-oraclelinux-8:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "oraclelinux"
+      TAG: "8"
+      PYTHON_VERSION: "3.9"
 
   build-image-fedora-35:
     <<: *BUILD_IMAGE
@@ -667,6 +697,14 @@ jobs:
     environment:
       DISTRO: "fedora"
       TAG: "35"
+      PYTHON_VERSION: "3"
+
+  build-image-fedora-40:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "fedora"
+      TAG: "40"
       PYTHON_VERSION: "3"
 
   # build-image-pypy27-buster:
