@@ -603,6 +603,7 @@ jobs:
                   NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
 
                   cache_if_able nix run \
+                    --accept-flake-config \
                     --override-input nixpkgs "$NIXPKGS" \
                     .#<<parameters.pythonVersion>>-unittest -- \
                     --jobs $UNITTEST_CORES \
@@ -777,7 +778,7 @@ commands:
             # certain release branch.  These aren't involved in the actual
             # package build (only in CI environment setup) so the fact that
             # they float shouldn't hurt reproducibility.
-            NIXPKGS="nixpkgs/nixos-23.05"
+            NIXPKGS="nixpkgs/nixos-24.05"
             nix profile install $NIXPKGS#cachix $NIXPKGS#bash $NIXPKGS#jp
 
             # Activate our cachix cache for "binary substitution".  This sets
@@ -801,6 +802,7 @@ commands:
             source .circleci/lib.sh
             NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
             cache_if_able nix build \
+              --accept-flake-config \
               --verbose \
               --print-build-logs \
               --cores "$DEPENDENCY_CORES" \
