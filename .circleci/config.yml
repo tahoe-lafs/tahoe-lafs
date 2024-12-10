@@ -609,7 +609,7 @@ jobs:
       - <<: *DOCKERHUB_AUTH
         # CircleCI build images; https://github.com/CircleCI-Public/cimg-base
         # for details.
-        image: "cimg/base:2022.01"
+        image: "cimg/base:2022.09"
 
     environment:
       DISTRO: "tahoelafsci/<DISTRO>:foo-py3.9"
@@ -619,7 +619,7 @@ jobs:
     steps:
       - "checkout"
       - setup_remote_docker:
-          version: "20.10.11"
+          docker_layer_caching: true
       - run:
           name: "Log in to Dockerhub"
           command: |
