@@ -42,13 +42,9 @@ dockerhub-auth-template: &DOCKERHUB_AUTH
   jobs:
     - "build-image-debian-11":
         <<: *DOCKERHUB_CONTEXT
-    - "build-image-debian-12":
-        <<: *DOCKERHUB_CONTEXT
     - "build-image-ubuntu-20-04":
         <<: *DOCKERHUB_CONTEXT
     - "build-image-ubuntu-22-04":
-        <<: *DOCKERHUB_CONTEXT
-    - "build-image-ubuntu-24-04":
         <<: *DOCKERHUB_CONTEXT
     - "build-image-oraclelinux-8":
         <<: *DOCKERHUB_CONTEXT
@@ -650,14 +646,6 @@ jobs:
       TAG: "11"
       PYTHON_VERSION: "3.9"
 
-  build-image-debian-12:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "debian"
-      TAG: "12"
-      PYTHON_VERSION: "3.11"
-
   build-image-ubuntu-20-04:
     <<: *BUILD_IMAGE
 
@@ -674,14 +662,6 @@ jobs:
       DISTRO: "ubuntu"
       TAG: "22.04"
       PYTHON_VERSION: "3.10"
-
-  build-image-ubuntu-24-04:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "ubuntu"
-      TAG: "24.04"
-      PYTHON_VERSION: "3.12"
 
   build-image-oraclelinux-8:
     <<: *BUILD_IMAGE
