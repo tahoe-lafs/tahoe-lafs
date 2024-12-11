@@ -201,7 +201,6 @@
                 in
                   writeScript "unit-tests"
                     ''
-                    ${python} setup.py update_version
                     export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
                     export PYTHONPATH=$PWD/src
                     ${python} -m twisted.trial "$@"
