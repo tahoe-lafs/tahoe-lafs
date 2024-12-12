@@ -30,5 +30,4 @@ LANG="en_US.UTF-8" "${PIP}" \
     wheel \
     --wheel-dir "${WHEELHOUSE_PATH}" \
     "${PROJECT_ROOT}"[testenv] \
-    "${PROJECT_ROOT}"[test] \
-    "${PROJECT_ROOT}"[build]
+    "${PROJECT_ROOT}"[test]
