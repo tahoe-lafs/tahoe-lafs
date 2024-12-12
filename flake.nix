@@ -132,7 +132,8 @@
         [ tahoe-lafs ] ++
         tahoe-lafs.passthru.extras.i2p ++
         tahoe-lafs.passthru.extras.tor ++
-        tahoe-lafs.passthru.extras.unittest
+        tahoe-lafs.passthru.extras.unittest ++
+        [ hatchling hatch-vcs ]
       )).overrideAttrs (old: {
         # See the similar override in makeRuntimeEnv'.
         name = packageName pyVersion;
@@ -198,9 +199,11 @@
               program =
                 let
                   python = "${makeTestEnv pyVersion}/bin/python";
+                  hatchling = "${makeTestEnv pyVersion}/bin/hatchling";
                 in
                   writeScript "unit-tests"
                     ''
+                    ${hatchling} build --hooks-only # Write _version.py
                     export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
                     export PYTHONPATH=$PWD/src
                     ${python} -m twisted.trial "$@"
