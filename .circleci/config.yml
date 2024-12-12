@@ -87,14 +87,15 @@ workflows:
           {}
 
       - "nixos":
-          name: "nixos-<<matrix.pythonVersion>>"
-          nixpkgs: "nixpkgs-unstable"
+          name: "<<matrix.nixpkgs>>-<<matrix.pythonVersion>>"
           matrix:
             parameters:
+              nixpkgs:
+                - "nixpkgs-24_11"
               pythonVersion:
-                - "python39"
                 - "python310"
                 - "python311"
+                - "python312"
 
       # Eventually, test against PyPy 3.8
       #- "pypy27-buster":
@@ -555,15 +556,12 @@ jobs:
           buildSteps:
             - "run":
                 name: "Unit Test"
+                environment:
+                  # Once dependencies are built, we can allow some more concurrency for our own
+                  # test suite.
+                  UNITTEST_CORES: 8
                 command: |
-                  source .circleci/lib.sh
-
-                  # Translate the nixpkgs selection into a flake reference we
-                  # can use to override the default nixpkgs input.
-                  NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
-
-                  cache_if_able nix run \
-                    --override-input nixpkgs "$NIXPKGS" \
+                  nix run \
                     .#<<parameters.pythonVersion>>-unittest -- \
                     --jobs $UNITTEST_CORES \
                     allmydata
@@ -693,15 +691,8 @@ executors:
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
-        image: "nixos/nix:2.16.1"
+        image: "nixos/nix:2.25.3"
     environment:
-      # currently, all NixOS builds are broken; ignore them
-      ALLOWED_FAILURE: "yes"
-
-      # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and allows us
-      # to push to CACHIX_NAME.  CACHIX_NAME tells cachix which cache to push
-      # to.
-      CACHIX_NAME: "tahoe-lafs-opensource"
       # Let us use features marked "experimental".  For example, most/all of
       # the `nix <subcommand>` forms.
       NIX_CONFIG: "experimental-features = nix-command flakes"
@@ -724,34 +715,21 @@ commands:
         type: "steps"
 
     steps:
-      - "run":
-          # Get cachix for Nix-friendly caching.
-          name: "Install Basic Dependencies"
-          command: |
-            # Get some build environment dependencies and let them float on a
-            # certain release branch.  These aren't involved in the actual
-            # package build (only in CI environment setup) so the fact that
-            # they float shouldn't hurt reproducibility.
-            NIXPKGS="nixpkgs/nixos-23.05"
-            nix profile install $NIXPKGS#cachix $NIXPKGS#bash $NIXPKGS#jp
-
-            # Activate our cachix cache for "binary substitution".  This sets
-            # up configuration tht lets Nix download something from the cache
-            # instead of building it locally, if possible.
-            cachix use "${CACHIX_NAME}"
-
       - "checkout"
 
       - "run":
           name: "Build Package"
+          environment:
+            # CircleCI build environment looks like it has a zillion and a half cores.
+            # Don't let Nix autodetect this high core count because it blows up memory
+            # usage and fails the test run.  Pick a number of cores that suits the build
+            # environment we're paying for (the free one!).
+            DEPENDENCY_CORES: 3
           command: |
-            source .circleci/lib.sh
-            NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
-            cache_if_able nix build \
+            nix build \
               --verbose \
               --print-build-logs \
               --cores "$DEPENDENCY_CORES" \
-              --override-input nixpkgs "$NIXPKGS" \
               .#<<parameters.pythonVersion>>-tahoe-lafs
 
       - steps: "<<parameters.buildSteps>>"
