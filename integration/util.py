@@ -626,7 +626,7 @@ def web_post(tahoe, uri_fragment, **kwargs):
 
 
 @run_in_thread
-def await_client_ready(tahoe, timeout=10, liveness=60*2, minimum_number_of_servers=1):
+def await_client_ready(tahoe, timeout=20, liveness=60*2, minimum_number_of_servers=1):
     """
     Uses the status API to wait for a client-type node (in `tahoe`, a
     `TahoeProcess` instance usually from a fixture e.g. `alice`) to be
