@@ -40,8 +40,6 @@ dockerhub-auth-template: &DOCKERHUB_AUTH
 # workflows.
 .images: &IMAGES
   jobs:
-    - "build-image-debian-11":
-        <<: *DOCKERHUB_CONTEXT
     - "build-image-debian-12":
         <<: *DOCKERHUB_CONTEXT
     - "build-image-ubuntu-20-04":
@@ -85,7 +83,7 @@ workflows:
     when: "<< pipeline.parameters.run-tests >>"
     jobs:
       # Start with jobs testing various platforms.
-      - "debian-11":
+      - "debian-12":
           {}
 
       - "ubuntu-20-04":
@@ -142,7 +140,7 @@ workflows:
           requires:
             # If the unit test suite doesn't pass, don't bother running the
             # integration tests.
-            - "debian-11"
+            - "debian-12"
 
       - "typechecks":
           {}
@@ -376,7 +374,7 @@ jobs:
           command: |
             dist/Tahoe-LAFS/tahoe --version
 
-  debian-11: &DEBIAN
+  debian-12: &DEBIAN
     environment: &UTF_8_ENVIRONMENT
       # In general, the test suite is not allowed to fail while the job
       # succeeds.  But you can set this to "yes" if you want it to be
@@ -458,7 +456,7 @@ jobs:
 
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/debian:11-py3.9"
+        image: "tahoelafsci/debian:12-py3.11"
         user: "nobody"
 
 
@@ -504,7 +502,7 @@ jobs:
 
     docker:
       - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/debian:11-py3.9"
+        image: "tahoelafsci/debian:12-py3.11"
         user: "nobody"
 
     environment:
@@ -639,14 +637,6 @@ jobs:
           command: |
             docker push tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION}
 
-
-  build-image-debian-11:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "debian"
-      TAG: "11"
-      PYTHON_VERSION: "3.9"
 
   build-image-debian-12:
     <<: *BUILD_IMAGE
