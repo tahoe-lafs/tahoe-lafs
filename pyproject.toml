@@ -228,6 +228,7 @@ test = [
     "mock",
     "pytest",
     "pytest-twisted",
+    "tox >= 4.0.0",
     "hypothesis >= 3.6.1",
     "towncrier",
     "testtools",
