@@ -17,4 +17,4 @@ curl \
     --url https://circleci.com/api/v2/project/gh/tahoe-lafs/tahoe-lafs/pipeline \
     --header "Circle-Token: $API_TOKEN" \
     --header "content-type: application/json" \
-    --data '{"branch":"'"$BRANCH"'","parameters":{"build-images":true,"run-tests":false}}'
+    --data '{"branch":"'"$BRANCH"'","parameters":{"push-images":true,"run-tests":false}}'
