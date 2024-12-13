@@ -1,14 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 from sys import stdout as _sys_stdout
@@ -32,13 +24,12 @@ def print(*args, **kwargs):
     encoding error handler and then write the result whereas builtin print
     uses the "strict" encoding error handler.
     """
-    from past.builtins import unicode
     out = kwargs.pop("file", None)
     if out is None:
         out = _sys_stdout
     encoding = out.encoding or "ascii"
     def ensafe(o):
-        if isinstance(o, unicode):
+        if isinstance(o, str):
             return o.encode(encoding, errors="replace").decode(encoding)
         return o
     return _print(

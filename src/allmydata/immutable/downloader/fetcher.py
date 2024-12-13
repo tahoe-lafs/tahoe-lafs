@@ -2,15 +2,6 @@
 Ported to Python 3.
 """
 
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 from twisted.python.failure import Failure
 from foolscap.api import eventually
 from allmydata.interfaces import NotEnoughSharesError, NoSharesError
@@ -63,13 +54,14 @@ class SegmentFetcher(object):
         self._running = True
 
     def stop(self):
-        log.msg("SegmentFetcher(%r).stop" % self._node._si_prefix,
-                level=log.NOISY, parent=self._lp, umid="LWyqpg")
-        self._cancel_all_requests()
-        self._running = False
-        # help GC ??? XXX
-        del self._shares, self._shares_from_server, self._active_share_map
-        del self._share_observers
+        if self._running:
+            log.msg("SegmentFetcher(%r).stop" % self._node._si_prefix,
+                    level=log.NOISY, parent=self._lp, umid="LWyqpg")
+            self._cancel_all_requests()
+            self._running = False
+            # help GC ???
+            del self._shares, self._shares_from_server, self._active_share_map
+            del self._share_observers
 
 
     # called by our parent _Node

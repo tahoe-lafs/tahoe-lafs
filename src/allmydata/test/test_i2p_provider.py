@@ -1,21 +1,13 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 from twisted.trial import unittest
 from twisted.internet import defer, error
 from twisted.python.usage import UsageError
-from six.moves import StringIO
-import mock
+from io import StringIO
+from unittest import mock
 from ..util import i2p_provider
 from ..scripts import create_node, runner
 

@@ -3,10 +3,6 @@ Tests for allmydata.util.dictutil.
 """
 from __future__ import annotations
 
-from future.utils import PY2, PY3
-
-from unittest import skipIf
-
 from twisted.trial import unittest
 
 from allmydata.util import dictutil
@@ -88,7 +84,6 @@ class DictUtil(unittest.TestCase):
 class TypedKeyDict(unittest.TestCase):
     """Tests for dictionaries that limit keys."""
 
-    @skipIf(PY2, "Python 2 doesn't have issues mixing bytes and unicode.")
     def setUp(self):
         pass
 
@@ -139,27 +134,6 @@ class TypedKeyDict(unittest.TestCase):
         self.assertEqual(d.get(u"456", 50), 50)
         self.assertEqual(d.setdefault(u"456", 300), 300)
         self.assertEqual(d[u"456"], 300)
-
-
-class TypedKeyDictPython2(unittest.TestCase):
-    """Tests for dictionaries that limit keys on Python 2."""
-
-    @skipIf(PY3, "Testing Python 2 behavior.")
-    def test_python2(self):
-        """
-        On Python2, BytesKeyDict and UnicodeKeyDict are unnecessary, because
-        dicts can mix both without problem so you don't get confusing behavior
-        if you get the type wrong.
-
-        Eventually in a Python 3-only world mixing bytes and unicode will be
-        bad, thus the existence of these classes, but as we port there will be
-        situations where it's mixed on Python 2, which again is fine.
-        """
-        self.assertIs(dictutil.UnicodeKeyDict, dict)
-        self.assertIs(dictutil.BytesKeyDict, dict)
-        # Demonstration of how bytes and unicode can be mixed:
-        d = {u"abc": 1}
-        self.assertEqual(d[b"abc"], 1)
 
 
 class FilterTests(unittest.TestCase):

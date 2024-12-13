@@ -112,8 +112,8 @@ def formatTimeTahoeStyle(self, when):
     """
     d = datetime.datetime.utcfromtimestamp(when)
     if d.microsecond:
-        return d.isoformat(ensure_str(" "))[:-3]+"Z"
-    return d.isoformat(ensure_str(" ")) + ".000Z"
+        return d.isoformat(" ")[:-3]+"Z"
+    return d.isoformat(" ") + ".000Z"
 
 PRIV_README = """
 This directory contains files which contain private data for the Tahoe node,
@@ -200,14 +200,14 @@ def read_config(basedir, portnumfile, generated_files: Iterable = (), _valid_con
 
     config_path = FilePath(basedir).child("tahoe.cfg")
     try:
-        config_str = config_path.getContent()
+        config_bytes = config_path.getContent()
     except EnvironmentError as e:
         if e.errno != errno.ENOENT:
             raise
         # The file is missing, just create empty ConfigParser.
         config_str = u""
     else:
-        config_str = config_str.decode("utf-8-sig")
+        config_str = config_bytes.decode("utf-8-sig")
 
     return config_from_string(
         basedir,
@@ -959,11 +959,8 @@ def create_main_tub(config, tub_options,
         tub_options,
         default_connection_handlers,
         foolscap_connection_handlers,
-        # TODO eventually we will want the default to be False, but for now we
-        # don't want to enable HTTP by default.
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3934
         force_foolscap=config.get_config(
-            "storage", "force_foolscap", default=True, boolean=True
+            "storage", "force_foolscap", default=False, boolean=True
         ),
         handler_overrides=handler_overrides,
         certFile=certfile,

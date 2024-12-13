@@ -12,6 +12,7 @@ from base64 import urlsafe_b64encode
 from functools import partial
 from configparser import NoSectionError
 
+from six import ensure_text
 from foolscap.furl import (
     decode_furl,
 )
@@ -31,6 +32,7 @@ import allmydata
 from allmydata import node
 from allmydata.crypto import rsa, ed25519
 from allmydata.crypto.util import remove_prefix
+from allmydata.dirnode import DirectoryNode
 from allmydata.storage.server import StorageServer, FoolscapStorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
@@ -47,6 +49,8 @@ from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.util.i2p_provider import create as create_i2p_provider
 from allmydata.util.tor_provider import create as create_tor_provider, _Provider as TorProvider
+from allmydata.util.cputhreadpool import defer_to_thread
+from allmydata.util.deferredutil import async_to_deferred
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import (
@@ -170,12 +174,18 @@ class KeyGenerator(object):
     """I create RSA keys for mutable files. Each call to generate() returns a
     single keypair."""
 
-    def generate(self):
-        """I return a Deferred that fires with a (verifyingkey, signingkey)
-        pair. The returned key will be 2048 bit"""
+    @async_to_deferred
+    async def generate(self) -> tuple[rsa.PublicKey, rsa.PrivateKey]:
+        """
+        I return a Deferred that fires with a (verifyingkey, signingkey)
+        pair. The returned key will be 2048 bit.
+        """
         keysize = 2048
-        signer, verifier = rsa.create_signing_keypair(keysize)
-        return defer.succeed( (verifier, signer) )
+        private, public = await defer_to_thread(
+            rsa.create_signing_keypair, keysize
+        )
+        return public, private
+
 
 class Terminator(service.Service):
     def __init__(self):
@@ -483,6 +493,11 @@ def create_storage_farm_broker(config: _Config, default_connection_handlers, foo
     storage_client_config = storage_client.StorageClientConfig.from_node_config(
         config,
     )
+    # ensure that we can at least load all plugins that the
+    # configuration mentions; doing this early (i.e. before creating
+    # storage-clients themselves) allows us to exit in case of a
+    # problem.
+    storage_client_config.get_configured_storage_plugins()
 
     def tub_creator(handler_overrides=None, **kwargs):
         return node.create_tub(
@@ -976,6 +991,9 @@ class _Client(node.Node, pollmixin.PollMixin):
             static_servers = servers_yaml.get("storage", {})
             log.msg("found %d static servers in private/servers.yaml" %
                     len(static_servers))
+            static_servers = {
+                ensure_text(key): value for (key, value) in static_servers.items()
+            }
             self.storage_broker.set_static_servers(static_servers)
         except EnvironmentError:
             pass
@@ -1108,8 +1126,44 @@ class _Client(node.Node, pollmixin.PollMixin):
         # may get an opaque node if there were any problems.
         return self.nodemaker.create_from_cap(write_uri, read_uri, deep_immutable=deep_immutable, name=name)
 
-    def create_dirnode(self, initial_children=None, version=None):
-        d = self.nodemaker.create_new_mutable_directory(initial_children, version=version)
+    def create_dirnode(
+        self,
+        initial_children: dict | None = None,
+        version: int | None = None,
+        *,
+        unique_keypair: tuple[rsa.PublicKey, rsa.PrivateKey] | None = None
+    ) -> DirectoryNode:
+        """
+        Create a new directory.
+
+        :param initial_children: If given, a structured dict representing the
+            initial content of the created directory. See
+            `docs/frontends/webapi.rst` for examples.
+
+        :param version: If given, an int representing the mutable file format
+            of the new object. Acceptable values are currently `SDMF_VERSION`
+            or `MDMF_VERSION` (corresponding to 0 or 1, respectively, as
+            defined in `allmydata.interfaces`). If no such value is provided,
+            the default mutable format will be used (currently SDMF).
+
+        :param unique_keypair: an optional tuple containing the RSA public
+            and private key to be used for the new directory. Typically, this
+            value is omitted (in which case a new random keypair will be
+            generated at creation time).
+
+            **Warning** This value independently determines the identity of
+            the mutable object to create.  There cannot be two different
+            mutable objects that share a keypair.  They will merge into one
+            object (with undefined contents).
+
+        :return: A Deferred which will fire with a representation of the new
+            directory after it has been created.
+        """
+        d = self.nodemaker.create_new_mutable_directory(
+            initial_children,
+            version=version,
+            keypair=unique_keypair,
+        )
         return d
 
     def create_immutable_dirnode(self, children, convergence=None):

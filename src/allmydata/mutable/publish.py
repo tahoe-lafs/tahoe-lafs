@@ -1,14 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os, time
 from io import BytesIO
@@ -23,6 +15,8 @@ from allmydata.interfaces import IPublishStatus, SDMF_VERSION, MDMF_VERSION, \
                                  IMutableUploadable
 from allmydata.util import base32, hashutil, mathutil, log
 from allmydata.util.dictutil import DictOfSets
+from allmydata.util.deferredutil import async_to_deferred
+from allmydata.util.cputhreadpool import defer_to_thread
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
 from foolscap.api import eventually, fireEventually
@@ -706,7 +700,8 @@ class Publish(object):
                 writer.put_salt(salt)
 
 
-    def _encode_segment(self, segnum):
+    @async_to_deferred
+    async def _encode_segment(self, segnum):
         """
         I encrypt and encode the segment segnum.
         """
@@ -726,13 +721,17 @@ class Publish(object):
 
         assert len(data) == segsize, len(data)
 
-        salt = os.urandom(16)
-
-        key = hashutil.ssk_readkey_data_hash(salt, self.readkey)
         self._status.set_status("Encrypting")
-        encryptor = aes.create_encryptor(key)
-        crypttext = aes.encrypt_data(encryptor, data)
-        assert len(crypttext) == len(data)
+
+        def encrypt(readkey):
+            salt = os.urandom(16)
+            key = hashutil.ssk_readkey_data_hash(salt, readkey)
+            encryptor = aes.create_encryptor(key)
+            crypttext = aes.encrypt_data(encryptor, data)
+            assert len(crypttext) == len(data)
+            return salt, crypttext
+
+        salt, crypttext = await defer_to_thread(encrypt, self.readkey)
 
         now = time.time()
         self._status.accumulate_encrypt_time(now - started)
@@ -753,16 +752,14 @@ class Publish(object):
             piece = piece + b"\x00"*(piece_size - len(piece)) # padding
             crypttext_pieces[i] = piece
             assert len(piece) == piece_size
-        d = fec.encode(crypttext_pieces)
-        def _done_encoding(res):
-            elapsed = time.time() - started
-            self._status.accumulate_encode_time(elapsed)
-            return (res, salt)
-        d.addCallback(_done_encoding)
-        return d
 
+        res = await fec.encode(crypttext_pieces)
+        elapsed = time.time() - started
+        self._status.accumulate_encode_time(elapsed)
+        return (res, salt)
 
-    def _push_segment(self, encoded_and_salt, segnum):
+    @async_to_deferred
+    async def _push_segment(self, encoded_and_salt, segnum):
         """
         I push (data, salt) as segment number segnum.
         """
@@ -776,7 +773,7 @@ class Publish(object):
                 hashed = salt + sharedata
             else:
                 hashed = sharedata
-            block_hash = hashutil.block_hash(hashed)
+            block_hash = await defer_to_thread(hashutil.block_hash, hashed)
             self.blockhashes[shareid][segnum] = block_hash
             # find the writer for this share
             writers = self.writers[shareid]

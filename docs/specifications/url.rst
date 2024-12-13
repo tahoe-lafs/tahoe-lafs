@@ -40,7 +40,7 @@ NURLs
 
 The authentication and authorization properties of fURLs are a good fit for Tahoe-LAFS' requirements.
 These are not inherently tied to the Foolscap protocol itself.
-In particular they are beneficial to :doc:`../proposed/http-storage-node-protocol` which uses HTTP instead of Foolscap.
+In particular they are beneficial to :doc:`http-storage-node-protocol` which uses HTTP instead of Foolscap.
 It is conceivable they will also be used with WebSockets at some point as well.
 
 Continuing to refer to these URLs as fURLs when they are being used for other protocols may cause confusion.

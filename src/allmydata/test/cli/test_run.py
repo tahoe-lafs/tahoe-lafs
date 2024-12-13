@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from functools import partial
 from sys import float_info
-from six.moves import (
+from io import (
     StringIO,
 )
 

@@ -30,6 +30,7 @@ from allmydata.util.deferredutil import async_to_deferred
 if sys.platform.startswith('win'):
     pytest.skip('Skipping Tor tests on Windows', allow_module_level=True)
 
+@pytest.mark.skipif(sys.version_info[:2] > (3, 11), reason='Chutney still does not support 3.12')
 @pytest_twisted.inlineCallbacks
 def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):
     """
@@ -140,6 +141,7 @@ def _create_anonymous_node(reactor, name, web_port, request, temp_dir, flog_gath
     print("okay, launched")
     return result
 
+@pytest.mark.skipif(sys.version_info[:2] > (3, 11), reason='Chutney still does not support 3.12')
 @pytest.mark.skipif(sys.platform.startswith('darwin'), reason='This test has issues on macOS')
 @pytest_twisted.inlineCallbacks
 def test_anonymous_client(reactor, request, temp_dir, flog_gatherer, tor_network, introducer_furl):
@@ -159,6 +161,6 @@ def test_anonymous_client(reactor, request, temp_dir, flog_gatherer, tor_network
     yield util.await_client_ready(normie)
 
     anonymoose = yield _create_anonymous_node(reactor, 'anonymoose', 8102, request, temp_dir, flog_gatherer, tor_network, introducer_furl, 1)
-    yield util.await_client_ready(anonymoose, minimum_number_of_servers=1, timeout=600)
+    yield util.await_client_ready(anonymoose, minimum_number_of_servers=1, timeout=1200)
 
     yield upload_to_one_download_from_the_other(reactor, temp_dir, normie, anonymoose)

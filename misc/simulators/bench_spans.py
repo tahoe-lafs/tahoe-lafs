@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 """
 To use this, get a trace file such as this one:

@@ -1,6 +1,5 @@
 # -*- python -*-
 
-from __future__ import print_function
 
 """
 # run this tool on a linux box in its own directory, with a file named

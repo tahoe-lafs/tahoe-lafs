@@ -12,11 +12,21 @@ exists anywhere, however.
 from __future__ import annotations
 
 import time
+from base64 import urlsafe_b64encode
 from urllib.parse import unquote as url_unquote, quote as url_quote
 
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from twisted.internet.threads import deferToThread
+from twisted.python.filepath import FilePath
 
 import allmydata.uri
+from allmydata.crypto.rsa import (
+    create_signing_keypair,
+    der_string_from_signing_key,
+    PrivateKey,
+    PublicKey,
+)
+from allmydata.mutable.common import derive_mutable_keys
 from allmydata.util import jsonbytes as json
 
 from . import util
@@ -27,6 +37,10 @@ import html5lib
 from bs4 import BeautifulSoup
 
 import pytest_twisted
+
+
+DATA_PATH = FilePath(__file__).parent().sibling("src").child("allmydata").child("test").child("data")
+
 
 @run_in_thread
 def test_index(alice):
@@ -541,3 +555,287 @@ def test_mkdir_with_children(alice):
     assert resp.startswith(b"URI:DIR2")
     cap = allmydata.uri.from_string(resp)
     assert isinstance(cap, allmydata.uri.DirectoryURI)
+
+
+@run_in_thread
+def test_mkdir_with_random_private_key(alice):
+    """
+    Create a new directory with ?t=mkdir&private-key=... using a
+    randomly-generated RSA private key.
+
+    The writekey and fingerprint derived from the provided RSA key
+    should match those of the newly-created directory capability.
+    """
+
+    privkey, pubkey = create_signing_keypair(2048)
+
+    writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
+
+    # The "private-key" parameter takes a DER-encoded RSA private key
+    # encoded in URL-safe base64; PEM blocks are not supported.
+    privkey_der = der_string_from_signing_key(privkey)
+    privkey_encoded = urlsafe_b64encode(privkey_der).decode("ascii")
+
+    resp = util.web_post(
+        alice.process, u"uri",
+        params={
+            u"t": "mkdir",
+            u"private-key": privkey_encoded,
+        },
+    )
+    assert resp.startswith(b"URI:DIR2")
+
+    dircap = allmydata.uri.from_string(resp)
+    assert isinstance(dircap, allmydata.uri.DirectoryURI)
+
+    # DirectoryURI objects lack 'writekey' and 'fingerprint' attributes
+    # so extract them from the enclosed WriteableSSKFileURI object.
+    filecap = dircap.get_filenode_cap()
+    assert isinstance(filecap, allmydata.uri.WriteableSSKFileURI)
+
+    assert (writekey, fingerprint) == (filecap.writekey, filecap.fingerprint)
+
+
+@run_in_thread
+def test_mkdir_with_known_private_key(alice):
+    """
+    Create a new directory with ?t=mkdir&private-key=... using a
+    known-in-advance RSA private key.
+
+    The writekey and fingerprint derived from the provided RSA key
+    should match those of the newly-created directory capability.
+    In addition, because the writekey and fingerprint are derived
+    deterministically, given the same RSA private key, the resultant
+    directory capability should always be the same.
+    """
+    # Generated with `openssl genrsa -out openssl-rsa-2048-3.txt 2048`
+    pempath = DATA_PATH.child("openssl-rsa-2048-3.txt")
+    privkey = load_pem_private_key(pempath.getContent(), password=None)
+    assert isinstance(privkey, PrivateKey)
+    pubkey = privkey.public_key()
+    assert isinstance(pubkey, PublicKey)
+
+    writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
+
+    # The "private-key" parameter takes a DER-encoded RSA private key
+    # encoded in URL-safe base64; PEM blocks are not supported.
+    privkey_der = der_string_from_signing_key(privkey)
+    privkey_encoded = urlsafe_b64encode(privkey_der).decode("ascii")
+
+    resp = util.web_post(
+        alice.process, u"uri",
+        params={
+            u"t": "mkdir",
+            u"private-key": privkey_encoded,
+        },
+    )
+    assert resp.startswith(b"URI:DIR2")
+
+    dircap = allmydata.uri.from_string(resp)
+    assert isinstance(dircap, allmydata.uri.DirectoryURI)
+
+    # DirectoryURI objects lack 'writekey' and 'fingerprint' attributes
+    # so extract them from the enclosed WriteableSSKFileURI object.
+    filecap = dircap.get_filenode_cap()
+    assert isinstance(filecap, allmydata.uri.WriteableSSKFileURI)
+
+    assert (writekey, fingerprint) == (filecap.writekey, filecap.fingerprint)
+
+    assert resp == b"URI:DIR2:3oo7j7f7qqxnet2z2lf57ucup4:cpktmsxlqnd5yeekytxjxvff5e6d6fv7py6rftugcndvss7tzd2a"
+
+
+@run_in_thread
+def test_mkdir_with_children_and_random_private_key(alice):
+    """
+    Create a new directory with ?t=mkdir-with-children&private-key=...
+    using a randomly-generated RSA private key.
+
+    The writekey and fingerprint derived from the provided RSA key
+    should match those of the newly-created directory capability.
+    """
+
+    # create a file to put in our directory
+    FILE_CONTENTS = u"some file contents\n" * 500
+    resp = requests.put(
+        util.node_url(alice.process.node_dir, u"uri"),
+        data=FILE_CONTENTS,
+    )
+    filecap = resp.content.strip()
+
+    # create a (sub) directory to put in our directory
+    resp = requests.post(
+        util.node_url(alice.process.node_dir, u"uri"),
+        params={
+            u"t": u"mkdir",
+        }
+    )
+    # (we need both the read-write and read-only URIs I guess)
+    dircap = resp.content
+    dircap_obj = allmydata.uri.from_string(dircap)
+    dircap_ro = dircap_obj.get_readonly().to_string()
+
+    # create json information about our directory
+    meta = {
+        "a_file": [
+            "filenode", {
+                "ro_uri": filecap,
+                "metadata": {
+                    "ctime": 1202777696.7564139,
+                    "mtime": 1202777696.7564139,
+                    "tahoe": {
+                        "linkcrtime": 1202777696.7564139,
+                        "linkmotime": 1202777696.7564139
+                    }
+                }
+            }
+        ],
+        "some_subdir": [
+            "dirnode", {
+                "rw_uri": dircap,
+                "ro_uri": dircap_ro,
+                "metadata": {
+                    "ctime": 1202778102.7589991,
+                    "mtime": 1202778111.2160511,
+                    "tahoe": {
+                        "linkcrtime": 1202777696.7564139,
+                        "linkmotime": 1202777696.7564139
+                    }
+                }
+            }
+        ]
+    }
+
+    privkey, pubkey = create_signing_keypair(2048)
+
+    writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
+
+    # The "private-key" parameter takes a DER-encoded RSA private key
+    # encoded in URL-safe base64; PEM blocks are not supported.
+    privkey_der = der_string_from_signing_key(privkey)
+    privkey_encoded = urlsafe_b64encode(privkey_der).decode("ascii")
+
+    # create a new directory with one file and one sub-dir (all-at-once)
+    # with the supplied RSA private key
+    resp = util.web_post(
+        alice.process, u"uri",
+        params={
+            u"t": "mkdir-with-children",
+            u"private-key": privkey_encoded,
+        },
+        data=json.dumps(meta),
+    )
+    assert resp.startswith(b"URI:DIR2")
+
+    dircap = allmydata.uri.from_string(resp)
+    assert isinstance(dircap, allmydata.uri.DirectoryURI)
+
+    # DirectoryURI objects lack 'writekey' and 'fingerprint' attributes
+    # so extract them from the enclosed WriteableSSKFileURI object.
+    filecap = dircap.get_filenode_cap()
+    assert isinstance(filecap, allmydata.uri.WriteableSSKFileURI)
+
+    assert (writekey, fingerprint) == (filecap.writekey, filecap.fingerprint)
+
+
+@run_in_thread
+def test_mkdir_with_children_and_known_private_key(alice):
+    """
+    Create a new directory with ?t=mkdir-with-children&private-key=...
+    using a known-in-advance RSA private key.
+
+
+    The writekey and fingerprint derived from the provided RSA key
+    should match those of the newly-created directory capability.
+    In addition, because the writekey and fingerprint are derived
+    deterministically, given the same RSA private key, the resultant
+    directory capability should always be the same.
+    """
+
+    # create a file to put in our directory
+    FILE_CONTENTS = u"some file contents\n" * 500
+    resp = requests.put(
+        util.node_url(alice.process.node_dir, u"uri"),
+        data=FILE_CONTENTS,
+    )
+    filecap = resp.content.strip()
+
+    # create a (sub) directory to put in our directory
+    resp = requests.post(
+        util.node_url(alice.process.node_dir, u"uri"),
+        params={
+            u"t": u"mkdir",
+        }
+    )
+    # (we need both the read-write and read-only URIs I guess)
+    dircap = resp.content
+    dircap_obj = allmydata.uri.from_string(dircap)
+    dircap_ro = dircap_obj.get_readonly().to_string()
+
+    # create json information about our directory
+    meta = {
+        "a_file": [
+            "filenode", {
+                "ro_uri": filecap,
+                "metadata": {
+                    "ctime": 1202777696.7564139,
+                    "mtime": 1202777696.7564139,
+                    "tahoe": {
+                        "linkcrtime": 1202777696.7564139,
+                        "linkmotime": 1202777696.7564139
+                    }
+                }
+            }
+        ],
+        "some_subdir": [
+            "dirnode", {
+                "rw_uri": dircap,
+                "ro_uri": dircap_ro,
+                "metadata": {
+                    "ctime": 1202778102.7589991,
+                    "mtime": 1202778111.2160511,
+                    "tahoe": {
+                        "linkcrtime": 1202777696.7564139,
+                        "linkmotime": 1202777696.7564139
+                    }
+                }
+            }
+        ]
+    }
+
+    # Generated with `openssl genrsa -out openssl-rsa-2048-4.txt 2048`
+    pempath = DATA_PATH.child("openssl-rsa-2048-4.txt")
+    privkey = load_pem_private_key(pempath.getContent(), password=None)
+    assert isinstance(privkey, PrivateKey)
+    pubkey = privkey.public_key()
+    assert isinstance(pubkey, PublicKey)
+
+    writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
+
+    # The "private-key" parameter takes a DER-encoded RSA private key
+    # encoded in URL-safe base64; PEM blocks are not supported.
+    privkey_der = der_string_from_signing_key(privkey)
+    privkey_encoded = urlsafe_b64encode(privkey_der).decode("ascii")
+
+    # create a new directory with one file and one sub-dir (all-at-once)
+    # with the supplied RSA private key
+    resp = util.web_post(
+        alice.process, u"uri",
+        params={
+            u"t": "mkdir-with-children",
+            u"private-key": privkey_encoded,
+        },
+        data=json.dumps(meta),
+    )
+    assert resp.startswith(b"URI:DIR2")
+
+    dircap = allmydata.uri.from_string(resp)
+    assert isinstance(dircap, allmydata.uri.DirectoryURI)
+
+    # DirectoryURI objects lack 'writekey' and 'fingerprint' attributes
+    # so extract them from the enclosed WriteableSSKFileURI object.
+    filecap = dircap.get_filenode_cap()
+    assert isinstance(filecap, allmydata.uri.WriteableSSKFileURI)
+
+    assert (writekey, fingerprint) == (filecap.writekey, filecap.fingerprint)
+
+    assert resp == b"URI:DIR2:ppwzpwrd37xi7tpribxyaa25uy:imdws47wwpzfkc5vfllo4ugspb36iit4cqps6ttuhaouc66jb2da"

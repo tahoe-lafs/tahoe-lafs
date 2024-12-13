@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Union,
     List,
+    IO
 )
 
 from twisted.python.filepath import FilePath
@@ -178,6 +179,7 @@ def load_grid_manager(config_path: Optional[FilePath]):
     :raises: ValueError if the confguration is invalid or IOError if
         expected files can't be opened.
     """
+    config_file: Union[IO[bytes], IO[str]]
     if config_path is None:
         config_file = sys.stdin
     else:

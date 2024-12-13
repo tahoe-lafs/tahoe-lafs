@@ -1,15 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
-
-from future.utils import PY2, PY3, bchr, binary_type
-from future.builtins import str as future_str
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
 
 import os
 import sys
@@ -19,8 +10,6 @@ from functools import (
     partial,
 )
 from random import randrange
-if PY2:
-    from StringIO import StringIO
 from io import (
     TextIOWrapper,
     BytesIO,
@@ -33,6 +22,9 @@ from twisted.trial import unittest
 from ..util.assertutil import precondition
 from ..scripts import runner
 from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding, argv_type, unicode_to_argv
+
+def bchr(s):
+    return bytes([s])
 
 
 def skip_if_cannot_represent_filename(u):
@@ -72,13 +64,13 @@ def run_cli_native(verb, *args, **kwargs):
     :param runner.Options options: The options instance to use to parse the
         given arguments.
 
-    :param native_str verb: The command to run.  For example,
+    :param str verb: The command to run.  For example,
         ``"create-node"``.
 
-    :param [native_str] args: The arguments to pass to the command.  For
+    :param [str] args: The arguments to pass to the command.  For
         example, ``("--hostname=localhost",)``.
 
-    :param [native_str] nodeargs: Extra arguments to pass to the Tahoe
+    :param [str] nodeargs: Extra arguments to pass to the Tahoe
         executable before ``verb``.
 
     :param bytes|unicode stdin: Text or bytes to pass to the command via stdin.
@@ -107,22 +99,7 @@ def run_cli_native(verb, *args, **kwargs):
     )
     argv = ["tahoe"] + nodeargs + [verb] + list(args)
     stdin = kwargs.get("stdin", "")
-    if PY2:
-        # The original behavior, the Python 2 behavior, is to accept either
-        # bytes or unicode and try to automatically encode or decode as
-        # necessary.  This works okay for ASCII and if LANG is set
-        # appropriately.  These aren't great constraints so we should move
-        # away from this behavior.
-        #
-        # The encoding attribute doesn't change StringIO behavior on Python 2,
-        # but it's there for realism of the emulation.
-        stdin = StringIO(stdin)
-        stdin.encoding = encoding
-        stdout = StringIO()
-        stdout.encoding = encoding
-        stderr = StringIO()
-        stderr.encoding = encoding
-    else:
+    if True:
         # The new behavior, the Python 3 behavior, is to accept unicode and
         # encode it using a specific encoding. For older versions of Python 3,
         # the encoding is determined from LANG (bad) but for newer Python 3,
@@ -152,13 +129,13 @@ def run_cli_native(verb, *args, **kwargs):
         stderr=stderr,
     )
     def _done(rc, stdout=stdout, stderr=stderr):
-        if return_bytes and PY3:
+        if return_bytes:
             stdout = stdout.buffer
             stderr = stderr.buffer
         return 0, _getvalue(stdout), _getvalue(stderr)
     def _err(f, stdout=stdout, stderr=stderr):
         f.trap(SystemExit)
-        if return_bytes and PY3:
+        if return_bytes:
             stdout = stdout.buffer
             stderr = stderr.buffer
         return f.value.code, _getvalue(stdout), _getvalue(stderr)
@@ -188,18 +165,14 @@ def run_cli_unicode(verb, argv, nodeargs=None, stdin=None, encoding=None):
     if nodeargs is None:
         nodeargs = []
     precondition(
-        all(isinstance(arg, future_str) for arg in [verb] + nodeargs + argv),
+        all(isinstance(arg, str) for arg in [verb] + nodeargs + argv),
         "arguments to run_cli_unicode must be unicode",
         verb=verb,
         nodeargs=nodeargs,
         argv=argv,
     )
     codec = encoding or "ascii"
-    if PY2:
-        encode = lambda t: None if t is None else t.encode(codec)
-    else:
-        # On Python 3 command-line parsing expects Unicode!
-        encode = lambda t: t
+    encode = lambda t: t
     d = run_cli_native(
         encode(verb),
         nodeargs=list(encode(arg) for arg in nodeargs),
@@ -244,7 +217,7 @@ def flip_bit(good, which):
 def flip_one_bit(s, offset=0, size=None):
     """ flip one random bit of the string s, in a byte greater than or equal to offset and less
     than offset+size. """
-    precondition(isinstance(s, binary_type))
+    precondition(isinstance(s, bytes))
     if size is None:
         size=len(s)-offset
     i = randrange(offset, offset+size)
@@ -256,13 +229,9 @@ def flip_one_bit(s, offset=0, size=None):
 class ReallyEqualMixin(object):
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.assertEqual(a, b, msg)
-        # Make sure unicode strings are a consistent type. Specifically there's
-        # Future newstr (backported Unicode type) vs. Python 2 native unicode
-        # type. They're equal, and _logically_ the same type, but have
-        # different types in practice.
-        if a.__class__ == future_str:
+        if a.__class__ == str:
             a = str(a)
-        if b.__class__ == future_str:
+        if b.__class__ == str:
             b = str(b)
         self.assertEqual(type(a), type(b), "a :: %r (%s), b :: %r (%s), %r" % (a, type(a), b, type(b), msg))
 

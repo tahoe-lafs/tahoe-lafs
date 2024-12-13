@@ -1,12 +1,5 @@
 #! /usr/bin/env python
 
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import input
-
-
 import random, math, re
 from twisted.python import usage
 

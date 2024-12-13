@@ -57,8 +57,6 @@ from hyperlink import DecodedURL
 from cryptography.x509 import load_pem_x509_certificate
 
 
-# TODO Make sure to use pure Python versions?
-import cbor2
 from pycddl import Schema, ValidationError as CDDLValidationError
 from .server import StorageServer
 from .http_common import (
@@ -75,7 +73,8 @@ from ..util.hashutil import timing_safe_compare
 from ..util.base32 import rfc3548_alphabet
 from ..util.deferredutil import async_to_deferred
 from ..util.cputhreadpool import defer_to_thread
-from allmydata.interfaces import BadWriteEnablerError
+from ..util import cbor
+from ..interfaces import BadWriteEnablerError
 
 
 class ClientSecretsException(Exception):
@@ -638,20 +637,8 @@ async def read_encoded(
 
     # Pycddl will release the GIL when validating larger documents, so
     # let's take advantage of multiple CPUs:
-    if size > 10_000:
-        await defer_to_thread(reactor, schema.validate_cbor, message)
-    else:
-        schema.validate_cbor(message)
-
-    # The CBOR parser will allocate more memory, but at least we can feed
-    # it the file-like object, so that if it's large it won't be make two
-    # copies.
-    request.content.seek(SEEK_SET, 0)
-    # Typically deserialization to Python will not release the GIL, and
-    # indeed as of Jan 2023 cbor2 didn't have any code to release the GIL
-    # in the decode path. As such, running it in a different thread has no benefit.
-    return cbor2.load(request.content)
-
+    decoded = await defer_to_thread(schema.validate_cbor, message, True)
+    return decoded
 
 class HTTPServer(BaseApp):
     """
@@ -698,7 +685,7 @@ class HTTPServer(BaseApp):
         if accept.best == CBOR_MIME_TYPE:
             request.setHeader("Content-Type", CBOR_MIME_TYPE)
             f = TemporaryFile()
-            cbor2.dump(data, f)
+            cbor.dump(data, f)  # type: ignore
 
             def read_data(offset: int, length: int) -> bytes:
                 f.seek(offset)

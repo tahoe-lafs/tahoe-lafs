@@ -4,17 +4,6 @@ Tests for ``allmydata.web.logs``.
 Ported to Python 3.
 """
 
-from __future__ import (
-    print_function,
-    unicode_literals,
-    absolute_import,
-    division,
-)
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import json
 
 from twisted.internet.defer import inlineCallbacks
@@ -117,7 +106,7 @@ class TestStreamingLogs(AsyncTestCase):
         proto.transport.loseConnection()
         yield proto.is_closed
 
-        self.assertThat(len(messages), Equals(3))
+        self.assertThat(len(messages), Equals(3), messages)
         self.assertThat(messages[0]["action_type"], Equals("test:cli:some-exciting-action"))
         self.assertThat(messages[0]["arguments"],
                          Equals(["hello", "good-\\xff-day", 123, {"a": 35}, [None]]))

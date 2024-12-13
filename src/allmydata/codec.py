@@ -3,19 +3,12 @@ CRS encoding and decoding.
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from zope.interface import implementer
-from twisted.internet import defer
 from allmydata.util import mathutil
 from allmydata.util.assertutil import precondition
+from allmydata.util.cputhreadpool import defer_to_thread
+from allmydata.util.deferredutil import async_to_deferred
 from allmydata.interfaces import ICodecEncoder, ICodecDecoder
 import zfec
 
@@ -45,7 +38,8 @@ class CRSEncoder(object):
     def get_block_size(self):
         return self.share_size
 
-    def encode(self, inshares, desired_share_ids=None):
+    @async_to_deferred
+    async def encode(self, inshares, desired_share_ids=None):
         precondition(desired_share_ids is None or len(desired_share_ids) <= self.max_shares, desired_share_ids, self.max_shares)
 
         if desired_share_ids is None:
@@ -53,9 +47,8 @@ class CRSEncoder(object):
 
         for inshare in inshares:
             assert len(inshare) == self.share_size, (len(inshare), self.share_size, self.data_size, self.required_shares)
-        shares = self.encoder.encode(inshares, desired_share_ids)
-
-        return defer.succeed((shares, desired_share_ids))
+        shares = await defer_to_thread(self.encoder.encode, inshares, desired_share_ids)
+        return (shares, desired_share_ids)
 
     def encode_proposal(self, data, desired_share_ids=None):
         raise NotImplementedError()
@@ -77,14 +70,17 @@ class CRSDecoder(object):
     def get_needed_shares(self):
         return self.required_shares
 
-    def decode(self, some_shares, their_shareids):
+    @async_to_deferred
+    async def decode(self, some_shares, their_shareids):
         precondition(len(some_shares) == len(their_shareids),
                      len(some_shares), len(their_shareids))
         precondition(len(some_shares) == self.required_shares,
                      len(some_shares), self.required_shares)
-        data = self.decoder.decode(some_shares,
-                                   [int(s) for s in their_shareids])
-        return defer.succeed(data)
+        return await defer_to_thread(
+            self.decoder.decode,
+            some_shares,
+            [int(s) for s in their_shareids]
+        )
 
 def parse_params(serializedparams):
     pieces = serializedparams.split(b"-")

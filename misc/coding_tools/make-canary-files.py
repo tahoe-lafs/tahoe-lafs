@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
 
 """
 Given a list of nodeids and a 'convergence' file, create a bunch of files

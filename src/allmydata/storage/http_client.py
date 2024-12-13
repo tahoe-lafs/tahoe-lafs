@@ -6,7 +6,6 @@ from __future__ import annotations
 
 
 from typing import (
-    Union,
     Optional,
     Sequence,
     Mapping,
@@ -26,8 +25,6 @@ from attrs import define, asdict, frozen, field
 from eliot import start_action, register_exception_extractor
 from eliot.twisted import DeferredContext
 
-# TODO Make sure to import Python version?
-from cbor2 import loads, dumps
 from pycddl import Schema
 from collections_extended import RangeMap
 from werkzeug.datastructures import Range, ContentRange
@@ -47,7 +44,6 @@ from zope.interface import implementer
 from hyperlink import DecodedURL
 import treq
 from treq.client import HTTPClient
-from treq.testing import StubTreq
 from OpenSSL import SSL
 from werkzeug.http import parse_content_range_header
 
@@ -64,6 +60,8 @@ from .common import si_b2a, si_to_human_readable
 from ..util.hashutil import timing_safe_compare
 from ..util.deferredutil import async_to_deferred
 from ..util.tor_provider import _Provider as TorProvider
+from ..util.cputhreadpool import defer_to_thread
+from ..util.cbor import dumps
 
 try:
     from txtorcon import Tor  # type: ignore
@@ -434,7 +432,7 @@ class StorageClient(object):
     # The URL should be a HTTPS URL ("https://...")
     _base_url: DecodedURL
     _swissnum: bytes
-    _treq: Union[treq, StubTreq, HTTPClient]
+    _treq: HTTPClient
     _pool: HTTPConnectionPool
     _clock: IReactorTime
     # Are we running unit tests?
@@ -473,7 +471,8 @@ class StorageClient(object):
         into corresponding HTTP headers.
 
         If ``message_to_serialize`` is set, it will be serialized (by default
-        with CBOR) and set as the request body.
+        with CBOR) and set as the request body.  It should not be mutated
+        during execution of this function!
 
         Default timeout is 60 seconds.
         """
@@ -539,7 +538,7 @@ class StorageClient(object):
                     "Can't use both `message_to_serialize` and `data` "
                     "as keyword arguments at the same time"
                 )
-            kwargs["data"] = dumps(message_to_serialize)
+            kwargs["data"] = await defer_to_thread(dumps, message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
         response = await self._treq.request(
@@ -557,8 +556,11 @@ class StorageClient(object):
                 if content_type == CBOR_MIME_TYPE:
                     f = await limited_content(response, self._clock)
                     data = f.read()
-                    schema.validate_cbor(data)
-                    return loads(data)
+
+                    def validate_and_decode():
+                        return schema.validate_cbor(data, True)
+
+                    return await defer_to_thread(validate_and_decode)
                 else:
                     raise ClientException(
                         -1,
@@ -1232,7 +1234,8 @@ class StorageClientMutables:
             return cast(
                 Set[int],
                 await self._client.decode_cbor(
-                    response, _SCHEMAS["mutable_list_shares"]
+                    response,
+                    _SCHEMAS["mutable_list_shares"],
                 ),
             )
         else:

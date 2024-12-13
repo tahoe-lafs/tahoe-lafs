@@ -1,6 +1,6 @@
 let
   pname = "tahoe-lafs";
-  version = "1.18.0.post1";
+  version = "1.19.0.post1";
 in
 { lib
 , pythonPackages
@@ -9,6 +9,7 @@ in
 }:
 buildPythonPackage rec {
   inherit pname version;
+  pyproject = true;
   src = tahoe-lafs-src;
   propagatedBuildInputs = with pythonPackages; [
     attrs
@@ -22,6 +23,8 @@ buildPythonPackage rec {
     filelock
     foolscap
     future
+    hatchling
+    hatch-vcs
     klein
     magic-wormhole
     netifaces
@@ -50,7 +53,7 @@ buildPythonPackage rec {
         txtorcon
       ];
       i2p = [
-        txi2p
+        txi2p-tahoe
       ];
       unittest = [
         beautifulsoup4

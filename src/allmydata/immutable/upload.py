@@ -4,8 +4,6 @@ Ported to Python 3.
 
 from __future__ import annotations
 
-from future.utils import native_str
-from past.builtins import long, unicode
 from six import ensure_str
 
 import os, time, weakref, itertools
@@ -57,7 +55,7 @@ from eliot import (
 
 _TOTAL_SHARES = Field.for_types(
     u"total_shares",
-    [int, long],
+    [int],
     u"The total number of shares desired.",
 )
 
@@ -78,7 +76,7 @@ _READONLY_PEERS = Field(
 
 def _serialize_existing_shares(existing_shares):
     return {
-        server: list(shares)
+        ensure_str(server): list(shares)
         for (server, shares)
         in existing_shares.items()
     }
@@ -91,7 +89,7 @@ _EXISTING_SHARES = Field(
 
 def _serialize_happiness_mappings(happiness_mappings):
     return {
-        sharenum: base32.b2a(serverid)
+        str(sharenum): ensure_str(base32.b2a(serverid))
         for (sharenum, serverid)
         in happiness_mappings.items()
     }
@@ -104,7 +102,7 @@ _HAPPINESS_MAPPINGS = Field(
 
 _HAPPINESS = Field.for_types(
     u"happiness",
-    [int, long],
+    [int],
     u"The computed happiness of a certain placement.",
 )
 
@@ -112,7 +110,7 @@ _UPLOAD_TRACKERS = Field(
     u"upload_trackers",
     lambda trackers: list(
         dict(
-            server=tracker.get_name(),
+            server=ensure_str(tracker.get_name()),
             shareids=sorted(tracker.buckets.keys()),
         )
         for tracker
@@ -123,7 +121,7 @@ _UPLOAD_TRACKERS = Field(
 
 _ALREADY_SERVERIDS = Field(
     u"already_serverids",
-    lambda d: d,
+    lambda d: {str(k): v for k, v in d.items()},
     u"Some servers which are already holding some shares that we were interested in uploading.",
 )
 
@@ -142,7 +140,7 @@ GET_SHARE_PLACEMENTS = MessageType(
 
 _EFFECTIVE_HAPPINESS = Field.for_types(
     u"effective_happiness",
-    [int, long],
+    [int],
     u"The computed happiness value of a share placement map.",
 )
 
@@ -166,7 +164,7 @@ class HelperUploadResults(Copyable, RemoteCopy):
     # package/module/class name
     #
     # Needs to be native string to make Foolscap happy.
-    typeToCopy = native_str("allmydata.upload.UploadResults.tahoe.allmydata.com")
+    typeToCopy = "allmydata.upload.UploadResults.tahoe.allmydata.com"
     copytype = typeToCopy
 
     # also, think twice about changing the shape of any existing attribute,
@@ -1622,7 +1620,7 @@ class AssistedUploader(object):
         # abbreviated), so if we detect old results, just clobber them.
 
         sharemap = upload_results.sharemap
-        if any(isinstance(v, (bytes, unicode)) for v in sharemap.values()):
+        if any(isinstance(v, (bytes, str)) for v in sharemap.values()):
             upload_results.sharemap = None
 
     def _build_verifycap(self, helper_upload_results):
@@ -1701,7 +1699,7 @@ class BaseUploadable(object):
     def set_default_encoding_parameters(self, default_params):
         assert isinstance(default_params, dict)
         for k,v in default_params.items():
-            precondition(isinstance(k, (bytes, unicode)), k, v)
+            precondition(isinstance(k, (bytes, str)), k, v)
             precondition(isinstance(v, int), k, v)
         if "k" in default_params:
             self.default_encoding_param_k = default_params["k"]

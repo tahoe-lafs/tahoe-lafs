@@ -2,17 +2,6 @@
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from past.builtins import long
-
-from future.utils import PY2
-if PY2:
-    # Skip list() since it results in spurious test failures
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, object, range, str, max, min  # noqa: F401
 
 import time
 import unicodedata
@@ -20,8 +9,10 @@ from zope.interface import implementer
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
+from twisted.python.filepath import FilePath
 from allmydata import uri, dirnode
 from allmydata.client import _Client
+from allmydata.crypto.rsa import create_signing_keypair
 from allmydata.immutable import upload
 from allmydata.immutable.literal import LiteralFileNode
 from allmydata.interfaces import IImmutableFileNode, IMutableFileNode, \
@@ -30,16 +21,25 @@ from allmydata.interfaces import IImmutableFileNode, IMutableFileNode, \
      IDeepCheckResults, IDeepCheckAndRepairResults, \
      MDMF_VERSION, SDMF_VERSION
 from allmydata.mutable.filenode import MutableFileNode
-from allmydata.mutable.common import UncoordinatedWriteError
+from allmydata.mutable.common import (
+    UncoordinatedWriteError,
+    derive_mutable_keys,
+)
 from allmydata.util import hashutil, base32
 from allmydata.util.netstring import split_netstring
 from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
      ErrorMixin
+from allmydata.test.mutable.util import (
+    FakeStorage,
+    make_nodemaker_with_peers,
+    make_peer,
+)
 from allmydata.test.no_network import GridTestMixin
 from allmydata.unknown import UnknownNode, strip_prefix_for_ro
 from allmydata.nodemaker import NodeMaker
 from base64 import b32decode
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 import allmydata.test.common_util as testutil
 
 from hypothesis import given
@@ -1863,7 +1863,7 @@ class DeepStats(testutil.ReallyEqualMixin, unittest.TestCase):
                                      (101, 316, 216),
                                      (317, 1000, 684),
                                      (1001, 3162, 99),
-                                     (long(3162277660169), long(10000000000000), 1),
+                                     (3162277660169, 10000000000000, 1),
                                      ])
 
 class UCWEingMutableFileNode(MutableFileNode):
@@ -1989,3 +1989,75 @@ class Adder(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
 
         d.addCallback(_test_adder)
         return d
+
+
+class DeterministicDirnode(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.TestCase):
+    def setUp(self):
+        # Copied from allmydata.test.mutable.test_filenode
+        super(DeterministicDirnode, self).setUp()
+        self._storage = FakeStorage()
+        self._peers = list(
+            make_peer(self._storage, n)
+            for n
+            in range(10)
+        )
+        self.nodemaker = make_nodemaker_with_peers(self._peers)
+
+    async def test_create_with_random_keypair(self):
+        """
+        Create a dirnode using a random RSA keypair.
+
+        The writekey and fingerprint of the enclosed mutable filecap
+        should match those derived from the given keypair.
+        """
+        privkey, pubkey = create_signing_keypair(2048)
+        writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
+
+        node = await self.nodemaker.create_new_mutable_directory(
+            keypair=(pubkey, privkey)
+        )
+        self.failUnless(isinstance(node, dirnode.DirectoryNode))
+
+        dircap = uri.from_string(node.get_uri())
+        self.failUnless(isinstance(dircap, uri.DirectoryURI))
+
+        filecap = dircap.get_filenode_cap()
+        self.failUnless(isinstance(filecap, uri.WriteableSSKFileURI))
+
+        self.failUnlessReallyEqual(filecap.writekey, writekey)
+        self.failUnlessReallyEqual(filecap.fingerprint, fingerprint)
+
+    async def test_create_with_known_keypair(self):
+        """
+        Create a dirnode using a known RSA keypair.
+
+        The writekey and fingerprint of the enclosed mutable filecap
+        should match those derived from the given keypair. Because
+        these values are derived deterministically, given the same
+        keypair, the resulting filecap should also always be the same.
+        """
+        # Generated with `openssl genrsa -out openssl-rsa-2048-2.txt 2048`
+        pempath = FilePath(__file__).sibling("data").child("openssl-rsa-2048-2.txt")
+        privkey = load_pem_private_key(pempath.getContent(), password=None)
+        pubkey = privkey.public_key()
+        writekey, _, fingerprint = derive_mutable_keys((pubkey, privkey))
+
+        node = await self.nodemaker.create_new_mutable_directory(
+            keypair=(pubkey, privkey)
+        )
+        self.failUnless(isinstance(node, dirnode.DirectoryNode))
+
+        dircap = uri.from_string(node.get_uri())
+        self.failUnless(isinstance(dircap, uri.DirectoryURI))
+
+        filecap = dircap.get_filenode_cap()
+        self.failUnless(isinstance(filecap, uri.WriteableSSKFileURI))
+
+        self.failUnlessReallyEqual(filecap.writekey, writekey)
+        self.failUnlessReallyEqual(filecap.fingerprint, fingerprint)
+
+        self.failUnlessReallyEqual(
+            # Despite being named "to_string", this actually returns bytes..
+            dircap.to_string(),
+            b'URI:DIR2:n4opqgewgcn4mddu4oiippaxru:ukpe4z6xdlujdpguoabergyih3bj7iaafukdqzwthy2ytdd5bs2a'
+        )

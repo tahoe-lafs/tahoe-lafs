@@ -14,6 +14,7 @@ from allmydata.interfaces import IMutableFileNode, ICheckable, ICheckResults, \
      IMutableFileVersion, IWriteable
 from allmydata.util import hashutil, log, consumer, deferredutil, mathutil
 from allmydata.util.assertutil import precondition
+from allmydata.util.cputhreadpool import defer_to_thread
 from allmydata.uri import WriteableSSKFileURI, ReadonlySSKFileURI, \
                           WriteableMDMFFileURI, ReadonlyMDMFFileURI
 from allmydata.monitor import Monitor
@@ -128,7 +129,8 @@ class MutableFileNode(object):
 
         return self
 
-    def create_with_keys(self, keypair, contents,
+    @deferredutil.async_to_deferred
+    async def create_with_keys(self, keypair, contents,
                          version=SDMF_VERSION):
         """Call this to create a brand-new mutable file. It will create the
         shares, find homes for them, and upload the initial contents (created
@@ -137,8 +139,8 @@ class MutableFileNode(object):
         use) when it completes.
         """
         self._pubkey, self._privkey = keypair
-        self._writekey, self._encprivkey, self._fingerprint = derive_mutable_keys(
-            keypair,
+        self._writekey, self._encprivkey, self._fingerprint = await defer_to_thread(
+            derive_mutable_keys, keypair
         )
         if version == MDMF_VERSION:
             self._uri = WriteableMDMFFileURI(self._writekey, self._fingerprint)
@@ -149,7 +151,7 @@ class MutableFileNode(object):
         self._readkey = self._uri.readkey
         self._storage_index = self._uri.storage_index
         initial_contents = self._get_initial_contents(contents)
-        return self._upload(initial_contents, None)
+        return await self._upload(initial_contents, None)
 
     def _get_initial_contents(self, contents):
         if contents is None:

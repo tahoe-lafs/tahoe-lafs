@@ -2,8 +2,6 @@
 Utilities for getting IP addresses.
 """
 
-from future.utils import native_str
-
 from typing import Callable
 
 import os, socket
@@ -104,7 +102,7 @@ def get_local_addresses_sync():
         on the local system.
     """
     return list(
-        native_str(address[native_str("addr")])
+        str(address["addr"])
         for iface_name
         in interfaces()
         for address
@@ -161,7 +159,7 @@ def _foolscapEndpointForPortNumber(portnum):
             # approach is error prone for the reasons described on
             # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2787
             portnum = allocate_tcp_port()
-    return (portnum, native_str("tcp:%d" % (portnum,)))
+    return (portnum, "tcp:%d" % portnum)
 
 
 @implementer(IStreamServerEndpoint)
@@ -210,7 +208,7 @@ def listenOnUnused(tub, portnum=None):
     """
     portnum, endpoint = _foolscapEndpointForPortNumber(portnum)
     tub.listenOn(endpoint)
-    tub.setLocation(native_str("localhost:%d" % (portnum,)))
+    tub.setLocation("localhost:%d" % portnum)
     return portnum
 
 

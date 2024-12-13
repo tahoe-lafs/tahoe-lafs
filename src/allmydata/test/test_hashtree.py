@@ -1,24 +1,14 @@
 """
 Tests for allmydata.hashtree.
-
-Ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
+from .common import SyncTestCase
 
-
-from twisted.trial import unittest
-
+from base64 import b32encode
 from allmydata.util.hashutil import tagged_hash
 from allmydata import hashtree
-
 
 def make_tree(numleaves):
     leaves = [b"%d" % i for i in range(numleaves)]
@@ -26,7 +16,7 @@ def make_tree(numleaves):
     ht = hashtree.HashTree(leaf_hashes)
     return ht
 
-class Complete(unittest.TestCase):
+class Complete(SyncTestCase):
     def test_create(self):
         # try out various sizes, since we pad to a power of two
         ht = make_tree(6)
@@ -39,6 +29,18 @@ class Complete(unittest.TestCase):
         self.failUnlessEqual(ht.get_leaf_index(0), 7)
         self.failUnlessRaises(IndexError, ht.parent, 0)
         self.failUnlessRaises(IndexError, ht.needed_for, -1)
+
+    def test_well_known_tree(self):
+        self.assertEqual(
+            [b32encode(s).strip(b"=").lower() for s in make_tree(3)],
+            [b'vxuqudnucceja4pqkdqy5txapagxubm5moupzqywkbg2jrjkaola',
+             b'weycjri4jlcaunca2jyx2kr7sbtb7qdriog3f26g5jpc5awfeazq',
+             b'5ovy3g2wwjnxoqtja4licckxkbqjef4xsjtclk6gxnsl66kvow6a',
+             b'esd34nbzri75l3j2vwetpk3dvlvsxstkbaktomonrulpks3df3sq',
+             b'jkxbwa2tppyfax35o72tbjecxvaa4xphma6zbyfbkkku3ed2657a',
+             b'wfisavaqgab2raihe7dld2qjps4rtxyiubgfs5enziokey2msjwa',
+             b't3kza5vwx3tlowdemmgdyigp62ju57qduyfh7uulnfkc7mj2ncrq'],
+        )
 
     def test_needed_hashes(self):
         ht = make_tree(8)
@@ -65,7 +67,7 @@ class Complete(unittest.TestCase):
         self.failUnless("\n        8:" in d)
         self.failUnless("\n      4:" in d)
 
-class Incomplete(unittest.TestCase):
+class Incomplete(SyncTestCase):
 
     def test_create(self):
         ht = hashtree.IncompleteHashTree(6)

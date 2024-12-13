@@ -1,1 +1,0 @@
-The integration test suite now includes a set of capability test vectors (``integration/vectors/test_vectors.yaml``) which can be used to verify compatibility between Tahoe-LAFS and other implementations.

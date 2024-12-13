@@ -48,8 +48,6 @@ dockerhub-auth-template: &DOCKERHUB_AUTH
         <<: *DOCKERHUB_CONTEXT
     - "build-image-fedora-35":
         <<: *DOCKERHUB_CONTEXT
-    - "build-image-oraclelinux-8":
-        <<: *DOCKERHUB_CONTEXT
     # Restore later as PyPy38
     #- "build-image-pypy27-buster":
     #    <<: *DOCKERHUB_CONTEXT
@@ -88,19 +86,16 @@ workflows:
       - "ubuntu-22-04":
           {}
 
-      # Equivalent to RHEL 8; CentOS 8 is dead.
-      - "oraclelinux-8":
-          {}
-
       - "nixos":
-          name: "<<matrix.pythonVersion>>"
-          nixpkgs: "nixpkgs-unstable"
+          name: "<<matrix.nixpkgs>>-<<matrix.pythonVersion>>"
           matrix:
             parameters:
+              nixpkgs:
+                - "nixpkgs-24_11"
               pythonVersion:
-                - "python39"
                 - "python310"
                 - "python311"
+                - "python312"
 
       # Eventually, test against PyPy 3.8
       #- "pypy27-buster":
@@ -130,7 +125,7 @@ workflows:
               # of Python, we probably have to do something here.
               pythonVersion:
                 - "3.9"
-                - "3.11"
+                - "3.12"
 
       - "integration":
           # Run even the slow integration tests here.  We need the `--` to
@@ -229,7 +224,7 @@ jobs:
             # version-specific binary packages so include the Python version
             # in this key, as well as the canonical source of our
             # dependencies.
-            - &CACHE_KEY "pip-packages-v1-<< parameters.pythonVersion >>-{{ checksum \"setup.py\" }}"
+            - &CACHE_KEY "pip-packages-v1-<< parameters.pythonVersion >>-{{ checksum \"pyproject.toml\" }}"
 
       - "run":
           name: "Fix $env:PATH"
@@ -248,11 +243,6 @@ jobs:
             # $env:PATH is not substituted now but $p and $q are.  ` is the
             # PowerShell string escape character.
             Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$p;$q;`$env:PATH`""
-
-      - "run":
-          name: "Display tool versions"
-          command: |
-            python misc/build_helpers/show-tool-versions.py
 
       - "run":
           # It's faster to install a wheel than a source package.  If we don't
@@ -280,9 +270,14 @@ jobs:
           name: "Install Dependencies"
           environment:
             # By this point we should no longer need an index.
-            PIP_NO_INDEX: "1"
+##            PIP_NO_INDEX: "1"
           command: |
             python -m pip install .[testenv] .[test]
+
+      - "run":
+          name: "Display tool versions"
+          command: |
+            python misc/build_helpers/show-tool-versions.py
 
       - "run":
           name: "Run Unit Tests"
@@ -540,37 +535,6 @@ jobs:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py310"
 
-  oraclelinux-8: &RHEL_DERIV
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/oraclelinux:8-py3.8"
-        user: "nobody"
-
-    environment:
-      <<: *UTF_8_ENVIRONMENT
-      TAHOE_LAFS_TOX_ENVIRONMENT: "py38"
-
-    # pip cannot install packages if the working directory is not readable.
-    # We want to run a lot of steps as nobody instead of as root.
-    working_directory: "/tmp/project"
-
-    steps:
-      - "checkout"
-      - run: *SETUP_VIRTUALENV
-      - run: *RUN_TESTS
-      - store_test_results: *STORE_TEST_RESULTS
-      - store_artifacts: *STORE_TEST_LOG
-      - store_artifacts: *STORE_ELIOT_LOG
-      - store_artifacts: *STORE_OTHER_ARTIFACTS
-      - run: *SUBMIT_COVERAGE
-
-  fedora-35:
-    <<: *RHEL_DERIV
-    docker:
-      - <<: *DOCKERHUB_AUTH
-        image: "tahoelafsci/fedora:35-py3"
-        user: "nobody"
-
   nixos:
     parameters:
       nixpkgs:
@@ -592,15 +556,12 @@ jobs:
           buildSteps:
             - "run":
                 name: "Unit Test"
+                environment:
+                  # Once dependencies are built, we can allow some more concurrency for our own
+                  # test suite.
+                  UNITTEST_CORES: 8
                 command: |
-                  source .circleci/lib.sh
-
-                  # Translate the nixpkgs selection into a flake reference we
-                  # can use to override the default nixpkgs input.
-                  NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
-
-                  cache_if_able nix run \
-                    --override-input nixpkgs "$NIXPKGS" \
+                  nix run \
                     .#<<parameters.pythonVersion>>-unittest -- \
                     --jobs $UNITTEST_CORES \
                     allmydata
@@ -698,14 +659,6 @@ jobs:
       PYTHON_VERSION: "3.10"
 
 
-  build-image-oraclelinux-8:
-    <<: *BUILD_IMAGE
-
-    environment:
-      DISTRO: "oraclelinux"
-      TAG: "8"
-      PYTHON_VERSION: "3.8"
-
   build-image-fedora-35:
     <<: *BUILD_IMAGE
 
@@ -730,7 +683,7 @@ executors:
     # requirements and goals.
     # https://circleci.com/developer/orbs/orb/circleci/windows#executors-server-2022
     machine:
-      image: "windows-server-2022-gui:2023.06.1"
+      image: "windows-server-2022-gui:current"
       shell: "powershell.exe -ExecutionPolicy Bypass"
     resource_class: "windows.large"
 
@@ -738,12 +691,8 @@ executors:
     docker:
       # Run in a highly Nix-capable environment.
       - <<: *DOCKERHUB_AUTH
-        image: "nixos/nix:2.16.1"
+        image: "nixos/nix:2.25.3"
     environment:
-      # CACHIX_AUTH_TOKEN is manually set in the CircleCI web UI and allows us
-      # to push to CACHIX_NAME.  CACHIX_NAME tells cachix which cache to push
-      # to.
-      CACHIX_NAME: "tahoe-lafs-opensource"
       # Let us use features marked "experimental".  For example, most/all of
       # the `nix <subcommand>` forms.
       NIX_CONFIG: "experimental-features = nix-command flakes"
@@ -766,42 +715,21 @@ commands:
         type: "steps"
 
     steps:
-      - "run":
-          # Get cachix for Nix-friendly caching.
-          name: "Install Basic Dependencies"
-          command: |
-            # Get some build environment dependencies and let them float on a
-            # certain release branch.  These aren't involved in the actual
-            # package build (only in CI environment setup) so the fact that
-            # they float shouldn't hurt reproducibility.
-            NIXPKGS="nixpkgs/nixos-23.05"
-            nix profile install $NIXPKGS#cachix $NIXPKGS#bash $NIXPKGS#jp
-
-            # Activate our cachix cache for "binary substitution".  This sets
-            # up configuration tht lets Nix download something from the cache
-            # instead of building it locally, if possible.
-            cachix use "${CACHIX_NAME}"
-
       - "checkout"
 
       - "run":
-          # The Nix package doesn't know how to do this part, unfortunately.
-          name: "Generate version"
-          command: |
-            nix-shell \
-              -p 'python3.withPackages (ps: [ ps.setuptools ])' \
-              --run 'python setup.py update_version'
-
-      - "run":
           name: "Build Package"
+          environment:
+            # CircleCI build environment looks like it has a zillion and a half cores.
+            # Don't let Nix autodetect this high core count because it blows up memory
+            # usage and fails the test run.  Pick a number of cores that suits the build
+            # environment we're paying for (the free one!).
+            DEPENDENCY_CORES: 3
           command: |
-            source .circleci/lib.sh
-            NIXPKGS=$(nixpkgs_flake_reference <<parameters.nixpkgs>>)
-            cache_if_able nix build \
+            nix build \
               --verbose \
               --print-build-logs \
               --cores "$DEPENDENCY_CORES" \
-              --override-input nixpkgs "$NIXPKGS" \
               .#<<parameters.pythonVersion>>-tahoe-lafs
 
       - steps: "<<parameters.buildSteps>>"

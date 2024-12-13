@@ -32,8 +32,7 @@ Ported to Python 3.
 
 from __future__ import annotations
 
-from six import ensure_text
-from typing import Union, Callable, Any, Optional, cast
+from typing import Union, Callable, Any, Optional, cast, Dict, Iterable
 from os import urandom
 import re
 import time
@@ -43,6 +42,7 @@ from configparser import NoSectionError
 import json
 
 import attr
+from attr import define
 from hyperlink import DecodedURL
 from twisted.web.client import HTTPConnectionPool
 from zope.interface import (
@@ -56,12 +56,14 @@ from twisted.internet.task import LoopingCall
 from twisted.internet import defer, reactor
 from twisted.internet.interfaces import IReactorTime
 from twisted.application import service
+from twisted.logger import Logger
 from twisted.plugin import (
     getPlugins,
 )
 from eliot import (
     log_call,
 )
+from foolscap.ipb import IRemoteReference
 from foolscap.api import eventually, RemoteException
 from foolscap.reconnector import (
     ReconnectionInfo,
@@ -96,6 +98,8 @@ from allmydata.storage.http_client import (
     StorageClientFactory
 )
 from .node import _Config
+
+_log = Logger()
 
 ANONYMOUS_STORAGE_NURLS = "anonymous-storage-NURLs"
 
@@ -135,9 +139,9 @@ class StorageClientConfig(object):
         only upload to a storage-server that has a valid certificate
         signed by at least one of these keys.
     """
-    preferred_peers = attr.ib(default=())
-    storage_plugins = attr.ib(default=attr.Factory(dict))
-    grid_manager_keys = attr.ib(default=attr.Factory(list))
+    preferred_peers : Iterable[bytes] = attr.ib(default=())
+    storage_plugins : dict[str, dict[str, str]] = attr.ib(default=attr.Factory(dict))
+    grid_manager_keys : list[ed25519.Ed25519PublicKey] = attr.ib(default=attr.Factory(list))
 
     @classmethod
     def from_node_config(cls, config):
@@ -181,6 +185,31 @@ class StorageClientConfig(object):
             storage_plugins,
             grid_manager_keys,
         )
+
+    def get_configured_storage_plugins(self) -> dict[str, IFoolscapStoragePlugin]:
+        """
+        :returns: a mapping from names to instances for all available
+            plugins
+
+        :raises MissingPlugin: if the configuration asks for a plugin
+            for which there is no corresponding instance (e.g. it is
+            not installed).
+        """
+        plugins = {
+            plugin.name: plugin
+            for plugin
+            in getPlugins(IFoolscapStoragePlugin)
+        }
+
+        # mypy doesn't like "str" in place of Any ...
+        configured: Dict[Any, IFoolscapStoragePlugin] = dict()
+        for plugin_name in self.storage_plugins:
+            try:
+                plugin = plugins[plugin_name]
+            except KeyError:
+                raise MissingPlugin(plugin_name)
+            configured[plugin_name] = plugin
+        return configured
 
 
 @implementer(IStorageBroker)
@@ -243,7 +272,6 @@ class StorageFarmBroker(service.MultiService):
         # doesn't really matter but it makes the logging behavior more
         # predictable and easier to test (and at least one test does depend on
         # this sorted order).
-        servers = {ensure_text(key): value for (key, value) in servers.items()}
         for (server_id, server) in sorted(servers.items()):
             try:
                 storage_server = self._make_storage_server(
@@ -295,7 +323,7 @@ class StorageFarmBroker(service.MultiService):
         connect to storage server over HTTP.
         """
         return not node_config.get_config(
-            "client", "force_foolscap", default=True, boolean=True,
+            "client", "force_foolscap", default=False, boolean=True,
         ) and len(announcement.get(ANONYMOUS_STORAGE_NURLS, [])) > 0
 
     @log_call(
@@ -710,6 +738,7 @@ class _FoolscapStorage(object):
 
 
 @implementer(IFoolscapStorageServer)
+@define
 class _NullStorage(object):
     """
     Abstraction for *not* communicating with a storage server of a type with
@@ -723,7 +752,7 @@ class _NullStorage(object):
     lease_seed = hashlib.sha256(b"").digest()
 
     name = "<unsupported>"
-    longname = "<storage with unsupported protocol>"
+    longname: str = "<storage with unsupported protocol>"
 
     def connect_to(self, tub, got_connection):
         return NonReconnector()
@@ -742,14 +771,24 @@ class NonReconnector(object):
     def getReconnectionInfo(self):
         return ReconnectionInfo()
 
-_null_storage = _NullStorage()
-
 
 class AnnouncementNotMatched(Exception):
     """
     A storage server announcement wasn't matched by any of the locally enabled
     plugins.
     """
+
+
+@attr.s(auto_exc=True)
+class MissingPlugin(Exception):
+    """
+    A particular plugin was requested but is missing
+    """
+
+    plugin_name = attr.ib()
+
+    def __str__(self):
+        return "Missing plugin '{}'".format(self.plugin_name)
 
 
 def _storage_from_foolscap_plugin(node_config, config, announcement, get_rref):
@@ -759,27 +798,37 @@ def _storage_from_foolscap_plugin(node_config, config, announcement, get_rref):
 
     :param allmydata.node._Config node_config: The node configuration to
         pass to the plugin.
+
+    :param dict announcement: The storage announcement for the storage
+        server we should build
     """
-    plugins = {
-        plugin.name: plugin
-        for plugin
-        in getPlugins(IFoolscapStoragePlugin)
-    }
     storage_options = announcement.get(u"storage-options", [])
-    for plugin_name, plugin_config in list(config.storage_plugins.items()):
+    plugins = config.get_configured_storage_plugins()
+
+    # for every storage-option that we have enabled locally (in order
+    # of preference), see if the announcement asks for such a thing.
+    # if it does, great: we return that storage-client
+    # otherwise we've run out of options...
+
+    for options in storage_options:
         try:
-            plugin = plugins[plugin_name]
+            plugin = plugins[options[u"name"]]
         except KeyError:
-            raise ValueError("{} not installed".format(plugin_name))
-        for option in storage_options:
-            if plugin_name == option[u"name"]:
-                furl = option[u"storage-server-FURL"]
-                return furl, plugin.get_storage_client(
-                    node_config,
-                    option,
-                    get_rref,
-                )
-    raise AnnouncementNotMatched()
+            # we didn't configure this kind of plugin locally, so
+            # consider the next announced option
+            continue
+
+        furl = options[u"storage-server-FURL"]
+        return furl, plugin.get_storage_client(
+            node_config,
+            options,
+            get_rref,
+        )
+
+    # none of the storage options in the announcement are configured
+    # locally; we can't make a storage-client.
+    plugin_names = ", ".join(sorted(option["name"] for option in storage_options))
+    raise AnnouncementNotMatched(plugin_names)
 
 
 def _available_space_from_version(version):
@@ -790,6 +839,83 @@ def _available_space_from_version(version):
     if available_space is None:
         available_space = protocol_v1_version.get(b'maximum-immutable-share-size', None)
     return available_space
+
+
+def _make_storage_system(
+        node_config: _Config,
+        config: StorageClientConfig,
+        ann: dict,
+        server_id: bytes,
+        get_rref: Callable[[], Optional[IRemoteReference]],
+) -> IFoolscapStorageServer:
+    """
+    Create an object for interacting with the storage server described by
+    the given announcement.
+
+    :param node_config: The node configuration to pass to any configured
+        storage plugins.
+
+    :param config: Configuration specifying desired storage client behavior.
+
+    :param ann: The storage announcement from the storage server we are meant
+        to communicate with.
+
+    :param server_id: The unique identifier for the server.
+
+    :param get_rref: A function which returns a remote reference to the
+        server-side object which implements this storage system, if one is
+        available (otherwise None).
+
+    :return: An object enabling communication via Foolscap with the server
+        which generated the announcement.
+    """
+    unmatched = None
+    # Try to match the announcement against a plugin.
+    try:
+        furl, storage_server = _storage_from_foolscap_plugin(
+            node_config,
+            config,
+            ann,
+            # Pass in an accessor for our _rref attribute.  The value of
+            # the attribute may change over time as connections are lost
+            # and re-established.  The _StorageServer should always be
+            # able to get the most up-to-date value.
+            get_rref,
+        )
+    except AnnouncementNotMatched as e:
+        # show a more-specific error to the user for this server
+        # (Note this will only be shown if the server _doesn't_ offer
+        # anonymous service, which will match below)
+        unmatched = _NullStorage('{}: missing plugin "{}"'.format(server_id.decode("utf8"), str(e)))
+    else:
+        return _FoolscapStorage.from_announcement(
+            server_id,
+            furl,
+            ann,
+            storage_server,
+        )
+
+    # Try to match the announcement against the anonymous access scheme.
+    try:
+        furl = ann[u"anonymous-storage-FURL"]
+    except KeyError:
+        # Nope
+        pass
+    else:
+        # See comment above for the _storage_from_foolscap_plugin case
+        # about passing in get_rref.
+        storage_server = _StorageServer(get_rref=get_rref)
+        return _FoolscapStorage.from_announcement(
+            server_id,
+            furl,
+            ann,
+            storage_server,
+        )
+
+    # Nothing matched so we can't talk to this server. (There should
+    # not be a way to get here without this local being valid)
+    assert unmatched is not None, "Expected unmatched plugin error"
+    return unmatched
 
 
 @implementer(IServer)
@@ -833,7 +959,7 @@ class NativeStorageServer(service.MultiService):
 
         self._grid_manager_verifier = grid_manager_verifier
 
-        self._storage = self._make_storage_system(node_config, config, ann)
+        self._storage = _make_storage_system(node_config, config, ann, self._server_id, self.get_rref)
 
         self.last_connect_time = None
         self.last_loss_time = None
@@ -857,63 +983,6 @@ class NativeStorageServer(service.MultiService):
         if self._grid_manager_verifier is None:
             return True
         return self._grid_manager_verifier()
-
-    def _make_storage_system(self, node_config, config, ann):
-        """
-        :param allmydata.node._Config node_config: The node configuration to pass
-            to any configured storage plugins.
-
-        :param StorageClientConfig config: Configuration specifying desired
-            storage client behavior.
-
-        :param dict ann: The storage announcement from the storage server we
-            are meant to communicate with.
-
-        :return IFoolscapStorageServer: An object enabling communication via
-            Foolscap with the server which generated the announcement.
-        """
-        # Try to match the announcement against a plugin.
-        try:
-            furl, storage_server = _storage_from_foolscap_plugin(
-                node_config,
-                config,
-                ann,
-                # Pass in an accessor for our _rref attribute.  The value of
-                # the attribute may change over time as connections are lost
-                # and re-established.  The _StorageServer should always be
-                # able to get the most up-to-date value.
-                self.get_rref,
-            )
-        except AnnouncementNotMatched:
-            # Nope.
-            pass
-        else:
-            return _FoolscapStorage.from_announcement(
-                self._server_id,
-                furl,
-                ann,
-                storage_server,
-            )
-
-        # Try to match the announcement against the anonymous access scheme.
-        try:
-            furl = ann[u"anonymous-storage-FURL"]
-        except KeyError:
-            # Nope
-            pass
-        else:
-            # See comment above for the _storage_from_foolscap_plugin case
-            # about passing in get_rref.
-            storage_server = _StorageServer(get_rref=self.get_rref)
-            return _FoolscapStorage.from_announcement(
-                self._server_id,
-                furl,
-                ann,
-                storage_server,
-            )
-
-        # Nothing matched so we can't talk to this server.
-        return _null_storage
 
     def get_permutation_seed(self):
         return self._storage.permutation_seed
@@ -1038,18 +1107,21 @@ class NativeStorageServer(service.MultiService):
 async def _pick_a_http_server(
         reactor,
         nurls: list[DecodedURL],
-        request: Callable[[Any, DecodedURL], defer.Deferred[Any]]
+        request: Callable[[object, DecodedURL], defer.Deferred[object]]
 ) -> DecodedURL:
     """Pick the first server we successfully send a request to.
 
     Fires with ``None`` if no server was found, or with the ``DecodedURL`` of
     the first successfully-connected server.
     """
-    queries = race([
-        request(reactor, nurl).addCallback(lambda _, nurl=nurl: nurl)
-        for nurl in nurls
-    ])
+    requests = []
+    for nurl in nurls:
+        def to_nurl(_: object, nurl: DecodedURL=nurl) -> DecodedURL:
+            return nurl
 
+        requests.append(request(reactor, nurl).addCallback(to_nurl))
+
+    queries: defer.Deferred[tuple[int, DecodedURL]] = race(requests)
     _, nurl = await queries
     return nurl
 

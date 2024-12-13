@@ -74,7 +74,7 @@ def encrypt_privkey(writekey: bytes, privkey: bytes) -> bytes:
     crypttext = aes.encrypt_data(encryptor, privkey)
     return crypttext
 
-def decrypt_privkey(writekey: bytes, enc_privkey: bytes) -> rsa.PrivateKey:
+def decrypt_privkey(writekey: bytes, enc_privkey: bytes) -> bytes:
     """
     The inverse of ``encrypt_privkey``.
     """

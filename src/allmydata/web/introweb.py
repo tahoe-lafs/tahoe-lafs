@@ -1,26 +1,16 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-import time, os
-from pkg_resources import resource_filename
+import time
 from twisted.web.template import Element, XMLFile, renderElement, renderer
 from twisted.python.filepath import FilePath
-from twisted.web import static
 import allmydata
 from allmydata.util import idlib, jsonbytes as json
 from allmydata.web.common import (
     render_time,
     MultiFormatResource,
     SlotsSequenceElement,
+    add_static_children,
 )
 
 
@@ -38,9 +28,7 @@ class IntroducerRoot(MultiFormatResource):
         self.introducer_service = introducer_node.getServiceNamed("introducer")
         # necessary as a root Resource
         self.putChild(b"", self)
-        static_dir = resource_filename("allmydata.web", "static")
-        for filen in os.listdir(static_dir):
-            self.putChild(filen.encode("utf-8"), static.File(os.path.join(static_dir, filen)))
+        add_static_children(self)
 
     def _create_element(self):
         """

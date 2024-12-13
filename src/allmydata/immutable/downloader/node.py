@@ -1,14 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 now = time.time
@@ -132,8 +124,8 @@ class DownloadNode(object):
     def stop(self):
         # called by the Terminator at shutdown, mostly for tests
         if self._active_segment:
-            self._active_segment.stop()
-            self._active_segment = None
+            seg, self._active_segment = self._active_segment, None
+            seg.stop()
         self._sharefinder.stop()
 
     # things called by outside callers, via CiphertextFileNode. get_segment()
@@ -410,16 +402,16 @@ class DownloadNode(object):
 
     def fetch_failed(self, sf, f):
         assert sf is self._active_segment
+        self._active_segment = None
         # deliver error upwards
         for (d,c,seg_ev) in self._extract_requests(sf.segnum):
             seg_ev.error(now())
             eventually(self._deliver, d, c, f)
-        self._active_segment = None
         self._start_new_segment()
 
     def process_blocks(self, segnum, blocks):
         start = now()
-        d = defer.maybeDeferred(self._decode_blocks, segnum, blocks)
+        d = self._decode_blocks(segnum, blocks)
         d.addCallback(self._check_ciphertext_hash, segnum)
         def _deliver(result):
             log.msg(format="delivering segment(%(segnum)d)",
@@ -434,6 +426,7 @@ class DownloadNode(object):
                     eventually(self._deliver, d, c, result)
             else:
                 (offset, segment, decodetime) = result
+                self._active_segment = None
                 for (d,c,seg_ev) in self._extract_requests(segnum):
                     # when we have two requests for the same segment, the
                     # second one will not be "activated" before the data is
@@ -446,7 +439,6 @@ class DownloadNode(object):
                     seg_ev.deliver(when, offset, len(segment), decodetime)
                     eventually(self._deliver, d, c, result)
             self._download_status.add_misc_event("process_block", start, now())
-            self._active_segment = None
             self._start_new_segment()
         d.addBoth(_deliver)
         d.addErrback(log.err, "unhandled error during process_blocks",
@@ -533,11 +525,12 @@ class DownloadNode(object):
         self._segment_requests = [t for t in self._segment_requests
                                   if t[2] != cancel]
         segnums = [segnum for (segnum,d,c,seg_ev,lp) in self._segment_requests]
+
         # self._active_segment might be None in rare circumstances, so make
         # sure we tolerate it
         if self._active_segment and self._active_segment.segnum not in segnums:
-            self._active_segment.stop()
-            self._active_segment = None
+            seg, self._active_segment = self._active_segment, None
+            seg.stop()
             self._start_new_segment()
 
     # called by ShareFinder to choose hashtree sizes in CommonShares, and by

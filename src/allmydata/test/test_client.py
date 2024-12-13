@@ -850,6 +850,7 @@ class StorageClients(SyncTestCase):
             actionType=u"storage-client:broker:set-static-servers",
             succeeded=True,
         ),
+        encoder_=json.AnyBytesJSONEncoder
     )
     def test_static_servers(self, logger):
         """
@@ -884,6 +885,7 @@ class StorageClients(SyncTestCase):
             actionType=u"storage-client:broker:make-storage-server",
             succeeded=False,
         ),
+        encoder_=json.AnyBytesJSONEncoder
     )
     def test_invalid_static_server(self, logger):
         """

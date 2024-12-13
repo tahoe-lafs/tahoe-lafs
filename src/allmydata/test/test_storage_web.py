@@ -4,23 +4,12 @@ Tests for twisted.storage that uses Web APIs.
 Partially ported to Python 3.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    # Omitted list since it broke a test on Python 2. Shouldn't require further
-    # work, when we switch to Python 3 we'll be dropping this, anyway.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, object, range, str, max, min  # noqa: F401
-
 import time
 import os.path
 import re
 import json
 from unittest import skipIf
-from six.moves import StringIO
+from io import StringIO
 
 from twisted.trial import unittest
 from twisted.internet import defer

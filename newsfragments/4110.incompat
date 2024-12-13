@@ -1,0 +1,3 @@
+Properly interpret "tahoe create --storage-dir" as an option.
+
+Versions 1.19.0 and older interpreted "--storage-dir" as a "flag" and thus wouldn't work properly.

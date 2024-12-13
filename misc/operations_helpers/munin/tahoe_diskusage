@@ -5,7 +5,6 @@
 # is being used per unit time. The plugin should be configured with env_url=
 # pointing at the diskwatcher.tac webport.
 
-from __future__ import print_function
 
 import os, sys, urllib, json
 

@@ -4,15 +4,6 @@ Crawl the storage server shares.
 Ported to Python 3.
 """
 
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2, PY3
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import os
 import time
 import json
@@ -156,10 +147,7 @@ def _dump_json_to_file(js, afile):
     """
     with afile.open("wb") as f:
         data = json.dumps(js)
-        if PY2:
-            f.write(data)
-        else:
-            f.write(data.encode("utf8"))
+        f.write(data.encode("utf8"))
 
 
 class _LeaseStateSerializer(object):
@@ -255,9 +243,7 @@ class ShareCrawler(service.MultiService):
         self._state_serializer = _LeaseStateSerializer(statefile)
         self.prefixes = [si_b2a(struct.pack(">H", i << (16-10)))[:2]
                          for i in range(2**10)]
-        if PY3:
-            # On Python 3 we expect the paths to be unicode, not bytes.
-            self.prefixes = [p.decode("ascii") for p in self.prefixes]
+        self.prefixes = [p.decode("ascii") for p in self.prefixes]
         self.prefixes.sort()
         self.timer = None
         self.bucket_cache = (None, [])

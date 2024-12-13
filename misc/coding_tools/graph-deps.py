@@ -21,11 +21,10 @@
 # Install 'click' first. I run this with py2, but py3 might work too, if the
 # wheels can be built with py3.
 
-from __future__ import unicode_literals, print_function
 import os, sys, subprocess, json, tempfile, zipfile, re, itertools
 import email.parser
 from pprint import pprint
-from six.moves import StringIO
+from io import StringIO
 import click
 
 all_packages = {} # name -> version

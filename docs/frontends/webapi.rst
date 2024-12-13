@@ -446,6 +446,21 @@ Creating a New Directory
  given, the directory's format is determined by the default mutable file
  format, as configured on the Tahoe-LAFS node responding to the request.
 
+ In addition, an optional "private-key=" argument is supported which, if given,
+ specifies the underlying signing key to be used when creating the directory.
+ This value must be a DER-encoded 2048-bit RSA private key in urlsafe base64
+ encoding. (To convert an existing PEM-encoded RSA key file into the format
+ required, the following commands may be used -- assuming a modern UNIX-like
+ environment with common tools already installed:
+ ``openssl rsa -in key.pem -outform der | base64 -w 0 -i - | tr '+/' '-_'``)
+
+ Because this key can be used to derive the write capability for the
+ associated directory, additional care should be taken to ensure that the key is
+ unique, that it is kept confidential, and that it was derived from an
+ appropriate (high-entropy) source of randomness. If this argument is omitted
+ (the default behavior), Tahoe-LAFS will generate an appropriate signing key
+ using the underlying operating system's source of entropy.
+
 ``POST /uri?t=mkdir-with-children``
 
  Create a new directory, populated with a set of child nodes, and return its
@@ -453,7 +468,8 @@ Creating a New Directory
  any other directory: the returned write-cap is the only reference to it.
 
  The format of the directory can be controlled with the format= argument in
- the query string, as described above.
+ the query string and a signing key can be specified with the private-key=
+ argument, as described above.
 
  Initial children are provided as the body of the POST form (this is more
  efficient than doing separate mkdir and set_children operations). If the

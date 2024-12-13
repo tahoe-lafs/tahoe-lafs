@@ -15,14 +15,6 @@ some side-effects which make things better when the test suite runs.
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from traceback import extract_stack, format_list
 
@@ -125,5 +117,5 @@ if sys.platform == "win32":
     initialize()
 
 from eliot import to_file
-from allmydata.util.eliotutil import eliot_json_encoder
-to_file(open("eliot.log", "wb"), encoder=eliot_json_encoder)
+from allmydata.util.jsonbytes import AnyBytesJSONEncoder
+to_file(open("eliot.log", "wb"), encoder=AnyBytesJSONEncoder)
