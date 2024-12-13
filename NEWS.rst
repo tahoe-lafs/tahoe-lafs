@@ -5,14 +5,10 @@ User-Visible Changes in Tahoe-LAFS
 ==================================
 
 .. towncrier start line
-Release 1.19.1.dev247+g3fcddb695.d20241213 (2024-12-12)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-No significant changes.
 
 
-Release 1.19.1.dev245+gc3c0ee25d.d20241213 (2024-12-12)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Release 1.20.0 (2024-12-03)
+'''''''''''''''''''''''''''
 
 Backwards Incompatible Changes
 ------------------------------
@@ -57,8 +53,8 @@ Misc/Other
 - `#3636 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3636>`_, `#4076 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4076>`_, `#4082 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4082>`_, `#4085 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4085>`_, `#4090 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4090>`_, `#4091 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4091>`_, `#4092 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4092>`_, `#4093 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4093>`_, `#4114 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4114>`_, `#4115 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4115>`_, `#4126 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4126>`_, `#4130 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4130>`_, `#4132 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4132>`_, `#4134 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4134>`_, `#4141 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4141>`_
 
 
-Release 1.190 (2024-01-04)
-''''''''''''''''''''''''''
+Release 1.19.0 (2024-01-04)
+'''''''''''''''''''''''''''
 
 Features
 --------
