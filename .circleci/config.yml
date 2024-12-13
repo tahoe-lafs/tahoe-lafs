@@ -86,6 +86,9 @@ workflows:
       - "ubuntu-22-04":
           {}
 
+      - "oraclelinux-8":
+          {}
+
       - "nixos":
           name: "nixos-<<matrix.pythonVersion>>"
           nixpkgs: "nixpkgs-unstable"
