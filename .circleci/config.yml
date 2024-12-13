@@ -136,7 +136,6 @@ workflows:
       - "integration":
           # Run even the slow integration tests here.  We need the `--` to
           # sneak past tox and get to pytest.
-          tox-args: "-- --runslow integration"
           requires:
             # If the unit test suite doesn't pass, don't bother running the
             # integration tests.
