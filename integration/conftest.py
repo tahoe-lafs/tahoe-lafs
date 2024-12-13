@@ -33,10 +33,8 @@ from typing import Mapping
 from .util import (
     _MagicTextProtocol,
     _DumpOutputProtocol,
-    _ProcessExitedProtocol,
     _create_node,
     _tahoe_runner_optional_coverage,
-    dump_python_output,
     dump_output,
     await_client_ready,
     block_with_timeout,
