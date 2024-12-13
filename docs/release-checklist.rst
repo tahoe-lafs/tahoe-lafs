@@ -71,8 +71,7 @@ Create Branch and Apply Updates
 - manually fix ``NEWS.txt``:
   - proper title for latest release ("Release 1.16.0" instead of "Release ...post1432")
   - double-check date (maybe release will be in the future)
-  - spot-check the release notes (these come from the newsfragments
-    files though so don't do heavy editing)
+  - spot-check the release notes (these come from the newsfragments files though so don't do heavy editing)
   - commit these changes
 
 - update ``relnotes.txt``:
