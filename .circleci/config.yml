@@ -127,7 +127,7 @@ workflows:
                 - "3.9"
                 - "3.12"
 
-      - "debian-11-integration":
+      - "integration-debian-11":
           # Run even the slow integration tests here.  We need the `--` to
           # sneak past tox and get to pytest.
           tox-args: "-e integration"
@@ -484,7 +484,7 @@ jobs:
       # aka "Latin 1"
       LANG: "en_US.ISO-8859-1"
 
-  integration:
+  integration-debian-11:
     <<: *DEBIAN
 
     parameters:
