@@ -3,7 +3,7 @@
 Release Checklist
 =================
 
-This release checklist specifies a series of checks that anyone engaged in 
+This release checklist specifies a series of checks that anyone engaged in
 releasing a version of Tahoe should follow.
 
 Any contributor can do the first part of the release preparation. Only
@@ -39,19 +39,19 @@ Tuesday if you want to get anything in").
 Get a clean checkout
 ````````````````````
 
-The release proccess involves compressing source files and putting them in formats 
-suitable for distribution such as ``.tar.gz`` and ``zip``. That said, it's neccesary to 
+The release proccess involves compressing source files and putting them in formats
+suitable for distribution such as ``.tar.gz`` and ``zip``. That said, it's neccesary to
 the release process begins with a clean checkout to avoid making a release with
 previously generated files.
 
-- Inside the tahoe root dir run ``git clone . ../tahoe-release-x.x.x`` where (x.x.x is the release number such as 1.16.0). 
+- Inside the tahoe root dir run ``git clone . ../tahoe-release-x.x.x`` where (x.x.x is the release number such as 1.16.0).
 
-.. note:: 
-     The above command would create a new directory at the same level as your original clone named ``tahoe-release-x.x.x``. You can name this folder however you want but it would be a good 
+.. note::
+     The above command would create a new directory at the same level as your original clone named ``tahoe-release-x.x.x``. You can name this folder however you want but it would be a good
      practice to give it the release name. You MAY also discard this directory once the release
      process is complete.
 
-Get into the release directory and install dependencies by running 
+Get into the release directory and install dependencies by running:
 
 - cd ../tahoe-release-x.x.x (assuming you are still in your original clone)
 - python -m venv venv
@@ -61,34 +61,32 @@ Get into the release directory and install dependencies by running
 Create Branch and Apply Updates
 ```````````````````````````````
 
-- Create a branch for the release/candidate (e.g. ``XXXX.release-1.16.0``)
-- run tox -e news to produce a new NEWS.txt file (this does a commit)
-- create the news for the release
+- Create a branch for the release/candidate: git checkout -b XXXX.release-1.16.0
+- produce a new NEWS.txt file (this does a commit): tox -e news
+- create the news for the release:
+  - touch newsfragments/<ticket number>.minor
+  - git add newsfragments/<ticket number>.minor
+  - git commit -m news
 
-  - newsfragments/<ticket number>.minor
-  - commit it
-
-- manually fix NEWS.txt
-
+- manually fix ``NEWS.txt``:
   - proper title for latest release ("Release 1.16.0" instead of "Release ...post1432")
   - double-check date (maybe release will be in the future)
   - spot-check the release notes (these come from the newsfragments
     files though so don't do heavy editing)
   - commit these changes
 
-- update "relnotes.txt"
-
+- update ``relnotes.txt``:
   - update all mentions of ``1.16.0`` to new and higher release version for example ``1.16.1``
   - update "previous release" statement and date
   - summarize major changes
   - commit it
 
-- update "nix/tahoe-lafs.nix"
-
+- update ``nix/tahoe-lafs.nix``:
   - change the value given for `version` from `OLD.post1` to `NEW.post1`
 
-- update "docs/known_issues.rst" if appropriate
+- update ``docs/known_issues.rst`` if appropriate
 - Push the branch to github
+
 - Create a (draft) PR; this should trigger CI (note that github
   doesn't let you create a PR without some changes on the branch so
   running + committing the NEWS.txt file achieves that without changing
