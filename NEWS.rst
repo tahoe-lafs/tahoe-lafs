@@ -28,7 +28,7 @@ Features
 Bug Fixes
 ---------
 
--  (`#4087 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4087>`_)
+- Upgrade CBOR, fixing encoding on 65KiB++ strings (`#4087 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4087>`_)
 - Stop using the C version of the cbor2 decoder. (`#4088 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4088>`_)
 - Fix incompatibility with cryptography 43. (`#4100 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4100>`_)
 - Fix incompatibility with attrs 24.1. (`#4101 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4101>`_)
