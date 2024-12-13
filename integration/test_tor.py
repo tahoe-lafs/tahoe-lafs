@@ -152,6 +152,11 @@ def test_anonymous_client(reactor, request, temp_dir, flog_gatherer, tor_network
     Anonymoose should be able to communicate with normie.
 
     TODO how to ensure that anonymoose is actually using Tor?
+
+    Fails fairly regularly on circle-ci Docker-based debian 11
+    build...Tor seems to be "working" (an onion address is allocated)
+    but it never successfully contacts the Introducer (or, at least
+    never gets another storage node connected)
     """
     normie = yield util._create_node(
         reactor, request, temp_dir, introducer_furl, flog_gatherer, "normie",
@@ -161,6 +166,6 @@ def test_anonymous_client(reactor, request, temp_dir, flog_gatherer, tor_network
     yield util.await_client_ready(normie)
 
     anonymoose = yield _create_anonymous_node(reactor, 'anonymoose', 8102, request, temp_dir, flog_gatherer, tor_network, introducer_furl, 1)
-    yield util.await_client_ready(anonymoose, minimum_number_of_servers=1, timeout=1200)
+    yield util.await_client_ready(anonymoose, minimum_number_of_servers=1, timeout=2400)
 
     yield upload_to_one_download_from_the_other(reactor, temp_dir, normie, anonymoose)
