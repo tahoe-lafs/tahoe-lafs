@@ -65,7 +65,7 @@ parameters:
   # An easy way to trigger a pipeline with this set to true is with the
   # rebuild-images.sh tool in this directory.  You can also do so via the
   # CircleCI web UI.
-  push-images:
+  build-images:
     default: false
     type: "boolean"
 
@@ -156,6 +156,9 @@ workflows:
 
   images:
     <<: *IMAGES
+
+    # Build as part of the workflow but only if requested.
+    when: "<< pipeline.parameters.build-images >>"
 
 jobs:
   finish-coverage-report:
@@ -613,14 +616,10 @@ jobs:
       - "checkout"
       - setup_remote_docker:
           docker_layer_caching: true
-      - when:
-          # Login as part of the workflow but only if push is requested.
-          condition: << pipeline.parameters.push-images >>
-          steps:
-            - run:
-                name: "Log in to Dockerhub"
-                command: |
-                  docker login -u ${DOCKERHUB_USERNAME} -p ${DOCKERHUB_PASSWORD}
+      - run:
+          name: "Log in to Dockerhub"
+          command: |
+            docker login -u ${DOCKERHUB_USERNAME} -p ${DOCKERHUB_PASSWORD}
       - run:
           name: "Build image"
           command: |
@@ -631,14 +630,10 @@ jobs:
                 -t tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION} \
                 -f ~/project/.circleci/Dockerfile.${DISTRO} \
                 ~/project/
-      - when:
-          # Push as part of the workflow but only if requested.
-          condition: << pipeline.parameters.push-images >>
-          steps:
-            - run:
-                name: "Push image"
-                command: |
-                  docker push tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION}
+      - run:
+          name: "Push image"
+          command: |
+            docker push tahoelafsci/${DISTRO}:${TAG}-py${PYTHON_VERSION}
 
 
   build-image-debian-11:
