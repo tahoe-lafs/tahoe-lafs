@@ -28,7 +28,7 @@ from allmydata.grid_manager import (
 from allmydata.util import jsonbytes as json
 
 
-@click.group() # type: ignore[arg-type]
+@click.group()
 @click.option(
     '--config', '-c',
     type=click.Path(),
@@ -71,7 +71,7 @@ def grid_manager(ctx, config):
     ctx.obj = Config()
 
 
-@grid_manager.command() # type: ignore[attr-defined]
+@grid_manager.command()
 @click.pass_context
 def create(ctx):
     """
@@ -91,7 +91,7 @@ def create(ctx):
         )
 
 
-@grid_manager.command() # type: ignore[attr-defined]
+@grid_manager.command()
 @click.pass_obj
 def public_identity(config):
     """
@@ -103,7 +103,7 @@ def public_identity(config):
     click.echo(config.grid_manager.public_identity())
 
 
-@grid_manager.command() # type: ignore[arg-type, attr-defined]
+@grid_manager.command()
 @click.argument("name")
 @click.argument("public_key", type=click.STRING)
 @click.pass_context
@@ -132,7 +132,7 @@ def add(ctx, name, public_key):
     return 0
 
 
-@grid_manager.command() # type: ignore[arg-type, attr-defined]
+@grid_manager.command()
 @click.argument("name")
 @click.pass_context
 def remove(ctx, name):
@@ -155,8 +155,7 @@ def remove(ctx, name):
     save_grid_manager(fp, ctx.obj.grid_manager, create=False)
 
 
-@grid_manager.command() # type: ignore[attr-defined]
-                        # noqa: F811
+@grid_manager.command()  # noqa: F811
 @click.pass_context
 def list(ctx):
     """
@@ -176,7 +175,7 @@ def list(ctx):
                 click.echo("expired {} ({})".format(cert.expires, abbreviate_time(delta)))
 
 
-@grid_manager.command() # type: ignore[arg-type, attr-defined]
+@grid_manager.command()
 @click.argument("name")
 @click.argument(
     "expiry_days",
@@ -223,3 +222,7 @@ def _config_path_from_option(config: str) -> Optional[FilePath]:
     if config == "-":
         return None
     return FilePath(config)
+
+
+if __name__ == '__main__':
+    grid_manager()  # type: ignore

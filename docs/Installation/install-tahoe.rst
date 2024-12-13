@@ -39,7 +39,7 @@ To install Tahoe-LAFS on Windows:
 
     tahoe --version
 
-If you want to hack on Tahoe's source code, you can install Tahoe in a ``virtualenv`` on your Windows Machine. To learn more, see :doc:`install-on-windows`.
+If you want to hack on Tahoe's source code, you can install Tahoe in a ``virtualenv`` on your Windows Machine. To learn more, see :doc:`../build/build-on-windows`.
 
 Linux, BSD, or MacOS
 ====================
@@ -63,6 +63,6 @@ If you are working on MacOS or a Linux distribution which does not have Tahoe-LA
 
     tahoe --version
 
-If you are looking to hack on the source code or run pre-release code, we recommend you install Tahoe-LAFS on a `virtualenv` instance. To learn more, see :doc:`install-on-linux`.
+If you are looking to hack on the source code or run pre-release code, we recommend you install Tahoe-LAFS on a `virtualenv` instance. To learn more, see :doc:`../build/build-on-linux`.
 
 You can always write to the `tahoe-dev mailing list <https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev>`_ or chat on the `Libera.chat IRC <irc://irc.libera.chat/%23tahoe-lafs>`_ if you are not able to get Tahoe-LAFS up and running on your deployment.

@@ -1,0 +1,1 @@
+Continued work to make Tahoe-LAFS take advantage of multiple CPUs.

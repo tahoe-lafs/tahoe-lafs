@@ -1,15 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2, PY3
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-from six import ensure_str
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -18,7 +9,7 @@ from allmydata.immutable import upload
 from allmydata.interfaces import MDMF_VERSION, SDMF_VERSION
 from allmydata.mutable.publish import MutableData
 from ..no_network import GridTestMixin
-from allmydata.util.encodingutil import quote_output, get_io_encoding
+from allmydata.util.encodingutil import quote_output
 from .common import CLITestMixin
 
 
@@ -31,10 +22,6 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         good_arg = u"g\u00F6\u00F6d"
         good_out = u"g\u00F6\u00F6d"
-
-        # On Python 2 we get bytes, so we need encoded version. On Python 3
-        # stdio is unicode so can leave unchanged.
-        good_out_encoded = good_out if PY3 else good_out.encode(get_io_encoding())
 
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
@@ -58,7 +45,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             (rc, out, err) = args
             self.failUnlessReallyEqual(rc, 0)
             self.assertEqual(len(err), 0, err)
-            expected = sorted([ensure_str("0share"), ensure_str("1share"), good_out_encoded])
+            expected = sorted(["0share", "1share", good_out])
             self.assertEqual(sorted(out.splitlines()), expected)
         d.addCallback(_check1)
         d.addCallback(lambda ign: self.do_cli("ls", "missing"))
@@ -91,8 +78,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
                 # listing a file (as dir/filename) should have the edge metadata,
                 # including the filename
                 self.failUnlessReallyEqual(rc, 0)
-                self.failUnlessIn(good_out_encoded, out)
-                self.failIfIn(ensure_str("-r-- %d -" % len(small)), out,
+                self.failUnlessIn(good_out, out)
+                self.failIfIn("-r-- %d -" % len(small), out,
                               "trailing hyphen means unknown date")
 
         if good_arg is not None:

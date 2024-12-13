@@ -1,0 +1,299 @@
+[project]
+name = "tahoe-lafs"
+dynamic = ["version"]
+description = "secure, decentralized, fault-tolerant file store"
+readme = "README.rst"
+requires-python = ">=3.9"
+license = "GPL-2.0-or-later"  # see README.rst -- there is an alternative licence
+authors = [
+  { name = "the Tahoe-LAFS project", email = "tahoe-dev@lists.tahoe-lafs.org" }
+]
+#keywords = [
+#  "privacy"
+#]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "License :: OSI Approved :: GNU General Public License (GPL)",
+    "License :: DFSG approved",
+    "License :: Other/Proprietary License",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: System Administrators",
+    "Operating System :: Microsoft",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: Unix",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: OS Independent",
+    "Natural Language :: English",
+    "Programming Language :: C",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Utilities",
+    "Topic :: System :: Systems Administration",
+    "Topic :: System :: Filesystems",
+    "Topic :: System :: Distributed Computing",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: System :: Archiving :: Backup",
+    "Topic :: System :: Archiving :: Mirroring",
+    "Topic :: System :: Archiving",
+]
+dependencies = [
+    "zfec >= 1.1.0",
+
+    # zope.interface >= 3.6.0 is required for Twisted >= 12.1.0.
+    "zope.interface >= 3.6.0",
+
+    # * foolscap < 0.5.1 had a performance bug which spent O(N**2) CPU for
+    #   transferring large mutable files of size N.
+    # * foolscap < 0.6 is incompatible with Twisted 10.2.0.
+    # * foolscap 0.6.1 quiets a DeprecationWarning.
+    # * foolscap < 0.6.3 is incompatible with Twisted 11.1.0 and newer.
+    # * foolscap 0.8.0 generates 2048-bit RSA-with-SHA-256 signatures,
+    #   rather than 1024-bit RSA-with-MD5. This also allows us to work
+    #   with a FIPS build of OpenSSL.
+    # * foolscap >= 0.12.3 provides tcp/tor/i2p connection handlers we need,
+    #   and allocate_tcp_port
+    # * foolscap >= 0.12.5 has ConnectionInfo and ReconnectionInfo
+    # * foolscap >= 0.12.6 has an i2p.sam_endpoint() that takes kwargs
+    # * foolscap 0.13.2 drops i2p support completely
+    # * foolscap >= 21.7 is necessary for Python 3 with i2p support.
+    # * foolscap >= 23.3 is necessary for Python 3.11.
+    "foolscap >= 21.7.0",
+    "foolscap >= 23.3.0; python_version > '3.10'",
+
+    # * cryptography 2.6 introduced some ed25519 APIs we rely on.  Note that
+    #   Twisted[conch] also depends on cryptography and Twisted[tls]
+    #   transitively depends on cryptography.  So it's anyone's guess what
+    #   version of cryptography will *really* be installed.
+    "cryptography >= 2.6",
+
+    # * Used for custom HTTPS validation
+    "pyOpenSSL >= 23.2.0",
+
+    # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
+    #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
+    # * The SFTP frontend and manhole depend on the conch extra. However, we
+    #   can't explicitly declare that without an undesirable dependency on gmpy,
+    #   as explained in ticket #2740.
+    # * Due to a setuptools bug, we need to declare a dependency on the tls
+    #   extra even though we only depend on it via foolscap.
+    # * Twisted >= 15.1.0 is the first version that provided the [tls] extra.
+    # * Twisted-16.1.0 fixes https://twistedmatrix.com/trac/ticket/8223,
+    #   which otherwise causes test_system to fail (DirtyReactorError, due to
+    #   leftover timers)
+    # * Twisted-16.4.0 introduces `python -m twisted.trial` which is needed
+    #   for coverage testing
+    # * Twisted 16.6.0 drops the undesirable gmpy dependency from the conch
+    #   extra, letting us use that extra instead of trying to duplicate its
+    #   dependencies here.  Twisted[conch] >18.7 introduces a dependency on
+    #   bcrypt.  It is nice to avoid that if the user ends up with an older
+    #   version of Twisted.  That's hard to express except by using the extra.
+    #
+    # * Twisted 18.4.0 adds `client` and `host` attributes to `Request` in the
+    # * initializer, needed by logic in our custom `Request` subclass.
+    #
+    #   In a perfect world, Twisted[conch] would be a dependency of an "sftp"
+    #   extra.  However, pip fails to resolve the dependencies all
+    #   dependencies when asked for Twisted[tls] *and* Twisted[conch].
+    #   Specifically, "Twisted[conch]" (as the later requirement) is ignored.
+    #   If there were an Tahoe-LAFS sftp extra that dependended on
+    #   Twisted[conch] and install_requires only included Twisted[tls] then
+    #   `pip install tahoe-lafs[sftp]` would not install requirements
+    #   specified by Twisted[conch].  Since this would be the *whole point* of
+    #   an sftp extra in Tahoe-LAFS, there is no point in having one.
+    # * Twisted 19.10 introduces Site.getContentFile which we use to get
+    #   temporary upload files placed into a per-node temporary directory.
+    # * Twisted 22.8.0 added support for coroutine-returning functions in many
+    #   places (mainly via `maybeDeferred`)
+    "Twisted[tls,conch] >= 22.8.0",
+
+    "PyYAML >= 3.11",
+
+    "six >= 1.10.0",
+
+    # For 'tahoe invite' and 'tahoe join'
+    "magic-wormhole >= 0.10.2",
+
+    # We want a new enough version to support custom JSON encoders.
+    "eliot >= 1.14.0",
+
+    "pyrsistent",
+
+    # A great way to define types of values.
+    "attrs >= 20.1.0",
+
+    # WebSocket library for twisted and asyncio
+    "autobahn >= 22.4.3",
+
+    # Support for Python 3 transition
+    "future >= 0.18.2",
+
+    # Discover local network configuration
+    "netifaces",
+
+    # Utility code:
+    "pyutil >= 3.3.0",
+
+    # Linux distribution detection:
+    "distro >= 1.4.0",
+
+    # For the RangeMap datastructure. Need 2.0.2 at least for bugfixes.
+    "collections-extended >= 2.0.2",
+
+    # HTTP server and client
+    # Latest version is necessary to work with latest werkzeug:
+    "klein >= 23.5.0",
+    # 2.2.0 has a bug: https://github.com/pallets/werkzeug/issues/2465
+    "werkzeug != 2.2.0",
+    "treq",
+    # 5.6.0 excluded because https://github.com/agronholm/cbor2/issues/208
+    "cbor2 != 5.6.0",
+
+    # 0.6 adds the ability to decode CBOR. 0.6.1 fixes PyPy.
+    "pycddl >= 0.6.1",
+
+    # Command-line parsing
+    "click >= 8.1.1",
+
+    # for pid-file support
+    "psutil",
+    "filelock",
+
+    # Duplicate the Twisted pywin32 dependency here.  See
+    # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2392 for some
+    # discussion.
+    "pywin32 != 226;sys_platform=='win32'"
+]
+
+
+[project.scripts]
+tahoe = "allmydata.scripts.runner:run"
+grid-manager = "allmydata.cli.grid_manager:grid_manager"
+
+
+[project.urls]
+Homepage = "https://tahoe-lafs.org/"
+Documentation = "https://tahoe-lafs.readthedocs.org/"
+"Source code" = "https://github.com/tahoe-lafs/tahoe-lafs/"
+
+
+[project.optional-dependencies]
+tor = [
+    # 23.5 added support for custom TLS contexts in web_agent(), which is
+    # needed for the HTTP storage client to run over Tor.
+    "txtorcon >= 23.5.0",
+]
+i2p = [
+    # txi2p has Python 3 support in master branch, but it has not been
+    # released -- see https://github.com/str4d/txi2p/issues/10.  We
+    # could use a fork for Python 3 until txi2p's maintainers are back
+    # in action.  For Python 2, we could continue using the txi2p
+    # version about which no one has complained to us so far.
+    "txi2p; python_version < '3.0'",
+    "txi2p-tahoe >= 0.3.5; python_version > '3.0'",
+]
+build = [
+  "dulwich",
+  "gpg",
+  "hatchling",
+  "hatch-vcs"
+]
+
+testenv = [
+    # Pin all of these versions for the same reason you ever want to
+    # pin anything: to prevent new releases with regressions from
+    # introducing spurious failures into CI runs for whatever
+    # development work is happening at the time.  The versions
+    # selected here are just the current versions at the time.
+    # Bumping them to keep up with future releases is fine as long
+    # as those releases are known to actually work.
+    "pip==23.3.1",
+    "wheel==0.41.3",
+    "subunitreporter==23.8.0",
+    "python-subunit==1.4.2",
+    "junitxml==0.7",
+    "coverage==7.2.5",
+]
+
+# Here are the library dependencies of the test suite.
+test = [
+    "mock",
+    "pytest",
+    "pytest-twisted",
+    "hypothesis >= 3.6.1",
+    "towncrier",
+    "testtools",
+    "fixtures",
+    "beautifulsoup4",
+    "html5lib",
+    # Pin old version until
+    # https://github.com/paramiko/paramiko/issues/1961 is fixed.
+    "paramiko < 2.9",
+    "pytest-timeout",
+    # Does our OpenMetrics endpoint adhere to the spec:
+    "prometheus-client == 0.11.0",
+
+    "tahoe-lafs[tor]",  # our own "tor" extra
+    "tahoe-lafs[i2p]"  # our own "i2p" extra
+]
+
+
+
+
+[tool.hatch.version]
+source = "vcs"
+tag-pattern = "tahoe-lafs-(.*)"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/allmydata/_version.py"
+
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+# https://github.com/ofek/hatch-vcs/issues/35#issuecomment-1452025896
+[tool.hatch.build]
+include = [
+        "src/",
+        "COPYING.GPL",
+        "COPYING.TGPPL.rst",
+        "CREDITS",
+        "Makefile",
+        "NEWS.rst",
+        "Tahoe.home",
+        "relnotes.txt",
+        "Dockerfile",
+        "tox.ini",
+        ".appveyor.yml",
+        ".travis.yml",
+        ".coveragerc",
+        "*.xhtml",
+        "*.png",
+        "*.css",
+        "*.svg",
+        "docs/",
+        "misc/",
+        "static/",
+        "integration/",
+        "src/allmydata/test/data/*.txt",
+        "src/allmydata/test/data/*.yaml"
+]
+exclude = [
+        "*~",
+        "*.pyc",
+        "#*#",
+        "venv*/",
+        ".tox/"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/allmydata"]

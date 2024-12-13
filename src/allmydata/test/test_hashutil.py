@@ -3,14 +3,6 @@ Tests for allmydata.util.hashutil.
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from twisted.trial import unittest
 
@@ -43,6 +35,34 @@ class HashUtilTests(unittest.TestCase):
         self.failUnlessEqual(len(h1), 16)
         self.failUnlessEqual(len(h2), 16)
         self.failUnlessEqual(h1, h2)
+
+    def test_well_known_tagged_hash(self):
+        self.assertEqual(
+            b"yra322btzoqjp4ts2jon5dztgnilcdg6jgztgk7joi6qpjkitg2q",
+            base32.b2a(hashutil.tagged_hash(b"tag", b"hello world")),
+        )
+        self.assertEqual(
+            b"kfbsfssrv2bvtp3regne6j7gpdjcdjwncewriyfdtt764o5oa7ta",
+            base32.b2a(hashutil.tagged_hash(b"different", b"hello world")),
+        )
+        self.assertEqual(
+            b"z34pzkgo36chbjz2qykonlxthc4zdqqquapw4bcaoogzvmmcr3zq",
+            base32.b2a(hashutil.tagged_hash(b"different", b"goodbye world")),
+        )
+
+    def test_well_known_tagged_pair_hash(self):
+        self.assertEqual(
+            b"wmto44q3shtezwggku2fxztfkwibvznkfu6clatnvfog527sb6dq",
+            base32.b2a(hashutil.tagged_pair_hash(b"tag", b"hello", b"world")),
+        )
+        self.assertEqual(
+            b"lzn27njx246jhijpendqrxlk4yb23nznbcrihommbymg5e7quh4a",
+            base32.b2a(hashutil.tagged_pair_hash(b"different", b"hello", b"world")),
+        )
+        self.assertEqual(
+            b"qnehpoypxxdhjheqq7dayloghtu42yr55uylc776zt23ii73o3oq",
+            base32.b2a(hashutil.tagged_pair_hash(b"different", b"goodbye", b"world")),
+        )
 
     def test_chk(self):
         h1 = hashutil.convergence_hash(3, 10, 1000, b"data", b"secret")

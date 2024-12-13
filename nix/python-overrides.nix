@@ -9,40 +9,43 @@ let
   # Disable a Python package's test suite.
   dontCheck = drv: drv.overrideAttrs (old: { doInstallCheck = false; });
 
+  # string -> any -> derivation -> derivation
+  #
+  # If the overrideable function for the given derivation accepts an argument
+  # with the given name, override it with the given value.
+  #
+  # Since we try to work with multiple versions of nixpkgs, sometimes we need
+  # to override a parameter that exists in one version but not others.  This
+  # makes it a bit easier to do so.
+  overrideIfPresent = name: value: drv:
+    if (drv.override.__functionArgs ? ${name})
+    then drv.override { "${name}" = value; }
+    else drv;
+
   # Disable building a Python package's documentation.
-  dontBuildDocs = alsoDisable: drv: (drv.override ({
-    sphinxHook = null;
-  } // alsoDisable)).overrideAttrs ({ outputs, ... }: {
+  dontBuildDocs = drv: (
+    overrideIfPresent "sphinxHook" null (
+      overrideIfPresent "sphinx-rtd-theme" null
+        drv
+    )
+  ).overrideAttrs ({ outputs, ... }: {
     outputs = builtins.filter (x: "doc" != x) outputs;
   });
 
 in {
-  # Some dependencies aren't packaged in nixpkgs so supply our own packages.
-  pycddl = self.callPackage ./pycddl.nix { };
-  txi2p = self.callPackage ./txi2p.nix { };
-
-  # Some packages are of somewhat too-old versions - update them.
-  klein = self.callPackage ./klein.nix {
-    # Avoid infinite recursion.
-    inherit (super) klein;
-  };
-  txtorcon = self.callPackage ./txtorcon.nix {
-    inherit (super) txtorcon;
-  };
-
-  # Update the version of pyopenssl.
-  pyopenssl = self.callPackage ./pyopenssl.nix {
-    pyopenssl =
-      # Building the docs requires sphinx which brings in a dependency on babel,
-      # the test suite of which fails.
-      onPyPy (dontBuildDocs { sphinx-rtd-theme = null; })
-        # Avoid infinite recursion.
-        super.pyopenssl;
+  tahoe-lafs = self.callPackage ./tahoe-lafs.nix {
+    # Define the location of the Tahoe-LAFS source to be packaged (the same
+    # directory as contains this file).  Clean up as many of the non-source
+    # files (eg the `.git` directory, `~` backup files, nix's own `result`
+    # symlink, etc) as possible to avoid needing to re-build when files that
+    # make no difference to the package have changed.
+    tahoe-lafs-src = self.lib.cleanSource ../.;
   };
 
   # collections-extended is currently broken for Python 3.11 in nixpkgs but
   # we know where a working version lives.
   collections-extended = self.callPackage ./collections-extended.nix {
+    # Avoid infinite recursion.
     inherit (super) collections-extended;
   };
 
@@ -52,16 +55,19 @@ in {
 
   # tornado and tk pull in a huge dependency trees for functionality we don't
   # care about, also tkinter doesn't work on PyPy.
-  matplotlib = super.matplotlib.override { tornado = null; enableTk = false; };
+  matplotlib = onPyPy (matplotlib: matplotlib.override {
+    tornado = null;
+    enableTk = false;
+  }) super.matplotlib;
 
-  tqdm = super.tqdm.override {
+  tqdm = onPyPy (tqdm: tqdm.override {
     # ibid.
     tkinter = null;
     # pandas is only required by the part of the test suite covering
     # integration with pandas that we don't care about.  pandas is a huge
     # dependency.
     pandas = null;
-  };
+  }) super.tqdm;
 
   # The treq test suite depends on httpbin.  httpbin pulls in babel (flask ->
   # jinja2 -> babel) and arrow (brotlipy -> construct -> arrow).  babel fails
@@ -74,47 +80,24 @@ in {
   six = onPyPy dontCheck super.six;
 
   # Likewise for beautifulsoup4.
-  beautifulsoup4 = onPyPy (dontBuildDocs {}) super.beautifulsoup4;
+  beautifulsoup4 = onPyPy dontBuildDocs super.beautifulsoup4;
 
   # The autobahn test suite pulls in a vast number of dependencies for
   # functionality we don't care about.  It might be nice to *selectively*
   # disable just some of it but this is easier.
-  autobahn = onPyPy dontCheck super.autobahn;
+  autobahn = dontCheck super.autobahn;
 
   # and python-dotenv tests pulls in a lot of dependencies, including jedi,
   # which does not work on PyPy.
   python-dotenv = onPyPy dontCheck super.python-dotenv;
 
-  # Upstream package unaccountably includes a sqlalchemy dependency ... but
-  # the project has no such dependency.  Fixed in nixpkgs in
-  # da10e809fff70fbe1d86303b133b779f09f56503.
-  aiocontextvars = super.aiocontextvars.override { sqlalchemy = null; };
-
   # By default, the sphinx docs are built, which pulls in a lot of
   # dependencies - including jedi, which does not work on PyPy.
-  hypothesis =
-    (let h = super.hypothesis;
-     in
-       if (h.override.__functionArgs.enableDocumentation or false)
-       then h.override { enableDocumentation = false; }
-       else h).overrideAttrs ({ nativeBuildInputs, ... }: {
-         # The nixpkgs expression is missing the tzdata check input.
-         nativeBuildInputs = nativeBuildInputs ++ [ super.tzdata ];
-       });
+  hypothesis = onPyPy dontBuildDocs super.hypothesis;
 
   # flaky's test suite depends on nose and nose appears to have Python 3
   # incompatibilities (it includes `print` statements, for example).
   flaky = onPyPy dontCheck super.flaky;
-
-  # Replace the deprecated way of running the test suite with the modern way.
-  # This also drops a bunch of unnecessary build-time dependencies, some of
-  # which are broken on PyPy.  Fixed in nixpkgs in
-  # 5feb5054bb08ba779bd2560a44cf7d18ddf37fea.
-  zfec = (super.zfec.override {
-    setuptoolsTrial = null;
-  }).overrideAttrs (old: {
-    checkPhase = "trial zfec";
-  });
 
   # collections-extended is packaged with poetry-core.  poetry-core test suite
   # uses virtualenv and virtualenv test suite fails on PyPy.
@@ -134,15 +117,6 @@ in {
   # since we actually depend directly and significantly on Foolscap.
   foolscap = onPyPy dontCheck super.foolscap;
 
-  # Fixed by nixpkgs PR https://github.com/NixOS/nixpkgs/pull/222246
-  psutil = super.psutil.overrideAttrs ({ pytestFlagsArray, disabledTests, ...}: {
-    # Upstream already disables some tests but there are even more that have
-    # build impurities that come from build system hardware configuration.
-    # Skip them too.
-    pytestFlagsArray = [ "-v" ] ++ pytestFlagsArray;
-    disabledTests = disabledTests ++ [ "sensors_temperatures" ];
-  });
-
   # CircleCI build systems don't have enough memory to run this test suite.
-  lz4 = dontCheck super.lz4;
+  lz4 = onPyPy dontCheck super.lz4;
 }

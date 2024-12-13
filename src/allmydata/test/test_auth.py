@@ -1,14 +1,8 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import str, open  # noqa: F401
+from typing import Literal
 
 from hypothesis import (
     given,
@@ -85,6 +79,9 @@ LINE_SEPARATORS = (
     '\x0d', # carriage return
 )
 
+SURROGATES: Literal["Cs"] = "Cs"
+
+
 class AccountFileParserTests(unittest.TestCase):
     """
     Tests for ``load_account_file`` and its helper functions.
@@ -96,7 +93,7 @@ class AccountFileParserTests(unittest.TestCase):
                 # They're not necessary to represent any non-surrogate code
                 # point in unicode.  They're also not legal individually but
                 # only in pairs.
-                'Cs',
+                SURROGATES,
             ),
             # Exclude all our line separators too.
             blacklist_characters=("\n", "\r"),

@@ -10,15 +10,6 @@ These tests use Paramiko, rather than Twisted's Conch, because:
     2. Its API is much simpler to use.
 """
 
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
 import os.path
 from posixpath import join
 from stat import S_ISDIR
@@ -72,7 +63,7 @@ def test_bad_account_password_ssh_key(alice, tmpdir):
 
     another_key = os.path.join(str(tmpdir), "ssh_key")
     generate_ssh_key(another_key)
-    good_key = RSAKey(filename=os.path.join(alice.node_dir, "private", "ssh_client_rsa_key"))
+    good_key = RSAKey(filename=os.path.join(alice.process.node_dir, "private", "ssh_client_rsa_key"))
     bad_key = RSAKey(filename=another_key)
 
     # Wrong key:
@@ -87,17 +78,16 @@ def test_bad_account_password_ssh_key(alice, tmpdir):
             "username": "someoneelse", "pkey": good_key,
         })
 
-def sftp_client_key(node):
+
+def sftp_client_key(client):
+    """
+    :return RSAKey: the RSA client key associated with this grid.Client
+    """
+    # XXX move to Client / grid.py?
     return RSAKey(
-        filename=os.path.join(node.node_dir, "private", "ssh_client_rsa_key"),
+        filename=os.path.join(client.process.node_dir, "private", "ssh_client_rsa_key"),
     )
 
-def test_sftp_client_key_exists(alice, alice_sftp_client_key_path):
-    """
-    Weakly validate the sftp client key fixture by asserting that *something*
-    exists at the supposed key path.
-    """
-    assert os.path.exists(alice_sftp_client_key_path)
 
 @run_in_thread
 def test_ssh_key_auth(alice):

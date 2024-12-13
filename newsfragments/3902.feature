@@ -1,1 +1,0 @@
-The new HTTPS-based storage server is now enabled transparently on the same port as the Foolscap server. This will not have any user-facing impact until the HTTPS storage protocol is supported in clients as well.

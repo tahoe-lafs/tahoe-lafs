@@ -4,17 +4,6 @@ Tests for allmydata.storage.crawler.
 Ported to Python 3.
 """
 
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
-from future.utils import PY2, PY3
-if PY2:
-    # Don't use future bytes, since it breaks tests. No further works is
-    # needed, once we're only on Python 3 we'll be deleting this future imports
-    # anyway, and tests pass just fine on Python 3.
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, dict, list, object, range, str, max, min  # noqa: F401
 
 import time
 import os.path
@@ -37,10 +26,9 @@ class BucketEnumeratingCrawler(ShareCrawler):
         self.all_buckets = []
         self.finished_d = defer.Deferred()
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
-        if PY3:
-            # Bucket _inputs_ are bytes, and that's what we will compare this
-            # to:
-            storage_index_b32 = storage_index_b32.encode("ascii")
+        # Bucket _inputs_ are bytes, and that's what we will compare this
+        # to:
+        storage_index_b32 = storage_index_b32.encode("ascii")
         self.all_buckets.append(storage_index_b32)
     def finished_cycle(self, cycle):
         eventually(self.finished_d.callback, None)
@@ -55,10 +43,9 @@ class PacedCrawler(ShareCrawler):
         self.finished_d = defer.Deferred()
         self.yield_cb = None
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
-        if PY3:
-            # Bucket _inputs_ are bytes, and that's what we will compare this
-            # to:
-            storage_index_b32 = storage_index_b32.encode("ascii")
+        # Bucket _inputs_ are bytes, and that's what we will compare this
+        # to:
+        storage_index_b32 = storage_index_b32.encode("ascii")
         self.all_buckets.append(storage_index_b32)
         self.countdown -= 1
         if self.countdown == 0:

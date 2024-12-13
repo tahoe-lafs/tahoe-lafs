@@ -1,24 +1,17 @@
+let
+  pname = "tahoe-lafs";
+  version = "1.19.0.post1";
+in
 { lib
 , pythonPackages
 , buildPythonPackage
 , tahoe-lafs-src
-, extrasNames
-
-# control how the test suite is run
-, doCheck
 }:
-let
-  pname = "tahoe-lafs";
-  version = "1.18.0.post1";
-
-  pickExtraDependencies = deps: extras: builtins.foldl' (accum: extra: accum  ++ deps.${extra}) [] extras;
-
-  pythonExtraDependencies = with pythonPackages; {
-    tor = [ txtorcon ];
-    i2p = [ txi2p ];
-  };
-
-  pythonPackageDependencies = with pythonPackages; [
+buildPythonPackage rec {
+  inherit pname version;
+  pyproject = true;
+  src = tahoe-lafs-src;
+  propagatedBuildInputs = with pythonPackages; [
     attrs
     autobahn
     cbor2
@@ -30,6 +23,8 @@ let
     filelock
     foolscap
     future
+    hatchling
+    hatch-vcs
     klein
     magic-wormhole
     netifaces
@@ -41,35 +36,42 @@ let
     six
     treq
     twisted
-    # Get the dependencies for the Twisted extras we depend on, too.
-    twisted.passthru.optional-dependencies.tls
-    twisted.passthru.optional-dependencies.conch
     werkzeug
     zfec
     zope_interface
-  ] ++ pickExtraDependencies pythonExtraDependencies extrasNames;
+  ] ++
+  # Get the dependencies for the Twisted extras we depend on, too.
+  twisted.passthru.optional-dependencies.tls ++
+  twisted.passthru.optional-dependencies.conch;
 
-  unitTestDependencies = with pythonPackages; [
-    beautifulsoup4
-    fixtures
-    hypothesis
-    mock
-    prometheus-client
-    testtools
-  ];
+  # The test suite lives elsewhere.
+  doCheck = false;
 
-in
-buildPythonPackage {
-  inherit pname version;
-  src = tahoe-lafs-src;
-  propagatedBuildInputs = pythonPackageDependencies;
-
-  inherit doCheck;
-  checkInputs = unitTestDependencies;
-  checkPhase = ''
-    export TAHOE_LAFS_HYPOTHESIS_PROFILE=ci
-    python -m twisted.trial -j $NIX_BUILD_CORES allmydata
-  '';
+  passthru = {
+    extras = with pythonPackages; {
+      tor = [
+        txtorcon
+      ];
+      i2p = [
+        txi2p-tahoe
+      ];
+      unittest = [
+        beautifulsoup4
+        html5lib
+        fixtures
+        hypothesis
+        mock
+        prometheus-client
+        testtools
+      ];
+      integrationtest = [
+        pytest
+        pytest-twisted
+        paramiko
+        pytest-timeout
+      ];
+    };
+  };
 
   meta = with lib; {
     homepage = "https://tahoe-lafs.org/";

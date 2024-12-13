@@ -2,28 +2,10 @@
 Ported to Python 3
 """
 
-from __future__ import (
-    absolute_import,
-)
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-
-from six import ensure_text
-
 import os.path, re, sys
 from os import linesep
 import locale
 
-import six
-
-from testtools import (
-    skipUnless,
-)
 from testtools.matchers import (
     MatchesListwise,
     MatchesAny,
@@ -60,9 +42,6 @@ from allmydata.util.pid import (
 )
 from allmydata.test import common_util
 import allmydata
-from allmydata.scripts.runner import (
-    parse_options,
-)
 from allmydata.scripts.tahoe_run import (
     on_stdin_close,
 )
@@ -106,27 +85,6 @@ srcfile = allmydata.__file__
 rootdir = get_root_from_file(srcfile)
 
 
-class ParseOptionsTests(SyncTestCase):
-    """
-    Tests for ``parse_options``.
-    """
-    @skipUnless(six.PY2, "Only Python 2 exceptions must stringify to bytes.")
-    def test_nonascii_unknown_subcommand_python2(self):
-        """
-        When ``parse_options`` is called with an argv indicating a subcommand that
-        does not exist and which also contains non-ascii characters, the
-        exception it raises includes the subcommand encoded as UTF-8.
-        """
-        tricky = u"\u00F6"
-        try:
-            parse_options([tricky])
-        except usage.error as e:
-            self.assertEqual(
-                b"Unknown command: \\xf6",
-                b"{}".format(e),
-            )
-
-
 class ParseOrExitTests(SyncTestCase):
     """
     Tests for ``parse_or_exit``.
@@ -167,18 +125,14 @@ def run_bintahoe(extra_argv, python_options=None):
     :return: A three-tuple of stdout (unicode), stderr (unicode), and the
         child process "returncode" (int).
     """
-    executable = ensure_text(sys.executable)
-    argv = [executable]
+    argv = [sys.executable]
     if python_options is not None:
         argv.extend(python_options)
     argv.extend([u"-b", u"-m", u"allmydata.scripts.runner"])
     argv.extend(extra_argv)
     argv = list(unicode_to_argv(arg) for arg in argv)
     p = Popen(argv, stdout=PIPE, stderr=PIPE)
-    if PY2:
-        encoding = "utf-8"
-    else:
-        encoding = locale.getpreferredencoding(False)
+    encoding = locale.getpreferredencoding(False)
     out = p.stdout.read().decode(encoding)
     err = p.stderr.read().decode(encoding)
     returncode = p.wait()
@@ -192,10 +146,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase):
         """
         tricky = u"\u00F6"
         out, err, returncode = run_bintahoe([tricky])
-        if PY2:
-            expected = u"Unknown command: \\xf6"
-        else:
-            expected = u"Unknown command: \xf6"
+        expected = u"Unknown command: \xf6"
         self.assertEqual(returncode, 1)
         self.assertIn(
             expected,

@@ -27,7 +27,6 @@
 # This plugin should be configured with env_diskwatcher_url= pointing at the
 # diskwatcher.tac webport, and env_deepsize_url= pointing at the PHP script.
 
-from __future__ import print_function
 
 import os, sys, urllib, json
 

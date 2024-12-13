@@ -10,7 +10,6 @@ from future.utils import bchr
 
 from typing import Any
 
-import six
 import os
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
@@ -29,9 +28,6 @@ from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.immutable.downloader.fetcher import SegmentFetcher
 from allmydata.codec import CRSDecoder
 from foolscap.eventual import eventually, fireEventually, flushEventualQueue
-
-if six.PY3:
-    long = int
 
 plaintext = b"This is a moderate-sized file.\n" * 10
 mutable_plaintext = b"This is a moderate-sized mutable file.\n" * 10

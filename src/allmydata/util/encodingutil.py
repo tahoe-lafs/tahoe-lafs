@@ -7,18 +7,7 @@ Ported to Python 3.
 Once Python 2 support is dropped, most of this module will obsolete, since
 Unicode is the default everywhere in Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2, PY3, native_str
-from future.builtins import str as future_str
-if PY2:
-    # We omit str() because that seems too tricky to get right.
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
-
-from past.builtins import unicode
 from six import ensure_str
 
 import sys, os, re
@@ -63,25 +52,11 @@ def check_encoding(encoding):
 io_encoding = "utf-8"
 
 filesystem_encoding = None
-is_unicode_platform = False
-use_unicode_filepath = False
 
 def _reload():
-    global filesystem_encoding, is_unicode_platform, use_unicode_filepath
-
+    global filesystem_encoding
     filesystem_encoding = canonical_encoding(sys.getfilesystemencoding())
     check_encoding(filesystem_encoding)
-    is_unicode_platform = PY3 or sys.platform in ["win32", "darwin"]
-
-    # Despite the Unicode-mode FilePath support added to Twisted in
-    # <https://twistedmatrix.com/trac/ticket/7805>, we can't yet use
-    # Unicode-mode FilePaths with INotify on non-Windows platforms due to
-    # <https://twistedmatrix.com/trac/ticket/7928>. Supposedly 7928 is fixed,
-    # though... and Tahoe-LAFS doesn't use inotify anymore!
-    #
-    # In the interest of not breaking anything, this logic is unchanged for
-    # Python 2, but on Python 3 the paths are always unicode, like it or not.
-    use_unicode_filepath = PY3 or sys.platform == "win32"
 
 _reload()
 
@@ -104,13 +79,13 @@ def argv_to_unicode(s):
 
     This is the inverse of ``unicode_to_argv``.
     """
-    if isinstance(s, unicode):
+    if isinstance(s, str):
         return s
 
     precondition(isinstance(s, bytes), s)
 
     try:
-        return unicode(s, io_encoding)
+        return str(s, io_encoding)
     except UnicodeDecodeError:
         raise usage.UsageError("Argument %s cannot be decoded as %s." %
                                (quote_output(s), io_encoding))
@@ -134,10 +109,8 @@ def unicode_to_argv(s):
     On Python 2 on POSIX, this encodes using UTF-8.  On Python 3 and on
     Windows, this returns the input unmodified.
     """
-    precondition(isinstance(s, unicode), s)
-    if PY3:
-        warnings.warn("This will be unnecessary once Python 2 is dropped.",
-                      DeprecationWarning)
+    precondition(isinstance(s, str), s)
+    warnings.warn("This is unnecessary.", DeprecationWarning)
     if sys.platform == "win32":
         return s
     return ensure_str(s)
@@ -145,7 +118,7 @@ def unicode_to_argv(s):
 
 # According to unicode_to_argv above, the expected type for
 # cli args depends on the platform, so capture that expectation.
-argv_type = (future_str, native_str) if sys.platform == "win32" else native_str
+argv_type = (str,)
 """
 The expected type for args to a subprocess
 """
@@ -190,25 +163,9 @@ def unicode_to_output(s):
     On Python 3 just returns the unicode string unchanged, since encoding is
     the responsibility of stdout/stderr, they expect Unicode by default.
     """
-    precondition(isinstance(s, unicode), s)
-    if PY3:
-        warnings.warn("This will be unnecessary once Python 2 is dropped.",
-                      DeprecationWarning)
-        return s
-
-    try:
-        out = s.encode(io_encoding)
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        raise UnicodeEncodeError(native_str(io_encoding), s, 0, 0,
-                                 native_str("A string could not be encoded as %s for output to the terminal:\n%r" %
-                                 (io_encoding, repr(s))))
-
-    if PRINTABLE_8BIT.search(out) is None:
-        raise UnicodeEncodeError(native_str(io_encoding), s, 0, 0,
-                                 native_str("A string encoded as %s for output to the terminal contained unsafe bytes:\n%r" %
-                                 (io_encoding, repr(s))))
-    return out
-
+    precondition(isinstance(s, str), s)
+    warnings.warn("This is unnecessary.", DeprecationWarning)
+    return s
 
 def _unicode_escape(m, quote_newlines):
     u = m.group(0)
@@ -254,7 +211,7 @@ def quote_output_u(*args, **kwargs):
     Like ``quote_output`` but always return ``unicode``.
     """
     result = quote_output(*args, **kwargs)
-    if isinstance(result, unicode):
+    if isinstance(result, str):
         return result
     # Since we're quoting, the assumption is this will be read by a human, and
     # therefore printed, so stdout's encoding is the plausible one. io_encoding
@@ -279,7 +236,7 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
 
     On Python 3, returns Unicode strings.
     """
-    precondition(isinstance(s, (bytes, unicode)), s)
+    precondition(isinstance(s, (bytes, str)), s)
     # Since we're quoting, the assumption is this will be read by a human, and
     # therefore printed, so stdout's encoding is the plausible one. io_encoding
     # is now always utf-8.
@@ -310,20 +267,7 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
         return b'"%s"' % (escaped.encode(encoding, 'backslashreplace'),)
 
     result = _encode(s)
-    if PY3:
-        # On Python 3 half of what this function does is unnecessary, since
-        # sys.stdout typically expects Unicode. To ensure no encode errors, one
-        # can do:
-        #
-        # sys.stdout.reconfigure(encoding=sys.stdout.encoding, errors="backslashreplace")
-        #
-        # Although the problem is that doesn't work in Python 3.6, only 3.7 or
-        # later... For now not thinking about it, just returning unicode since
-        # that is the right thing to do on Python 3.
-        #
-        # Now that Python 3.7 is the minimum, this can in theory be done:
-        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3866
-        result = result.decode(encoding)
+    result = result.decode(encoding)
     return result
 
 
@@ -331,7 +275,7 @@ def quote_path(path, quotemarks=True):
     return quote_output(b"/".join(map(to_bytes, path)), quotemarks=quotemarks, quote_newlines=True)
 
 def quote_local_unicode_path(path, quotemarks=True):
-    precondition(isinstance(path, unicode), path)
+    precondition(isinstance(path, str), path)
 
     if sys.platform == "win32" and path.startswith(u"\\\\?\\"):
         path = path[4 :]
@@ -351,20 +295,13 @@ def extend_filepath(fp, segments):
     for segment in segments:
         fp = fp.child(segment)
 
-    if isinstance(fp.path, unicode) and not use_unicode_filepath:
-        return FilePath(fp.path.encode(filesystem_encoding))
-    else:
-        return fp
+    return fp
 
 def to_filepath(path):
-    precondition(isinstance(path, unicode if use_unicode_filepath else (bytes, unicode)),
-                 path=path)
-
-    if isinstance(path, unicode) and not use_unicode_filepath:
-        path = path.encode(filesystem_encoding)
+    precondition(isinstance(path, str), path=path)
 
     if sys.platform == "win32":
-        _assert(isinstance(path, unicode), path=path)
+        _assert(isinstance(path, str), path=path)
         if path.startswith(u"\\\\?\\") and len(path) > 4:
             # FilePath normally strips trailing path separators, but not in this case.
             path = path.rstrip(u"\\")
@@ -372,7 +309,7 @@ def to_filepath(path):
     return FilePath(path)
 
 def _decode(s):
-    precondition(isinstance(s, (bytes, unicode)), s=s)
+    precondition(isinstance(s, (bytes, str)), s=s)
 
     if isinstance(s, bytes):
         return s.decode(filesystem_encoding)
@@ -393,7 +330,7 @@ def unicode_platform():
     """
     Does the current platform handle Unicode filenames natively?
     """
-    return is_unicode_platform
+    return True
 
 class FilenameEncodingError(Exception):
     """
@@ -402,39 +339,13 @@ class FilenameEncodingError(Exception):
     """
     pass
 
-def listdir_unicode_fallback(path):
-    """
-    This function emulates a fallback Unicode API similar to one available
-    under Windows or MacOS X.
-
-    If badly encoded filenames are encountered, an exception is raised.
-    """
-    precondition(isinstance(path, unicode), path)
-
-    try:
-        byte_path = path.encode(filesystem_encoding)
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        raise FilenameEncodingError(path)
-
-    try:
-        return [unicode(fn, filesystem_encoding) for fn in os.listdir(byte_path)]
-    except UnicodeDecodeError as e:
-        raise FilenameEncodingError(e.object)
-
 def listdir_unicode(path):
     """
     Wrapper around listdir() which provides safe access to the convenient
     Unicode API even under platforms that don't provide one natively.
     """
-    precondition(isinstance(path, unicode), path)
-
-    # On Windows and MacOS X, the Unicode API is used
-    # On other platforms (ie. Unix systems), the byte-level API is used
-
-    if is_unicode_platform:
-        return os.listdir(path)
-    else:
-        return listdir_unicode_fallback(path)
+    precondition(isinstance(path, str), path)
+    return os.listdir(path)
 
 def listdir_filepath(fp):
     return listdir_unicode(unicode_from_filepath(fp))

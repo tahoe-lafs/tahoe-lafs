@@ -1,17 +1,9 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import os.path
-from six.moves import cStringIO as StringIO
+from io import StringIO
 from datetime import timedelta
 import re
 
@@ -20,7 +12,7 @@ from twisted.python.monkey import MonkeyPatcher
 
 from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
-from allmydata.util.encodingutil import get_io_encoding, unicode_to_argv
+from allmydata.util.encodingutil import unicode_to_argv
 from allmydata.util.namespace import Namespace
 from allmydata.scripts import cli, backupdb
 from ..common_util import StallMixin
@@ -372,8 +364,6 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         nice_doc = u"nice_d\u00F8c.lyx"
         try:
             doc_pattern_arg_unicode = doc_pattern_arg = u"*d\u00F8c*"
-            if PY2:
-                doc_pattern_arg = doc_pattern_arg.encode(get_io_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
@@ -429,10 +419,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             else:
                 return original_open(name, *args, **kwargs)
 
-        if PY2:
-            from allmydata.scripts import cli as module_to_patch
-        else:
-            import builtins as module_to_patch
+        import builtins as module_to_patch
         patcher = MonkeyPatcher((module_to_patch, 'open', call_file))
         patcher.runWithPatches(parse_options, basedir, "backup", ['--exclude-from-utf-8', unicode_to_argv(exclude_file), 'from', 'to'])
         self.failUnless(ns.called)

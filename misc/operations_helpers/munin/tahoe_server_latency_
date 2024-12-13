@@ -42,7 +42,6 @@
 # of course, these URLs must match the webports you have configured into the
 # storage nodes.
 
-from __future__ import print_function
 
 import os, sys
 import urllib

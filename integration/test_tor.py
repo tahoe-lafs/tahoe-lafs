@@ -30,6 +30,7 @@ from allmydata.util.deferredutil import async_to_deferred
 if sys.platform.startswith('win'):
     pytest.skip('Skipping Tor tests on Windows', allow_module_level=True)
 
+@pytest.mark.skipif(sys.version_info[:2] > (3, 11), reason='Chutney still does not support 3.12')
 @pytest_twisted.inlineCallbacks
 def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):
     """
@@ -38,8 +39,8 @@ def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_ne
     The two nodes can talk to the introducer and each other: we upload to one
     node, read from the other.
     """
-    carol = yield _create_anonymous_node(reactor, 'carol', 8008, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl, 2)
-    dave = yield _create_anonymous_node(reactor, 'dave', 8009, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl, 2)
+    carol = yield _create_anonymous_node(reactor, 'carol', 8100, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl, 2)
+    dave = yield _create_anonymous_node(reactor, 'dave', 8101, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl, 2)
     yield util.await_client_ready(carol, minimum_number_of_servers=2, timeout=600)
     yield util.await_client_ready(dave, minimum_number_of_servers=2, timeout=600)
     yield upload_to_one_download_from_the_other(reactor, temp_dir, carol, dave)
@@ -94,44 +95,45 @@ async def upload_to_one_download_from_the_other(reactor, temp_dir, upload_to: ut
 
 
 @pytest_twisted.inlineCallbacks
-def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_gatherer, tor_network, introducer_furl, shares_total: int) -> util.TahoeProcess:
+def _create_anonymous_node(reactor, name, web_port, request, temp_dir, flog_gatherer, tor_network, introducer_furl, shares_total: int) -> util.TahoeProcess:
     node_dir = FilePath(temp_dir).child(name)
-    web_port = "tcp:{}:interface=localhost".format(control_port + 2000)
-
-    if True:
-        print(f"creating {node_dir.path} with introducer {introducer_furl}")
-        node_dir.makedirs()
-        proto = util._DumpOutputProtocol(None)
-        reactor.spawnProcess(
-            proto,
-            sys.executable,
-            (
-                sys.executable, '-b', '-m', 'allmydata.scripts.runner',
-                'create-node',
-                '--nickname', name,
-                '--webport', web_port,
-                '--introducer', introducer_furl,
-                '--hide-ip',
-                '--tor-control-port', 'tcp:localhost:{}'.format(control_port),
-                '--listen', 'tor',
-                '--shares-needed', '1',
-                '--shares-happy', '1',
-                '--shares-total', str(shares_total),
-                node_dir.path,
-            ),
-            env=environ,
+    if node_dir.exists():
+        raise RuntimeError(
+            "A node already exists in '{}'".format(node_dir)
         )
-        yield proto.done
+    print(f"creating {node_dir.path} with introducer {introducer_furl}")
+    node_dir.makedirs()
+    proto = util._DumpOutputProtocol(None)
+    reactor.spawnProcess(
+        proto,
+        sys.executable,
+        (
+            sys.executable, '-b', '-m', 'allmydata.scripts.runner',
+            'create-node',
+            '--nickname', name,
+            '--webport', str(web_port),
+            '--introducer', introducer_furl,
+            '--hide-ip',
+            '--tor-control-port', tor_network.client_control_endpoint,
+            '--listen', 'tor',
+            '--shares-needed', '1',
+            '--shares-happy', '1',
+            '--shares-total', str(shares_total),
+            node_dir.path,
+        ),
+        env=environ,
+        )
+    yield proto.done
 
 
     # Which services should this client connect to?
     write_introducer(node_dir, "default", introducer_furl)
-    util.basic_node_configuration(request, flog_gatherer, node_dir.path)
+    util.basic_node_configuration(request, flog_gatherer.furl, node_dir.path)
 
     config = read_config(node_dir.path, "tub.port")
     config.set_config("tor", "onion", "true")
     config.set_config("tor", "onion.external_port", "3457")
-    config.set_config("tor", "control.port", f"tcp:port={control_port}:host=127.0.0.1")
+    config.set_config("tor", "control.port", tor_network.client_control_endpoint)
     config.set_config("tor", "onion.private_key_file", "private/tor_onion.privkey")
 
     print("running")
@@ -139,6 +141,7 @@ def _create_anonymous_node(reactor, name, control_port, request, temp_dir, flog_
     print("okay, launched")
     return result
 
+@pytest.mark.skipif(sys.version_info[:2] > (3, 11), reason='Chutney still does not support 3.12')
 @pytest.mark.skipif(sys.platform.startswith('darwin'), reason='This test has issues on macOS')
 @pytest_twisted.inlineCallbacks
 def test_anonymous_client(reactor, request, temp_dir, flog_gatherer, tor_network, introducer_furl):
@@ -157,7 +160,7 @@ def test_anonymous_client(reactor, request, temp_dir, flog_gatherer, tor_network
     )
     yield util.await_client_ready(normie)
 
-    anonymoose = yield _create_anonymous_node(reactor, 'anonymoose', 8008, request, temp_dir, flog_gatherer, tor_network, introducer_furl, 1)
-    yield util.await_client_ready(anonymoose, minimum_number_of_servers=1, timeout=600)
+    anonymoose = yield _create_anonymous_node(reactor, 'anonymoose', 8102, request, temp_dir, flog_gatherer, tor_network, introducer_furl, 1)
+    yield util.await_client_ready(anonymoose, minimum_number_of_servers=1, timeout=1200)
 
     yield upload_to_one_download_from_the_other(reactor, temp_dir, normie, anonymoose)

@@ -4,15 +4,7 @@ functionality.
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
-from future.utils import native_str, native_str_to_bytes
 from six import ensure_str
 
 import attr
@@ -47,7 +39,7 @@ from allmydata.util.jsonbytes import (
 
 
 class RIDummy(RemoteInterface):
-    __remote_name__ = native_str("RIDummy.tahoe.allmydata.com")
+    __remote_name__ = "RIDummy.tahoe.allmydata.com"
 
     def just_some_method():
         """
@@ -94,7 +86,7 @@ class DummyStorage(object):
         """
         items = configuration.items(self._client_section_name, [])
         resource = Data(
-            native_str_to_bytes(dumps(dict(items))),
+            dumps(dict(items)).encode("utf-8"),
             ensure_str("text/json"),
         )
         # Give it some dynamic stuff too.
@@ -112,7 +104,7 @@ class GetCounter(Resource, object):
     value = 0
     def render_GET(self, request):
         self.value += 1
-        return native_str_to_bytes(dumps({"value": self.value}))
+        return dumps({"value": self.value}).encode("utf-8")
 
 
 @implementer(RIDummy)

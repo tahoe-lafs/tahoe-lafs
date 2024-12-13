@@ -1,14 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import re
 
@@ -23,7 +15,7 @@ def assert_soup_has_favicon(testcase, soup):
     ``BeautifulSoup`` object ``soup`` contains the tahoe favicon link.
     """
     links = soup.find_all(u'link', rel=u'shortcut icon')
-    testcase.assert_(
+    testcase.assertTrue(
         any(t[u'href'] == u'/icon.png' for t in links), soup)
 
 
@@ -92,6 +84,6 @@ def assert_soup_has_text(testcase, soup, text):
     ``BeautifulSoup`` object ``soup`` contains the passed in ``text`` anywhere
     as a text node.
     """
-    testcase.assert_(
+    testcase.assertTrue(
         soup.find_all(string=re.compile(re.escape(text))),
         soup)

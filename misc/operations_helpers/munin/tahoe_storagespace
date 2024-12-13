@@ -18,7 +18,6 @@
 # Allmydata-tahoe must be installed on the system where this plugin is used,
 # since it imports a utility module from allmydata.utils .
 
-from __future__ import print_function
 
 import os, sys
 import commands

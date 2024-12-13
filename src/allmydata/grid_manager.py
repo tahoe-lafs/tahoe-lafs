@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Union,
     List,
+    IO
 )
 
 from twisted.python.filepath import FilePath
@@ -178,6 +179,7 @@ def load_grid_manager(config_path: Optional[FilePath]):
     :raises: ValueError if the confguration is invalid or IOError if
         expected files can't be opened.
     """
+    config_file: Union[IO[bytes], IO[str]]
     if config_path is None:
         config_file = sys.stdin
     else:
@@ -486,7 +488,9 @@ def create_grid_manager_verifier(keys, certs, public_key, now_fn=None, bad_cert=
         now = now_fn()
         for cert in valid_certs:
             expires = datetime.fromisoformat(cert["expires"])
-            if cert['public_key'].encode("ascii") == public_key:
+            pc = cert['public_key'].encode('ascii')
+            assert type(pc) == type(public_key), "{} isn't {}".format(type(pc), type(public_key))
+            if pc == public_key:
                 if expires > now:
                     # not-expired
                     return True

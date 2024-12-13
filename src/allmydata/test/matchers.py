@@ -3,16 +3,9 @@ Testtools-style matchers useful to the Tahoe-LAFS test suite.
 
 Ported to Python 3.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 import attr
+from hyperlink import DecodedURL
 
 from testtools.matchers import (
     Mismatch,
@@ -95,6 +88,7 @@ def matches_storage_announcement(basedir, anonymous=True, options=None):
     }
     if anonymous:
         announcement[u"anonymous-storage-FURL"] = matches_furl()
+        announcement[u"anonymous-storage-NURLs"] = matches_nurls()
     if options:
         announcement[u"storage-options"] = MatchesListwise(options)
     return MatchesStructure(
@@ -110,6 +104,16 @@ def matches_furl():
     Match any Foolscap fURL byte string.
     """
     return AfterPreprocessing(decode_furl, Always())
+
+
+def matches_nurls():
+    """
+    Matches a sequence of NURLs.
+    """
+    return AfterPreprocessing(
+        lambda nurls: [DecodedURL.from_text(u) for u in nurls],
+        Always()
+    )
 
 
 def matches_base32():

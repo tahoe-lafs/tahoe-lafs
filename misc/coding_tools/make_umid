@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
 
 """Create a short probably-unique string for use as a umid= argument in a
 Foolscap log() call, to make it easier to locate the source code that

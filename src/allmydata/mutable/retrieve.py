@@ -4,8 +4,8 @@ Ported to Python 3.
 from __future__ import annotations
 
 import time
-
 from itertools import count
+
 from zope.interface import implementer
 from twisted.internet import defer
 from twisted.python import failure
@@ -20,6 +20,7 @@ from allmydata.interfaces import IRetrieveStatus, NotEnoughSharesError, \
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util import hashutil, log, mathutil, deferredutil
 from allmydata.util.dictutil import DictOfSets
+from allmydata.util.cputhreadpool import defer_to_thread
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
 
@@ -734,7 +735,8 @@ class Retrieve(object):
         return None
 
 
-    def _validate_block(self, results, segnum, reader, server, started):
+    @deferredutil.async_to_deferred
+    async def _validate_block(self, results, segnum, reader, server, started):
         """
         I validate a block from one share on a remote server.
         """
@@ -767,9 +769,9 @@ class Retrieve(object):
                                         "block hash tree failure: %s" % e)
 
         if self._version == MDMF_VERSION:
-            blockhash = hashutil.block_hash(salt + block)
+            blockhash = await defer_to_thread(hashutil.block_hash, salt + block)
         else:
-            blockhash = hashutil.block_hash(block)
+            blockhash = await defer_to_thread(hashutil.block_hash, block)
         # If this works without an error, then validation is
         # successful.
         try:
@@ -871,11 +873,20 @@ class Retrieve(object):
         shares = shares[:self._required_shares]
         self.log("decoding segment %d" % segnum)
         if segnum == self._num_segments - 1:
-            d = defer.maybeDeferred(self._tail_decoder.decode, shares, shareids)
+            d = self._tail_decoder.decode(shares, shareids)
         else:
-            d = defer.maybeDeferred(self._segment_decoder.decode, shares, shareids)
-        def _process(buffers):
-            segment = b"".join(buffers)
+            d = self._segment_decoder.decode(shares, shareids)
+
+        # For larger shares, this can take a few milliseconds. As such, we want
+        # to unblock the event loop. In newer Python b"".join() will release
+        # the GIL: https://github.com/python/cpython/issues/80232
+        @deferredutil.async_to_deferred
+        async def _got_buffers(buffers):
+            return await defer_to_thread(lambda: b"".join(buffers))
+
+        d.addCallback(_got_buffers)
+
+        def _process(segment):
             self.log(format="now decoding segment %(segnum)s of %(numsegs)s",
                      segnum=segnum,
                      numsegs=self._num_segments,
@@ -893,8 +904,8 @@ class Retrieve(object):
         d.addCallback(_process)
         return d
 
-
-    def _decrypt_segment(self, segment_and_salt):
+    @deferredutil.async_to_deferred
+    async def _decrypt_segment(self, segment_and_salt):
         """
         I take a single segment and its salt, and decrypt it. I return
         the plaintext of the segment that is in my argument.
@@ -903,9 +914,14 @@ class Retrieve(object):
         self._set_current_status("decrypting")
         self.log("decrypting segment %d" % self._current_segment)
         started = time.time()
-        key = hashutil.ssk_readkey_data_hash(salt, self._node.get_readkey())
-        decryptor = aes.create_decryptor(key)
-        plaintext = aes.decrypt_data(decryptor, segment)
+        readkey = self._node.get_readkey()
+
+        def decrypt():
+            key = hashutil.ssk_readkey_data_hash(salt, readkey)
+            decryptor = aes.create_decryptor(key)
+            return aes.decrypt_data(decryptor, segment)
+
+        plaintext = await defer_to_thread(decrypt)
         self._status.accumulate_decrypt_time(time.time() - started)
         return plaintext
 
@@ -921,12 +937,20 @@ class Retrieve(object):
             reason,
         )
 
-
-    def _try_to_validate_privkey(self, enc_privkey, reader, server):
+    @deferredutil.async_to_deferred
+    async def _try_to_validate_privkey(self, enc_privkey, reader, server):
         node_writekey = self._node.get_writekey()
-        alleged_privkey_s = decrypt_privkey(node_writekey, enc_privkey)
-        alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
-        if alleged_writekey != node_writekey:
+
+        def get_privkey():
+            alleged_privkey_s = decrypt_privkey(node_writekey, enc_privkey)
+            alleged_writekey = hashutil.ssk_writekey_hash(alleged_privkey_s)
+            if alleged_writekey != node_writekey:
+                return None
+            privkey, _ = rsa.create_signing_keypair_from_string(alleged_privkey_s)
+            return privkey
+
+        privkey = await defer_to_thread(get_privkey)
+        if privkey is None:
             self.log("invalid privkey from %s shnum %d" %
                      (reader, reader.shnum),
                      level=log.WEIRD, umid="YIw4tA")
@@ -943,7 +967,6 @@ class Retrieve(object):
         # it's good
         self.log("got valid privkey from shnum %d on reader %s" %
                  (reader.shnum, reader))
-        privkey, _ = rsa.create_signing_keypair_from_string(alleged_privkey_s)
         self._node._populate_encprivkey(enc_privkey)
         self._node._populate_privkey(privkey)
         self._need_privkey = False

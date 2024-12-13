@@ -5,7 +5,6 @@
 # then extrapolate to guess how many weeks/months/years of storage space we
 # have left, and output it to another munin graph
 
-from __future__ import print_function
 
 import sys, os, time
 import rrdtool

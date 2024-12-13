@@ -7,16 +7,11 @@ from __future__ import annotations
 import os
 import sys
 import shutil
+from attr import frozen
 from time import sleep
-from os import mkdir, listdir, environ
+from os import mkdir, environ
 from os.path import join, exists
-from tempfile import mkdtemp, mktemp
-from functools import partial
-from json import loads
-
-from foolscap.furl import (
-    decode_furl,
-)
+from tempfile import mkdtemp
 
 from eliot import (
     to_file,
@@ -25,7 +20,7 @@ from eliot import (
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
-from twisted.internet.defer import DeferredList
+from twisted.internet.defer import DeferredList, succeed
 from twisted.internet.error import (
     ProcessExitedAlready,
     ProcessTerminated,
@@ -33,24 +28,25 @@ from twisted.internet.error import (
 
 import pytest
 import pytest_twisted
+from typing import Mapping
 
 from .util import (
-    _CollectOutputProtocol,
     _MagicTextProtocol,
     _DumpOutputProtocol,
     _ProcessExitedProtocol,
     _create_node,
-    _cleanup_tahoe_process,
     _tahoe_runner_optional_coverage,
     dump_python_output,
     dump_output,
     await_client_ready,
-    TahoeProcess,
-    cli,
-    generate_ssh_key,
     block_with_timeout,
 )
+from .grid import (
+    create_flog_gatherer,
+    create_grid,
+)
 from allmydata.node import read_config
+from allmydata.util.iputil import allocate_tcp_port
 
 # No reason for HTTP requests to take longer than four minutes in the
 # integration tests. See allmydata/scripts/common_http.py for usage.
@@ -119,6 +115,18 @@ def reactor():
 
 
 @pytest.fixture(scope='session')
+@log_call(action_type=u"integration:port_allocator", include_result=False)
+def port_allocator(reactor):
+    # these will appear basically random, which can make especially
+    # manual debugging harder but we're re-using code instead of
+    # writing our own...so, win?
+    def allocate():
+        port = allocate_tcp_port()
+        return succeed(port)
+    return allocate
+
+
+@pytest.fixture(scope='session')
 @log_call(action_type=u"integration:temp_dir", include_args=[])
 def temp_dir(request) -> str:
     """
@@ -152,133 +160,36 @@ def flog_binary():
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:flog_gatherer", include_args=[])
 def flog_gatherer(reactor, temp_dir, flog_binary, request):
-    out_protocol = _CollectOutputProtocol()
-    gather_dir = join(temp_dir, 'flog_gather')
-    reactor.spawnProcess(
-        out_protocol,
-        flog_binary,
-        (
-            'flogtool', 'create-gatherer',
-            '--location', 'tcp:localhost:3117',
-            '--port', '3117',
-            gather_dir,
-        ),
-        env=environ,
+    fg = pytest_twisted.blockon(
+        create_flog_gatherer(reactor, request, temp_dir, flog_binary)
     )
-    pytest_twisted.blockon(out_protocol.done)
-
-    twistd_protocol = _MagicTextProtocol("Gatherer waiting at", "gatherer")
-    twistd_process = reactor.spawnProcess(
-        twistd_protocol,
-        which('twistd')[0],
-        (
-            'twistd', '--nodaemon', '--python',
-            join(gather_dir, 'gatherer.tac'),
-        ),
-        path=gather_dir,
-        env=environ,
-    )
-    pytest_twisted.blockon(twistd_protocol.magic_seen)
-
-    def cleanup():
-        _cleanup_tahoe_process(twistd_process, twistd_protocol.exited)
-
-        flog_file = mktemp('.flog_dump')
-        flog_protocol = _DumpOutputProtocol(open(flog_file, 'w'))
-        flog_dir = join(temp_dir, 'flog_gather')
-        flogs = [x for x in listdir(flog_dir) if x.endswith('.flog')]
-
-        print("Dumping {} flogtool logfiles to '{}'".format(len(flogs), flog_file))
-        reactor.spawnProcess(
-            flog_protocol,
-            flog_binary,
-            (
-                'flogtool', 'dump', join(temp_dir, 'flog_gather', flogs[0])
-            ),
-            env=environ,
-        )
-        print("Waiting for flogtool to complete")
-        try:
-            block_with_timeout(flog_protocol.done, reactor)
-        except ProcessTerminated as e:
-            print("flogtool exited unexpectedly: {}".format(str(e)))
-        print("Flogtool completed")
-
-    request.addfinalizer(cleanup)
-
-    with open(join(gather_dir, 'log_gatherer.furl'), 'r') as f:
-        furl = f.read().strip()
-    return furl
+    return fg
 
 
 @pytest.fixture(scope='session')
-@log_call(
-    action_type=u"integration:introducer",
-    include_args=["temp_dir", "flog_gatherer"],
-    include_result=False,
-)
-def introducer(reactor, temp_dir, flog_gatherer, request):
-    intro_dir = join(temp_dir, 'introducer')
-    print("making introducer", intro_dir)
+@log_call(action_type=u"integration:grid", include_args=[])
+def grid(reactor, request, temp_dir, flog_gatherer, port_allocator):
+    """
+    Provides a new Grid with a single Introducer and flog-gathering process.
 
-    if not exists(intro_dir):
-        mkdir(intro_dir)
-        done_proto = _ProcessExitedProtocol()
-        _tahoe_runner_optional_coverage(
-            done_proto,
-            reactor,
-            request,
-            (
-                'create-introducer',
-                '--listen=tcp',
-                '--hostname=localhost',
-                intro_dir,
-            ),
-        )
-        pytest_twisted.blockon(done_proto.done)
-
-    config = read_config(intro_dir, "tub.port")
-    config.set_config("node", "nickname", "introducer-tor")
-    config.set_config("node", "web.port", "4562")
-    config.set_config("node", "log_gatherer.furl", flog_gatherer)
-
-    # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
-    # "start" command.
-    protocol = _MagicTextProtocol('introducer running', "introducer")
-    transport = _tahoe_runner_optional_coverage(
-        protocol,
-        reactor,
-        request,
-        (
-            'run',
-            intro_dir,
-        ),
+    Notably does _not_ provide storage servers; use the storage_nodes
+    fixture if your tests need a Grid that can be used for puts / gets.
+    """
+    g = pytest_twisted.blockon(
+        create_grid(reactor, request, temp_dir, flog_gatherer, port_allocator)
     )
-    request.addfinalizer(partial(_cleanup_tahoe_process, transport, protocol.exited))
+    return g
 
-    pytest_twisted.blockon(protocol.magic_seen)
-    return TahoeProcess(transport, intro_dir)
+
+@pytest.fixture(scope='session')
+def introducer(grid):
+    return grid.introducer
 
 
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:introducer:furl", include_args=["temp_dir"])
 def introducer_furl(introducer, temp_dir):
-    furl_fname = join(temp_dir, 'introducer', 'private', 'introducer.furl')
-    while not exists(furl_fname):
-        print("Don't see {} yet".format(furl_fname))
-        sleep(.1)
-    furl = open(furl_fname, 'r').read()
-    tubID, location_hints, name = decode_furl(furl)
-    if not location_hints:
-        # If there are no location hints then nothing can ever possibly
-        # connect to it and the only thing that can happen next is something
-        # will hang or time out.  So just give up right now.
-        raise ValueError(
-            "Introducer ({!r}) fURL has no location hints!".format(
-                introducer_furl,
-            ),
-        )
-    return furl
+    return introducer.furl
 
 
 @pytest.fixture
@@ -301,9 +212,7 @@ def tor_introducer(reactor, temp_dir, flog_gatherer, request, tor_network):
             request,
             (
                 'create-introducer',
-                # The control port should agree with the configuration of the
-                # Tor network we bootstrap with chutney.
-                '--tor-control-port', 'tcp:localhost:8007',
+                '--tor-control-port', tor_network.client_control_endpoint,
                 '--hide-ip',
                 '--listen=tor',
                 intro_dir,
@@ -315,7 +224,7 @@ def tor_introducer(reactor, temp_dir, flog_gatherer, request, tor_network):
     config = read_config(intro_dir, "tub.port")
     config.set_config("node", "nickname", "introducer-tor")
     config.set_config("node", "web.port", "4561")
-    config.set_config("node", "log_gatherer.furl", flog_gatherer)
+    config.set_config("node", "log_gatherer.furl", flog_gatherer.furl)
 
     # "tahoe run" is consistent across Linux/macOS/Windows, unlike the old
     # "start" command.
@@ -358,87 +267,31 @@ def tor_introducer_furl(tor_introducer, temp_dir):
 @pytest.fixture(scope='session')
 @log_call(
     action_type=u"integration:storage_nodes",
-    include_args=["temp_dir", "introducer_furl", "flog_gatherer"],
+    include_args=["grid"],
     include_result=False,
 )
-def storage_nodes(reactor, temp_dir, introducer, introducer_furl, flog_gatherer, request):
+def storage_nodes(grid):
     nodes_d = []
     # start all 5 nodes in parallel
     for x in range(5):
-        name = 'node{}'.format(x)
-        web_port=  9990 + x
-        nodes_d.append(
-            _create_node(
-                reactor, request, temp_dir, introducer_furl, flog_gatherer, name,
-                web_port="tcp:{}:interface=localhost".format(web_port),
-                storage=True,
-            )
-        )
-    nodes_status = pytest_twisted.blockon(DeferredList(nodes_d))
-    nodes = []
-    for ok, process in nodes_status:
-        assert ok, "Storage node creation failed: {}".format(process)
-        nodes.append(process)
-    return nodes
+        nodes_d.append(grid.add_storage_node())
 
-@pytest.fixture(scope="session")
-def alice_sftp_client_key_path(temp_dir):
-    # The client SSH key path is typically going to be somewhere else (~/.ssh,
-    # typically), but for convenience sake for testing we'll put it inside node.
-    return join(temp_dir, "alice", "private", "ssh_client_rsa_key")
+    nodes_status = pytest_twisted.blockon(DeferredList(nodes_d))
+    for ok, value in nodes_status:
+        assert ok, "Storage node creation failed: {}".format(value)
+    return grid.storage_servers
+
 
 @pytest.fixture(scope='session')
 @log_call(action_type=u"integration:alice", include_args=[], include_result=False)
-def alice(
-        reactor,
-        temp_dir,
-        introducer_furl,
-        flog_gatherer,
-        storage_nodes,
-        alice_sftp_client_key_path,
-        request,
-):
-    process = pytest_twisted.blockon(
-        _create_node(
-            reactor, request, temp_dir, introducer_furl, flog_gatherer, "alice",
-            web_port="tcp:9980:interface=localhost",
-            storage=False,
-        )
-    )
-    pytest_twisted.blockon(await_client_ready(process))
-
-    # 1. Create a new RW directory cap:
-    cli(process, "create-alias", "test")
-    rwcap = loads(cli(process, "list-aliases", "--json"))["test"]["readwrite"]
-
-    # 2. Enable SFTP on the node:
-    host_ssh_key_path = join(process.node_dir, "private", "ssh_host_rsa_key")
-    accounts_path = join(process.node_dir, "private", "accounts")
-    with open(join(process.node_dir, "tahoe.cfg"), "a") as f:
-        f.write("""\
-[sftpd]
-enabled = true
-port = tcp:8022:interface=127.0.0.1
-host_pubkey_file = {ssh_key_path}.pub
-host_privkey_file = {ssh_key_path}
-accounts.file = {accounts_path}
-""".format(ssh_key_path=host_ssh_key_path, accounts_path=accounts_path))
-    generate_ssh_key(host_ssh_key_path)
-
-    # 3. Add a SFTP access file with an SSH key for auth.
-    generate_ssh_key(alice_sftp_client_key_path)
-    # Pub key format is "ssh-rsa <thekey> <username>". We want the key.
-    ssh_public_key = open(alice_sftp_client_key_path + ".pub").read().strip().split()[1]
-    with open(accounts_path, "w") as f:
-        f.write("""\
-alice-key ssh-rsa {ssh_public_key} {rwcap}
-""".format(rwcap=rwcap, ssh_public_key=ssh_public_key))
-
-    # 4. Restart the node with new SFTP config.
-    pytest_twisted.blockon(process.restart_async(reactor, request))
-    pytest_twisted.blockon(await_client_ready(process))
-    print(f"Alice pid: {process.transport.pid}")
-    return process
+def alice(reactor, request, grid, storage_nodes):
+    """
+    :returns grid.Client: the associated instance for Alice
+    """
+    alice = pytest_twisted.blockon(grid.add_client("alice"))
+    pytest_twisted.blockon(alice.add_sftp(reactor, request))
+    print(f"Alice pid: {alice.process.transport.pid}")
+    return alice
 
 
 @pytest.fixture(scope='session')
@@ -459,6 +312,12 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
 @pytest.mark.skipif(sys.platform.startswith('win'),
                     'Tor tests are unstable on Windows')
 def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
+    """
+    Install the Chutney software that is required to run a small local Tor grid.
+
+    (Chutney lacks the normal "python stuff" so we can't just declare
+    it in Tox or similar dependencies)
+    """
     # Try to find Chutney already installed in the environment.
     try:
         import chutney
@@ -514,7 +373,22 @@ def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
         path=".",
     ))
 
-    return (chutney_dir, {"PYTHONPATH": join(chutney_dir, "lib")})
+    return chutney_dir, {"PYTHONPATH": join(chutney_dir, "lib")}
+
+
+@frozen
+class ChutneyTorNetwork:
+    """
+    Represents a running Chutney (tor) network. Returned by the
+    "tor_network" fixture.
+    """
+    dir: FilePath
+    environ: Mapping[str, str]
+    client_control_port: int
+
+    @property
+    def client_control_endpoint(self) -> str:
+        return "tcp:localhost:{}".format(self.client_control_port)
 
 
 @pytest.fixture(scope='session')
@@ -523,6 +397,20 @@ def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
 def tor_network(reactor, temp_dir, chutney, request):
     """
     Build a basic Tor network.
+
+    Instantiate the "networks/basic" Chutney configuration for a local
+    Tor network.
+
+    This provides a small, local Tor network that can run v3 Onion
+    Services. It has 3 authorities, 5 relays and 2 clients.
+
+    The 'chutney' fixture pins a Chutney git qrevision, so things
+    shouldn't change. This network has two clients which are the only
+    nodes with valid SocksPort configuration ("008c" and "009c" 9008
+    and 9009)
+
+    The control ports start at 8000 (so the ControlPort for the client
+    nodes are 8008 and 8009).
 
     :param chutney: The root directory of a Chutney checkout and a dict of
         additional environment variables to set so a Python process can use
@@ -564,6 +452,32 @@ def tor_network(reactor, temp_dir, chutney, request):
     request.addfinalizer(cleanup)
 
     pytest_twisted.blockon(chutney(("start", basic_network)))
+
+    # Wait for the nodes to "bootstrap" - ie, form a network among themselves.
+    # Successful bootstrap is reported with a message something like:
+    #
+    # Everything bootstrapped after 151 sec
+    # Bootstrap finished: 151 seconds
+    # Node status:
+    # test000a     :  100, done                     , Done
+    # test001a     :  100, done                     , Done
+    # test002a     :  100, done                     , Done
+    # test003r     :  100, done                     , Done
+    # test004r     :  100, done                     , Done
+    # test005r     :  100, done                     , Done
+    # test006r     :  100, done                     , Done
+    # test007r     :  100, done                     , Done
+    # test008c     :  100, done                     , Done
+    # test009c     :  100, done                     , Done
+    # Published dir info:
+    # test000a     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test001a     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test002a     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test003r     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test004r     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test005r     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test006r     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
+    # test007r     :  100, all nodes                , desc md md_cons ns_cons       , Dir info cached
     pytest_twisted.blockon(chutney(("wait_for_bootstrap", basic_network)))
 
     # print some useful stuff
@@ -571,3 +485,11 @@ def tor_network(reactor, temp_dir, chutney, request):
         pytest_twisted.blockon(chutney(("status", basic_network)))
     except ProcessTerminated:
         print("Chutney.TorNet status failed (continuing)")
+
+    # the "8008" comes from configuring "networks/basic" in chutney
+    # and then examining "net/nodes/008c/torrc" for ControlPort value
+    return ChutneyTorNetwork(
+        chutney_root,
+        chutney_env,
+        8008,
+    )

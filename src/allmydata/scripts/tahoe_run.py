@@ -1,14 +1,6 @@
 """
 Ported to Python 3.
 """
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 __all__ = [
     "RunOptions",
@@ -41,6 +33,9 @@ from allmydata.util.pid import (
 )
 from allmydata.storage.crawler import (
     MigratePickleFileError,
+)
+from allmydata.storage_client import (
+    MissingPlugin,
 )
 from allmydata.node import (
     PortAssignmentRequired,
@@ -195,6 +190,17 @@ class DaemonizeTheRealService(Service, HookMixin):
                         .format(
                             reason.value.args[0].path,
                             self.basedir,
+                        )
+                    )
+                elif reason.check(MissingPlugin):
+                    self.stderr.write(
+                        "Missing Plugin\n"
+                        "The configuration requests a plugin:\n"
+                        "\n    {}\n\n"
+                        "...which cannot be found.\n"
+                        "This typically means that some software hasn't been installed or the plugin couldn't be instantiated.\n\n"
+                        .format(
+                            reason.value.plugin_name,
                         )
                     )
                 else:

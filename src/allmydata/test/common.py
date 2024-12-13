@@ -117,6 +117,10 @@ from subprocess import (
     PIPE,
 )
 
+# Is the process running as an OS user with elevated privileges (ie, root)?
+# We only know how to determine this for POSIX systems.
+superuser = getattr(os, "getuid", lambda: -1)() == 0
+
 EMPTY_CLIENT_CONFIG = config_from_string(
     "/dev/null",
     "tub.port",
@@ -173,8 +177,8 @@ class MemoryIntroducerClient(object):
     sequencer = attr.ib()
     cache_filepath = attr.ib()
 
-    subscribed_to = attr.ib(default=attr.Factory(list))
-    published_announcements = attr.ib(default=attr.Factory(list))
+    subscribed_to : list[Subscription] = attr.ib(default=attr.Factory(list))
+    published_announcements : list[Announcement] = attr.ib(default=attr.Factory(list))
 
 
     def setServiceParent(self, parent):
@@ -284,7 +288,7 @@ class UseNode(object):
     basedir = attr.ib(validator=attr.validators.instance_of(FilePath))
     introducer_furl = attr.ib(validator=attr.validators.instance_of(str),
                               converter=six.ensure_str)
-    node_config = attr.ib(default=attr.Factory(dict))
+    node_config : dict[bytes,bytes] = attr.ib(default=attr.Factory(dict))
 
     config = attr.ib(default=None)
     reactor = attr.ib(default=None)
@@ -303,13 +307,17 @@ class UseNode(object):
         if self.plugin_config is None:
             plugin_config_section = ""
         else:
-            plugin_config_section = """
-[storageclient.plugins.{storage_plugin}]
-{config}
-""".format(
-    storage_plugin=self.storage_plugin,
-    config=format_config_items(self.plugin_config),
-)
+            plugin_config_section = (
+                "[storageclient.plugins.{storage_plugin}]\n"
+                "{config}\n").format(
+                    storage_plugin=self.storage_plugin,
+                    config=format_config_items(self.plugin_config),
+                )
+
+        if self.storage_plugin is None:
+            plugins = ""
+        else:
+            plugins = "storage.plugins = {}".format(self.storage_plugin)
 
         write_introducer(
             self.basedir,
@@ -336,18 +344,17 @@ class UseNode(object):
         self.config = config_from_string(
             self.basedir.asTextMode().path,
             "tub.port",
-"""
-[node]
-{node_config}
-
-[client]
-storage.plugins = {storage_plugin}
-{plugin_config_section}
-""".format(
-    storage_plugin=self.storage_plugin,
-    node_config=format_config_items(node_config),
-    plugin_config_section=plugin_config_section,
-)
+            "[node]\n"
+            "{node_config}\n"
+            "\n"
+            "[client]\n"
+            "{plugins}\n"
+            "{plugin_config_section}\n"
+            .format(
+                plugins=plugins,
+                node_config=format_config_items(node_config),
+                plugin_config_section=plugin_config_section,
+            )
         )
 
     def create_node(self):
@@ -1345,6 +1352,26 @@ class _TestCaseMixin(object):
     def assertRaises(self, *a, **kw):
         return self._dummyCase.assertRaises(*a, **kw)
 
+    def failUnless(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertTrue(*args, **kwargs)
+
+    def failIf(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertFalse(*args, **kwargs)
+
+    def failIfEqual(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertNotEqual(*args, **kwargs)
+
+    def failUnlessEqual(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertEqual(*args, **kwargs)
+
+    def failUnlessReallyEqual(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        self.assertReallyEqual(*args, **kwargs)
+
 
 class SyncTestCase(_TestCaseMixin, TestCase):
     """
@@ -1400,7 +1427,4 @@ class TrialTestCase(_TrialTestCase):
         you try to turn that Exception instance into a string.
         """
 
-        if six.PY2:
-            if isinstance(msg, six.text_type):
-                return super(TrialTestCase, self).fail(msg.encode("utf8"))
         return super(TrialTestCase, self).fail(msg)

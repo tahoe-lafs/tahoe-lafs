@@ -6,7 +6,6 @@ from __future__ import annotations
 
 
 from typing import (
-    Union,
     Optional,
     Sequence,
     Mapping,
@@ -26,8 +25,6 @@ from attrs import define, asdict, frozen, field
 from eliot import start_action, register_exception_extractor
 from eliot.twisted import DeferredContext
 
-# TODO Make sure to import Python version?
-from cbor2 import loads, dumps
 from pycddl import Schema
 from collections_extended import RangeMap
 from werkzeug.datastructures import Range, ContentRange
@@ -41,12 +38,12 @@ from twisted.internet.interfaces import (
     IDelayedCall,
 )
 from twisted.internet.ssl import CertificateOptions
+from twisted.protocols.tls import TLSMemoryBIOProtocol
 from twisted.web.client import Agent, HTTPConnectionPool
 from zope.interface import implementer
 from hyperlink import DecodedURL
 import treq
 from treq.client import HTTPClient
-from treq.testing import StubTreq
 from OpenSSL import SSL
 from werkzeug.http import parse_content_range_header
 
@@ -63,6 +60,8 @@ from .common import si_b2a, si_to_human_readable
 from ..util.hashutil import timing_safe_compare
 from ..util.deferredutil import async_to_deferred
 from ..util.tor_provider import _Provider as TorProvider
+from ..util.cputhreadpool import defer_to_thread
+from ..util.cbor import dumps
 
 try:
     from txtorcon import Tor  # type: ignore
@@ -72,7 +71,7 @@ except ImportError:
         pass
 
 
-def _encode_si(si):  # type: (bytes) -> str
+def _encode_si(si: bytes) -> str:
     """Encode the storage index into Unicode string."""
     return str(si_b2a(si), "ascii")
 
@@ -80,9 +79,13 @@ def _encode_si(si):  # type: (bytes) -> str
 class ClientException(Exception):
     """An unexpected response code from the server."""
 
-    def __init__(self, code, *additional_args):
-        Exception.__init__(self, code, *additional_args)
+    def __init__(
+        self, code: int, message: Optional[str] = None, body: Optional[bytes] = None
+    ):
+        Exception.__init__(self, code, message, body)
         self.code = code
+        self.message = message
+        self.body = body
 
 
 register_exception_extractor(ClientException, lambda e: {"response_code": e.code})
@@ -93,7 +96,7 @@ register_exception_extractor(ClientException, lambda e: {"response_code": e.code
 # Tags are of the form #6.nnn, where the number is documented at
 # https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml. Notably, #6.258
 # indicates a set.
-_SCHEMAS = {
+_SCHEMAS: Mapping[str, Schema] = {
     "get_version": Schema(
         # Note that the single-quoted (`'`) string keys in this schema
         # represent *byte* strings - per the CDDL specification.  Text strings
@@ -155,7 +158,7 @@ class _LengthLimitedCollector:
     timeout_on_silence: IDelayedCall
     f: BytesIO = field(factory=BytesIO)
 
-    def __call__(self, data: bytes):
+    def __call__(self, data: bytes) -> None:
         self.timeout_on_silence.reset(60)
         self.remaining_length -= len(data)
         if self.remaining_length < 0:
@@ -164,7 +167,7 @@ class _LengthLimitedCollector:
 
 
 def limited_content(
-    response,
+    response: IResponse,
     clock: IReactorTime,
     max_length: int = 30 * 1024 * 1024,
 ) -> Deferred[BinaryIO]:
@@ -300,11 +303,13 @@ class _StorageClientHTTPSPolicy:
     expected_spki_hash: bytes
 
     # IPolicyForHTTPS
-    def creatorForNetloc(self, hostname, port):
+    def creatorForNetloc(self, hostname: str, port: int) -> _StorageClientHTTPSPolicy:
         return self
 
     # IOpenSSLClientConnectionCreator
-    def clientConnectionForTLS(self, tlsProtocol):
+    def clientConnectionForTLS(
+        self, tlsProtocol: TLSMemoryBIOProtocol
+    ) -> SSL.Connection:
         return SSL.Connection(
             _TLSContextFactory(self.expected_spki_hash).getContext(), None
         )
@@ -344,7 +349,7 @@ class StorageClientFactory:
         cls.TEST_MODE_REGISTER_HTTP_POOL = callback
 
     @classmethod
-    def stop_test_mode(cls):
+    def stop_test_mode(cls) -> None:
         """Stop testing mode."""
         cls.TEST_MODE_REGISTER_HTTP_POOL = None
 
@@ -427,7 +432,7 @@ class StorageClient(object):
     # The URL should be a HTTPS URL ("https://...")
     _base_url: DecodedURL
     _swissnum: bytes
-    _treq: Union[treq, StubTreq, HTTPClient]
+    _treq: HTTPClient
     _pool: HTTPConnectionPool
     _clock: IReactorTime
     # Are we running unit tests?
@@ -437,7 +442,7 @@ class StorageClient(object):
         """Get a URL relative to the base URL."""
         return self._base_url.click(path)
 
-    def _get_headers(self, headers):  # type: (Optional[Headers]) -> Headers
+    def _get_headers(self, headers: Optional[Headers]) -> Headers:
         """Return the basic headers to be used by default."""
         if headers is None:
             headers = Headers()
@@ -466,7 +471,8 @@ class StorageClient(object):
         into corresponding HTTP headers.
 
         If ``message_to_serialize`` is set, it will be serialized (by default
-        with CBOR) and set as the request body.
+        with CBOR) and set as the request body.  It should not be mutated
+        during execution of this function!
 
         Default timeout is 60 seconds.
         """
@@ -532,7 +538,7 @@ class StorageClient(object):
                     "Can't use both `message_to_serialize` and `data` "
                     "as keyword arguments at the same time"
                 )
-            kwargs["data"] = dumps(message_to_serialize)
+            kwargs["data"] = await defer_to_thread(dumps, message_to_serialize)
             headers.addRawHeader("Content-Type", CBOR_MIME_TYPE)
 
         response = await self._treq.request(
@@ -550,8 +556,11 @@ class StorageClient(object):
                 if content_type == CBOR_MIME_TYPE:
                     f = await limited_content(response, self._clock)
                     data = f.read()
-                    schema.validate_cbor(data)
-                    return loads(data)
+
+                    def validate_and_decode():
+                        return schema.validate_cbor(data, True)
+
+                    return await defer_to_thread(validate_and_decode)
                 else:
                     raise ClientException(
                         -1,
@@ -565,7 +574,7 @@ class StorageClient(object):
                 ).read()
                 raise ClientException(response.code, response.phrase, data)
 
-    def shutdown(self) -> Deferred:
+    def shutdown(self) -> Deferred[object]:
         """Shutdown any connections."""
         return self._pool.closeCachedConnections()
 
@@ -1225,7 +1234,8 @@ class StorageClientMutables:
             return cast(
                 Set[int],
                 await self._client.decode_cbor(
-                    response, _SCHEMAS["mutable_list_shares"]
+                    response,
+                    _SCHEMAS["mutable_list_shares"],
                 ),
             )
         else:

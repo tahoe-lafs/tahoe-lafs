@@ -1,14 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
-
-from future.utils import PY2, PY3
-if PY2:
-    # We don't import str because omg way too ambiguous in this context.
-    from builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, max, min  # noqa: F401
-
-from past.builtins import unicode
 
 lumiere_nfc = u"lumi\u00E8re"
 Artonwall_nfc = u"\u00C4rtonwall.mp3"
@@ -53,13 +42,7 @@ if __name__ == "__main__":
         for fname in TEST_FILENAMES:
             open(os.path.join(tmpdir, fname), 'w').close()
 
-        # On Python 2, listing directories returns unicode under Windows or
-        # MacOS X if the input is unicode. On Python 3, it always returns
-        # Unicode.
-        if PY2 and sys.platform in ('win32', 'darwin'):
-            dirlist = os.listdir(unicode(tmpdir))
-        else:
-            dirlist = os.listdir(tmpdir)
+        dirlist = os.listdir(tmpdir)
 
         print("    dirlist = %s" % repr(dirlist))
     except:
@@ -71,7 +54,6 @@ if __name__ == "__main__":
 
 
 import os, sys
-from unittest import skipIf
 
 from twisted.trial import unittest
 
@@ -83,54 +65,13 @@ from allmydata.test.common_util import (
 from allmydata.util import encodingutil, fileutil
 from allmydata.util.encodingutil import unicode_to_url, \
     unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
-    quote_filepath, unicode_platform, listdir_unicode, FilenameEncodingError, \
+    quote_filepath, unicode_platform, listdir_unicode, \
     get_filesystem_encoding, to_bytes, from_utf8_or_none, _reload, \
     to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from, \
     unicode_to_argv
 
 class MockStdout(object):
     pass
-
-# The following tests apply only to platforms that don't store filenames as
-# Unicode entities on the filesystem.
-class EncodingUtilNonUnicodePlatform(unittest.TestCase):
-    @skipIf(PY3, "Python 3 is always Unicode, regardless of OS.")
-    def setUp(self):
-        # Make sure everything goes back to the way it was at the end of the
-        # test.
-        self.addCleanup(_reload)
-
-        # Mock sys.platform because unicode_platform() uses it.  Cleanups run
-        # in reverse order so we do this second so it gets undone first.
-        self.patch(sys, "platform", "linux")
-
-    def test_listdir_unicode(self):
-        # What happens if latin1-encoded filenames are encountered on an UTF-8
-        # filesystem?
-        def call_os_listdir(path):
-            return [
-              lumiere_nfc.encode('utf-8'),
-              lumiere_nfc.encode('latin1')
-            ]
-        self.patch(os, 'listdir', call_os_listdir)
-
-        sys_filesystemencoding = 'utf-8'
-        def call_sys_getfilesystemencoding():
-            return sys_filesystemencoding
-        self.patch(sys, 'getfilesystemencoding', call_sys_getfilesystemencoding)
-
-        _reload()
-        self.failUnlessRaises(FilenameEncodingError,
-                              listdir_unicode,
-                              u'/dummy')
-
-        # We're trying to list a directory whose name cannot be represented in
-        # the filesystem encoding.  This should fail.
-        sys_filesystemencoding = 'ascii'
-        _reload()
-        self.failUnlessRaises(FilenameEncodingError,
-                              listdir_unicode,
-                              u'/' + lumiere_nfc)
 
 
 class EncodingUtil(ReallyEqualMixin):
@@ -141,19 +82,6 @@ class EncodingUtil(ReallyEqualMixin):
     def test_unicode_to_url(self):
         self.failUnless(unicode_to_url(lumiere_nfc), b"lumi\xc3\xa8re")
 
-    @skipIf(PY3, "Python 3 is always Unicode, regardless of OS.")
-    def test_unicode_to_output_py2(self):
-        if 'argv' not in dir(self):
-            return
-
-        mock_stdout = MockStdout()
-        mock_stdout.encoding = self.io_encoding
-        self.patch(sys, 'stdout', mock_stdout)
-
-        _reload()
-        self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), self.argv)
-
-    @skipIf(PY2, "Python 3 only.")
     def test_unicode_to_output_py3(self):
         self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), lumiere_nfc)
 
@@ -163,28 +91,11 @@ class EncodingUtil(ReallyEqualMixin):
         converts to bytes using UTF-8 elsewhere.
         """
         result = unicode_to_argv(lumiere_nfc)
-        if PY3 or self.platform == "win32":
-            expected_value = lumiere_nfc
-        else:
-            expected_value = lumiere_nfc.encode(self.io_encoding)
+        expected_value = lumiere_nfc
 
         self.assertIsInstance(result, type(expected_value))
         self.assertEqual(result, expected_value)
 
-    @skipIf(PY3, "Python 3 only.")
-    def test_unicode_platform_py2(self):
-        matrix = {
-          'linux2': False,
-          'linux3': False,
-          'openbsd4': False,
-          'win32':  True,
-          'darwin': True,
-        }
-
-        _reload()
-        self.failUnlessReallyEqual(unicode_platform(), matrix[self.platform])
-
-    @skipIf(PY2, "Python 3 isn't Python 2.")
     def test_unicode_platform_py3(self):
         _reload()
         self.failUnlessReallyEqual(unicode_platform(), True)
@@ -201,13 +112,10 @@ class EncodingUtil(ReallyEqualMixin):
                                     % (self.filesystem_encoding,))
 
         def call_os_listdir(path):
-            if PY2:
-                return self.dirlist
-            else:
-                # Python 3 always lists unicode filenames:
-                return [d.decode(self.filesystem_encoding) if isinstance(d, bytes)
-                        else d
-                        for d in self.dirlist]
+            # Python 3 always lists unicode filenames:
+            return [d.decode(self.filesystem_encoding) if isinstance(d, bytes)
+                    else d
+                    for d in self.dirlist]
 
         self.patch(os, 'listdir', call_os_listdir)
 
@@ -238,10 +146,7 @@ class StdlibUnicode(unittest.TestCase):
         fn = lumiere_nfc + u'/' + lumiere_nfc + u'.txt'
         open(fn, 'wb').close()
         self.failUnless(os.path.exists(fn))
-        if PY2:
-            getcwdu = os.getcwdu
-        else:
-            getcwdu = os.getcwd
+        getcwdu = os.getcwd
         self.failUnless(os.path.exists(os.path.join(getcwdu(), fn)))
         filenames = listdir_unicode(lumiere_nfc)
 
@@ -271,7 +176,7 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         _reload()
 
     def _check(self, inp, out, enc, optional_quotes, quote_newlines):
-        if PY3 and isinstance(out, bytes):
+        if isinstance(out, bytes):
             out = out.decode(enc or encodingutil.io_encoding)
         out2 = out
         if optional_quotes:
@@ -300,9 +205,7 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
 
     def _test_quote_output_all(self, enc):
         def check(inp, out, optional_quotes=False, quote_newlines=None):
-            if PY3:
-                # Result is always Unicode on Python 3
-                out = out.decode("ascii")
+            out = out.decode("ascii")
             self._check(inp, out, enc, optional_quotes, quote_newlines)
 
         # optional single quotes
@@ -365,9 +268,6 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
 
     def test_quote_output_utf8(self, enc='utf-8'):
         def check(inp, out, optional_quotes=False, quote_newlines=None):
-            if PY2:
-                # On Python 3 output is always Unicode:
-                out = out.encode('utf-8')
             self._check(inp, out, enc, optional_quotes, quote_newlines)
 
         self._test_quote_output_all(enc)
@@ -391,9 +291,7 @@ def win32_other(win32, other):
 class QuotePaths(ReallyEqualMixin, unittest.TestCase):
 
     def assertPathsEqual(self, actual, expected):
-        if PY3:
-            # On Python 3, results should be unicode:
-            expected = expected.decode("ascii")
+        expected = expected.decode("ascii")
         self.failUnlessReallyEqual(actual, expected)
 
     def test_quote_path(self):
@@ -445,8 +343,7 @@ class FilePaths(ReallyEqualMixin, unittest.TestCase):
 
         for fp in (nosep_fp, sep_fp):
             self.failUnlessReallyEqual(fp, FilePath(foo_u))
-            if encodingutil.use_unicode_filepath:
-                self.failUnlessReallyEqual(fp.path, foo_u)
+            self.failUnlessReallyEqual(fp.path, foo_u)
 
         if sys.platform == "win32":
             long_u = u'\\\\?\\C:\\foo'
@@ -462,8 +359,7 @@ class FilePaths(ReallyEqualMixin, unittest.TestCase):
         for foo_fp in (foo_bfp, foo_ufp):
             fp = extend_filepath(foo_fp, [u'bar', u'baz'])
             self.failUnlessReallyEqual(fp, FilePath(foo_bar_baz_u))
-            if encodingutil.use_unicode_filepath:
-                self.failUnlessReallyEqual(fp.path, foo_bar_baz_u)
+            self.failUnlessReallyEqual(fp.path, foo_bar_baz_u)
 
     def test_unicode_from_filepath(self):
         foo_bfp = FilePath(win32_other(b'C:\\foo', b'/foo'))

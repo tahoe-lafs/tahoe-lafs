@@ -1,6 +1,6 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.18.0
+﻿ANNOUNCING Tahoe, the Least-Authority File Store, v1.19.0
 
-The Tahoe-LAFS team is pleased to announce version 1.18.0 of
+The Tahoe-LAFS team is pleased to announce version 1.19.0 of
 Tahoe-LAFS, an extremely reliable decentralized storage
 system. Get it with "pip install tahoe-lafs", or download a
 tarball here:
@@ -15,12 +15,32 @@ unique security and fault-tolerance properties:
 
   https://tahoe-lafs.readthedocs.org/en/latest/about.html
 
-The previous stable release of Tahoe-LAFS was v1.17.1, released on
-January 7, 2022.
+The previous stable release of Tahoe-LAFS was v1.18.0, released on
+October 2, 2022. Major new features and changes in this release:
 
-This release drops support for Python 2 and for Python 3.6 and earlier.
-twistd.pid is no longer used (in favour of one with pid + process creation time).
-A collection of minor bugs and issues were also fixed.
+A new "Grid Manager" feature allows clients to specify any number of
+parties whom they will use to limit which storage-server that client
+talks to. See docs/managed-grid.rst for more.
+
+The new HTTP-based "Great Black Swamp" protocol is now enabled
+(replacing Foolscap). This allows integrators to start with their
+favourite HTTP library (instead of implementing Foolscap first). Both
+storage-servers and clients support this new protocol.
+
+`tahoe run` will now exit if its stdin is closed (but accepts --allow-stdin-close now).
+
+Mutables may be created with a pre-determined signature key; care must
+be taken!
+
+This release drops Python 3.7 support and adds Python 3.11 and 3.12
+support. Several performance improvements have been made. Introducer
+correctly listens on Tor or I2P. Debian 10 and Ubuntu 20.04 are no
+longer tested.
+
+Besides all this there have been dozens of other bug-fixes and
+improvements.
+
+Enjoy!
 
 Please see ``NEWS.rst`` [1] for a complete list of changes.
 
@@ -145,12 +165,12 @@ October 1, 2022
 Planet Earth
 
 
-[1] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.18.0/NEWS.rst
+[1] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.19.0/NEWS.rst
 [2] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/docs/known_issues.rst
 [3] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
-[4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.18.0/COPYING.GPL
-[5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.18.0/COPYING.TGPPL.rst
-[6] https://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.18.0/INSTALL.html
+[4] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.19.0/COPYING.GPL
+[5] https://github.com/tahoe-lafs/tahoe-lafs/blob/tahoe-lafs-1.19.0/COPYING.TGPPL.rst
+[6] https://tahoe-lafs.readthedocs.org/en/tahoe-lafs-1.19.0/INSTALL.html
 [7] https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev
 [8] https://tahoe-lafs.org/trac/tahoe-lafs/roadmap
 [9] https://github.com/tahoe-lafs/tahoe-lafs/blob/master/CREDITS

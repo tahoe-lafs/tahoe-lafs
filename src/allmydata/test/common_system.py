@@ -685,6 +685,10 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
     REDUCE_HTTP_CLIENT_TIMEOUT : bool = True
 
     def setUp(self):
+        if os.getenv("TAHOE_DEBUG_BLOCKING") == "1":
+            from .blocking import catch_blocking_in_event_loop
+            catch_blocking_in_event_loop(self)
+
         self._http_client_pools = []
         http_client.StorageClientFactory.start_test_mode(self._got_new_http_connection_pool)
         self.addCleanup(http_client.StorageClientFactory.stop_test_mode)
@@ -696,6 +700,8 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         self.sparent.startService()
 
     def _got_new_http_connection_pool(self, pool):
+        # Make sure the pool closes cached connections quickly:
+        pool.cachedConnectionTimeout = 0.1
         # Register the pool for shutdown later:
         self._http_client_pools.append(pool)
         # Disable retries:

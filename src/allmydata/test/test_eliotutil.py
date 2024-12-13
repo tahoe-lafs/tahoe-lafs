@@ -1,19 +1,6 @@
 """
 Tests for ``allmydata.util.eliotutil``.
-
-Ported to Python 3.
 """
-
-from __future__ import (
-    unicode_literals,
-    print_function,
-    absolute_import,
-    division,
-)
-
-from future.utils import PY2
-if PY2:
-    from future.builtins import filter, map, zip, ascii, chr, hex, input, next, oct, open, pow, round, super, bytes, dict, list, object, range, str, max, min  # noqa: F401
 
 from sys import stdout
 import logging
@@ -47,7 +34,6 @@ from eliot import (
     Message,
     MessageType,
     fields,
-    FileDestination,
     MemoryLogger,
 )
 from eliot.twisted import DeferredContext
@@ -64,11 +50,11 @@ from twisted.internet.task import deferLater
 from twisted.internet import reactor
 
 from ..util.eliotutil import (
-    eliot_json_encoder,
     log_call_deferred,
     _parse_destination_description,
     _EliotLogging,
 )
+from ..util.deferredutil import async_to_deferred
 
 from .common import (
     SyncTestCase,
@@ -188,8 +174,8 @@ class ParseDestinationDescriptionTests(SyncTestCase):
         """
         reactor = object()
         self.assertThat(
-            _parse_destination_description("file:-")(reactor),
-            Equals(FileDestination(stdout, encoder=eliot_json_encoder)),
+            _parse_destination_description("file:-")(reactor).file,
+            Equals(stdout),
         )
 
 
@@ -216,13 +202,14 @@ class ParseDestinationDescriptionTests(SyncTestCase):
         )
 
 
-# Opt out of the great features of common.SyncTestCase because we're
-# interacting with Eliot in a very obscure, particular, fragile way. :/
-class EliotLoggingTests(TestCase):
+# We need AsyncTestCase because logging happens in a thread tied to the
+# reactor.
+class EliotLoggingTests(AsyncTestCase):
     """
     Tests for ``_EliotLogging``.
     """
-    def test_stdlib_event_relayed(self):
+    @async_to_deferred
+    async def test_stdlib_event_relayed(self):
         """
         An event logged using the stdlib logging module is delivered to the Eliot
         destination.
@@ -230,23 +217,16 @@ class EliotLoggingTests(TestCase):
         collected = []
         service = _EliotLogging([collected.append])
         service.startService()
-        self.addCleanup(service.stopService)
-
-        # The first destination added to the global log destinations gets any
-        # buffered messages delivered to it.  We don't care about those.
-        # Throw them on the floor.  Sorry.
-        del collected[:]
 
         logging.critical("oh no")
-        self.assertThat(
-            collected,
-            AfterPreprocessing(
-                len,
-                Equals(1),
-            ),
+        await service.stopService()
+
+        self.assertTrue(
+            "oh no" in str(collected[-1]), collected
         )
 
-    def test_twisted_event_relayed(self):
+    @async_to_deferred
+    async def test_twisted_event_relayed(self):
         """
         An event logged with a ``twisted.logger.Logger`` is delivered to the Eliot
         destination.
@@ -254,15 +234,13 @@ class EliotLoggingTests(TestCase):
         collected = []
         service = _EliotLogging([collected.append])
         service.startService()
-        self.addCleanup(service.stopService)
 
         from twisted.logger import Logger
         Logger().critical("oh no")
-        self.assertThat(
-            collected,
-            AfterPreprocessing(
-                len, Equals(1),
-            ),
+        await service.stopService()
+
+        self.assertTrue(
+            "oh no" in str(collected[-1]), collected
         )
 
     def test_validation_failure(self):
@@ -318,7 +296,6 @@ class EliotLoggingTests(TestCase):
             actual,
             Is(expected),
         )
-
 
 
 class LogCallDeferredTests(TestCase):

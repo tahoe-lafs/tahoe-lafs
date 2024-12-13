@@ -252,7 +252,7 @@ def create_no_network_client(basedir):
         i2p_provider=None,
         tor_provider=None,
         introducer_clients=[],
-        storage_farm_broker=storage_broker,
+        storage_farm_broker=storage_broker
     )
     # this is a (pre-existing) reference-cycle and also a bad idea, see:
     # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2949

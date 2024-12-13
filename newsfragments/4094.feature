@@ -1,0 +1,1 @@
+Mutable directories can now be created with a pre-determined "signature key" via the web API using the "private-key=..." parameter. The "private-key" value must be a DER-encoded 2048-bit RSA private key in urlsafe base64 encoding.

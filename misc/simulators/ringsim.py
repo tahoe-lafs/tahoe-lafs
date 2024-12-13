@@ -4,7 +4,6 @@
 
 # import time
 
-from __future__ import print_function
 
 import math
 from hashlib import md5  # sha1, sha256
