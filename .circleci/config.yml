@@ -134,6 +134,10 @@ workflows:
                 - "3.12"
 
       - "integration":
+          # attempt to ignore failures from this build, since it
+          # usually does (on one of the test_tor.py integration
+          # tests). This works locally with "tox 4.21.0" but not on
+          # the container.
           tox-args: "-x testenv.integration.ignore_outcome=True -- integration"
           requires:
             # If the unit test suite doesn't pass, don't bother running the
