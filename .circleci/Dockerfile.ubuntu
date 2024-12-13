@@ -16,7 +16,6 @@ RUN apt-get --quiet update && \
         build-essential \
         python${PYTHON_VERSION} \
         python${PYTHON_VERSION}-dev \
-        libgpgme-dev \
         libffi-dev \
         libssl-dev \
         libyaml-dev \

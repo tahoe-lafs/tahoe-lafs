@@ -14,7 +14,6 @@ RUN yum install --assumeyes \
     make automake gcc gcc-c++ \
     python${PYTHON_VERSION} \
     python${PYTHON_VERSION}-devel \
-    gpgme-devel \
     libffi-devel \
     openssl-devel \
     libyaml-devel \
