@@ -42,40 +42,10 @@ in {
     tahoe-lafs-src = self.lib.cleanSource ../.;
   };
 
-  # Some dependencies aren't packaged in nixpkgs so supply our own packages.
-  pycddl = self.callPackage ./pycddl.nix { };
-  txi2p = self.callPackage ./txi2p.nix { };
-
-  # Some packages are of somewhat too-old versions - update them.
-  klein = self.callPackage ./klein.nix {
-    # Avoid infinite recursion.
-    inherit (super) klein;
-  };
-  txtorcon = self.callPackage ./txtorcon.nix {
-    inherit (super) txtorcon;
-  };
-
-  # With our customized package set a Twisted unit test fails.  Patch the
-  # Twisted test suite to skip that test.
-  # Filed upstream at https://github.com/twisted/twisted/issues/11877
-  twisted = super.twisted.overrideAttrs (old: {
-    patches = (old.patches or []) ++ [ ./twisted.patch ];
-  });
-
-  # Update the version of pyopenssl - and since we're doing that anyway, we
-  # don't need the docs.  Unfortunately this triggers a lot of rebuilding of
-  # dependent packages.
-  pyopenssl = dontBuildDocs (self.callPackage ./pyopenssl.nix {
-    inherit (super) pyopenssl;
-  });
-
-  # The cryptography that we get from nixpkgs to satisfy the pyopenssl upgrade
-  # that we did breaks service-identity ... so get a newer version that works.
-  service-identity = self.callPackage ./service-identity.nix { };
-
   # collections-extended is currently broken for Python 3.11 in nixpkgs but
   # we know where a working version lives.
   collections-extended = self.callPackage ./collections-extended.nix {
+    # Avoid infinite recursion.
     inherit (super) collections-extended;
   };
 
