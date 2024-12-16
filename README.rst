@@ -118,7 +118,7 @@ Need more information? Please check our `FAQ page <https://www.tahoe-lafs.org/tr
 📄 License
 ----------
 
-Copyright 2006-2020 The Tahoe-LAFS Software Foundation
+Copyright 2006-2025 The Tahoe-LAFS Software Foundation
 
 You may use this package under the GNU General Public License, version 2 or, at your option, any later version. You may use this package under the Transitive Grace Period Public Licence, version 1.0, or at your choice, any later version. (You may choose to use this package under the terms of either license, at your option.) See the file `COPYING.GPL <COPYING.GPL>`__ for the terms of the GNU General Public License, version 2. See the file `COPYING.TGPPL <COPYING.TGPPL.rst>`__ for the terms of the Transitive Grace Period Public Licence, version 1.0.
 
