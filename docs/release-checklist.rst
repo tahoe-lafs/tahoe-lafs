@@ -93,59 +93,36 @@ Create Branch and Apply Updates
 - Confirm CI runs successfully on all platforms
 
 
-Create Release Candidate
-````````````````````````
-
-Before "officially" tagging any release, we will make a
-release-candidate available. So there will be at least 1.15.0rc0 (for
-example). If there are any problems, an rc1 or rc2 etc may also be
-released. Anyone can sign these releases (ideally they'd be signed
-"officially" as well, but it's better to get them out than to wait for
-that).
-
-Typically expert users will be the ones testing release candidates and
-they will need to evaluate which contributors' signatures they trust.
-
-- (all steps above are completed)
-- sign the release
-
-  - git tag -s -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A -m "release Tahoe-LAFS-1.16.0rc0" tahoe-lafs-1.16.0rc0
-
-.. note:: 
-    - Replace the key-id above with your own, which can simply be your email if it's attached to your fingerprint.
-    - Don't forget to put the correct tag message and name. In this example, the tag message is "release Tahoe-LAFS-1.16.0rc0" and the tag name is ``tahoe-lafs-1.16.0rc0`` 
+Create The Release
+``````````````````
 
 - build all code locally
 
   - these should all pass:
 
-    - tox -e py37,codechecks,docs,integration
+    - tox -e py311,codechecks,docs,integration
 
   - these can fail (ideally they should not of course):
 
     - tox -e deprecations,upcoming-deprecations
 
-- clone to a clean, local checkout (to avoid extra files being included in the release)
+- install build dependencies
 
-    - cd /tmp
-    - git clone /home/meejah/src/tahoe-lafs
+    - pip install -e .[build]
 
-- build tarballs
+- build tarball + wheel (should be built into dist/)
 
-  - tox -e tarballs
-  - Confirm that release tarballs exist by runnig: 
-
-    - ls dist/ | grep 1.16.0rc0
+    - hatchling build
 
 - inspect and test the tarballs
 
-  - install each in a fresh virtualenv
-  - run `tahoe` command
+    - install each in a fresh virtualenv
+    - run `tahoe` command
 
 - when satisfied, sign the tarballs:
 
-  - gpg --pinentry=loopback --armor -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A --detach-sign dist/tahoe_lafs-1.16.0rc0-py2.py3-none-any.whl
-  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.16.0rc0.tar.gz
+  - gpg --pinentry=loopback --armor -u 0xE34E62D06D0E69CFCA4179FFBDE0D31D68666A7A --detach-sign dist/tahoe_lafs-1.20.0rc0-py2.py3-none-any.whl
+  - gpg --pinentry=loopback --armor --detach-sign dist/tahoe_lafs-1.20.0rc0.tar.gz
 
 
 Privileged Contributor
@@ -172,14 +149,14 @@ Sign Git Tag
 Upload Artifacts
 ````````````````
 
-Any release-candidate or actual release plus signature (.asc file)
-need to be uploaded to https://tahoe-lafs.org in `~source/downloads`
+Any release plus signature (.asc file) need to be uploaded to
+https://tahoe-lafs.org in `~source/downloads`
 
 - secure-copy all release artifacts to the download area on the
   tahoe-lafs.org host machine. `~source/downloads` on there maps to
   https://tahoe-lafs.org/downloads/ on the Web:
 
-    - scp dist/*1.15.0* username@tahoe-lafs.org:/home/source/downloads
+    - scp dist/*1.20.0* username@tahoe-lafs.org:/home/source/downloads
 
 - the following developers have access to do this:
 
@@ -189,13 +166,13 @@ need to be uploaded to https://tahoe-lafs.org in `~source/downloads`
 
 Push the signed tag to the main repository:
 
-- git push origin tahoe-lafs-1.17.1
+- git push origin tahoe-lafs-1.20.0
 
 For the actual release, the tarball and signature files need to be
 uploaded to PyPI as well.
 
-- ls dist/*1.19.0*
-- twine upload --username __token__ --password `cat SECRET-pypi-tahoe-publish-token` dist/*1.19.0*
+- ls dist/*1.20.0*
+- twine upload --username __token__ --password `cat SECRET-pypi-tahoe-publish-token` dist/*1.20.0*
 
 The following developers have access to do this:
 
@@ -204,47 +181,29 @@ The following developers have access to do this:
   - exarkun (partial?)
 
 
-Announcing the Release Candidate
-````````````````````````````````
-
-The release-candidate should be announced by posting to the
-mailing-list (tahoe-dev@lists.tahoe-lafs.org). For example:
-https://lists.tahoe-lafs.org/pipermail/tahoe-dev/2020-October/009978.html
-
-
-Is The Release Done Yet?
+Merge the Release Branch
 ````````````````````````
 
-If anyone reports a problem with a release-candidate then a new
-release-candidate should be made once a fix has been merged to
-master. Repeat the above instructions with `rc1` or `rc2` or whatever
-is appropriate.
-
-Once a release-candidate has marinated for some time then it can be
-made into a the actual release.
-
-The actual release follows the same steps as above, with some differences:
-
-- there is no "-rcX" on the end of release names
-- the release is uploaded to PyPI (using Twine)
-- the version is tagged in Git (ideally using "the tahoe release key"
-  but can be done with any of the authorized core developers' personal
-  key)
-- the release-candidate branches must be merged back to master after
-  the release is official (e.g. causing newsfragments to be deleted on
-  master, etc)
+Once the release has been signed and uploaded the release branch
+should be merged to master (thus deleting newsfragments, etc).
 
 
 Announcing the Release
-----------------------
+``````````````````````
+
+The release-candidate should be announced by posting to the
+mailing-list (tahoe-dev@lists.tahoe-lafs.org).
 
 
 mailing-lists
 `````````````
 
 A new Tahoe release is traditionally announced on our mailing-list
-(tahoe-dev@tahoe-lafs.org). The former version of these instructions
-also announced the release on the following other lists:
+(tahoe-dev@lists.tahoe-lafs.org).  For example:
+https://lists.tahoe-lafs.org/pipermail/tahoe-dev/2020-October/009978.html
+
+The former version of these instructions also announced the release on
+the following other lists:
 
 - tahoe-announce@tahoe-lafs.org
 - twisted-python@twistedmatrix.com
