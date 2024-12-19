@@ -226,6 +226,7 @@ testenv = [
 # Here are the library dependencies of the test suite.
 test = [
     "mock",
+    "tox",
     "pytest",
     "pytest-twisted",
     "tox >= 4.0.0",
