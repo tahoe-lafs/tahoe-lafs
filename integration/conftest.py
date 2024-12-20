@@ -33,9 +33,9 @@ from typing import Mapping
 from .util import (
     _MagicTextProtocol,
     _DumpOutputProtocol,
-    _ProcessExitedProtocol,
     _create_node,
     _tahoe_runner_optional_coverage,
+    dump_output,
     await_client_ready,
     block_with_timeout,
 )
@@ -203,7 +203,7 @@ def tor_introducer(reactor, temp_dir, flog_gatherer, request, tor_network):
 
     if not exists(intro_dir):
         mkdir(intro_dir)
-        done_proto = _ProcessExitedProtocol()
+        done_proto = _DumpOutputProtocol(None)
         _tahoe_runner_optional_coverage(
             done_proto,
             reactor,
@@ -345,33 +345,31 @@ def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
     # install -e .[dev]" (i.e. in the 'dev' extra)
     #
     # https://trac.torproject.org/projects/tor/ticket/20343
-    proto = _DumpOutputProtocol(None)
-    reactor.spawnProcess(
-        proto,
-        'git',
-        (
+    pytest_twisted.blockon(dump_output(
+        reactor,
+        executable='git',
+        argv=(
             'git', 'clone',
             'https://gitlab.torproject.org/tpo/core/chutney.git',
             chutney_dir,
         ),
         env=environ,
-    )
-    pytest_twisted.blockon(proto.done)
+        path=".",
+    ))
 
     # XXX: Here we reset Chutney to a specific revision known to work,
     # since there are no stability guarantees or releases yet.
-    proto = _DumpOutputProtocol(None)
-    reactor.spawnProcess(
-        proto,
-        'git',
-        (
+    pytest_twisted.blockon(dump_output(
+        reactor,
+        executable='git',
+        argv=(
             'git', '-C', chutney_dir,
             'reset', '--hard',
             'c4f6789ad2558dcbfeb7d024c6481d8112bfb6c2'
         ),
         env=environ,
-    )
-    pytest_twisted.blockon(proto.done)
+        path=".",
+    ))
 
     return chutney_dir, {"PYTHONPATH": join(chutney_dir, "lib")}
 
@@ -429,15 +427,13 @@ def tor_network(reactor, temp_dir, chutney, request):
     })
     chutney_argv = (sys.executable, '-m', 'chutney.TorNet')
     def chutney(argv):
-        proto = _DumpOutputProtocol(None)
-        reactor.spawnProcess(
-            proto,
+        return dump_output(
+            reactor,
             sys.executable,
             chutney_argv + argv,
             path=join(chutney_root),
             env=env,
         )
-        return proto.done
 
     # now, as per Chutney's README, we have to create the network
     pytest_twisted.blockon(chutney(("configure", basic_network)))
