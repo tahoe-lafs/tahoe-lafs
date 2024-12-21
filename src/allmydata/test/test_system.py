@@ -3,7 +3,6 @@ Ported to Python 3.
 """
 from __future__ import annotations
 
-from past.builtins import chr as byteschr
 from six import ensure_text
 
 import os, re, sys, time, json
@@ -47,6 +46,8 @@ from .web.common import (
 from .common_system import SystemTestMixin
 from .common_util import run_cli_unicode
 
+def byteschr(x):
+    return bytes([x])
 
 class RunBinTahoeMixin(object):
     def run_bintahoe(self, args, stdin=None, python_options:Optional[list[str]]=None, env=None):

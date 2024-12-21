@@ -3,8 +3,6 @@ Functionality related to a lot of the test suite.
 """
 from __future__ import annotations
 
-from past.builtins import chr as byteschr
-
 __all__ = [
     "SyncTestCase",
     "AsyncTestCase",
@@ -126,6 +124,9 @@ EMPTY_CLIENT_CONFIG = config_from_string(
     "tub.port",
     ""
 )
+
+def byteschr(x):
+    return bytes([x])
 
 @attr.s
 class FakeDisk(object):

@@ -7,8 +7,6 @@ Ported to Python 3.
 maketrans = bytes.maketrans
 translate = bytes.translate
 
-from past.builtins import chr as byteschr
-
 from allmydata.util.mathutil import log_ceil, log_floor
 
 chars = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
@@ -19,6 +17,9 @@ vals = b''.join([byteschr(i) for i in range(62)])
 c2vtranstable = maketrans(chars, vals)
 v2ctranstable = maketrans(vals, chars)
 identitytranstable = maketrans(chars, chars)
+
+def byteschr(x):
+    return bytes([x])
 
 def b2a(os):
     """

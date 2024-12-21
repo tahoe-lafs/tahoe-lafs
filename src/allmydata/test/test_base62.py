@@ -4,8 +4,6 @@ Tests for allmydata.util.base62.
 Ported to Python 3.
 """
 
-from past.builtins import chr as byteschr
-
 import random, unittest
 
 from hypothesis import (
@@ -14,6 +12,9 @@ from hypothesis import (
 )
 
 from allmydata.util import base62, mathutil
+
+def byteschr(x):
+    return bytes([x])
 
 def insecurerandstr(n):
     return bytes(list(map(random.randrange, [0]*n, [256]*n)))
