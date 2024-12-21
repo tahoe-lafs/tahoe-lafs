@@ -5,7 +5,6 @@ Ported to Python 3.
 """
 
 from __future__ import annotations
-from future.utils import bchr
 from six import ensure_str
 
 from io import (
@@ -19,6 +18,9 @@ import struct
 import shutil
 from functools import partial
 from uuid import uuid4
+
+def bchr(s):
+    return bytes([s])
 
 from testtools.matchers import (
     Equals,

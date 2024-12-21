@@ -2,8 +2,6 @@
 Ported to Python 3.
 """
 
-from future.utils import bchr
-
 # system-level upload+download roundtrip test, but using shares created from
 # a previous run. This asserts that the current code is capable of decoding
 # shares from a previous version.
@@ -28,6 +26,9 @@ from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.immutable.downloader.fetcher import SegmentFetcher
 from allmydata.codec import CRSDecoder
 from foolscap.eventual import eventually, fireEventually, flushEventualQueue
+
+def bchr(s):
+    return bytes([s])
 
 plaintext = b"This is a moderate-sized file.\n" * 10
 mutable_plaintext = b"This is a moderate-sized mutable file.\n" * 10
