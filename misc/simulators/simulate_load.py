@@ -2,12 +2,12 @@
 
 # WARNING. There is a bug in this script so that it does not simulate the actual Tahoe Two server selection algorithm that it was intended to simulate. See http://allmydata.org/trac/tahoe-lafs/ticket/302 (stop permuting peerlist, use SI as offset into ring instead?)
 
-
-from past.builtins import cmp
-
 import random
 
 SERVER_CAPACITY = 10**12
+
+def cmp(a, b):
+    return (a > b) - (a < b)
 
 class Server(object):
     def __init__(self):
