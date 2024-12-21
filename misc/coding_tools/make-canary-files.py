@@ -51,12 +51,13 @@ system where Tahoe is installed, or in a source tree with setup.py like this:
  setup.py run_with_pythonpath -p -c 'misc/make-canary-files.py ARGS..'
 """
 
-from past.builtins import cmp
-
 import os, hashlib
 from twisted.python import usage
 from allmydata.immutable import upload
 from allmydata.util import base32
+
+def cmp(a, b):
+    return (a > b) - (a < b)
 
 class Options(usage.Options):
     optParameters = [

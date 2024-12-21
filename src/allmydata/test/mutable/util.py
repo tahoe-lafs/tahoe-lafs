@@ -2,7 +2,6 @@
 Ported to Python 3.
 """
 
-from future.utils import bchr
 
 from io import BytesIO
 import attr
@@ -19,6 +18,9 @@ from allmydata.mutable.publish import MutableData
 from ..common import (
     EMPTY_CLIENT_CONFIG,
 )
+
+def bchr(s):
+    return bytes([s])
 
 def eventuaaaaaly(res=None):
     d = fireEventually(res)

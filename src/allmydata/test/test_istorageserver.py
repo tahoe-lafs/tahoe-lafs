@@ -10,8 +10,6 @@ indexes.
 
 from __future__ import annotations
 
-from future.utils import bchr
-
 from random import Random
 from unittest import SkipTest
 
@@ -31,6 +29,8 @@ from allmydata.storage.server import StorageServer  # not a IStorageServer!!
 # are run in the same order.
 _RANDOM = Random(0)
 
+def bchr(s):
+    return bytes([s])
 
 def _randbytes(length):
     # type: (int) -> bytes
