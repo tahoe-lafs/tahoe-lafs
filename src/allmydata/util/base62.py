@@ -13,13 +13,13 @@ chars = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 BASE62CHAR = b'[' + chars + b']'
 
+def byteschr(x):
+    return bytes([x])
+
 vals = b''.join([byteschr(i) for i in range(62)])
 c2vtranstable = maketrans(chars, vals)
 v2ctranstable = maketrans(vals, chars)
 identitytranstable = maketrans(chars, chars)
-
-def byteschr(x):
-    return bytes([x])
 
 def b2a(os):
     """
