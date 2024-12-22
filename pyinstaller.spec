@@ -40,7 +40,6 @@ hidden_imports = [
     'commands',
     'Crypto',
     'functools',
-    'future.backports.misc',
     'itertools',
     'math',
     'packaging.specifiers',

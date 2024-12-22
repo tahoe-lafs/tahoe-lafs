@@ -2,8 +2,6 @@
 Ported to Python 3.
 """
 
-from past.builtins import chr as byteschr
-
 from zope.interface import implementer
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -19,6 +17,9 @@ from allmydata.test.no_network import GridTestMixin
 
 class LostPeerError(Exception):
     pass
+
+def byteschr(x):
+    return bytes([x])
 
 def flip_bit(good): # flips the last bit
     return good[:-1] + byteschr(ord(good[-1]) ^ 0x01)

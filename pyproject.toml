@@ -117,6 +117,7 @@ dependencies = [
 
     "PyYAML >= 3.11",
 
+    # to be slowly removed from codebase
     "six >= 1.10.0",
 
     # For 'tahoe invite' and 'tahoe join'
@@ -132,9 +133,6 @@ dependencies = [
 
     # WebSocket library for twisted and asyncio
     "autobahn >= 22.4.3",
-
-    # Support for Python 3 transition
-    "future >= 0.18.2",
 
     # Discover local network configuration
     "netifaces",

@@ -4,7 +4,8 @@ Hashing utilities.
 Ported to Python 3.
 """
 
-from past.builtins import chr as byteschr
+def byteschr(x):
+    return bytes([x])
 
 import os
 import hashlib
