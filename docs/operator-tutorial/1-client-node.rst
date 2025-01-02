@@ -17,7 +17,7 @@ Create a simple client configuration::
     --shares-total=1 \
     --nickname=client0
 
-.. info:: These options are explained in `Client Configuration`_ .
+.. note:: These options are explained in `Client Configuration <../managed-grid>`_ .
 
 You will see the console output end with something like:
 
@@ -48,7 +48,7 @@ When complete, the contents of the file will look something like this::
 
 The value for ``storage:`` open the file ``storage0/node.pubkey`` and copy everything after ``pub-``.
 
-The value for ``anonymous-storage-FURL:`` is the entire content of ``./storage0/private/storage.furl``. This is also called the anonymous :term:`fURL` of the storage server.
+The value for ``anonymous-storage-FURL:`` is the entire content of ``./storage0/private/storage.furl``. This is also called the anonymous :term:`fURLs` of the storage server.
 
 
 .. note::  Static server settings are described at https://tahoe-lafs.readthedocs.io/en/latest/configuration.html#static-server-definitions
@@ -75,6 +75,6 @@ Open the client's web UI at http://localhost:3456
 The landing page should show 1 of 1 storage servers connected, 0 introducers and 0 helpers.
 This verifies that the client can run Tahoe requests and that the storage node successfully responds.
 
-.. admonition:: Congratulations on completing Step 2 !
+.. note:: Congratulations on completing Step 2 !
     :class: tip
 
