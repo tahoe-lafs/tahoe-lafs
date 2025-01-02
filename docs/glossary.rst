@@ -16,11 +16,15 @@ Glossary of Tahoe-LAFS Terms
    storage service
      a Python object held in memory in the storage server which provides the implementation of the storage protocol
 
+   storage grid
+   grid
+     a set of servers running the storage service, represented as a single server to a client or introducer.
+
    introducer
      a Tahoe-LAFS process at a known location configured to re-publish announcements about the location of storage servers
 
    :ref:`fURLs <fURLs>`
-    fURL
+     fURL
      a self-authenticating URL-like string which can be used to locate a remote object using the Foolscap protocol
      (the storage service is an example of such an object)
 

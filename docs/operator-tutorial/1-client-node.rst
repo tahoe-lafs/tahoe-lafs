@@ -17,7 +17,7 @@ Create a simple client configuration::
     --shares-total=1 \
     --nickname=client0
 
-.. note:: These options are explained in `Client Configuration <../managed-grid>`_ .
+.. note:: These options are explained in `Client Configuration <managed-grid>`_ .
 
 You will see the console output end with something like:
 
