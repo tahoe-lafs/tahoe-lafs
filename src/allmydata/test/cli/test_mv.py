@@ -115,7 +115,7 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         original_do_http = tahoe_mv.do_http
         def mock_do_http(method, url, body=b""):
             if method == "DELETE":
-                class FakeResponse(object):
+                class FakeResponse:
                     def read(self):
                         return "response"
                 resp = FakeResponse()

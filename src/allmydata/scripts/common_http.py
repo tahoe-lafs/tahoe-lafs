@@ -31,7 +31,7 @@ def parse_url(url, defaultPort=None):
         path = "/"
     return scheme, host, port, path
 
-class BadResponse(object):
+class BadResponse:
     def __init__(self, url, err):
         self.status = -1
         self.reason = "Error trying to connect to %s: %s" % (url, err)

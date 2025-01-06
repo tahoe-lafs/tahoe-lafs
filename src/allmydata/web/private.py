@@ -68,7 +68,7 @@ _itoken_impl = implementer(IToken)
 
 @_itoken_impl
 @attr.s
-class Token(object):
+class Token:
     proposed_token = attr.ib(type=bytes)
 
     def equals(self, valid_token):
@@ -79,7 +79,7 @@ class Token(object):
 
 
 @attr.s
-class TokenChecker(object):
+class TokenChecker:
     get_auth_token = attr.ib()
 
     credentialInterfaces = [IToken]
@@ -94,7 +94,7 @@ class TokenChecker(object):
 
 @implementer(ICredentialFactory)
 @attr.s
-class TokenCredentialFactory(object):
+class TokenCredentialFactory:
     scheme = SCHEME
     authentication_realm = b"tahoe-lafs"
 
@@ -107,7 +107,7 @@ class TokenCredentialFactory(object):
 
 @implementer(IRealm)
 @attr.s
-class PrivateRealm(object):
+class PrivateRealm:
     _root = attr.ib()
 
     def _logout(self):

@@ -10,7 +10,7 @@ from allmydata.mutable.common import MODE_REPAIR
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 
 @implementer(IRepairResults)
-class RepairResults(object):
+class RepairResults:
 
     def __init__(self, smap):
         self.servermap = smap
@@ -27,7 +27,7 @@ class RepairRequiresWritecapError(Exception):
 class MustForceRepairError(Exception):
     pass
 
-class Repairer(object):
+class Repairer:
     def __init__(self, node, check_results, storage_broker, history, monitor):
         self.node = node
         self.check_results = ICheckResults(check_results)

@@ -1347,7 +1347,7 @@ def make_servers(clientids):
         servers[clientid] = make_server(clientid)
     return servers
 
-class MyShare(object):
+class MyShare:
     def __init__(self, shnum, server, rtt):
         self._shnum = shnum
         self._server = server
@@ -1363,7 +1363,7 @@ class MySegmentFetcher(SegmentFetcher):
     def _start_share(self, share, shnum):
         self._test_start_shares.append(share)
 
-class FakeNode(object):
+class FakeNode:
     def __init__(self):
         self.want_more = 0
         self.failed = None

@@ -7,7 +7,7 @@ import attr
 from testtools.matchers import Mismatch
 
 @attr.s
-class _HasResponseCode(object):
+class _HasResponseCode:
     match_expected_code = attr.ib()
 
     def match(self, response):

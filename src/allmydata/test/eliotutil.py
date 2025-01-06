@@ -57,7 +57,7 @@ RUN_TEST = ActionType(
 
 
 @attr.s
-class EliotLoggedRunTest(object):
+class EliotLoggedRunTest:
     """
     A *RunTest* implementation which surrounds test invocation with an
     Eliot-based action.
@@ -162,7 +162,7 @@ def with_logging(
 
 
 @implementer(ILogger)
-class _TwoLoggers(object):
+class _TwoLoggers:
     """
     Log to two loggers.
 

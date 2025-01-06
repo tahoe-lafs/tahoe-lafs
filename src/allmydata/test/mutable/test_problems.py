@@ -22,14 +22,14 @@ from ..no_network import GridTestMixin
 from .. import common_util as testutil
 from ..common_util import DevNullDictionary
 
-class SameKeyGenerator(object):
+class SameKeyGenerator:
     def __init__(self, pubkey, privkey):
         self.pubkey = pubkey
         self.privkey = privkey
     def generate(self, keysize=None):
         return defer.succeed( (self.pubkey, self.privkey) )
 
-class FirstServerGetsKilled(object):
+class FirstServerGetsKilled:
     done = False
     def notify(self, retval, wrapper, methname):
         if not self.done:
@@ -37,7 +37,7 @@ class FirstServerGetsKilled(object):
             self.done = True
         return retval
 
-class FirstServerGetsDeleted(object):
+class FirstServerGetsDeleted:
     def __init__(self):
         self.done = False
         self.silenced = None

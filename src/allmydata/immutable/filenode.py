@@ -25,7 +25,7 @@ from allmydata.immutable.downloader.node import DownloadNode, \
      IDownloadStatusHandlingConsumer
 from allmydata.immutable.downloader.status import DownloadStatus
 
-class CiphertextFileNode(object):
+class CiphertextFileNode:
     def __init__(self, verifycap, storage_broker, secret_holder,
                  terminator, history):
         assert isinstance(verifycap, uri.CHKFileVerifierURI)
@@ -186,7 +186,7 @@ class CiphertextFileNode(object):
         return v.start()
 
 @implementer(IConsumer, IDownloadStatusHandlingConsumer)
-class DecryptingConsumer(object):
+class DecryptingConsumer:
     """I sit between a CiphertextDownloader (which acts as a Producer) and
     the real Consumer, decrypting everything that passes by. The real
     Consumer sees the real Producer, but the Producer sees us instead of the
@@ -232,7 +232,7 @@ class DecryptingConsumer(object):
         self._consumer.write(plaintext)
 
 @implementer(IImmutableFileNode)
-class ImmutableFileNode(object):
+class ImmutableFileNode:
 
     # I wrap a CiphertextFileNode with a decryption key
     def __init__(self, filecap, storage_broker, secret_holder, terminator,

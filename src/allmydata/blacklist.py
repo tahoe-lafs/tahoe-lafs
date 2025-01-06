@@ -20,7 +20,7 @@ class FileProhibited(Exception):
         self.reason = reason
 
 
-class Blacklist(object):
+class Blacklist:
     def __init__(self, blacklist_fn):
         self.blacklist_fn = blacklist_fn
         self.last_mtime = None
@@ -61,7 +61,7 @@ class Blacklist(object):
 
 
 @implementer(IFileNode)
-class ProhibitedNode(object):
+class ProhibitedNode:
 
     def __init__(self, wrapped_node, reason):
         assert IFilesystemNode.providedBy(wrapped_node), wrapped_node

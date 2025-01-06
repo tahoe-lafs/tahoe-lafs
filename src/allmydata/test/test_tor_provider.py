@@ -287,7 +287,7 @@ class FakeConfig(dict):
         return os.path.join(self.get("basedir", "basedir"), *args)
 
 
-class EmptyContext(object):
+class EmptyContext:
     def __init__(self):
         pass
     def __enter__(self):

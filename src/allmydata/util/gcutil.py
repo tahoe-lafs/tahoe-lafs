@@ -20,7 +20,7 @@ import gc
 import attr
 
 @attr.s
-class _ResourceTracker(object):
+class _ResourceTracker:
     """
     Keep track of some kind of resource and trigger a full garbage collection
     when allocations outnumber releases by some amount.

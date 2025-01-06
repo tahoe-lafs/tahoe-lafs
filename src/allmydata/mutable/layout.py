@@ -222,7 +222,7 @@ def pack_prefix(seqnum, root_hash, IV,
 
 
 @implementer(IMutableSlotWriter)
-class SDMFSlotWriteProxy(object):
+class SDMFSlotWriteProxy:
     """
     I represent a remote write slot for an SDMF mutable file. I build a
     share in memory, and then write it in one piece to the remote
@@ -571,7 +571,7 @@ VERIFICATION_KEY_SIZE = 292
 SHARE_HASH_CHAIN_SIZE = (2+HASH_SIZE)*mathutil.log_ceil(256, 2)
 
 @implementer(IMutableSlotWriter)
-class MDMFSlotWriteProxy(object):
+class MDMFSlotWriteProxy:
 
     """
     I represent a remote write slot for an MDMF mutable file.
@@ -1187,7 +1187,7 @@ def _handle_bad_struct(f):
     f.trap(struct.error)
     raise BadShareError(f.value.args[0])
 
-class MDMFSlotReadProxy(object):
+class MDMFSlotReadProxy:
     """
     I read from a mutable slot filled with data written in the MDMF data
     format (which is described above).

@@ -41,7 +41,7 @@ def err(failure=None, _why=None, **kwargs):
         kwargs['level'] = log.UNUSUAL
     return log.err(failure, _why, **bytes_to_unicode(True, kwargs))
 
-class LogMixin(object):
+class LogMixin:
     """ I remember a msg id and a facility and pass them to log.msg() """
     def __init__(self, facility=None, grandparentmsgid=None):
         self._facility = facility

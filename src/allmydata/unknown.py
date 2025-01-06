@@ -29,7 +29,7 @@ def strip_prefix_for_ro(ro_uri, deep_immutable):
         return ro_uri
 
 @implementer(IFilesystemNode)
-class UnknownNode(object):
+class UnknownNode:
 
     def __init__(self, given_rw_uri, given_ro_uri, deep_immutable=False,
                  name=u"<unknown name>"):

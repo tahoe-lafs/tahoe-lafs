@@ -3,7 +3,7 @@
 
 import weakref
 
-class History(object):
+class History:
     """Keep track of recent operations, for a status display."""
 
     name = "history"

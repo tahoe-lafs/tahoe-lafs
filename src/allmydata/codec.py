@@ -13,7 +13,7 @@ from allmydata.interfaces import ICodecEncoder, ICodecDecoder
 import zfec
 
 @implementer(ICodecEncoder)
-class CRSEncoder(object):
+class CRSEncoder:
     ENCODER_TYPE = b"crs"
 
     def set_params(self, data_size, required_shares, max_shares):
@@ -55,7 +55,7 @@ class CRSEncoder(object):
 
 
 @implementer(ICodecDecoder)
-class CRSDecoder(object):
+class CRSDecoder:
 
     def set_params(self, data_size, required_shares, max_shares):
         self.data_size = data_size

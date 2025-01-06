@@ -39,7 +39,7 @@ BASE32STR_256bits = b'(%s{51}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_1bits)
 NUMBER=b'([0-9]+)'
 
 
-class _BaseURI(object):
+class _BaseURI:
     def __hash__(self):
         return self.to_string().__hash__()
 
@@ -717,7 +717,7 @@ class ImmutableDirectoryURIVerifier(DirectoryURIVerifier):
     INNER_URI_CLASS=CHKFileVerifierURI
 
 
-class UnknownURI(object):
+class UnknownURI:
     def __init__(self, uri, error=None):
         self._uri = uri
         self._error = error

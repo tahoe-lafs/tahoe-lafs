@@ -25,7 +25,7 @@ def flip_bit(good): # flips the last bit
     return good[:-1] + byteschr(ord(good[-1]) ^ 0x01)
 
 @implementer(IStorageBucketWriter, IStorageBucketReader)
-class FakeBucketReaderWriterProxy(object):
+class FakeBucketReaderWriterProxy:
     # these are used for both reading and writing
     def __init__(self, mode="good", peerid="peer"):
         self.mode = mode

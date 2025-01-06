@@ -15,7 +15,7 @@ from allmydata.interfaces import DownloadStopped
 from .common import BadSegmentNumberError, WrongSegmentError
 
 @implementer(IPushProducer)
-class Segmentation(object):
+class Segmentation:
     """I am responsible for a single offset+size read of the file. I handle
     segmentation: I figure out which segments are necessary, request them
     (from my CiphertextDownloader) in order, and trim the segments down to

@@ -41,7 +41,7 @@ PUSHING_EVERYTHING_ELSE_STATE = 1
 DONE_STATE = 2
 
 @implementer(IPublishStatus)
-class PublishStatus(object):
+class PublishStatus:
     statusid_counter = count(0)
     def __init__(self):
         self.timings = {}
@@ -112,7 +112,7 @@ class PublishStatus(object):
 class LoopLimitExceededError(Exception):
     pass
 
-class Publish(object):
+class Publish:
     """I represent a single act of publishing the mutable file to the grid. I
     will only publish my data if the servermap I am using still represents
     the current state of the world.
@@ -1229,7 +1229,7 @@ class Publish(object):
 
 
 @implementer(IMutableUploadable)
-class MutableFileHandle(object):
+class MutableFileHandle:
     """
     I am a mutable uploadable built around a filehandle-like object,
     usually either a BytesIO instance or a handle to an actual file.
@@ -1313,7 +1313,7 @@ class MutableData(MutableFileHandle):
 
 
 @implementer(IMutableUploadable)
-class TransformingUploadable(object):
+class TransformingUploadable:
     """
     I am an IMutableUploadable that wraps another IMutableUploadable,
     and some segments that are already on the grid. When I am called to

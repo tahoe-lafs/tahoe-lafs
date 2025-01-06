@@ -10,7 +10,7 @@ from twisted.internet.interfaces import IConsumer
 
 
 @implementer(IConsumer)
-class MemoryConsumer(object):
+class MemoryConsumer:
 
     def __init__(self):
         self.chunks = []

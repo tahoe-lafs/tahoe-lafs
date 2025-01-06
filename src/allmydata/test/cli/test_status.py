@@ -30,7 +30,7 @@ from ..common_web import do_http
 from .common import CLITestMixin
 
 
-class FakeStatus(object):
+class FakeStatus:
     def __init__(self):
         self.status = []
 

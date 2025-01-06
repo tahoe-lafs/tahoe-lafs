@@ -10,7 +10,7 @@ from allmydata.util.dictutil import DictOfSets
 from .common import OVERDUE, COMPLETE, CORRUPT, DEAD, BADSEGNUM, \
      BadSegmentNumberError
 
-class SegmentFetcher(object):
+class SegmentFetcher:
     """I am responsible for acquiring blocks for a single segment. I will use
     the Share instances passed to my add_shares() method to locate, retrieve,
     and validate those blocks. I expect my parent node to call my

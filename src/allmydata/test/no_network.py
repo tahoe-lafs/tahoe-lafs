@@ -57,13 +57,13 @@ from .common import (
 class IntentionalError(Exception):
     pass
 
-class Marker(object):
+class Marker:
     pass
 
 fireNow = partial(defer.succeed, None)
 
 @implementer(IRemoteReference)  # type: ignore  # warner/foolscap#79
-class LocalWrapper(object):
+class LocalWrapper:
     """
     A ``LocalWrapper`` presents the remote reference interface to a local
     object which implements a ``RemoteInterface``.
@@ -171,7 +171,7 @@ def wrap_storage_server(original):
     return wrapper
 
 @implementer(IServer)
-class NoNetworkServer(object):
+class NoNetworkServer:
     def __init__(self, serverid, rref):
         self.serverid = serverid
         self.rref = rref
@@ -293,7 +293,7 @@ class _NoNetworkClient(_Client):  # type: ignore  # tahoe-lafs/ticket/3573
     #._servers will be set by the NoNetworkGrid which creates us
 
 
-class SimpleStats(object):
+class SimpleStats:
     def __init__(self):
         self.counters = {}
         self.stats_producers = []
@@ -463,7 +463,7 @@ class NoNetworkGrid(service.MultiService):
                     fileutil.rm_dir(os.path.join(server.sharedir, prefixdir))
 
 
-class GridTestMixin(object):
+class GridTestMixin:
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()

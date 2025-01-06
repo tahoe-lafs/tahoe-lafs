@@ -64,7 +64,7 @@ def unsign_from_foolscap(ann_t):
     return (ann, key_vs)
 
 
-class SubscriberDescriptor(object):
+class SubscriberDescriptor:
     """This describes a subscriber, for status display purposes. It contains
     the following attributes:
 
@@ -88,7 +88,7 @@ class SubscriberDescriptor(object):
         self.remote_address = remote_address
         self.tubid = tubid
 
-class AnnouncementDescriptor(object):
+class AnnouncementDescriptor:
     """This describes an announcement, for status display purposes. It
     contains the following attributes, which will be empty ("" for
     strings) if the client did not provide them:

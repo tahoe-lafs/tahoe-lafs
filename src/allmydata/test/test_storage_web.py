@@ -245,7 +245,7 @@ class InstrumentedLeaseCheckingCrawler(LeaseCheckingCrawler):
         if not self.stop_after_first_bucket:
             self.cpu_slice = 500
 
-class BrokenStatResults(object):
+class BrokenStatResults:
     pass
 
 class No_ST_BLOCKS_LeaseCheckingCrawler(LeaseCheckingCrawler):

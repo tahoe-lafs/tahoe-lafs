@@ -215,7 +215,7 @@ def limited_content(
 
 
 @define
-class ImmutableCreateResult(object):
+class ImmutableCreateResult:
     """Result of creating a storage index for an immutable."""
 
     already_have: set[int]
@@ -422,7 +422,7 @@ class StorageClientFactory:
 
 
 @define(hash=True)
-class StorageClient(object):
+class StorageClient:
     """
     Low-level HTTP client that talks to the HTTP storage server.
 
@@ -580,7 +580,7 @@ class StorageClient(object):
 
 
 @define(hash=True)
-class StorageClientGeneral(object):
+class StorageClientGeneral:
     """
     High-level HTTP APIs that aren't immutable- or mutable-specific.
     """
@@ -659,7 +659,7 @@ class StorageClientGeneral(object):
 
 
 @define
-class UploadProgress(object):
+class UploadProgress:
     """
     Progress of immutable upload, per the server.
     """
@@ -780,7 +780,7 @@ async def advise_corrupt_share(
 
 
 @define(hash=True)
-class StorageClientImmutables(object):
+class StorageClientImmutables:
     """
     APIs for interacting with immutables.
     """

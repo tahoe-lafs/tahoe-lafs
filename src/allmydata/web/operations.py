@@ -149,7 +149,7 @@ class OphandleTable(resource.Resource, service.Service):
         self.handles.pop(ophandle, None)
 
 
-class ReloadMixin(object):
+class ReloadMixin:
     REFRESH_TIME = 1*MINUTE
 
     @renderer

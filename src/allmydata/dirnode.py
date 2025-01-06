@@ -63,7 +63,7 @@ ADD_FILE = ActionType(
 )
 
 
-class _OnlyFiles(object):
+class _OnlyFiles:
     """Marker for replacement option of only replacing files."""
 
 ONLY_FILES = _OnlyFiles()
@@ -115,7 +115,7 @@ def update_metadata(metadata, new_metadata, now):
 # contents and end by repacking them. It might be better to apply them to
 # the unpacked contents.
 
-class Deleter(object):
+class Deleter:
     def __init__(self, node, namex, must_exist=True, must_be_directory=False, must_be_file=False):
         self.node = node
         self.name = normalize(namex)
@@ -143,7 +143,7 @@ class Deleter(object):
         return new_contents
 
 
-class MetadataSetter(object):
+class MetadataSetter:
     def __init__(self, node, namex, metadata, create_readonly_node=None):
         self.node = node
         self.name = normalize(namex)
@@ -168,7 +168,7 @@ class MetadataSetter(object):
         return new_contents
 
 
-class Adder(object):
+class Adder:
     def __init__(self, node, entries=None, overwrite=True, create_readonly_node=None):
         """
         :param overwrite: Either True (allow overwriting anything existing),
@@ -300,7 +300,7 @@ def _pack_normalized_children(children, writekey, deep_immutable=False):
     return b"".join(entries)
 
 @implementer(IDirectoryNode, ICheckable, IDeepCheckable)
-class DirectoryNode(object):
+class DirectoryNode:
     filenode_class = MutableFileNode
 
     def __init__(self, filenode, nodemaker, uploader):
@@ -873,7 +873,7 @@ class ManifestWalker(DeepStats):
                 }
 
 
-class DeepChecker(object):
+class DeepChecker:
     def __init__(self, root, verify, repair, add_lease):
         root_si = root.get_storage_index()
         if root_si:

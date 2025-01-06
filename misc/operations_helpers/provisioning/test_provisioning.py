@@ -10,7 +10,7 @@ except ImportError:
 from nevow import inevow
 from zope.interface import implements
 
-class MyRequest(object):
+class MyRequest:
     implements(inevow.IRequest)
     pass
 

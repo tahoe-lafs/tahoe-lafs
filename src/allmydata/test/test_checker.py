@@ -46,7 +46,7 @@ from .web.common import (
     assert_soup_has_tag_with_content,
 )
 
-class FakeClient(object):
+class FakeClient:
     def get_storage_broker(self):
         return self.storage_broker
 
@@ -781,7 +781,7 @@ class AddLease(GridTestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.failUnless(really_did_break))
         return d
 
-class CounterHolder(object):
+class CounterHolder:
     def __init__(self):
         self._num_active_block_fetches = 0
         self._max_active_block_fetches = 0

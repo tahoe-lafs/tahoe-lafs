@@ -282,7 +282,7 @@ class PlacementTests(unittest.TestCase):
         assert happiness == min(len(peers), len(shares))
 
 
-class FakeServerTracker(object):
+class FakeServerTracker:
     def __init__(self, serverid, buckets):
         self._serverid = serverid
         self.buckets = buckets
