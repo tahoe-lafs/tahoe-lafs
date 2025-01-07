@@ -92,6 +92,9 @@ workflows:
       - "ubuntu-22-04":
           {}
 
+      - "oraclelinux-8":
+          {}
+
       - "nixos":
           name: "<<matrix.nixpkgs>>-<<matrix.pythonVersion>>"
           matrix:
@@ -101,10 +104,6 @@ workflows:
               pythonVersion:
                 - "python311"
                 - "python312"
-
-      # Eventually, test against PyPy 3.8
-      #- "pypy27-buster":
-      #    {}
 
       # Other assorted tasks and configurations
       - "codechecks":
@@ -460,21 +459,6 @@ jobs:
         image: "tahoelafsci/debian:12-py3.11"
         user: "nobody"
 
-
-  # Restore later using PyPy3.8
-  # pypy27-buster:
-  #   <<: *DEBIAN
-  #   docker:
-  #     - <<: *DOCKERHUB_AUTH
-  #       image: "tahoelafsci/pypy:buster-py2"
-  #       user: "nobody"
-  #   environment:
-  #     <<: *UTF_8_ENVIRONMENT
-  #     # We don't do coverage since it makes PyPy far too slow:
-  #     TAHOE_LAFS_TOX_ENVIRONMENT: "pypy27"
-  #     # Since we didn't collect it, don't upload it.
-  #     UPLOAD_COVERAGE: ""
-
   c-locale:
     <<: *DEBIAN
 
@@ -541,6 +525,37 @@ jobs:
     environment:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py310"
+
+  oraclelinux-8: &RHEL_DERIV
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/oraclelinux:8-py3.9"
+        user: "nobody"
+
+    environment:
+      <<: *UTF_8_ENVIRONMENT
+      TAHOE_LAFS_TOX_ENVIRONMENT: "py39"
+
+    # pip cannot install packages if the working directory is not readable.
+    # We want to run a lot of steps as nobody instead of as root.
+    working_directory: "/tmp/project"
+
+    steps:
+      - "checkout"
+      - run: *SETUP_VIRTUALENV
+      - run: *RUN_TESTS
+      - store_test_results: *STORE_TEST_RESULTS
+      - store_artifacts: *STORE_TEST_LOG
+      - store_artifacts: *STORE_ELIOT_LOG
+      - store_artifacts: *STORE_OTHER_ARTIFACTS
+      - run: *SUBMIT_COVERAGE
+
+  fedora-35:
+    <<: *RHEL_DERIV
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "tahoelafsci/fedora:35-py3"
+        user: "nobody"
 
   nixos:
     parameters:
@@ -671,6 +686,14 @@ jobs:
       DISTRO: "ubuntu"
       TAG: "24.04"
       PYTHON_VERSION: "3.12"
+
+  build-image-oraclelinux-8:
+    <<: *BUILD_IMAGE
+
+    environment:
+      DISTRO: "oraclelinux"
+      TAG: "8"
+      PYTHON_VERSION: "3.9"
 
   build-image-oraclelinux-8:
     <<: *BUILD_IMAGE
