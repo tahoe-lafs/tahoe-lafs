@@ -6,6 +6,8 @@ to pytest.
 """
 
 import os
+import json
+from datetime import datetime, timezone
 from shutil import which, rmtree
 from tempfile import mkdtemp
 from contextlib import contextmanager
@@ -13,6 +15,7 @@ from time import time
 
 import pytest
 import pytest_twisted
+import attr
 
 from twisted.internet import reactor
 from twisted.internet.defer import DeferredList, succeed
@@ -29,7 +32,18 @@ def pytest_addoption(parser):
         default=[],
         type=int,
         help="list of number_of_nodes to benchmark against",
+        required=True,
     )
+
+    parser.addoption(
+        "--json-file",
+        default="tahoe-benchmarks.json",
+        type=str,
+        dest="json_fname",
+        help="The filename to which the JSON-encoded benchmarks will be written",
+        required=False,
+    )
+
     # Required to be compatible with integration.util code that we indirectly
     # depend on, but also might be useful.
     parser.addoption(
@@ -125,8 +139,27 @@ def get_cpu_time_for_cgroup():
     raise ValueError("Failed to find usage_usec")
 
 
+@attr.frozen
+class Benchmark:
+    name: str
+    parameters: dict
+    wall: float
+    cpu: float
+
+    def to_json(self):
+        return {
+            "name": self.name,
+            "elapsed": self.wall,
+            "cpu": self.cpu,
+            "parameters": self.parameters,
+        }
+
+
 class Benchmarker:
     """Keep track of benchmarking results."""
+
+    def __init__(self):
+        self.benchmarks = dict()
 
     @contextmanager
     def record(self, capsys: pytest.CaptureFixture[str], name, **parameters):
@@ -137,6 +170,13 @@ class Benchmarker:
         elapsed = time() - start
         end_cpu = get_cpu_time_for_cgroup()
         elapsed_cpu = end_cpu - start_cpu
+
+        self.benchmarks[name] = Benchmark(
+            name=name,
+            wall=elapsed,
+            cpu=elapsed_cpu,
+            parameters=parameters,
+        )
         # FOR now we just print the outcome:
         parameters = " ".join(f"{k}={v}" for (k, v) in parameters.items())
         with capsys.disabled():
@@ -144,7 +184,34 @@ class Benchmarker:
                 f"\nBENCHMARK RESULT: {name} {parameters} elapsed={elapsed:.3} (secs) CPU={elapsed_cpu:.3} (secs)\n"
             )
 
+    def output_results(self, filelike, previous_results=None):
+        results = dict()
+        for b in self.benchmarks.values():
+            results[b.name] = b.to_json()
+
+        benchmarks = previous_results or []
+        benchmarks.append({
+            "timestamp-utc": datetime.now(timezone.utc).isoformat(),
+            "results": results,
+        })
+        filelike.write(
+            json.dumps({"benchmarks": benchmarks}, indent=4).encode("utf8")
+        )
+
 
 @pytest.fixture(scope="session")
-def tahoe_benchmarker():
-    return Benchmarker()
+def tahoe_benchmarker(request):
+    bm = Benchmarker()
+    yield bm
+    fname = request.config.getoption("json_fname")
+    print(f'Writing benchmarks to "{fname}"')
+    try:
+        with open(fname, "rb") as js_file:
+            previous = json.loads(js_file.read())["benchmarks"]
+    except json.decoder.JSONDecodeError as e:
+        print(f"Failed to load previous results: {e}")
+        previous = None
+    except OSError:
+        previous = None
+    with open(fname, "wb") as js_file:
+        bm.output_results(js_file, previous)
