@@ -81,6 +81,8 @@ class TimeFormat(unittest.TestCase, TimezoneMixin):
         DAY = 24*60*60
         MONTH = 31*DAY
         YEAR = 365*DAY
+        self.failUnlessEqual(p("1s"), 1)
+        self.failUnlessEqual(p("86400s"), DAY)
         self.failUnlessEqual(p("1 day"), DAY)
         self.failUnlessEqual(p("2 days"), 2*DAY)
         self.failUnlessEqual(p("3 months"), 3*MONTH)
