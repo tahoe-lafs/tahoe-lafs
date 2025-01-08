@@ -53,12 +53,14 @@ def iso_utc_time_to_seconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})
 def parse_duration(s):
     orig = s
     unit = None
+    SECOND = 1
     DAY = 24*60*60
     MONTH = 31*DAY
     YEAR = 365*DAY
     if s.endswith("s"):
+        unit = SECOND
         s = s[:-1]
-    if s.endswith("day"):
+    elif s.endswith("day"):
         unit = DAY
         s = s[:-len("day")]
     elif s.endswith("month"):
