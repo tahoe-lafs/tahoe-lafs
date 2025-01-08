@@ -73,7 +73,7 @@ def parse_duration(s):
         unit = YEAR
         s = s[:-len("YEAR")]
     else:
-        raise ValueError("no unit (like day, month, or year) in '%s'" % orig)
+        raise ValueError("no unit (like s, day, mo, month, or year) in '%s'" % orig)
     s = s.strip()
     return int(s) * unit
 
