@@ -52,7 +52,7 @@ RelayURL = str
 ApplicationKey = Tuple[RelayURL, AppId]
 
 @define
-class MemoryWormholeServer(object):
+class MemoryWormholeServer:
     """
     A factory for in-memory wormholes.
 
@@ -105,7 +105,7 @@ class MemoryWormholeServer(object):
 
 
 @frozen
-class TestingHelper(object):
+class TestingHelper:
     """
     Provide extra functionality for interacting with an in-memory wormhole
     implementation.
@@ -160,7 +160,7 @@ _verify()
 
 
 @define
-class _WormholeApp(object):
+class _WormholeApp:
     """
     Represent a collection of wormholes that belong to the same
     appid/relay_url scope.
@@ -204,7 +204,7 @@ class _WormholeApp(object):
 
 
 @frozen
-class _WormholeServerView(object):
+class _WormholeServerView:
     """
     Present an interface onto the server to be consumed by individual
     wormholes.
@@ -235,7 +235,7 @@ class _WormholeServerView(object):
 
 @implementer(IWormhole)
 @define
-class _MemoryWormhole(object):
+class _MemoryWormhole:
     """
     Represent one side of a wormhole as conceived by ``MemoryWormholeServer``.
     """

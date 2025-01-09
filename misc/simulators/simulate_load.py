@@ -9,7 +9,7 @@ SERVER_CAPACITY = 10**12
 def cmp(a, b):
     return (a > b) - (a < b)
 
-class Server(object):
+class Server:
     def __init__(self):
         self.si = random.randrange(0, 2**31)
         self.used = 0

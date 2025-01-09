@@ -16,7 +16,7 @@ def sha(s):
 def randomid():
     return os.urandom(20)
 
-class Node(object):
+class Node:
     def __init__(self, nid, introducer, simulator):
         self.nid = nid
         self.introducer = introducer
@@ -111,7 +111,7 @@ class Node(object):
         self.introducer.delete(fileid)
         return True
 
-class Introducer(object):
+class Introducer:
     def __init__(self, simulator):
         self.living_files = {}
         self.utilization = 0 # total size of all active files
@@ -148,7 +148,7 @@ class Introducer(object):
         self.simulator.stamp_utilization(self.utilization)
         del self.living_files[fileid]
 
-class Simulator(object):
+class Simulator:
     NUM_NODES = 1000
     EVENTS = ["ADDFILE", "DELFILE", "ADDNODE", "DELNODE"]
     RATE_ADDFILE = 1.0 / 10

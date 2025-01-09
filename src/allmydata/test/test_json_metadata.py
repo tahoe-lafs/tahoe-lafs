@@ -7,7 +7,7 @@ from twisted.trial.unittest import TestCase
 from allmydata.web.common import get_filenode_metadata, SDMF_VERSION, MDMF_VERSION
 
 
-class MockFileNode(object):
+class MockFileNode:
     def __init__(self, size, mutable_version=None):
         self.size = size
         self.mutable_version = mutable_version
@@ -24,7 +24,7 @@ class MockFileNode(object):
         return self.mutable_version
 
 
-class CommonFixture(object):
+class CommonFixture:
     def test_size_is_0(self):
         """If get_size doesn't return None the returned metadata must contain "size"."""
         mockfilenode = MockFileNode(0, mutable_version=self.mutable_version)

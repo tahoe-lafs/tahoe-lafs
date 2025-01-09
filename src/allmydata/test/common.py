@@ -129,7 +129,7 @@ def byteschr(x):
     return bytes([x])
 
 @attr.s
-class FakeDisk(object):
+class FakeDisk:
     """
     Just enough of a disk to be able to report free / used information.
     """
@@ -166,7 +166,7 @@ class FakeDisk(object):
 
 
 @attr.s
-class MemoryIntroducerClient(object):
+class MemoryIntroducerClient:
     """
     A model-only (no behavior) stand-in for ``IntroducerClient``.
     """
@@ -199,7 +199,7 @@ class MemoryIntroducerClient(object):
 
 
 @attr.s
-class Subscription(object):
+class Subscription:
     """
     A model of an introducer subscription.
     """
@@ -210,7 +210,7 @@ class Subscription(object):
 
 
 @attr.s
-class Announcement(object):
+class Announcement:
     """
     A model of an introducer announcement.
     """
@@ -237,7 +237,7 @@ def get_published_announcements(client):
     )
 
 
-class UseTestPlugins(object):
+class UseTestPlugins:
     """
     A fixture which enables loading Twisted plugins from the Tahoe-LAFS test
     suite.
@@ -265,7 +265,7 @@ class UseTestPlugins(object):
 
 
 @attr.s
-class UseNode(object):
+class UseNode:
     """
     A fixture which creates a client node.
 
@@ -374,7 +374,7 @@ class UseNode(object):
 
 
 @implementer(IPlugin, IStreamServerEndpointStringParser)
-class AdoptedServerPort(object):
+class AdoptedServerPort:
     """
     Parse an ``adopt-socket:<fd>`` endpoint description by adopting ``fd`` as
     a listening TCP port.
@@ -414,7 +414,7 @@ def really_bind(s, addr):
     raise Exception("Many bind attempts failed with EADDRINUSE")
 
 
-class SameProcessStreamEndpointAssigner(object):
+class SameProcessStreamEndpointAssigner:
     """
     A fixture which can assign streaming server endpoints for use *in this
     process only*.
@@ -479,7 +479,7 @@ class SameProcessStreamEndpointAssigner(object):
         return location_hint, port_endpoint
 
 @implementer(IPullProducer)
-class DummyProducer(object):
+class DummyProducer:
     def resumeProducing(self):
         pass
 
@@ -916,7 +916,7 @@ class LoggingServiceParent(service.MultiService):
 TEST_DATA=b"\x02"*(Uploader.URI_LIT_SIZE_THRESHOLD+1)
 
 
-class WebErrorMixin(object):
+class WebErrorMixin:
     def explain_web_error(self, f):
         # an error on the server side causes the client-side getPage() to
         # return a failure(t.web.error.Error), and its str() doesn't show the
@@ -1276,7 +1276,7 @@ def _corrupt_uri_extension(data, debug=False):
 
 @attr.s
 @implementer(IAddressFamily)
-class ConstantAddresses(object):
+class ConstantAddresses:
     """
     Pretend to provide support for some address family but just hand out
     canned responses.
@@ -1318,7 +1318,7 @@ def disable_modules(*names):
         else:
             sys.modules[n] = original
 
-class _TestCaseMixin(object):
+class _TestCaseMixin:
     """
     A mixin for ``TestCase`` which collects helpful behaviors for subclasses.
 

@@ -141,7 +141,7 @@ class _WriteBuffer:
 
 
 @implementer(IStorageBucketWriter)
-class WriteBucketProxy(object):
+class WriteBucketProxy:
     """
     Note: The various ``put_`` methods need to be called in the order in which the
     bytes will get written.
@@ -364,7 +364,7 @@ class WriteBucketProxy_v2(WriteBucketProxy):
         self._offset_data = offset_data
 
 @implementer(IStorageBucketReader)
-class ReadBucketProxy(object):
+class ReadBucketProxy:
 
     def __init__(self, rref, server, storage_index):
         self._rref = rref

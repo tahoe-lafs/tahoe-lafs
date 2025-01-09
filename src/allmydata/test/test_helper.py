@@ -96,7 +96,7 @@ class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
         return d
 
 @attr.s
-class FakeCHKCheckerAndUEBFetcher(object):
+class FakeCHKCheckerAndUEBFetcher:
     """
     A fake of ``CHKCheckerAndUEBFetcher`` which hard-codes some check result.
     """

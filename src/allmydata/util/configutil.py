@@ -106,7 +106,7 @@ def validate_config(fname, cfg, valid_config):
 
 
 @attr.s
-class ValidConfiguration(object):
+class ValidConfiguration:
     """
     :ivar dict[bytes, tuple[bytes]] _static_valid_sections: A mapping from
         valid section names to valid items in those sections.

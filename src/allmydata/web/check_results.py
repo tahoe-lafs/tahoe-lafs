@@ -91,7 +91,7 @@ def json_check_and_repair_results(r):
     data["post-repair-results"] = json_check_results(post)
     return data
 
-class ResultsBase(object):
+class ResultsBase:
     # self._client must point to the Client, so we can get nicknames and
     # determine the permuted peer order
 
@@ -258,7 +258,7 @@ class LiteralCheckResultsRendererElement(Element):
         return ""
 
 
-class CheckerBase(object):
+class CheckerBase:
 
     @renderer
     def storage_index(self, req, tag):

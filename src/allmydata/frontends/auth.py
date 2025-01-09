@@ -17,13 +17,13 @@ class NeedRootcapLookupScheme(Exception):
     mechanism to translate name+passwd pairs into a rootcap, either a file of
     name/passwd/rootcap tuples, or a server to do the translation."""
 
-class FTPAvatarID(object):
+class FTPAvatarID:
     def __init__(self, username, rootcap):
         self.username = username
         self.rootcap = rootcap
 
 @implementer(checkers.ICredentialsChecker)
-class AccountFileChecker(object):
+class AccountFileChecker:
     credentialInterfaces = (credentials.ISSHPrivateKey,)
 
     def __init__(self, client, accountfile):

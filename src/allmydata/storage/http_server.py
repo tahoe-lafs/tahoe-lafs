@@ -251,7 +251,7 @@ def _authorized_route(
 
 
 @define
-class StorageIndexUploads(object):
+class StorageIndexUploads:
     """
     In-progress upload to storage index.
     """
@@ -265,7 +265,7 @@ class StorageIndexUploads(object):
 
 
 @define
-class UploadsInProgress(object):
+class UploadsInProgress:
     """
     Keep track of uploads for storage indexes.
     """
@@ -1072,7 +1072,7 @@ class HTTPServer(BaseApp):
 
 @implementer(IStreamServerEndpoint)
 @define
-class _TLSEndpointWrapper(object):
+class _TLSEndpointWrapper:
     """
     Wrap an existing endpoint with the server-side storage TLS policy.  This is
     useful because not all Tahoe-LAFS endpoints might be plain TCP+TLS, for

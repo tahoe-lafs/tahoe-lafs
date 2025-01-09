@@ -226,7 +226,7 @@ def flip_one_bit(s, offset=0, size=None):
     return result
 
 
-class ReallyEqualMixin(object):
+class ReallyEqualMixin:
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.assertEqual(a, b, msg)
         if a.__class__ == str:
@@ -236,7 +236,7 @@ class ReallyEqualMixin(object):
         self.assertEqual(type(a), type(b), "a :: %r (%s), b :: %r (%s), %r" % (a, type(a), b, type(b), msg))
 
 
-class SignalMixin(object):
+class SignalMixin:
     # This class is necessary for any code which wants to use Processes
     # outside the usual reactor.run() environment. It is copied from
     # Twisted's twisted.test.test_process . Note that Twisted-8.2.0 uses
@@ -258,17 +258,17 @@ class SignalMixin(object):
         return super(SignalMixin, self).tearDown()
 
 
-class StallMixin(object):
+class StallMixin:
     def stall(self, res=None, delay=1):
         d = defer.Deferred()
         reactor.callLater(delay, d.callback, res)
         return d
 
 
-class Marker(object):
+class Marker:
     pass
 
-class FakeCanary(object):
+class FakeCanary:
     """For use in storage tests.
     """
     def __init__(self, ignore_disconnectors=False):
@@ -300,7 +300,7 @@ class FakeCanary(object):
             self.disconnectors = None
 
 
-class ShouldFailMixin(object):
+class ShouldFailMixin:
 
     def shouldFail(self, expected_failure, which, substring,
                    callable, *args, **kwargs):
@@ -392,7 +392,7 @@ class TestMixin(SignalMixin):
             self.fail("Reactor was still active when it was required to be quiescent.")
 
 
-class TimezoneMixin(object):
+class TimezoneMixin:
 
     def setTimezone(self, timezone):
         def tzset_if_possible():

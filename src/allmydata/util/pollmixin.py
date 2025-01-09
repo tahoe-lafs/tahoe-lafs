@@ -16,7 +16,7 @@ class TimeoutError(Exception):
 class PollComplete(Exception):
     pass
 
-class PollMixin(object):
+class PollMixin:
     _poll_should_ignore_these_errors : list[Exception] = []
 
     def poll(self, check_f, pollinterval=0.01, timeout=1000):

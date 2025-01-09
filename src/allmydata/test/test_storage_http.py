@@ -667,7 +667,7 @@ class HttpTestFixture(Fixture):
         )
 
 
-class StorageClientWithHeadersOverride(object):
+class StorageClientWithHeadersOverride:
     """Wrap ``StorageClient`` and override sent headers."""
 
     def __init__(self, storage_client, add_headers):

@@ -29,7 +29,7 @@ from allmydata.mutable.common import CorruptShareError, BadShareError, \
 from allmydata.mutable.layout import MDMFSlotReadProxy
 
 @implementer(IRetrieveStatus)
-class RetrieveStatus(object):
+class RetrieveStatus:
     statusid_counter = count(0)
     def __init__(self):
         self.timings = {}
@@ -95,11 +95,11 @@ class RetrieveStatus(object):
         serverid = server.get_serverid()
         self._problems[serverid] = f
 
-class Marker(object):
+class Marker:
     pass
 
 @implementer(IPushProducer)
-class Retrieve(object):
+class Retrieve:
     # this class is currently single-use. Eventually (in MDMF) we will make
     # it multi-use, in which case you can call download(range) multiple
     # times, and each will have a separate response chain. However the

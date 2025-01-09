@@ -170,7 +170,7 @@ class _EliotLogging(MultiService):
 
 @implementer(ILogObserver)
 @attr.s(frozen=True)
-class _TwistedLoggerToEliotObserver(object):
+class _TwistedLoggerToEliotObserver:
     """
     An ``ILogObserver`` which re-publishes events as Eliot messages.
     """
@@ -227,7 +227,7 @@ def _stdlib_logging_to_eliot_configuration(stdlib_logger, eliot_logger=None):
     return lambda: stdlib_logger.removeHandler(handler)
 
 
-class _DestinationParser(object):
+class _DestinationParser:
     def parse(self, description):
         description = ensure_text(description)
 

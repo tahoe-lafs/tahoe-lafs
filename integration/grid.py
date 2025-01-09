@@ -69,7 +69,7 @@ import pytest_twisted
 
 
 @attr.s
-class FlogGatherer(object):
+class FlogGatherer:
     """
     Flog Gatherer process.
     """
@@ -148,7 +148,7 @@ def create_flog_gatherer(reactor, request, temp_dir, flog_binary):
 
 
 @attr.s
-class StorageServer(object):
+class StorageServer:
     """
     Represents a Tahoe Storage Server
     """
@@ -200,7 +200,7 @@ def create_storage_server(reactor, request, temp_dir, introducer, flog_gatherer,
 
 
 @attr.s
-class Client(object):
+class Client:
     """
     Represents a Tahoe client
     """
@@ -328,7 +328,7 @@ def create_client(reactor, request, temp_dir, introducer, flog_gatherer, name, w
 
 
 @attr.s
-class Introducer(object):
+class Introducer:
     """
     Reprsents a running introducer
     """
@@ -434,7 +434,7 @@ def create_introducer(reactor, request, temp_dir, flog_gatherer, port):
 
 
 @attr.s
-class Grid(object):
+class Grid:
     """
     Represents an entire Tahoe Grid setup
 

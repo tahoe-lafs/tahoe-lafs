@@ -1391,7 +1391,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         return d
 
     def test_execCommand_and_openShell(self):
-        class MockProtocol(object):
+        class MockProtocol:
             def __init__(self):
                 self.output = ""
                 self.error = ""

@@ -87,7 +87,7 @@ class OperationCancelledError(Exception):
 
 
 @implementer(IMonitor)
-class Monitor(object):
+class Monitor:
 
     def __init__(self):
         self.cancelled = False

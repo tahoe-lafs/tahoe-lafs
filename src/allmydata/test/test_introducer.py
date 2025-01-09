@@ -146,7 +146,7 @@ class Node(testutil.SignalMixin, testutil.ReallyEqualMixin, AsyncTestCase):
         self.failUnlessReallyEqual(w.staticdir, expected)
 
 
-class ServiceMixin(object):
+class ServiceMixin:
     def setUp(self):
         self.parent = LoggingMultiService()
         self.parent.startService()
@@ -732,7 +732,7 @@ class SystemTest(SystemTestMixin, AsyncTestCase):
         os.makedirs(self.basedir)
         return self.do_system_test()
 
-class FakeRemoteReference(object):
+class FakeRemoteReference:
     def notifyOnDisconnect(self, *args, **kwargs): pass
     def getRemoteTubID(self): return "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
     def getPeer(self): return address.IPv4Address("TCP", "remote.example.com",

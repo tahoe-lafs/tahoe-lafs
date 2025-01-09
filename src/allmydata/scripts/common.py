@@ -185,7 +185,7 @@ def get_aliases(nodedir):
         pass
     return aliases
 
-class DefaultAliasMarker(object):
+class DefaultAliasMarker:
     pass
 
 pretend_platform_uses_lettercolon = False # for tests

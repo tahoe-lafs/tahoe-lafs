@@ -33,7 +33,7 @@ from allmydata.crypto import (
 )
 
 @attr.s
-class MatchesNodePublicKey(object):
+class MatchesNodePublicKey:
     """
     Match an object representing the node's private key.
 
@@ -124,7 +124,7 @@ def matches_base32():
 
 
 
-class MatchesSameElements(object):
+class MatchesSameElements:
     """
     Match if the two-tuple value given contains two elements that are equal to
     each other.

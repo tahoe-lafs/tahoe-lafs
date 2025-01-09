@@ -89,7 +89,7 @@ _EXTRA_LEASE_OFFSET = _HEADER_SIZE + 4 * LeaseInfo().mutable_size()
 
 
 @attr.s(frozen=True)
-class _Schema(object):
+class _Schema:
     """
     Implement encoding and decoding for the mutable container.
 

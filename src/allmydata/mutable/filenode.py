@@ -34,7 +34,7 @@ from allmydata.mutable.checker import MutableChecker, MutableCheckAndRepairer
 from allmydata.mutable.repairer import Repairer
 
 
-class BackoffAgent(object):
+class BackoffAgent:
     # these parameters are copied from foolscap.reconnector, which gets them
     # from twisted.internet.protocol.ReconnectingClientFactory
     initialDelay = 1.0
@@ -59,7 +59,7 @@ class BackoffAgent(object):
 # use nodemaker.create_mutable_file() to make one of these
 
 @implementer(IMutableFileNode, ICheckable)
-class MutableFileNode(object):
+class MutableFileNode:
 
     def __init__(self, storage_broker, secret_holder,
                  default_encoding_parameters, history):
@@ -698,7 +698,7 @@ class MutableFileNode(object):
 
 
 @implementer(IMutableFileVersion, IWriteable)
-class MutableFileVersion(object):
+class MutableFileVersion:
     """
     I represent a specific version (most likely the best version) of a
     mutable file.

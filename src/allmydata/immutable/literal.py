@@ -11,7 +11,7 @@ from allmydata.interfaces import IImmutableFileNode, ICheckable
 from allmydata.uri import LiteralFileURI
 
 
-class _ImmutableFileNodeBase(object):
+class _ImmutableFileNodeBase:
 
     def get_write_uri(self):
         return None

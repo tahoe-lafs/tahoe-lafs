@@ -522,7 +522,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.basedir = "cli/exception_catcher"
 
         exc = Exception("canary")
-        class BrokenOptions(object):
+        class BrokenOptions:
             def parseOptions(self, argv):
                 raise exc
 

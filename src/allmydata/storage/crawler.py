@@ -150,7 +150,7 @@ def _dump_json_to_file(js, afile):
         f.write(data.encode("utf8"))
 
 
-class _LeaseStateSerializer(object):
+class _LeaseStateSerializer:
     """
     Read and write state for LeaseCheckingCrawler. This understands
     how to read the legacy pickle format files and upgrade them to the

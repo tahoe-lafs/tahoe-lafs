@@ -32,7 +32,7 @@ def eventuaaaaaly(res=None):
 # network connections, both to speed up the tests and to reduce the amount of
 # non-mutable.py code being exercised.
 
-class FakeStorage(object):
+class FakeStorage:
     # this class replaces the collection of storage servers, allowing the
     # tests to examine and manipulate the published shares. It also lets us
     # control the order in which read queries are answered, to exercise more
@@ -92,7 +92,7 @@ class FakeStorage(object):
 # This doesn't actually implement the whole interface, but adding a commented
 # interface implementation annotation for grepping purposes.
 #@implementer(RIStorageServer)
-class FakeStorageServer(object):
+class FakeStorageServer:
     """
     A fake Foolscap remote object, implemented by overriding callRemote() to
     call local methods.
@@ -217,7 +217,7 @@ def corrupt(res, s, offset, shnums_to_corrupt=None, offset_offset=0):
     return dl
 
 @attr.s
-class Peer(object):
+class Peer:
     peerid = attr.ib()
     storage_server = attr.ib()
     announcement = attr.ib()
@@ -318,7 +318,7 @@ def make_nodemaker_with_storage_broker(storage_broker):
     return nodemaker
 
 
-class PublishMixin(object):
+class PublishMixin:
     def publish_one(self):
         # publish a file and create shares, which can then be manipulated
         # later.
@@ -428,7 +428,7 @@ class PublishMixin(object):
                     index = versionmap[shnum]
                     shares[peerid][shnum] = oldshares[index][peerid][shnum]
 
-class CheckerMixin(object):
+class CheckerMixin:
     def check_good(self, r, where):
         self.failUnless(r.is_healthy(), where)
         return r

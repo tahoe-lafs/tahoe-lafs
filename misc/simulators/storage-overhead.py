@@ -11,7 +11,7 @@ def roundup(size, blocksize=4096):
     return blocksize * mathutil.div_ceil(size, blocksize)
 
 
-class BigFakeString(object):
+class BigFakeString:
     def __init__(self, length):
         self.length = length
         self.fp = 0

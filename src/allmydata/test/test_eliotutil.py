@@ -99,7 +99,7 @@ class EliotLoggedTestTests(TestCase):
         A test method of an ``AsyncTestCase`` subclass that logs an unserializable
         value with Eliot fails.
         """
-        class world(object):
+        class world:
             """
             an unserializable object
             """

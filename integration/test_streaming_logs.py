@@ -103,7 +103,7 @@ def _race(left, right):
 
 
 @attr.s
-class Left(object):
+class Left:
     value = attr.ib()
 
     @classmethod
@@ -112,7 +112,7 @@ class Left(object):
 
 
 @attr.s
-class Right(object):
+class Right:
     value = attr.ib()
 
     @classmethod

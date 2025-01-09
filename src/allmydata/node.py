@@ -121,7 +121,7 @@ such as private keys.  On Unix-like systems, the permissions on this directory
 are set to disallow users other than its owner from reading the contents of
 the files.   See the 'configuration.rst' documentation file for details."""
 
-class _None(object):
+class _None:
     """
     This class is to be used as a marker in get_config()
     """
@@ -276,7 +276,7 @@ def ensure_text_and_abspath_expanduser_unicode(basedir: Union[bytes, str]) -> st
 
 
 @attr.s
-class _Config(object):
+class _Config:
     """
     Manages configuration of a Tahoe 'node directory'.
 

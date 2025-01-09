@@ -7,7 +7,7 @@ from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
 from allmydata.util import base32
 
 @implementer(ICheckResults)
-class CheckResults(object):
+class CheckResults:
 
     def __init__(self, uri, storage_index,
                  healthy, recoverable, count_happiness,
@@ -153,7 +153,7 @@ class CheckResults(object):
         return self._servermap
 
 @implementer(ICheckAndRepairResults)
-class CheckAndRepairResults(object):
+class CheckAndRepairResults:
 
     def __init__(self, storage_index):
         self.storage_index = storage_index
@@ -175,7 +175,7 @@ class CheckAndRepairResults(object):
         return self.post_repair_results
 
 
-class DeepResultsBase(object):
+class DeepResultsBase:
 
     def __init__(self, root_storage_index):
         self.root_storage_index = root_storage_index

@@ -6,7 +6,7 @@ import itertools
 from zope.interface import implementer
 from allmydata.interfaces import IDownloadStatus
 
-class ReadEvent(object):
+class ReadEvent:
 
     def __init__(self, ev, ds):
         self._ev = ev
@@ -22,7 +22,7 @@ class ReadEvent(object):
         self._ds.update_last_timestamp(finishtime)
 
 
-class SegmentEvent(object):
+class SegmentEvent:
 
     def __init__(self, ev, ds):
         self._ev = ev
@@ -47,7 +47,7 @@ class SegmentEvent(object):
         self._ds.update_last_timestamp(when)
 
 
-class DYHBEvent(object):
+class DYHBEvent:
 
     def __init__(self, ev, ds):
         self._ev = ev
@@ -65,7 +65,7 @@ class DYHBEvent(object):
         self._ds.update_last_timestamp(when)
 
 
-class BlockRequestEvent(object):
+class BlockRequestEvent:
 
     def __init__(self, ev, ds):
         self._ev = ev
@@ -84,7 +84,7 @@ class BlockRequestEvent(object):
 
 
 @implementer(IDownloadStatus)
-class DownloadStatus(object):
+class DownloadStatus:
     # There is one DownloadStatus for each CiphertextFileNode. The status
     # object will keep track of all activity for that node.
     statusid_counter = itertools.count(0)

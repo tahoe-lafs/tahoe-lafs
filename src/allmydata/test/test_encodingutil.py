@@ -70,7 +70,7 @@ from allmydata.util.encodingutil import unicode_to_url, \
     to_filepath, extend_filepath, unicode_from_filepath, unicode_segments_from, \
     unicode_to_argv
 
-class MockStdout(object):
+class MockStdout:
     pass
 
 

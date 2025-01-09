@@ -21,7 +21,7 @@ MAX_DELTA_READS = 10 * READ_LEEWAY # N = 10
 
 timeout=240 # François's ARM box timed out after 120 seconds of Verifier.test_corrupt_crypttext_hashtree
 
-class RepairTestMixin(object):
+class RepairTestMixin:
     def _count_reads(self):
         sum_of_read_counts = 0
         for (i, ss, storedir) in self.iterate_servers():

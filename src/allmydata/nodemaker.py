@@ -22,7 +22,7 @@ from allmydata import uri
 
 
 @implementer(INodeMaker)
-class NodeMaker(object):
+class NodeMaker:
 
     def __init__(self, storage_broker, secret_holder, history,
                  uploader, terminator,
