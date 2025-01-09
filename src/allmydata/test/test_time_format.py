@@ -81,24 +81,42 @@ class TimeFormat(unittest.TestCase, TimezoneMixin):
         DAY = 24*60*60
         MONTH = 31*DAY
         YEAR = 365*DAY
+
+        # seconds
         self.failUnlessEqual(p("1s"), 1)
+        self.failUnlessEqual(p("12 s"), 12)
+        self.failUnlessEqual(p("333second"), 333)
+        self.failUnlessEqual(p(" 333 second "), 333)
+        self.failUnlessEqual(p("5 seconds"), 5)
+        self.failUnlessEqual(p("60 SECONDS"), 60)
         self.failUnlessEqual(p("86400s"), DAY)
+
+        # days
         self.failUnlessEqual(p("1 day"), DAY)
         self.failUnlessEqual(p("2 days"), 2*DAY)
-        self.failUnlessEqual(p("3 months"), 3*MONTH)
-        self.failUnlessEqual(p("4 mo"), 4*MONTH)
-        self.failUnlessEqual(p("5 years"), 5*YEAR)
-        e = self.failUnlessRaises(ValueError, p, "123")
-        self.failUnlessIn("no unit (like day, month, or year) in '123'",
-                          str(e))
+        self.failUnlessEqual(p("5days"), 5*DAY)
         self.failUnlessEqual(p("7days"), 7*DAY)
         self.failUnlessEqual(p("31day"), 31*DAY)
         self.failUnlessEqual(p("60 days"), 60*DAY)
+        self.failUnlessEqual(p("70 DAYS"), 70*DAY)
+
+        # months
+        self.failUnlessEqual(p("4 mo"), 4*MONTH)
         self.failUnlessEqual(p("2mo"), 2*MONTH)
         self.failUnlessEqual(p("3 month"), 3*MONTH)
+        self.failUnlessEqual(p("3 months"), 3*MONTH)
+
+        # years
+        self.failUnlessEqual(p("5 years"), 5*YEAR)
+        self.failUnlessEqual(p("8 year"), 8*YEAR)
         self.failUnlessEqual(p("2years"), 2*YEAR)
+        self.failUnlessEqual(p("11YEARS"), 11*YEAR)
+
+        # errors
+        e = self.failUnlessRaises(ValueError, p, "123")
+        self.failUnlessIn("No valid unit in",str(e))
         e = self.failUnlessRaises(ValueError, p, "2kumquats")
-        self.failUnlessIn("no unit (like day, month, or year) in '2kumquats'", str(e))
+        self.failUnlessIn("No valid unit in", str(e))
 
     def test_parse_date(self):
         p = time_format.parse_date

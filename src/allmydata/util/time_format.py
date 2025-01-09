@@ -6,8 +6,26 @@ http://www.cl.cam.ac.uk/~mgk25/iso-time.html
 """
 
 import calendar, datetime, re, time
-
 from typing import Optional
+from enum import Enum
+
+
+class ParseDurationUnitFormat(Enum):
+    SECONDS0 = "s"
+    SECONDS1 = "second"
+    SECONDS2 = "seconds"
+    DAYS0 = "day"
+    DAYS1 = "days"
+    MONTHS0 = "mo"
+    MONTHS1 = "month"
+    MONTHS2 = "months"
+    YEARS0 = "year"
+    YEARS1 = "years"
+
+    @classmethod
+    def list_values(cls):
+        return list(map(lambda c: c.value, cls))
+
 
 def format_time(t):
     return time.strftime("%Y-%m-%d %H:%M:%S", t)
@@ -50,32 +68,53 @@ def iso_utc_time_to_seconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})
 
     return calendar.timegm( (year, month, day, hour, minute, second, 0, 1, 0) ) + subsecfloat
 
+
 def parse_duration(s):
-    orig = s
-    unit = None
+    """
+    Parses a duration string and converts it to seconds. The unit format is case insensitive
+
+    Args:
+        s (str): The duration string to parse. Expected format: `<number><unit>`
+                 where `unit` can be one of the values defined in `ParseDurationUnitFormat`.
+
+    Returns:
+        int: The duration in seconds.
+
+    Raises:
+        ValueError: If the input string does not match the expected format or contains invalid units.
+    """
     SECOND = 1
     DAY = 24*60*60
     MONTH = 31*DAY
     YEAR = 365*DAY
-    if s.endswith("s"):
-        unit = SECOND
-        s = s[:-1]
-    elif s.endswith("day"):
-        unit = DAY
-        s = s[:-len("day")]
-    elif s.endswith("month"):
-        unit = MONTH
-        s = s[:-len("month")]
-    elif s.endswith("mo"):
-        unit = MONTH
-        s = s[:-len("mo")]
-    elif s.endswith("year"):
-        unit = YEAR
-        s = s[:-len("YEAR")]
-    else:
-        raise ValueError("no unit (like s, day, mo, month, or year) in '%s'" % orig)
-    s = s.strip()
-    return int(s) * unit
+    time_map = {
+        ParseDurationUnitFormat.SECONDS0: SECOND,
+        ParseDurationUnitFormat.SECONDS1: SECOND,
+        ParseDurationUnitFormat.SECONDS2: SECOND,
+        ParseDurationUnitFormat.DAYS0: DAY,
+        ParseDurationUnitFormat.DAYS1: DAY,
+        ParseDurationUnitFormat.MONTHS0: MONTH,
+        ParseDurationUnitFormat.MONTHS1: MONTH,
+        ParseDurationUnitFormat.MONTHS2: MONTH,
+        ParseDurationUnitFormat.YEARS0: YEAR,
+        ParseDurationUnitFormat.YEARS1: YEAR,
+    }
+
+    # Build a regex pattern dynamically from the list of valid values
+    unit_pattern = "|".join(re.escape(unit) for unit in ParseDurationUnitFormat.list_values())
+    pattern = rf"^\s*(\d+)\s*({unit_pattern})\s*$"
+
+    # case-insensitive regex matching
+    match = re.match(pattern, s, re.IGNORECASE)
+    if not match:
+        # Generate dynamic error message
+        valid_units = ", ".join(f"'{value}'" for value in ParseDurationUnitFormat.list_values())
+        raise ValueError(f"No valid unit in '{s}'. Expected one of: ({valid_units})")
+
+    number = int(match.group(1))  # Extract the numeric value
+    unit = match.group(2).lower()  # Extract the unit & normalize the unit to lowercase
+
+    return number * time_map[unit]
 
 def parse_date(s):
     # return seconds-since-epoch for the UTC midnight that starts the given
