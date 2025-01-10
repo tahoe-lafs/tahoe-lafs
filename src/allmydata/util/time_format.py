@@ -10,7 +10,7 @@ from typing import Optional
 from enum import Enum
 
 
-class ParseDurationUnitFormat(Enum):
+class ParseDurationUnitFormat(str, Enum):
     SECONDS0 = "s"
     SECONDS1 = "second"
     SECONDS2 = "seconds"
