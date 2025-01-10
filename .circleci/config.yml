@@ -117,9 +117,9 @@ workflows:
       - "another-locale":
           {}
 
-      # Test our sources with the packaging for Debian Testing
+      # Test our sources with the packaging for Debian 13 (Trixie)
       # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4150
-      - "debian-trixie-package":
+      - "debian-13-package":
           {}
 
       - "windows-server-2022":
@@ -547,7 +547,7 @@ jobs:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py310"
 
-  debian-trixie-package:
+  debian-13-package:
     docker:
       - <<: *DOCKERHUB_AUTH
         image: "debian:trixie"
@@ -563,8 +563,8 @@ jobs:
       - run:
           name: "Download sources for Tahoe-LAFS and @merkys Debian packaging"
           command: |
-            mkdir /tmp/debian-trixie-package
-            cd /tmp/debian-trixie-package
+            mkdir /tmp/debian-13-package
+            cd /tmp/debian-13-package
             # Take Tahoe-LAFS source
             git clone https://github.com/tahoe-lafs/tahoe-lafs.git
             # Take debian/ directory from Debian packaging repository
@@ -591,17 +591,17 @@ jobs:
                   gsub(/[^a-z0-9_.+-].*$/, "", dep)
                   if (dep && !seen[dep]++) print dep
                 }
-              }' /tmp/debian-trixie-package/tahoe-lafs/debian/control)
+              }' /tmp/debian-13-package/tahoe-lafs/debian/control)
       - run:
           name: "Apply the Debian package's patches"
           command: |
-            cd /tmp/debian-trixie-package/tahoe-lafs/
+            cd /tmp/debian-13-package/tahoe-lafs/
             # TODO decide: Should we honour quilt's opinion about this build?
             quilt push -a || true
       - run:
           name: "Build & run tests"
           command: |
-            cd /tmp/debian-trixie-package/tahoe-lafs/
+            cd /tmp/debian-13-package/tahoe-lafs/
             make -f debian/rules binary
       - store_artifacts:
           path: "/tmp/*.deb"
