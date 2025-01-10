@@ -119,7 +119,8 @@ workflows:
 
       # Test our sources with the packaging for Debian Testing
       # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4150
-      - "debian-trixie-package"
+      - "debian-trixie-package":
+          {}
 
       - "windows-server-2022":
           name: "Windows Server 2022, CPython <<matrix.pythonVersion>>"
