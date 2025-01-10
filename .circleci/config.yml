@@ -591,14 +591,16 @@ jobs:
                   gsub(/[^a-z0-9_.+-].*$/, "", dep)
                   if (dep && !seen[dep]++) print dep
                 }
-              }' debian/control)
+              }' /tmp/debian-trixie-package/tahoe-lafs/debian/control)
       - run:
           name: "Apply the Debian package's patches"
           command: |
+            cd /tmp/debian-trixie-package/tahoe-lafs/
             quilt push -a
       - run:
           name: "Build & run tests"
           command: |
+            cd /tmp/debian-trixie-package/tahoe-lafs/
             make -f debian/rules binary
 
   nixos:
