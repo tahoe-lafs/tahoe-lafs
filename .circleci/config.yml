@@ -603,6 +603,8 @@ jobs:
           command: |
             cd /tmp/debian-trixie-package/tahoe-lafs/
             make -f debian/rules binary
+      - store_artifacts:
+          path: "/tmp/*.deb"
 
   nixos:
     parameters:
