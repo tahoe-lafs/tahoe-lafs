@@ -604,7 +604,7 @@ jobs:
             cd /tmp/debian-13-package/tahoe-lafs/
             make -f debian/rules binary
       - store_artifacts:
-          path: "/tmp/*.deb"
+          path: "/tmp/tahoe-lafs_1.20.0-1_all.deb"
 
   nixos:
     parameters:
