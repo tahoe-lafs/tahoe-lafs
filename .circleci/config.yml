@@ -597,12 +597,12 @@ jobs:
             make -f debian/rules binary
       - run:
           name: "Install the built package"
-          command: dpkg -i /tmp/tahoe-lafs_1.20.0-1_all.deb
+          command: dpkg -i /tmp/debian-13-package/tahoe-lafs_1.20.0-1_all.deb
       - run:
           name: "Run our newly system-wide installed tahoe"
           command: tahoe --version
       - store_artifacts:
-          path: /tmp/tahoe-lafs_1.20.0-1_all.deb
+          path: /tmp/debian-13-package/tahoe-lafs_1.20.0-1_all.deb
 
   nixos:
     parameters:
