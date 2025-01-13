@@ -29,6 +29,7 @@ from allmydata.web.common import (
     boolean_of_arg,
     exception_to_child,
     get_arg,
+    get_filename,
     get_filenode_metadata,
     get_format,
     get_mutable_type,
@@ -94,10 +95,10 @@ class ReplaceMeMixin(object):
     def replace_me_with_a_formpost(self, req, client, replace):
         # create a new file, maybe mutable, maybe immutable
         file_format = get_format(req, "CHK")
-        contents = req.args[b"file"][0]
+        contents = req.fields[b"file"].file
         if file_format in ("SDMF", "MDMF"):
             mutable_type = get_mutable_type(file_format)
-            uploadable = MutableFileHandle(BytesIO(contents))
+            uploadable = MutableFileHandle(contents)
             keypair = get_keypair(req)
             d = client.create_mutable_file(uploadable, version=mutable_type, unique_keypair=keypair)
             def _uploaded(newnode):
@@ -199,19 +200,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
                 return b""
 
         if not t:
-            # just get the contents
-            # the filename arrives as part of the URL or in a form input
-            # element, and will be sent back in a Content-Disposition header.
-            # Different browsers use various character sets for this name,
-            # sometimes depending upon how language environment is
-            # configured. Firefox sends the equivalent of
-            # urllib.quote(name.encode("utf-8")), while IE7 sometimes does
-            # latin-1. Browsers cannot agree on how to interpret the name
-            # they see in the Content-Disposition header either, despite some
-            # 11-year old standards (RFC2231) that explain how to do it
-            # properly. So we assume that at least the browser will agree
-            # with itself, and echo back the same bytes that we were given.
-            filename = get_arg(req, "filename", self.name) or "unknown"
+            filename = get_filename(req, "filename") or self.name or "unknown"
             d = self.node.get_best_readable_version()
             d.addCallback(lambda dn: FileDownloader(dn, filename))
             return d
@@ -248,7 +237,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
         t = get_arg(req, b"t", b"").strip()
         if t:
             raise WebError("HEAD file: bad t=%s" % t)
-        filename = get_arg(req, b"filename", self.name) or "unknown"
+        filename = get_filename(req, "file") or self.name or "unknown"
         d = self.node.get_best_readable_version()
         d.addCallback(lambda dn: FileDownloader(dn, filename))
         return d

@@ -155,6 +155,10 @@ install_requires = [
     # for pid-file support
     "psutil",
     "filelock",
+
+    # Streaming MIME upload parsing, since cgi module was removed in Python
+    # 3.13:
+    "multipart >= 1",
 ]
 
 tor_requires = [

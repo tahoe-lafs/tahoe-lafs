@@ -1,6 +1,7 @@
 """
 General web server-related utilities.
 """
+
 from __future__ import annotations
 
 from six import ensure_str
@@ -11,6 +12,8 @@ from urllib.parse import parse_qsl, urlencode
 from io import (
     BytesIO,
 )
+
+from multipart import parse_options_header, MultipartParser
 
 from twisted.application import service, strports, internet
 from twisted.web import static
@@ -26,6 +29,7 @@ from twisted.internet.address import (
     IPv4Address,
     IPv6Address,
 )
+
 from allmydata.util import log, fileutil
 
 from allmydata.web import introweb, root
@@ -42,7 +46,11 @@ class TahoeLAFSRequest(Request):
     that are useful for Tahoe-LAFS.
     """
 
-    def requestReceived(self, *args, **kwargs):
+    def __init__(self, channel, *args, **kw):
+        kw.pop("parsePOSTFormSubmission", None)
+        Request.__init__(self, channel, args, parsePOSTFormSubmission=False, **kw)
+
+    def process(self):
         """
         Called by channel when all data has been received.
 
@@ -50,50 +58,28 @@ class TahoeLAFSRequest(Request):
         and to provide less memory-intensive multipart/form-post handling for
         large file uploads.
         """
-        result = Request.requestReceived(self, *args, **kwargs)
+        self.processing_started_timestamp = time.time()
         self._tahoeLAFSSecurityPolicy()
-        return result
 
-        self.content.seek(0)
-        self.args = {}
-        self.stack = []
-
-        self.method, self.uri = command, path
-        self.clientproto = version
-        x = self.uri.split(b'?', 1)
-
-        if len(x) == 1:
-            self.path = self.uri
-        else:
-            self.path, argstring = x
-            self.args = parse_qs(argstring, 1)
-
-        content_type = (self.requestHeaders.getRawHeaders("content-type") or [""])[0]
-        if self.method == b'POST' and content_type.split(";")[0] in ("multipart/form-data", "application/x-www-form-urlencoded"):
-            # We use FieldStorage here because it performs better than
-            # cgi.parse_multipart(self.content, pdict) which is what
-            # twisted.web.http.Request uses.
-
-            headers = {
-                ensure_str(name.lower()): ensure_str(value[-1])
-                for (name, value)
-                in self.requestHeaders.getAllRawHeaders()
-            }
-
-            if 'content-length' not in headers:
-                # Python 3's cgi module would really, really like us to set Content-Length.
-                self.content.seek(0, 2)
-                headers['content-length'] = str(self.content.tell())
-                self.content.seek(0)
-
-            self.fields = FileUploadFieldStorage(
-                self.content, headers, environ={'REQUEST_METHOD': 'POST'})
+        # We disable Twisted's POST body parsing, so we need to implement our own:
+        if self.method == b"POST":
+            contentTypeHeader = (self.requestHeaders.getRawHeaders("content-type") or [""])[
+                0
+            ]
+            contentType, options = parse_options_header(contentTypeHeader)
+            self.content.seek(0)
+            self.fields = {}
+            if contentType == "multipart/form-data" and "boundary" in options:
+                for part in MultipartParser(
+                    self.content, options["boundary"]
+                ):
+                    self.fields[part.name] = part
+            elif contentType == "application/x-www-form-urlencoded":
+                self.args.update(parse_qs(self.content.read(), 1))
             self.content.seek(0)
 
-        self._tahoeLAFSSecurityPolicy()
-
-        self.processing_started_timestamp = time.time()
-        self.process()
+        # Now continue with normal process:
+        return Request.process(self)
 
     def _tahoeLAFSSecurityPolicy(self):
         """
