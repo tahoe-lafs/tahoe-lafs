@@ -254,7 +254,7 @@ class CreateNode(unittest.TestCase):
         # Fail if there is a non-empty line that doesn't end with a
         # punctuation mark.
         for line in err.splitlines():
-            self.failIf(re.search("[\S][^\.!?]$", line), (line,))
+            self.failIf(re.search(r"[\S][^\.!?]$", line), (line,))
 
         # test that the non --basedir form works too
         n2 = os.path.join(basedir, command + "-n2")
