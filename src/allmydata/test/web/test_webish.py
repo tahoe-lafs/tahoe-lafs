@@ -66,15 +66,16 @@ class TahoeLAFSRequestTests(SyncTestCase):
         # We don't really care what happened to the request.  What we do care
         # about is what the `fields` attribute is set to.
         self.assertThat(
-            request.args,
+            request.fields,
             match_fields,
         )
 
     def test_no_form_fields(self):
         """
-        When a ``GET`` request is received, ``TahoeLAFSRequest.fields`` is None.
+        When a ``GET`` request is received, ``TahoeLAFSRequest.fields`` is
+        None.
         """
-        self._fields_test(b"GET", {}, b"", Equals({}))
+        self._fields_test(b"GET", {}, b"", Equals(None))
 
     def test_form_fields_if_filename_set(self):
         """

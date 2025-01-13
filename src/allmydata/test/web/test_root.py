@@ -131,6 +131,7 @@ class RenderServiceRow(SyncTestCase):
 
         root = RootElement(FakeClient(), time.time)
         req = DummyRequest(b"")
+        req.fields = {}
         tag = Tag(b"")
 
         # Pick all items from services table.
