@@ -70,7 +70,7 @@ def roundup_pow2(x):
 
 
 class CompleteBinaryTreeMixin:
-    """
+    r"""
     Adds convenience methods to a complete binary tree.
 
     Assumes the total number of elements in the binary tree may be
@@ -179,7 +179,7 @@ def pair_hash(a, b):
     return tagged_pair_hash(b'Merkle tree internal node', a, b)
 
 class HashTree(CompleteBinaryTreeMixin, list):
-    """
+    r"""
     Compute Merkle hashes at any node in a complete binary tree.
 
     Tree is indexed like so::

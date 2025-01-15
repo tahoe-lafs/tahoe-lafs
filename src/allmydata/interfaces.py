@@ -406,7 +406,7 @@ class IStorageBucketWriter(Interface):
         """
 
     def put_uri_extension(data):
-        """This block of data contains integrity-checking information (hashes
+        r"""This block of data contains integrity-checking information (hashes
         of plaintext, crypttext, and shares), as well as encoding parameters
         that are necessary to recover the data. This is a serialized dict
         mapping strings to other strings. The hash of this data is kept in
