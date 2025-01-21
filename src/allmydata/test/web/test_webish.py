@@ -36,6 +36,7 @@ from twisted.web.test.requesthelper import (
 from twisted.web.resource import (
     Resource,
 )
+from twisted.web.server import Site
 
 from ..common import (
     SyncTestCase,
@@ -48,12 +49,33 @@ from ...webish import (
 )
 
 
+class HandleFields(Resource):
+    """
+    Used by C{_fields_test} below.
+
+    We can't just access the C{Request.fields} because by the time the request
+    is done the multipart file-likes have been closed, we need to read them
+    during the request rendering.
+    """
+    isLeaf = True
+
+    def render(self, request):
+        if request.fields is None:
+            request.parsedFieldsForTest = None
+        else:
+            request.parsedFieldsForTest = {}
+            for name, part in request.fields.items():
+                request.parsedFieldsForTest[name] = part.raw
+        return b""
+
+
 class TahoeLAFSRequestTests(SyncTestCase):
     """
     Tests for ``TahoeLAFSRequest``.
     """
     def _fields_test(self, method, request_headers, request_body, match_fields):
         channel = DummyChannel()
+        channel.site = Site(HandleFields())
         request = TahoeLAFSRequest(
             channel,
         )
@@ -63,10 +85,9 @@ class TahoeLAFSRequestTests(SyncTestCase):
         request.handleContentChunk(request_body)
         request.requestReceived(method, b"/", b"HTTP/1.1")
 
-        # We don't really care what happened to the request.  What we do care
-        # about is what the `fields` attribute is set to.
         self.assertThat(
-            request.fields,
+            # This dict is created by HandleFields.render from Request.fields:
+            request.parsedFieldsForTest,
             match_fields,
         )
 
@@ -96,17 +117,10 @@ class TahoeLAFSRequestTests(SyncTestCase):
             b"POST",
             {b"content-type": b"multipart/form-data; boundary=" + bytes(boundary, 'ascii')},
             form_data.encode("ascii"),
-            AfterPreprocessing(
-                lambda fs: {
-                    k: fs[k]
-                    for k
-                    in fs.keys()
-                },
-                Equals({
-                    b"foo": [b"bar"],
-                    b"baz": [b"some file contents"],
-                }),
-            ),
+            Equals({
+                "foo": b"bar",
+                "baz": b"some file contents",
+            }),
         )
 
     def test_form_fields_if_name_is_file(self):
@@ -127,17 +141,10 @@ class TahoeLAFSRequestTests(SyncTestCase):
             b"POST",
             {b"content-type": b"multipart/form-data; boundary=" + bytes(boundary, 'ascii')},
             form_data.encode("ascii"),
-            AfterPreprocessing(
-                lambda fs: {
-                    k: fs[k]
-                    for k
-                    in fs.keys()
-                },
-                Equals({
-                    b"foo": [b"bar"],
-                    b"file": [b"some file contents"],
-                }),
-            ),
+            Equals({
+                "foo": b"bar",
+                "file": b"some file contents",
+            }),
         )
 
     def test_form_fields_require_correct_mime_type(self):
@@ -150,7 +157,7 @@ class TahoeLAFSRequestTests(SyncTestCase):
         data = u'{"lalala": "lolo"}'
         data = data.encode("utf-8")
         self._fields_test(b"POST", {"content-type": "application/json"},
-                          data, Equals({}))
+                          data, Equals(None))
 
 
 class TahoeLAFSSiteTests(SyncTestCase):
@@ -349,6 +356,6 @@ def multipart_formdata(fields):
     parts = list(_multipart_formdata(fields))
     parts.insert(0, u"")
     return (
-        (u"--" + boundary + u"\r\n").join(parts),
+        (u"--" + boundary + u"\r\n").join(parts) + "--" + boundary + "--",
         boundary,
     )
