@@ -64,7 +64,7 @@ def PUTUnlinkedCreateDirectory(req, client):
 
 
 def POSTUnlinkedCHK(req, client):
-    fileobj = BytesIO(req.args[b"file"][0])
+    fileobj = req.fields["file"].file
     uploadable = FileHandle(fileobj, client.convergence)
     d = client.upload(uploadable)
     when_done = get_arg(req, "when_done", None)
@@ -133,7 +133,7 @@ class UploadResultsElement(status.UploadResultsRendererMixin):
 def POSTUnlinkedSSK(req, client, version):
     # "POST /uri", to create an unlinked file.
     # SDMF: files are small, and we can only upload data
-    contents = BytesIO(req.args[b"file"][0])
+    contents = req.fields["file"].file
     data = MutableFileHandle(contents)
     d = client.create_mutable_file(data, version=version)
     d.addCallback(lambda n: n.get_uri())

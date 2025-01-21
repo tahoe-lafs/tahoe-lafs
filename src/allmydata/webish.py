@@ -48,7 +48,7 @@ class TahoeLAFSRequest(Request):
 
     def __init__(self, channel, *args, **kw):
         kw.pop("parsePOSTFormSubmission", None)
-        self.fields = None
+        self.fields = {}
         Request.__init__(self, channel, args, parsePOSTFormSubmission=False, **kw)
 
     def finish(self):
@@ -76,7 +76,6 @@ class TahoeLAFSRequest(Request):
             contentType, options = parse_options_header(contentTypeHeader)
             self.content.seek(0)
             if contentType == "multipart/form-data" and "boundary" in options:
-                self.fields = {}
                 for part in MultipartParser(
                     self.content, options["boundary"]
                 ):

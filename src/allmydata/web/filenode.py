@@ -95,7 +95,7 @@ class ReplaceMeMixin(object):
     def replace_me_with_a_formpost(self, req, client, replace):
         # create a new file, maybe mutable, maybe immutable
         file_format = get_format(req, "CHK")
-        contents = req.fields[b"file"].file
+        contents = req.fields["file"].file
         if file_format in ("SDMF", "MDMF"):
             mutable_type = get_mutable_type(file_format)
             uploadable = MutableFileHandle(contents)
@@ -109,7 +109,7 @@ class ReplaceMeMixin(object):
             d.addCallback(_uploaded)
             return d
 
-        uploadable = FileHandle(BytesIO(contents), convergence=client.convergence)
+        uploadable = FileHandle(contents, convergence=client.convergence)
         d = self.parentnode.add_file(self.name, uploadable, overwrite=replace)
         d.addCallback(lambda newnode: newnode.get_uri())
         return d
@@ -356,8 +356,7 @@ class FileNodeHandler(Resource, ReplaceMeMixin, object):
     def replace_my_contents_with_a_formpost(self, req):
         # we have a mutable file. Get the data from the formpost, and replace
         # the mutable file's contents with it.
-        new_contents = req.args[b'file'][0]
-        new_contents = MutableFileHandle(BytesIO(new_contents))
+        new_contents = MutableFileHandle(req.fields['file'].file)
 
         d = self.node.overwrite(new_contents)
         d.addCallback(lambda res: self.node.get_uri())
@@ -435,7 +434,7 @@ class FileDownloader(Resource, object):
             # bytes we were given in the URL. See the comment in
             # FileNodeHandler.render_GET for the sad details.
             req.setHeader("content-disposition",
-                          b'attachment; filename="%s"' % self.filename)
+                          'attachment; filename="%s"' % self.filename)
 
         filesize = self.filenode.get_size()
         assert isinstance(filesize, int), filesize

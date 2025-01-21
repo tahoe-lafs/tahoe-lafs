@@ -96,7 +96,7 @@ class TahoeLAFSRequestTests(SyncTestCase):
         When a ``GET`` request is received, ``TahoeLAFSRequest.fields`` is
         None.
         """
-        self._fields_test(b"GET", {}, b"", Equals(None))
+        self._fields_test(b"GET", {}, b"", Equals({}))
 
     def test_form_fields_if_filename_set(self):
         """
@@ -157,7 +157,7 @@ class TahoeLAFSRequestTests(SyncTestCase):
         data = u'{"lalala": "lolo"}'
         data = data.encode("utf-8")
         self._fields_test(b"POST", {"content-type": "application/json"},
-                          data, Equals(None))
+                          data, Equals({}))
 
 
 class TahoeLAFSSiteTests(SyncTestCase):
