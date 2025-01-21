@@ -731,11 +731,6 @@ def get_arg(req: IRequest, argname: str | bytes, default: Optional[T] = None, *,
 
     :return: Either bytes or tuple of bytes.
     """
-    # TODO used to catch places that need upgrading to get_filename, delete
-    # before merge:
-    if argname in (b"filename", "filename"):
-        raise RuntimeError("switch to get_filename()")
-
     # Need to import here to prevent circular import:
     from ..webish import TahoeLAFSRequest
 
