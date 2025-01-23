@@ -600,7 +600,7 @@ jobs:
           command: |
             # Work around CircleCI not supporting globbing in store_artifacts
             mkdir -p /tmp/debian-13-package/dist
-            rm /tmp/debian-13-package/dist/tahoe-lafs_*.deb
+            rm -f /tmp/debian-13-package/dist/tahoe-lafs_*.deb
             mv /tmp/debian-13-package/tahoe-lafs_*.deb /tmp/debian-13-package/dist/
             dpkg -i /tmp/debian-13-package/dist/tahoe-lafs_*.deb
       - run:
