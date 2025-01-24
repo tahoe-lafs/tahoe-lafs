@@ -36,9 +36,9 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
     def count_output(self, out):
         mo = re.search(r"(\d)+ files uploaded \((\d+) reused\), "
-                        "(\d)+ files skipped, "
-                        "(\d+) directories created \((\d+) reused\), "
-                        "(\d+) directories skipped", out)
+                        r"(\d)+ files skipped, "
+                        r"(\d+) directories created \((\d+) reused\), "
+                        r"(\d+) directories skipped", out)
         return [int(s) for s in mo.groups()]
 
     def count_output2(self, out):

@@ -1556,8 +1556,8 @@ class Statistics(MultiFormatResource):
 
         def mangle_name(name):
             return re.sub(
-                u"_(\d\d)_(\d)_percentile",
-                u'{quantile="0.\g<1>\g<2>"}',
+                r"_(\d\d)_(\d)_percentile",
+                r'{quantile="0.\g<1>\g<2>"}',
                 name.replace(u".", u"_")
             )
 
