@@ -574,6 +574,7 @@ jobs:
           name: "Install Tahoe-LAFS dependencies from the Debian repositories"
           command: |
             # 'apt-get install' dependencies from debian/control
+            # Via https://stackoverflow.com/a/47707412
             apt-get install --no-install-recommends --yes $(awk '
               /^(Build-)?Depends:/ || /^ / && deps {
                 sub(/^[^ ]+: /, "")
