@@ -117,6 +117,11 @@ workflows:
       - "another-locale":
           {}
 
+      # Test our sources with the packaging for Debian 13 (Trixie)
+      # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4150
+      - "debian-13-package":
+          {}
+
       - "windows-server-2022":
           name: "Windows Server 2022, CPython <<matrix.pythonVersion>>"
           matrix:
@@ -541,6 +546,68 @@ jobs:
     environment:
       <<: *UTF_8_ENVIRONMENT
       TAHOE_LAFS_TOX_ENVIRONMENT: "py310"
+
+  debian-13-package:
+    docker:
+      - <<: *DOCKERHUB_AUTH
+        image: "debian:trixie"
+    steps:
+      - run:
+          name: "Get latest Debian repository index and install essentials"
+          command: |
+            apt update
+            apt-get install --no-install-recommends --yes \
+              git \
+              ca-certificates
+      - run:
+          name: "Download sources for Tahoe-LAFS and @merkys Debian packaging"
+          command: |
+            mkdir /tmp/debian-13-package
+            cd /tmp/debian-13-package
+            # Take Tahoe-LAFS source
+            git clone https://github.com/tahoe-lafs/tahoe-lafs.git
+            # Take debian/ directory from Debian packaging repository
+            git clone https://salsa.debian.org/merkys/tahoe-lafs.git merkys-tahoe-lafs
+            cd tahoe-lafs/
+            ln -s ../merkys-tahoe-lafs/debian
+      - run:
+          name: "Install Tahoe-LAFS dependencies from the Debian repositories"
+          command: |
+            # 'apt-get install' dependencies from debian/control
+            # Via https://stackoverflow.com/a/47707412
+            apt-get install --no-install-recommends --yes $(awk '
+              /^(Build-)?Depends:/ || /^ / && deps {
+                sub(/^[^ ]+: /, "")
+                deps = 1
+                dep_str = dep_str ", " $0
+                next
+              }
+              { deps=0 }
+              END {
+                split(dep_str, dep_array, /[,|] */)
+                for (d in dep_array) {
+                  dep = dep_array[d]
+                  gsub(/[^a-z0-9_.+-].*$/, "", dep)
+                  if (dep && !seen[dep]++) print dep
+                }
+              }' /tmp/debian-13-package/tahoe-lafs/debian/control)
+      - run:
+          name: "Build & run tests"
+          command: |
+            cd /tmp/debian-13-package/tahoe-lafs/
+            make -f debian/rules binary
+      - run:
+          name: "Install the built package"
+          command: |
+            # Work around CircleCI not supporting globbing in store_artifacts
+            mkdir /tmp/debian-13-package/dist
+            mv /tmp/debian-13-package/tahoe-lafs_*.deb /tmp/debian-13-package/dist/
+            dpkg -i /tmp/debian-13-package/dist/tahoe-lafs_*.deb
+      - run:
+          name: "Run our newly system-wide installed tahoe"
+          command: tahoe --version
+      - store_artifacts:
+          path: /tmp/debian-13-package/dist
 
   nixos:
     parameters:
