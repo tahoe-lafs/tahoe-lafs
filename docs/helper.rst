@@ -20,10 +20,10 @@ means that an upload will require about 3.3x the traffic as a download of the
 same file.
 
 Unfortunately, this "expansion penalty" occurs in the same upstream direction
-that most consumer DSL lines are slow anyways. Typical ADSL lines get 8 times
-as much download capacity as upload capacity. When the ADSL upstream penalty
-is combined with the expansion penalty, the result is uploads that can take
-up to 32 times longer than downloads.
+that many asymmetric Internet access connections (DSL, cable modems, cellular)
+are slow anyways (say, 8x). When the asymmetric upstream penalty is combined
+with the expansion penalty, the result is uploads that can take up to 32 times
+longer than downloads.
 
 The "Helper" is a service that can mitigate the expansion penalty by
 arranging for the client node to send data to a central Helper node instead
@@ -116,7 +116,7 @@ Using a Helper
 
 Who should consider using a Helper?
 
-* clients with limited upstream bandwidth, such as a consumer ADSL line
+* clients with limited upstream bandwidth, such as an asymmetric DSL line
 * clients who believe that the helper will give them faster uploads than
   they could achieve with a direct upload
 * clients who experience problems with TCP connection fairness: if other
