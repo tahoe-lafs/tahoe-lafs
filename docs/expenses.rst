@@ -179,6 +179,7 @@ onwards into 2024.
 * Recipient: Open Collective (US)
 
   * Transfer Address: 1KZYr8UU2XjuEdSPzn2pF8eRPZZvffByDf
+  * Payment Address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
 
 The first phase transferred 7.5 BTC (about $250K).
 
@@ -205,3 +206,40 @@ The first phase transferred 7.5 BTC (about $250K).
   * xfer 6.0 BTC: txid 766fa17b43ab0d2a0c3d2839a59e9887abf3026d44ccecee42a348fb2cc05474, block 857,777
   * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
   * send 5.999943 BTC: txid b44c8d4dbbfcef6eee2681700ccb8e3c6d7d56b3796ce8813848d2c91022d7a4, block 857,788
+* 10-dec-2024: 2.0 BTC ($200k) (current price: $97,745)
+  * transfer address: 1KZYr8UU2XjuEdSPzn2pF8eRPZZvffByDf
+  * xfer 2.0 BTC: txid 134afb660302a8f1940af32ea55b92719477dd77615d6457ffeabf99dd085773, block 874,225
+  * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
+  * send 1.999943 BTC: txid 05bbeb58a7248bd542c9dab1562c561a98ece72bb44f65be82f50c7fc2c47b92, block 874,226
+* 21-jan-2025: 1.0 BTC ($106k) (current price: $105,923)
+  * transfer address: 1KZYr8UU2XjuEdSPzn2pF8eRPZZvffByDf
+  * xfer 1.0 BTC: txid c4b90f29136a8df546ce30bfa238dbb479020b85c26eb33b1f221382cec8c235, block 880,263
+  * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
+  * send 0.999943 BTC: txid b480d111123b3de09ce8d757954a2ff47e4e8efce53b6ba81823a7ae9a10e8ff, block 880,270
+* 04-feb-2025: 3.0 BTC ($295k) (current price: $98,340)
+  * transfer address: 1KZYr8UU2XjuEdSPzn2pF8eRPZZvffByDf
+  * xfer 3.0 BTC: txid 478d682cf9b65e1ee5d0a6bcabf3d21d3615340288b1611a4f53e49d81d80394, block 882,334
+  * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
+  * send 2.999943 BTC: txid 5734b5e06cd1d6576344be05d9087b2838f38330afd508a2c5866dc23f02bc67, block 882,335
+
+
+Magic Internet Project
+----------------------
+
+In January 2025, we started supporting the Magic Internet project with
+a two-year commitment of 10.0 BTC. Initially, the funds will be
+transferred in three-month chunks through Open Collective, but project
+intends to be established as a non-profit organization which can
+receive the remainder of the BTC directly.
+
+* Recipient: Magic Internet Project (via Open Collective)
+
+  * Transfer Address: 12HZ2rGfgcAqJY2Y55Dxt4Z2qUXiK2WFf8
+  * Payment Address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU (same as above)
+
+* 18-jan-2025: ~3.0 BTC ($300k)
+  * transfer address: 12HZ2rGfgcAqJY2Y55Dxt4Z2qUXiK2WFf8
+  * xfer 0.1 BTC: txid d6e9688dfc75289343729c528914099671a1b82a80dfb6260b9791085e1445f3, block 880,266
+  * xfer 2.9 BTC: txid df060a796a449b67a78d3ac634f2b601f8b7c0b9b68e58cdfba3dd333d16fc3a, block 880,271
+  * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
+  * send 2.9998986 BTC: 374e7ec1a9200b83d65976dbeedb164d6be7d4669b630436276654a096821b56, block 880,272
