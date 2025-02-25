@@ -90,7 +90,7 @@ class GridManagerCommandLine(TestCase):
             self.assertEqual(1, result.exit_code)
             self.assertIn(
                 "Can't create",
-                result.stdout,
+                result.output,
             )
 
     def test_create_stdout(self):
