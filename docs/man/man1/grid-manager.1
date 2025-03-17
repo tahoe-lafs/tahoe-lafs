@@ -1,0 +1,59 @@
+.TH GRID-MANAGER 1 "March 2025" "Tahoe-LAFS" "User Commands"
+.
+.SH NAME
+grid-manager \- A Tahoe Grid Manager for issuing certificates to storage-servers.
+.
+.SH SYNOPSIS
+.B grid-manager
+[\fIOPTIONS\fR] \fICOMMAND\fR [\fIARGS\fR]...
+.
+.SH DESCRIPTION
+A Tahoe Grid Manager issues certificates to storage-servers.
+.
+A Tahoe client with one or more Grid Manager public keys configured will only upload to a Storage Server that presents a valid certificate signed by one of the configured Grid Manager keys.
+.
+Grid Manager configuration can be in a local directory or given via stdin. It contains long-term secret information (a private signing key) and should be kept safe.
+.
+.SH OPTIONS
+.TP
+.BR \-c , " --config " \fIPATH\fR
+Configuration directory (or \- for stdin). \fIRequired.\fR
+.TP
+.B \--help
+Show this message and exit.
+.
+.SH COMMANDS
+.TP
+.B add
+Add a new storage-server by name to a Grid Manager.
+.TP
+.B create
+Make a new Grid Manager.
+.TP
+.B list
+List all storage-servers known to a Grid Manager.
+.TP
+.B public-identity
+Show the public identity key of a Grid Manager.
+.TP
+.B remove
+Remove an existing storage-server by name from a Grid Manager.
+.TP
+.B sign
+Sign a new certificate.
+.
+.SH AUTHORS
+Tahoe-LAFS has been written by Brian Warner, Zooko Wilcox-O'Hearn, and numerous other contributors.
+.
+.SH REPORTING BUGS
+Please see <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/HowToReportABug>.
+.
+Tahoe-LAFS home page: <https://tahoe-lafs.org/>
+.
+Tahoe-LAFS development mailing list: <https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev>
+.
+.SH COPYRIGHT
+Copyright \(co 2006\(en2025 The Tahoe-LAFS Software Foundation.
+.
+.SH SEE ALSO
+tahoe(1)
