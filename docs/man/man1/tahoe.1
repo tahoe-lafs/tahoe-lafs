@@ -1,11 +1,30 @@
-.TH TAHOE 1 "July 2011" "Tahoe-LAFS \[em] tahoe command" "User Commands"
+.TH TAHOE 1 "March 2025" "Tahoe-LAFS \[em] tahoe command" "User Commands"
 .SH NAME
-.PP
-tahoe - Secure distributed file store.
+tahoe \- Secure distributed file store.
 .SH SYNOPSIS
-.PP
-tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]PARAMETER\f[]]...
-.SH GENERAL OPTIONS
+.B tahoe
+[\fI\,global-options\/\fR] \fI\,<command> \/\fR[\fI\,command-options\/\fR]
+.SH GLOBAL OPTIONS
+.TP
+\fB\-d\fR, \fB\-\-node\-directory=\fR
+Specify which Tahoe node directory should be
+used. The directory should either contain a
+full Tahoe node, or a file named node.url that
+points to some other Tahoe node. It should also
+contain a file named 'private/aliases' which
+contains the mapping from alias name to root
+dirnode URI. [default for most commands:
+\&`$HOME/.tahoe']
+.TP
+\fB\-\-eliot\-destination=\fR
+Add an Eliot logging destination.  May be given
+more than once.
+.TP
+\fB\-\-help\fR
+Display help and exit.
+.TP
+\fB\-\-help\-eliot\-destinations\fR
+Emit usage information for \fB\-\-eliot\-destination\fR.
 .TP
 .B \f[B]-q,\ --quiet\f[]
 Operate silently.
@@ -22,11 +41,13 @@ Display version numbers and paths to their locations.
 .RS
 .RE
 .TP
-.B \f[B]-d,\ --node-directory\f[]
-Specify which Tahoe node directory should be used.
-(default for most commands: `$HOME/.tahoe')
-.RS
-.RE
+\fB\-\-wormhole\-invite\-appid=\fR
+The appid to use on the wormhole server.
+[default: tahoe\-lafs.org/invite]
+.TP
+\fB\-\-wormhole\-server=\fR
+The magic wormhole server to use. [default:
+ws://wormhole.tahoe\-lafs.org:4000/v1]
 .SH COMMANDS
 .PP
 The \f[B]tahoe\f[] runner can be used for various tasks depending
