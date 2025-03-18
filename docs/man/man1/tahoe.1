@@ -4,6 +4,15 @@ tahoe \- Secure distributed file store.
 .SH SYNOPSIS
 .B tahoe
 [\fI\,global-options\/\fR] \fI\,<command> \/\fR[\fI\,command-options\/\fR]
+.SH DESCRIPTION
+Tahoe-LAFS offers provider-independent security for your data.
+You don't have to trust Tahoe-LAFS storage nodes for confidentiality or integrity - both are provided through cryptography.
+Additionally, Tahoe-LAFS helps with availability and anonymity.
+
+The `tahoe' command line application is a single program offering access to almost all of Tahoe-LAFS' functionality.
+Brevity permits only a succinct overview, and even then, not all commands and options can be covered here.
+Please have a look at the `SEE ALSO' section at the end of this manual page for pointers to further instructions.
+.
 .SH GLOBAL OPTIONS
 .TP
 \fB\-d\fR, \fB\-\-node\-directory=\fR
@@ -272,3 +281,10 @@ tahoe-dev mailing list: <https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev
 .SH COPYRIGHT
 .PP
 Copyright \@ 2006\[en]2013 The Tahoe-LAFS Software Foundation
+.SH "SEE ALSO"
+Run 'tahoe \fB\-\-help\fR' for an overview of commands and 'tahoe <command> \fB\-\-help\fR' for more details on each command.
+
+See
+.UR https://tahoe-lafs.readthedocs.io/
+.UE
+for more in-depth, longer-form documentation and step-by-step tutorials.
