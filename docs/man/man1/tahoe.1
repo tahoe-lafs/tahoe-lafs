@@ -99,53 +99,32 @@ only).
 tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
 .SS COMMANDS
 .TP
-.B \f[B]start\f[]
-Start a node (of any type).
-.RS
-.RE
-.TP
-.B \f[B]stop\f[]
-Stop a node.
-.RS
-.RE
-.TP
-.B \f[B]restart\f[]
-Restart a node.
-.RS
-.RE
-.TP
 .B \f[B]run\f[]
-Run a node synchronously.
+Run a node without daemonizing.
+This is the only option for runnings nodes.
+In the past, tahoe offered service running internally (with start, restart,
+stop commands), but this was brittle and not very portable and has been
+discontinued.
 .RS
 .RE
 .SS OPTIONS
 .TP
-.B \f[B]-p,\ --profile\f[]
-Run under the Python profiler, putting results in
-`profiling_results.prof' (use with \f[B]start\f[] or
-\f[B]restart\f[] only).
-.RS
-.RE
-.TP
-.B \f[B]--syslog\f[]
-Tell the node to log to syslog, not a file (use with \f[B]start\f[]
-or \f[B]restart\f[] only).
+.B \f[B]--allow-stdin-close\f[]
+Do not exit when stdin closes ("tahoe run" otherwise will exit).
+This is required for some service runners (like systemd, for example).
 .RS
 .RE
 .TP
 .B \f[B]-C,\ --basedir=\f[]
-Same as \[em]node-directory.
-.RS
-.RE
-.TP
-.B \f[B]-d,\ --node-directory=\f[]
-Specify which Tahoe node directory should be used (default for commands
-other than \f[B]run\f[]: `$HOME/.tahoe/').
+Specify which Tahoe base directory should be used.
+This has the same effect as the global --node-directory option. [default: '$HOME/.tahoe']
 .RS
 .RE
 .TP
 .B \f[B]--help\f[]
-Display help and exit
+Display help and exit.  This includes lots of `twistd-options' for debugging,
+logging, profiling, et cetera that are left out of this manual page for
+brevity.
 .RS
 .RE
 .SS USING THE FILE STORE
