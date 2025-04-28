@@ -59,20 +59,26 @@ ws://wormhole.tahoe\-lafs.org:4000/v1]
 .SH COMMANDS
 .PP
 The \f[B]tahoe\f[] runner can be used for various tasks depending
-on the command used.
-.SH ADMINISTRATION
+on the command used:
 .PP
 tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
+.SH ADMINISTRATION
 .SS COMMANDS
 .TP
 .B \f[B]create-node\f[]
 Create a node that acts as a client, server or both.
 .TP
 .B \f[B]create-client\f[]
-Create a client node (providing storage to others initially disabled).
+Create a client node (disabling providing storage to others).
 .TP
 .B \f[B]create-introducer\f[]
 Create an introducer node.
+When the grid is large or very dynamic, introducers make it easier for clients to connect.
+See "Static Server Definitions" in the documentation on how to configure clients to connect to one or more storage servers without using an introdcuer.
+.TP
+.B \f[B]invite\f[]
+Invite a new node to a grid.
+See "Magic Wormhole Invites" in the documentation.
 .SS OPTIONS
 .TP
 .B \f[B]-C,\ --basedir=\f[]
@@ -86,6 +92,10 @@ Specify the nickname for this node (\f[B]create-node\f[] and
 Specify the introducer FURL to use (\f[B]create-node\f[] and
 \f[B]create-client\f[] only).
 .TP
+.B \f[B]--hostname=\f[]
+Hostname to automatically set --location/--port when
+--listen=tcp (the default).
+.TP
 .B \f[B]-p,\ --webport=\f[]
 Specify which TCP port to run the HTTP interface on.
 Use `none' to disable.
@@ -96,8 +106,6 @@ Default: `tcp:3456:interface=127.0.0.1' (\f[B]create-node\f[] and
 Do not offer storage service to other nodes (\f[B]create-node\f[]
 only).
 .SH CONTROLLING NODES
-.PP
-tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
 .SS COMMANDS
 .TP
 .B \f[B]run\f[]
@@ -121,16 +129,17 @@ logging, profiling, et cetera that are left out of this manual page for
 brevity.
 .SH USING THE FILE STORE
 .PP
-tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
-.TP
+Please run `tahoe \f[I]COMMAND\f[] --help' for more details on each
+command.
+.SS COMMANDS
 .B \f[B]mkdir\f[]
-Create a new directory.
+Create a directory and return its directory capability ("dircap").
 .TP
 .B \f[B]add-alias\f[]
-Add a new alias cap.
+Add an alias for an existing cap.
 .TP
 .B \f[B]create-alias\f[]
-Create a new alias cap.
+Create an alias pointing to a new cap.
 .TP
 .B \f[B]list-aliases\f[]
 List all alias caps.
@@ -176,13 +185,12 @@ Check a single file or directory.
 .TP
 .B \f[B]deep-check\f[]
 Check all files/directories reachable from a starting point
-.SS OPTIONS
-.PP
-Please run `tahoe \f[I]COMMAND\f[] --help' for more details on each
-command.
 .SH DEBUGGING
 .PP
 tahoe debug \f[I]SUBCOMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]PARAMETER\f[]]...
+
+Please run e.g.\ `tahoe debug dump-share --help' for more
+details on each subcommand.
 .SS SUBCOMMANDS
 .TP
 .B \f[B]dump-share\f[]
@@ -202,9 +210,6 @@ Corrupt a share by flipping a bit.
 .TP
 .B \f[B]flogtool\f[]
 Utilities to access log files.
-.PP
-Please run e.g.\ `tahoe debug dump-share --help' for more
-details on each subcommand.
 .SH AUTHORS
 .PP
 Tahoe-LAFS has been written by Brian Warner, Zooko Wilcox-O'Hearn
@@ -238,6 +243,7 @@ command.
 See
 .UR https://tahoe-lafs.readthedocs.io/
 .UE
-for more in-depth, longer-form documentation and
-step-by-step tutorials.
+for "the documentation" - in-depth, longer-form
+explanations, specifications and step-by-step
+tutorials.
 
