@@ -45,13 +45,9 @@ Emit usage information for \fB\-\-eliot\-destination\fR.
 .TP
 .B \f[B]-q,\ --quiet\f[]
 Operate silently.
-.RS
-.RE
 .TP
 .B \f[B]-V,\ --version\f[]
 Display version numbers.
-.RS
-.RE
 .TP
 \fB\-\-wormhole\-invite\-appid=\fR
 The appid to use on the wormhole server.
@@ -67,7 +63,6 @@ on the command used.
 .SH ADMINISTRATION
 .PP
 tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
-.RS
 .SS COMMANDS
 .TP
 .B \f[B]create-node\f[]
@@ -100,7 +95,6 @@ Default: `tcp:3456:interface=127.0.0.1' (\f[B]create-node\f[] and
 .B \f[B]--no-storage\f[]
 Do not offer storage service to other nodes (\f[B]create-node\f[]
 only).
-.RE
 .SH CONTROLLING NODES
 .PP
 tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
@@ -112,120 +106,76 @@ This is the only command for running nodes.
 In the past, tahoe offered service watching internally (with start, restart,
 stop commands), but this was and not very portable and has been
 deprecated.
-.RS
-.RE
 .SS OPTIONS
 .TP
 .B \f[B]--allow-stdin-close\f[]
 Do not exit when stdin closes ("tahoe run" otherwise will exit).
 This is required for some service runners (like systemd, for example).
-.RS
-.RE
 .TP
 .B \f[B]-C,\ --basedir=\f[]
 Same as the global --node-directory option.
-.RS
-.RE
 .TP
 .B \f[B]--help\f[]
 Display help and exit.  This includes lots of `twistd-options' for debugging,
 logging, profiling, et cetera that are left out of this manual page for
 brevity.
-.RS
-.RE
 .SH USING THE FILE STORE
 .PP
 tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
 .TP
 .B \f[B]mkdir\f[]
 Create a new directory.
-.RS
-.RE
 .TP
 .B \f[B]add-alias\f[]
 Add a new alias cap.
-.RS
-.RE
 .TP
 .B \f[B]create-alias\f[]
 Create a new alias cap.
-.RS
-.RE
 .TP
 .B \f[B]list-aliases\f[]
 List all alias caps.
-.RS
-.RE
 .TP
 .B \f[B]ls\f[]
 List a directory.
-.RS
-.RE
 .TP
 .B \f[B]get\f[]
 Retrieve a file from the grid.
-.RS
-.RE
 .TP
 .B \f[B]put\f[]
 Upload a file into the grid.
-.RS
-.RE
 .TP
 .B \f[B]cp\f[]
 Copy one or more files or directories.
-.RS
-.RE
 .TP
 .B \f[B]unlink\f[]
 Unlink a file or directory on the grid.
-.RS
-.RE
 .TP
 .B \f[B]rm\f[]
 Unlink a file or directory on the grid (same as \f[B]unlink\f[]).
-.RS
-.RE
 .TP
 .B \f[B]mv\f[]
 Move a file within the grid.
-.RS
-.RE
 .TP
 .B \f[B]ln\f[]
 Make an additional link to an existing file or directory.
-.RS
-.RE
 .TP
 .B \f[B]backup\f[]
 Make target dir look like local dir.
-.RS
-.RE
 .TP
 .B \f[B]webopen\f[]
 Open a web browser to a grid file or directory.
-.RS
-.RE
 .TP
 .B \f[B]manifest\f[]
 List all files/directories in a subtree.
-.RS
-.RE
 .TP
 .B \f[B]stats\f[]
 Print statistics about all files/directories in a subtree.
-.RS
-.RE
 .TP
 .B \f[B]check\f[]
 Check a single file or directory.
-.RS
-.RE
 .TP
 .B \f[B]deep-check\f[]
 Check all files/directories reachable from a starting point
-.RS
-.RE
 .SS OPTIONS
 .PP
 Please run `tahoe \f[I]COMMAND\f[] --help' for more details on each
@@ -237,33 +187,21 @@ tahoe debug \f[I]SUBCOMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]PARAMETER\f[]]...
 .TP
 .B \f[B]dump-share\f[]
 Unpack and display the contents of a share.
-.RS
-.RE
 .TP
 .B \f[B]dump-cap\f[]
 Unpack a read-cap or write-cap.
-.RS
-.RE
 .TP
 .B \f[B]find-shares\f[]
 Locate sharefiles in node directories.
-.RS
-.RE
 .TP
 .B \f[B]catalog-shares\f[]
 Describe all shares in node dirs.
-.RS
-.RE
 .TP
 .B \f[B]corrupt-share\f[]
 Corrupt a share by flipping a bit.
-.RS
-.RE
 .TP
 .B \f[B]flogtool\f[]
 Utilities to access log files.
-.RS
-.RE
 .PP
 Please run e.g.\ `tahoe debug dump-share --help' for more
 details on each subcommand.
