@@ -6,19 +6,20 @@ tahoe \- Secure distributed file store.
 [\fI\,global-options\/\fR] \fI\,<command> \/\fR[\fI\,command-options\/\fR]
 .SH DESCRIPTION
 Tahoe-LAFS offers provider-independent security
-for your data.  You don't have to trust Tahoe-LAFS
-storage nodes for confidentiality or integrity -
-both are provided through cryptography.
-Additionally, Tahoe-LAFS helps with availability
-and anonymity.
+for your data.  You don't have to trust storage
+nodes for confidentiality or integrity - both are
+provided through cryptography.
+Additionally, Tahoe-LAFS can help with availability
+and anonymity (but cannot guarantee either by itself).
 
-The `tahoe' command line application is a single
-program offering access to almost all of
-Tahoe-LAFS' functionality.  Brevity permits only a
-succinct overview, and even then, not all commands
-and options can be covered here.  Please have a
-look at the `SEE ALSO' section at the end of this
-manual page for pointers to further instructions.
+The "tahoe" executable can be used to create and
+manage client/server nodes, manipulate the file
+store, and perform several debugging/maintenance
+tasks.
+
+Please have a look at the `SEE ALSO' section at
+the end of this manual page for pointers to
+further instructions.
 .
 .SH GLOBAL OPTIONS
 .TP
@@ -52,11 +53,6 @@ Display version numbers.
 .RS
 .RE
 .TP
-.B \f[B]--version-and-path\f[]
-Display version numbers and paths to their locations.
-.RS
-.RE
-.TP
 \fB\-\-wormhole\-invite\-appid=\fR
 The appid to use on the wormhole server.
 [default: tahoe\-lafs.org/invite]
@@ -68,7 +64,7 @@ ws://wormhole.tahoe\-lafs.org:4000/v1]
 .PP
 The \f[B]tahoe\f[] runner can be used for various tasks depending
 on the command used.
-.SS ADMINISTRATION
+.SH ADMINISTRATION
 .PP
 tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
 .RS
@@ -78,19 +74,14 @@ tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
 Create a node that acts as a client, server or both.
 .TP
 .B \f[B]create-client\f[]
-Create a client node (with storage initially disabled).
+Create a client node (providing storage to others initially disabled).
 .TP
 .B \f[B]create-introducer\f[]
 Create an introducer node.
 .SS OPTIONS
 .TP
 .B \f[B]-C,\ --basedir=\f[]
-Same as \[em]node-directory.
-.TP
-.B \f[B]-d,\ --node-directory=\f[]
-Specify which Tahoe node directory should be used.
-(default for \f[B]create-node\f[] and \f[B]create-client\f[]:
-`$HOME/.tahoe/').
+Same as the global --node-directory option.
 .TP
 .B \f[B]-n,\ --nickname=\f[]
 Specify the nickname for this node (\f[B]create-node\f[] and
@@ -110,14 +101,14 @@ Default: `tcp:3456:interface=127.0.0.1' (\f[B]create-node\f[] and
 Do not offer storage service to other nodes (\f[B]create-node\f[]
 only).
 .RE
-.SS CONTROLLING NODES
+.SH CONTROLLING NODES
 .PP
 tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
 .SS COMMANDS
 .TP
 .B \f[B]run\f[]
 Run a node without daemonizing.
-This is the only option for running nodes.
+This is the only command for running nodes.
 In the past, tahoe offered service watching internally (with start, restart,
 stop commands), but this was and not very portable and has been
 deprecated.
@@ -132,8 +123,7 @@ This is required for some service runners (like systemd, for example).
 .RE
 .TP
 .B \f[B]-C,\ --basedir=\f[]
-Specify which Tahoe base directory should be used.
-This has the same effect as the global --node-directory option. [default: '$HOME/.tahoe']
+Same as the global --node-directory option.
 .RS
 .RE
 .TP
@@ -143,7 +133,9 @@ logging, profiling, et cetera that are left out of this manual page for
 brevity.
 .RS
 .RE
-.SS USING THE FILE STORE
+.SH USING THE FILE STORE
+.PP
+tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
 .TP
 .B \f[B]mkdir\f[]
 Create a new directory.
@@ -238,7 +230,7 @@ Check all files/directories reachable from a starting point
 .PP
 Please run `tahoe \f[I]COMMAND\f[] --help' for more details on each
 command.
-.SS DEBUGGING
+.SH DEBUGGING
 .PP
 tahoe debug \f[I]SUBCOMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]PARAMETER\f[]]...
 .SS SUBCOMMANDS
@@ -267,6 +259,11 @@ Describe all shares in node dirs.
 Corrupt a share by flipping a bit.
 .RS
 .RE
+.TP
+.B \f[B]flogtool\f[]
+Utilities to access log files.
+.RS
+.RE
 .PP
 Please run e.g.\ `tahoe debug dump-share --help' for more
 details on each subcommand.
@@ -277,21 +274,28 @@ and dozens of others.
 This manpage was originally written by bertagaz.
 .SH REPORTING BUGS
 .PP
-Please see <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/HowToReportABug>.
-.PP
-For known security issues see
-<https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/known_issues.rst>.
+Please see
+.UR https://tahoe-lafs.org/trac/tahoe-lafs/wiki/HowToReportABug
+.UE .
 .PP
 Tahoe-LAFS home page: <https://tahoe-lafs.org/>
 .PP
-tahoe-dev mailing list: <https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev>
+tahoe-dev mailing list:
+.UR https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev
+.UE
 .SH COPYRIGHT
 .PP
-Copyright \@ 2006\[en]2013 The Tahoe-LAFS Software Foundation
+Copyright \(co 2006\(en2025 The Tahoe-LAFS Software Foundation.
 .SH "SEE ALSO"
 Run 'tahoe \fB\-\-help\fR' for an overview of
 commands and 'tahoe <command> \fB\-\-help\fR' for
 more details on each command.
+
+See
+.UR https://tahoe-lafs.readthedocs.io/en/tahoe-lafs-1.20.0/frontends/CLI.html
+.UE
+for user documentation specific to the 'tahoe'
+command.
 
 See
 .UR https://tahoe-lafs.readthedocs.io/
@@ -299,8 +303,3 @@ See
 for more in-depth, longer-form documentation and
 step-by-step tutorials.
 
-See
-.UR https://tahoe-lafs.readthedocs.io/en/tahoe-lafs-1.20.0/frontends/CLI.html
-.UE
-for user documentation specific to the 'tahoe'
-command.
