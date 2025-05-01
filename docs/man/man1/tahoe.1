@@ -9,8 +9,9 @@ Tahoe-LAFS offers provider-independent security
 for your data.  You don't have to trust storage
 nodes for confidentiality or integrity - both are
 provided through cryptography.
-Additionally, Tahoe-LAFS can help with availability
-and anonymity (but cannot guarantee either by itself).
+Additionally, Tahoe-LAFS can help with
+availability and anonymity (but cannot guarantee
+either cryptographically).
 .sp
 The "tahoe" executable can be used to create and
 manage client/server nodes, manipulate the file
@@ -63,6 +64,8 @@ on the command used:
 .PP
 tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
 .SH ADMINISTRATION
+.PP
+Create node configurations and securely invite clients to a grid.
 .SS COMMANDS
 .TP
 .B \f[B]create-node\f[]
@@ -106,14 +109,15 @@ Default: `tcp:3456:interface=127.0.0.1' (\f[B]create-node\f[] and
 Do not offer storage service to other nodes (\f[B]create-node\f[]
 only).
 .SH CONTROLLING NODES
+.PP
+In the past, the 'tahoe' command offered service watching (with
+start, restart, stop commands), but this was not very portable
+and has been deprecated.
 .SS COMMANDS
 .TP
 .B \f[B]run\f[]
 Run a node without daemonizing.
 This is the only command for running nodes.
-In the past, tahoe offered service watching internally (with start, restart,
-stop commands), but this was and not very portable and has been
-deprecated.
 .SS OPTIONS
 .TP
 .B \f[B]--allow-stdin-close\f[]
@@ -129,11 +133,16 @@ logging, profiling, et cetera that are left out of this manual page for
 brevity.
 .SH USING THE FILE STORE
 .PP
+All the following commands require pointing tahoe to a running
+client node with the '--node-directory' ('-d') option (or,
+alternatively, using the default location).
+.sp
 Please run `tahoe \f[I]COMMAND\f[] --help' for more details on each
 command.
 .SS COMMANDS
+.TP
 .B \f[B]mkdir\f[]
-Create a directory and return its directory capability ("dircap").
+Create a directory and return its capability ("dircap").
 .TP
 .B \f[B]add-alias\f[]
 Add an alias for an existing cap.
@@ -160,7 +169,7 @@ Copy one or more files or directories.
 Unlink a file or directory on the grid.
 .TP
 .B \f[B]rm\f[]
-Unlink a file or directory on the grid (same as \f[B]unlink\f[]).
+Same as \f[B]unlink\f[].
 .TP
 .B \f[B]mv\f[]
 Move a file within the grid.
@@ -186,6 +195,9 @@ Check a single file or directory.
 .B \f[B]deep-check\f[]
 Check all files/directories reachable from a starting point
 .SH DEBUGGING
+.PP
+The following commands are useful for developers and for
+troubleshooting.
 .PP
 tahoe debug \f[I]SUBCOMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]PARAMETER\f[]]...
 .sp
