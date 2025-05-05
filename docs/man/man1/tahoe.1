@@ -59,25 +59,32 @@ The magic wormhole server to use. [default:
 ws://wormhole.tahoe\-lafs.org:4000/v1]
 .SH COMMANDS
 .PP
-The \f[B]tahoe\f[] runner can be used for various tasks depending
-on the command used:
+The \f[B]tahoe\f[] runner can be used for various
+tasks depending on the command used:
 .PP
 tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
 .SH ADMINISTRATION
 .PP
-Create node configurations and securely invite clients to a grid.
+Create node configurations and securely invite
+clients to a grid.
 .SS COMMANDS
 .TP
 .B \f[B]create-node\f[]
-Create a node that acts as a client, server or both.
+Create a node that acts as a client, server or
+both.
 .TP
 .B \f[B]create-client\f[]
-Create a client node (providing storage to others initially disabled).
+Create a client node (providing storage to others
+initially disabled).
 .TP
 .B \f[B]create-introducer\f[]
 Create an introducer node.
-When the grid is large or very dynamic, introducers make it easier for clients to connect.
-See "Static Server Definitions" in the documentation on how to configure clients to connect to one or more storage servers without using an introdcuer.
+When the grid is large or very dynamic,
+introducers make it easier for clients to connect.
+See "Static Server Definitions" in the
+documentation on how to configure clients to
+connect to one or more storage servers without
+using an introdcuer.
 .TP
 .B \f[B]invite\f[]
 Invite a new node to a grid.
@@ -110,9 +117,10 @@ Do not offer storage service to other nodes (\f[B]create-node\f[]
 only).
 .SH CONTROLLING NODES
 .PP
-In the past, the 'tahoe' command offered service watching (with
-start, restart, stop commands), but this was not very portable
-and has been deprecated.
+In the past, the 'tahoe' command offered service
+watching (with start, restart, stop commands), but
+this was not very portable and has been
+deprecated.
 .SS COMMANDS
 .TP
 .B \f[B]run\f[]
@@ -121,28 +129,33 @@ This is the only command for running nodes.
 .SS OPTIONS
 .TP
 .B \f[B]--allow-stdin-close\f[]
-Do not exit when stdin closes ("tahoe run" otherwise will exit).
-This is required for some service runners (like systemd, for example).
+Do not exit when stdin closes ("tahoe run"
+otherwise will exit).
+This is required for some service runners (like
+systemd, for example).
 .TP
 .B \f[B]-C,\ --basedir=\f[]
 Same as the global --node-directory option.
 .TP
 .B \f[B]--help\f[]
-Display help and exit.  This includes lots of 'twistd-options' for debugging,
-logging, profiling, et cetera that are left out of this manual page for
-brevity.
+Display help and exit.
+This includes lots of 'twistd-options' for
+debugging, logging, profiling, et cetera that are
+left out of this manual page for brevity.
 .SH USING THE FILE STORE
 .PP
-All the following commands require pointing tahoe to a running
-client node with the '--node-directory' ('-d') option (or,
-alternatively, using the default location).
+All the following commands require pointing tahoe
+to a running client node with the '--node-directory'
+('-d') option (or, alternatively, using the default
+location).
 .sp
-Please run 'tahoe \f[I]COMMAND\f[] --help' for more details on each
-command.
+Please run 'tahoe \f[I]COMMAND\f[] --help' for
+more details on each command.
 .SS COMMANDS
 .TP
 .B \f[B]mkdir\f[]
-Create a directory and return its capability ("dircap").
+Create a directory and return its capability
+("dircap").
 .TP
 .B \f[B]add-alias\f[]
 Add an alias for an existing cap.
@@ -187,22 +200,24 @@ Open a web browser to a grid file or directory.
 List all files/directories in a subtree.
 .TP
 .B \f[B]stats\f[]
-Print statistics about all files/directories in a subtree.
+Print statistics about all files/directories in a
+subtree.
 .TP
 .B \f[B]check\f[]
 Check a single file or directory.
 .TP
 .B \f[B]deep-check\f[]
-Check all files/directories reachable from a starting point
+Check all files/directories reachable from a
+starting point.
 .SH DEBUGGING
 .PP
-The following commands are useful for developers and for
-troubleshooting.
+The following commands are useful for developers
+and for troubleshooting.
 .PP
 tahoe debug \f[I]SUBCOMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]PARAMETER\f[]]...
 .sp
-Please run e.g.\ 'tahoe debug dump-share --help' for more
-details on each subcommand.
+Please run e.g.\ 'tahoe debug dump-share --help'
+for more details on each subcommand.
 .SS SUBCOMMANDS
 .TP
 .B \f[B]dump-share\f[]
@@ -224,8 +239,8 @@ Corrupt a share by flipping a bit.
 Utilities to access log files.
 .SH AUTHORS
 .PP
-Tahoe-LAFS has been written by Brian Warner, Zooko Wilcox-O'Hearn
-and dozens of others.
+Tahoe-LAFS has been written by Brian Warner, Zooko
+Wilcox-O'Hearn and dozens of others.
 This manpage was originally written by bertagaz.
 .SH REPORTING BUGS
 .PP
