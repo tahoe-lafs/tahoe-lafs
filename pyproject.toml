@@ -242,7 +242,9 @@ test = [
     "prometheus-client == 0.11.0",
 
     "tahoe-lafs[tor]",  # our own "tor" extra
-    "tahoe-lafs[i2p]"  # our own "i2p" extra
+    "tahoe-lafs[i2p]",  # our own "i2p" extra
+    # Chutney with recent additions to make it a Python package:
+    "chutney @ git+https://gitlab.torproject.org/tpo/core/chutney@f25094db31fbbec7e88ae5801dd2dcf2d6d9ae5d"
 ]
 
 
@@ -297,3 +299,7 @@ exclude = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/allmydata"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
