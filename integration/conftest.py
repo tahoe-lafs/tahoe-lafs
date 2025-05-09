@@ -370,7 +370,7 @@ def tor_network(reactor, temp_dir, chutney, request):
     :return: None
     """
     chutney_root, chutney_env = chutney
-    basic_network = join(chutney_root, 'networks', 'basic')
+    basic_network = join(chutney_root, 'networks', 'basic-min')
 
     env = environ.copy()
     env.update(chutney_env)
