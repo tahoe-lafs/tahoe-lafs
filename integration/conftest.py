@@ -312,68 +312,19 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
 def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
     """
     Install the Chutney software that is required to run a small local Tor grid.
-
-    (Chutney lacks the normal "python stuff" so we can't just declare
-    it in Tox or similar dependencies)
     """
-    # Try to find Chutney already installed in the environment.
-    try:
-        import chutney
-    except ImportError:
-        # Nope, we'll get our own in a moment.
-        pass
-    else:
-        # We already have one, just use it.
-        return (
-            # from `checkout/lib/chutney/__init__.py` we want to get back to
-            # `checkout` because that's the parent of the directory with all
-            # of the network definitions.  So, great-grand-parent.
-            FilePath(chutney.__file__).parent().parent().parent().path,
-            # There's nothing to add to the environment.
-            {},
-        )
-
-    chutney_dir = join(temp_dir, 'chutney')
-    mkdir(chutney_dir)
+    import chutney
 
     missing = [exe for exe in ["tor", "tor-gencert"] if not which(exe)]
     if missing:
         pytest.skip(f"Some command-line tools not found: {missing}")
 
-    # XXX yuck! should add a setup.py to chutney so we can at least
-    # "pip install <path to tarball>" and/or depend on chutney in "pip
-    # install -e .[dev]" (i.e. in the 'dev' extra)
-    #
-    # https://trac.torproject.org/projects/tor/ticket/20343
-    proto = _DumpOutputProtocol(None)
-    reactor.spawnProcess(
-        proto,
-        'git',
-        (
-            'git', 'clone',
-            'https://gitlab.torproject.org/tpo/core/chutney.git',
-            chutney_dir,
-        ),
-        env=environ,
+    return (
+        # The directory with all of the network definitions.
+        FilePath(chutney.__file__).parent().child("data").path,
+        # There's nothing to add to the environment.
+        {},
     )
-    pytest_twisted.blockon(proto.done)
-
-    # XXX: Here we reset Chutney to a specific revision known to work,
-    # since there are no stability guarantees or releases yet.
-    proto = _DumpOutputProtocol(None)
-    reactor.spawnProcess(
-        proto,
-        'git',
-        (
-            'git', '-C', chutney_dir,
-            'reset', '--hard',
-            'c4f6789ad2558dcbfeb7d024c6481d8112bfb6c2'
-        ),
-        env=environ,
-    )
-    pytest_twisted.blockon(proto.done)
-
-    return chutney_dir, {"PYTHONPATH": join(chutney_dir, "lib")}
 
 
 @frozen
