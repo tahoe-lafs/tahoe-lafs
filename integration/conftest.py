@@ -361,7 +361,7 @@ def tor_network(reactor, temp_dir, chutney, request):
     and 9009)
 
     The control ports start at 8000 (so the ControlPort for the client
-    nodes are 8008 and 8009).
+    node is 8005).
 
     :param chutney: The root directory of a Chutney checkout and a dict of
         additional environment variables to set so a Python process can use
@@ -439,10 +439,10 @@ def tor_network(reactor, temp_dir, chutney, request):
     except ProcessTerminated:
         print("Chutney.TorNet status failed (continuing)")
 
-    # the "8008" comes from configuring "networks/basic" in chutney
-    # and then examining "net/nodes/008c/torrc" for ControlPort value
+    # the "8005" comes from configuring "networks/basic" in chutney
+    # and then examining "net/nodes/005c/torrc" for ControlPort value
     return ChutneyTorNetwork(
         chutney_root,
         chutney_env,
-        8008,
+        8005,
     )
