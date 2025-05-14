@@ -309,7 +309,7 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
 @pytest.fixture(scope='session')
 @pytest.mark.skipif(sys.platform.startswith('win'),
                     'Tor tests are unstable on Windows')
-def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
+def chutney(reactor, temp_dir: str) -> FilePath:
     """
     Install the Chutney software that is required to run a small local Tor grid.
     """
@@ -319,12 +319,8 @@ def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
     if missing:
         pytest.skip(f"Some command-line tools not found: {missing}")
 
-    return (
-        # The directory with all of the network definitions.
-        FilePath(chutney.__file__).parent().child("data").path,
-        # There's nothing to add to the environment.
-        {},
-    )
+    # The directory with all of the network definitions.
+    return FilePath(chutney.__file__).parent().child("data").path
 
 
 @frozen
@@ -334,7 +330,6 @@ class ChutneyTorNetwork:
     "tor_network" fixture.
     """
     dir: FilePath
-    environ: Mapping[str, str]
     client_control_port: int
 
     @property
@@ -368,11 +363,10 @@ def tor_network(reactor, temp_dir, chutney, request):
 
     :return: None
     """
-    chutney_root, chutney_env = chutney
+    chutney_root = chutney
     basic_network = join(chutney_root, 'networks', 'basic-min')
 
     env = environ.copy()
-    env.update(chutney_env)
     env.update({
         # default is 60, probably too short for reliable automated use.
         "CHUTNEY_START_TIME": "180",
@@ -442,6 +436,5 @@ def tor_network(reactor, temp_dir, chutney, request):
     # and then examining "net/nodes/005c/torrc" for ControlPort value
     return ChutneyTorNetwork(
         chutney_root,
-        chutney_env,
         8005,
     )
