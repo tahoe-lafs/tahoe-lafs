@@ -349,16 +349,15 @@ def tor_network(reactor, temp_dir, chutney, request):
     """
     Build a basic Tor network.
 
-    Instantiate the "networks/basic" Chutney configuration for a local
-    Tor network.
+    Instantiate the "networks/basic-min" Chutney configuration for
+    a local Tor network.
 
     This provides a small, local Tor network that can run v3 Onion
-    Services. It has 3 authorities, 5 relays and 2 clients.
+    Services.
 
-    The 'chutney' fixture pins a Chutney git qrevision, so things
-    shouldn't change. This network has two clients which are the only
-    nodes with valid SocksPort configuration ("008c" and "009c" 9008
-    and 9009)
+    The 'chutney' fixture pins a Chutney git revision, so things
+    shouldn't change. This network has one client which is the only
+    node with a valid SocksPort configuration ("005c" and 9005).
 
     The control ports start at 8000 (so the ControlPort for the client
     node is 8005).
@@ -376,7 +375,7 @@ def tor_network(reactor, temp_dir, chutney, request):
     env.update(chutney_env)
     env.update({
         # default is 60, probably too short for reliable automated use.
-        "CHUTNEY_START_TIME": "1200",
+        "CHUTNEY_START_TIME": "180",
     })
     chutney_argv = (sys.executable, '-m', 'chutney.TorNet')
     def chutney(argv):
