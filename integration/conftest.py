@@ -28,7 +28,6 @@ from twisted.internet.error import (
 
 import pytest
 import pytest_twisted
-from typing import Mapping
 
 from .util import (
     _MagicTextProtocol,
