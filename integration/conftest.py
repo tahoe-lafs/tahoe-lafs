@@ -319,7 +319,7 @@ def chutney(reactor, temp_dir: str) -> FilePath:
         pytest.skip(f"Some command-line tools not found: {missing}")
 
     # The directory with all of the network definitions.
-    return FilePath(chutney.__file__).parent().child("data").path
+    return FilePath(chutney.__file__).parent().child("data")
 
 
 @frozen
@@ -362,7 +362,7 @@ def tor_network(reactor, temp_dir, chutney, request):
 
     :return: None
     """
-    chutney_root = chutney
+    chutney_root = chutney.path
     basic_network = join(chutney_root, 'networks', 'basic-min')
 
     env = environ.copy()
