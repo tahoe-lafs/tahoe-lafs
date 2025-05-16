@@ -23,14 +23,6 @@ from allmydata.util.deferredutil import async_to_deferred
 
 # see "conftest.py" for the fixtures (e.g. "tor_network")
 
-# XXX: Integration tests that involve Tor do not run reliably on
-# Windows.  They are skipped for now, in order to reduce CI noise.
-#
-# https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3347
-if sys.platform.startswith('win'):
-    pytest.skip('Skipping Tor tests on Windows', allow_module_level=True)
-
-@pytest.mark.skipif(sys.version_info[:2] > (3, 11), reason='Chutney still does not support 3.12')
 @pytest_twisted.inlineCallbacks
 def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):
     """
@@ -141,8 +133,6 @@ def _create_anonymous_node(reactor, name, web_port, request, temp_dir, flog_gath
     print("okay, launched")
     return result
 
-@pytest.mark.skipif(sys.version_info[:2] > (3, 11), reason='Chutney still does not support 3.12')
-@pytest.mark.skipif(sys.platform.startswith('darwin'), reason='This test has issues on macOS')
 @pytest_twisted.inlineCallbacks
 def test_anonymous_client(reactor, request, temp_dir, flog_gatherer, tor_network, introducer_furl):
     """
