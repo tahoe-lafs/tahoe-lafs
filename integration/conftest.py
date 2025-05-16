@@ -306,8 +306,6 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
 
 
 @pytest.fixture(scope='session')
-@pytest.mark.skipif(sys.platform.startswith('win'),
-                    'Tor tests are unstable on Windows')
 def chutney(reactor, temp_dir: str) -> FilePath:
     """
     Install the Chutney software that is required to run a small local Tor grid.
@@ -337,8 +335,6 @@ class ChutneyTorNetwork:
 
 
 @pytest.fixture(scope='session')
-@pytest.mark.skipif(sys.platform.startswith('win'),
-                    reason='Tor tests are unstable on Windows')
 def tor_network(reactor, temp_dir, chutney, request):
     """
     Build a basic Tor network.

@@ -23,13 +23,6 @@ from allmydata.util.deferredutil import async_to_deferred
 
 # see "conftest.py" for the fixtures (e.g. "tor_network")
 
-# XXX: Integration tests that involve Tor do not run reliably on
-# Windows.  They are skipped for now, in order to reduce CI noise.
-#
-# https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3347
-if sys.platform.startswith('win'):
-    pytest.skip('Skipping Tor tests on Windows', allow_module_level=True)
-
 @pytest_twisted.inlineCallbacks
 def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):
     """
