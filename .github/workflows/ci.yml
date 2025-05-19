@@ -216,6 +216,9 @@ jobs:
           # aren't too long. On Windows tox won't pass it through so it has no
           # effect. On Linux it doesn't make a difference one way or another.
           TMPDIR: "/tmp"
+          # Tor doesn't want to start on Ubuntu-24.04 because of a too long
+          # file name for a socket.
+          CHUTNEY_ENABLE_CONTROLSOCKET: "false"
         run: |
           tox -e integration
 
@@ -226,6 +229,9 @@ jobs:
           # aren't too long. On Windows tox won't pass it through so it has no
           # effect. On Linux it doesn't make a difference one way or another.
           TMPDIR: "/tmp"
+          # Tor doesn't want to start on Ubuntu-24.04 because of a too long
+          # file name for a socket.
+          CHUTNEY_ENABLE_CONTROLSOCKET: "false"
         run: |
           tox -e integration -- --force-foolscap integration/
 
