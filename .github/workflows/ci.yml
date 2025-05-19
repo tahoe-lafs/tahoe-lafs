@@ -172,7 +172,9 @@ jobs:
 
       - name: Install Tor [Ubuntu]
         if: ${{ contains(matrix.os, 'ubuntu') }}
-        run: sudo apt install tor
+        run: |
+          sudo add-apt-repository universe
+          sudo apt install tor
 
       # TODO: See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3744.
       # We have to use an older version of Tor for running integration
