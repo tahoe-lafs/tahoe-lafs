@@ -173,8 +173,8 @@ jobs:
       - name: Install Tor [Ubuntu]
         if: ${{ contains(matrix.os, 'ubuntu') }}
         run: |
-          sudo gpg --keyserver keyserver.ubuntu.com --recv-keys 74A941BA219EC810
-          sudo gpg --export 74A941BA219EC810 | sudo tee /usr/share/keyrings/tor-archive-keyring.gpg > /dev/null
+          gpg --keyserver keyserver.ubuntu.com --recv-keys 74A941BA219EC810
+          gpg --export 74A941BA219EC810 | sudo tee /usr/share/keyrings/tor-archive-keyring.gpg > /dev/null
           echo "deb [signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org noble main" | sudo tee /etc/apt/sources.list.d/tor.list
           sudo apt update
           sudo apt install tor
