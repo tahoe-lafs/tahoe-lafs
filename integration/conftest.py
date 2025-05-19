@@ -381,6 +381,11 @@ def tor_network(reactor, temp_dir, chutney, request):
     # now, as per Chutney's README, we have to create the network
     pytest_twisted.blockon(chutney(("configure", basic_network)))
 
+    # On Windows, we have to disable Tor's ControlSocket, else Tor
+    # does not start at all.
+    if sys.platform.startswith('win'):
+        import os; [open(os.path.join(r, f), 'w').writelines([l for l in open(os.path.join(r, f)) if not l.strip().startswith('ControlSocket')]) for r, _, fs in os.walk(join(chutney_root, 'net', 'nodes') for f in fs if f.startswith('torrc')]
+
     # before we start the network, ensure we will tear down at the end
     def cleanup():
         print("Tearing down Chutney Tor network")
