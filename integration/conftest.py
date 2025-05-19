@@ -316,7 +316,7 @@ def chutney(reactor, temp_dir: str) -> FilePath:
 
     missing = [exe for exe in ["tor", "tor-gencert"] if not which(exe)]
     if missing:
-        pytest.skip(f"Some command-line tools not found: {missing}")
+        pytest.fail(f"Some command-line tools not found: {missing}")
 
     # The directory with all of the network definitions.
     return FilePath(chutney.__file__).parent().child("data")
