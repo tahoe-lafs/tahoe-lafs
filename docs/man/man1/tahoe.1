@@ -1,59 +1,98 @@
-.TH TAHOE 1 "July 2011" "Tahoe-LAFS \[em] tahoe command" "User Commands"
+.TH TAHOE 1 "May 2025" "Tahoe-LAFS \[em] tahoe command" "User Commands"
 .SH NAME
-.PP
-tahoe - Secure distributed file store.
+tahoe \- Secure distributed file store.
 .SH SYNOPSIS
-.PP
-tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]PARAMETER\f[]]...
-.SH GENERAL OPTIONS
+.B tahoe
+[\fI\,global-options\/\fR] \fI\,<command> \/\fR[\fI\,command-options\/\fR]
+.SH DESCRIPTION
+Tahoe-LAFS is a Free and Open decentralized cloud
+storage system.
+It distributes your data across multiple servers.
+Even if some of the servers fail or are taken over
+by an attacker, the entire file store continues to
+function correctly, preserving your privacy and
+security.
+.sp
+The "tahoe" executable can be used to create and
+manage client/server nodes, manipulate the file
+store, and perform several debugging/maintenance
+tasks.
+.sp
+Please have a look at the 'SEE ALSO' section at
+the end of this manual page for pointers to
+further instructions.
+.
+.SH GLOBAL OPTIONS
+.TP
+\fB\-d\fR, \fB\-\-node\-directory=\fR
+Specify which Tahoe node directory should be
+used. The directory should either contain a
+full Tahoe node, or a file named node.url that
+points to some other Tahoe node. It should also
+contain a file named 'private/aliases' which
+contains the mapping from alias name to root
+dirnode URI. [default for most commands:
+\&'$HOME/.tahoe']
+.TP
+\fB\-\-eliot\-destination=\fR
+Add an Eliot logging destination.  May be given
+more than once.
+.TP
+\fB\-\-help\fR
+Display help and exit.
+.TP
+\fB\-\-help\-eliot\-destinations\fR
+Emit usage information for \fB\-\-eliot\-destination\fR.
 .TP
 .B \f[B]-q,\ --quiet\f[]
 Operate silently.
-.RS
-.RE
 .TP
 .B \f[B]-V,\ --version\f[]
 Display version numbers.
-.RS
-.RE
 .TP
-.B \f[B]--version-and-path\f[]
-Display version numbers and paths to their locations.
-.RS
-.RE
+\fB\-\-wormhole\-invite\-appid=\fR
+The appid to use on the wormhole server.
+[default: tahoe\-lafs.org/invite]
 .TP
-.B \f[B]-d,\ --node-directory\f[]
-Specify which Tahoe node directory should be used.
-(default for most commands: `$HOME/.tahoe')
-.RS
-.RE
+\fB\-\-wormhole\-server=\fR
+The magic wormhole server to use. [default:
+ws://wormhole.tahoe\-lafs.org:4000/v1]
 .SH COMMANDS
 .PP
-The \f[B]tahoe\f[] runner can be used for various tasks depending
-on the command used.
-.SS ADMINISTRATION
+The \f[B]tahoe\f[] runner can be used for various
+tasks depending on the command used:
 .PP
 tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
-.RS
+.SH ADMINISTRATION
+.PP
+Create node configurations and securely invite
+clients to a grid.
 .SS COMMANDS
 .TP
 .B \f[B]create-node\f[]
-Create a node that acts as a client, server or both.
+Create a node that acts as a client, server or
+both.
 .TP
 .B \f[B]create-client\f[]
-Create a client node (with storage initially disabled).
+Create a client node (providing storage to others
+initially disabled).
 .TP
 .B \f[B]create-introducer\f[]
 Create an introducer node.
+When the grid is large or very dynamic,
+introducers make it easier for clients to connect.
+See "Static Server Definitions" in the
+documentation on how to configure clients to
+connect to one or more storage servers without
+using an introducer.
+.TP
+.B \f[B]invite\f[]
+Invite a new node to a grid.
+See "Magic Wormhole Invites" in the documentation.
 .SS OPTIONS
 .TP
 .B \f[B]-C,\ --basedir=\f[]
-Same as \[em]node-directory.
-.TP
-.B \f[B]-d,\ --node-directory=\f[]
-Specify which Tahoe node directory should be used.
-(default for \f[B]create-node\f[] and \f[B]create-client\f[]:
-`$HOME/.tahoe/').
+Same as the global --node-directory option.
 .TP
 .B \f[B]-n,\ --nickname=\f[]
 Specify the nickname for this node (\f[B]create-node\f[] and
@@ -63,212 +102,175 @@ Specify the nickname for this node (\f[B]create-node\f[] and
 Specify the introducer FURL to use (\f[B]create-node\f[] and
 \f[B]create-client\f[] only).
 .TP
+.B \f[B]--hostname=\f[]
+Hostname to automatically set --location/--port when
+--listen=tcp (the default).
+.TP
 .B \f[B]-p,\ --webport=\f[]
 Specify which TCP port to run the HTTP interface on.
-Use `none' to disable.
-Default: `tcp:3456:interface=127.0.0.1' (\f[B]create-node\f[] and
+Use 'none' to disable.
+Default: 'tcp:3456:interface=127.0.0.1' (\f[B]create-node\f[] and
 \f[B]create-client\f[] only).
 .TP
 .B \f[B]--no-storage\f[]
 Do not offer storage service to other nodes (\f[B]create-node\f[]
 only).
-.RE
-.SS CONTROLLING NODES
+.SH CONTROLLING NODES
 .PP
-tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
+In the past, the 'tahoe' command offered service
+watching (with start, restart, stop commands), but
+this was not very portable and has been
+deprecated.
 .SS COMMANDS
 .TP
-.B \f[B]start\f[]
-Start a node (of any type).
-.RS
-.RE
-.TP
-.B \f[B]stop\f[]
-Stop a node.
-.RS
-.RE
-.TP
-.B \f[B]restart\f[]
-Restart a node.
-.RS
-.RE
-.TP
 .B \f[B]run\f[]
-Run a node synchronously.
-.RS
-.RE
+Run a node without daemonizing.
+This is the only command for running nodes.
 .SS OPTIONS
 .TP
-.B \f[B]-p,\ --profile\f[]
-Run under the Python profiler, putting results in
-`profiling_results.prof' (use with \f[B]start\f[] or
-\f[B]restart\f[] only).
-.RS
-.RE
-.TP
-.B \f[B]--syslog\f[]
-Tell the node to log to syslog, not a file (use with \f[B]start\f[]
-or \f[B]restart\f[] only).
-.RS
-.RE
+.B \f[B]--allow-stdin-close\f[]
+Do not exit when stdin closes ("tahoe run"
+otherwise will exit).
+This is required for some service runners (like
+systemd, for example).
 .TP
 .B \f[B]-C,\ --basedir=\f[]
-Same as \[em]node-directory.
-.RS
-.RE
-.TP
-.B \f[B]-d,\ --node-directory=\f[]
-Specify which Tahoe node directory should be used (default for commands
-other than \f[B]run\f[]: `$HOME/.tahoe/').
-.RS
-.RE
+Same as the global --node-directory option.
 .TP
 .B \f[B]--help\f[]
-Display help and exit
-.RS
-.RE
-.SS USING THE FILE STORE
+Display help and exit.
+This includes lots of 'twistd-options' for
+debugging, logging, profiling, et cetera that are
+left out of this manual page for brevity.
+.SH USING THE FILE STORE
+.PP
+All the following commands require pointing tahoe
+to a running client node with the '--node-directory'
+('-d') option (or, alternatively, using the default
+location).
+.sp
+Please run 'tahoe \f[I]COMMAND\f[] --help' for
+more details on each command.
+.SS COMMANDS
 .TP
 .B \f[B]mkdir\f[]
-Create a new directory.
-.RS
-.RE
+Create a directory and return its capability
+("dircap").
 .TP
 .B \f[B]add-alias\f[]
-Add a new alias cap.
-.RS
-.RE
+Add an alias for an existing cap.
 .TP
 .B \f[B]create-alias\f[]
-Create a new alias cap.
-.RS
-.RE
+Create an alias pointing to a new cap.
 .TP
 .B \f[B]list-aliases\f[]
 List all alias caps.
-.RS
-.RE
 .TP
 .B \f[B]ls\f[]
 List a directory.
-.RS
-.RE
 .TP
 .B \f[B]get\f[]
 Retrieve a file from the grid.
-.RS
-.RE
 .TP
 .B \f[B]put\f[]
 Upload a file into the grid.
-.RS
-.RE
 .TP
 .B \f[B]cp\f[]
 Copy one or more files or directories.
-.RS
-.RE
 .TP
 .B \f[B]unlink\f[]
 Unlink a file or directory on the grid.
-.RS
-.RE
 .TP
 .B \f[B]rm\f[]
-Unlink a file or directory on the grid (same as \f[B]unlink\f[]).
-.RS
-.RE
+Same as \f[B]unlink\f[].
 .TP
 .B \f[B]mv\f[]
 Move a file within the grid.
-.RS
-.RE
 .TP
 .B \f[B]ln\f[]
 Make an additional link to an existing file or directory.
-.RS
-.RE
 .TP
 .B \f[B]backup\f[]
 Make target dir look like local dir.
-.RS
-.RE
 .TP
 .B \f[B]webopen\f[]
 Open a web browser to a grid file or directory.
-.RS
-.RE
 .TP
 .B \f[B]manifest\f[]
 List all files/directories in a subtree.
-.RS
-.RE
 .TP
 .B \f[B]stats\f[]
-Print statistics about all files/directories in a subtree.
-.RS
-.RE
+Print statistics about all files/directories in a
+subtree.
 .TP
 .B \f[B]check\f[]
 Check a single file or directory.
-.RS
-.RE
 .TP
 .B \f[B]deep-check\f[]
-Check all files/directories reachable from a starting point
-.RS
-.RE
-.SS OPTIONS
+Check all files/directories reachable from a
+starting point.
+.SH DEBUGGING
 .PP
-Please run `tahoe \f[I]COMMAND\f[] --help' for more details on each
-command.
-.SS DEBUGGING
+The following commands are useful for developers
+and for troubleshooting.
 .PP
 tahoe debug \f[I]SUBCOMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]PARAMETER\f[]]...
+.sp
+Please run e.g.\ 'tahoe debug dump-share --help'
+for more details on each subcommand.
 .SS SUBCOMMANDS
 .TP
 .B \f[B]dump-share\f[]
 Unpack and display the contents of a share.
-.RS
-.RE
 .TP
 .B \f[B]dump-cap\f[]
 Unpack a read-cap or write-cap.
-.RS
-.RE
 .TP
 .B \f[B]find-shares\f[]
 Locate sharefiles in node directories.
-.RS
-.RE
 .TP
 .B \f[B]catalog-shares\f[]
 Describe all shares in node dirs.
-.RS
-.RE
 .TP
 .B \f[B]corrupt-share\f[]
 Corrupt a share by flipping a bit.
-.RS
-.RE
-.PP
-Please run e.g.\ `tahoe debug dump-share --help' for more
-details on each subcommand.
+.TP
+.B \f[B]flogtool\f[]
+Utilities to access log files.
 .SH AUTHORS
 .PP
-Tahoe-LAFS has been written by Brian Warner, Zooko Wilcox-O'Hearn
-and dozens of others.
+Tahoe-LAFS has been written by Brian Warner, Zooko
+Wilcox-O'Hearn and dozens of others.
 This manpage was originally written by bertagaz.
 .SH REPORTING BUGS
 .PP
-Please see <https://tahoe-lafs.org/trac/tahoe-lafs/wiki/HowToReportABug>.
-.PP
-For known security issues see
-<https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/known_issues.rst>.
+Please see
+.UR https://tahoe-lafs.org/trac/tahoe-lafs/wiki/HowToReportABug
+.UE .
 .PP
 Tahoe-LAFS home page: <https://tahoe-lafs.org/>
 .PP
-tahoe-dev mailing list: <https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev>
+tahoe-dev mailing list:
+.UR https://lists.tahoe-lafs.org/mailman/listinfo/tahoe-dev
+.UE
 .SH COPYRIGHT
 .PP
-Copyright \@ 2006\[en]2013 The Tahoe-LAFS Software Foundation
+Copyright \(co 2006\(en2025 The Tahoe-LAFS Software Foundation.
+.SH "SEE ALSO"
+Run 'tahoe \fB\-\-help\fR' for an overview of
+commands and 'tahoe <command> \fB\-\-help\fR' for
+more details on each command.
+.sp
+See
+.UR https://tahoe-lafs.readthedocs.io/en/tahoe-lafs-1.20.0/frontends/CLI.html
+.UE
+for user documentation specific to the 'tahoe'
+command.
+.sp
+See
+.UR https://tahoe-lafs.readthedocs.io/
+.UE
+for "the documentation" - in-depth, longer-form
+explanations, specifications and step-by-step
+tutorials.
+.sp
