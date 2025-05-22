@@ -244,7 +244,7 @@ test = [
     "tahoe-lafs[tor]",  # our own "tor" extra
     "tahoe-lafs[i2p]",  # our own "i2p" extra
     # Chutney with recent additions to make it a Python package:
-    "chutney @ git+https://github.com/LeastAuthority/chutney@a52b317f0a39a433112c8917116c74ccdadc7ac0"
+    "chutney @ git+https://github.com/LeastAuthority/chutney@82c93a2b7f488ecc30d243037db4992a69864478"
 ]
 
 
