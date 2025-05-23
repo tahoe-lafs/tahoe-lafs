@@ -159,7 +159,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         tub = testing_tub(reactor, config_data)
 
-        class Foo(object):
+        class Foo:
             pass
 
         furl = tub.registerReference(Foo())
@@ -831,7 +831,7 @@ ENABLE_HELPER = """
 enabled = true
 """
 
-class FakeTub(object):
+class FakeTub:
     def __init__(self):
         self.tubID = base64.b32encode(b"foo")
         self.listening_ports = []

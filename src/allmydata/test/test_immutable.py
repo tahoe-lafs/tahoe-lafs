@@ -24,11 +24,11 @@ from .no_network import (
     NoNetworkServer,
 )
 
-class MockShareHashTree(object):
+class MockShareHashTree:
     def needed_hashes(self):
         return False
 
-class MockNode(object):
+class MockNode:
     def __init__(self, check_reneging, check_fetch_failed):
         self.got = 0
         self.finished_d = defer.Deferred()
@@ -86,10 +86,10 @@ class TestShareFinder(unittest.TestCase):
         rcap = uri.CHKFileURI(b'a'*32, b'a'*32, 3, 99, 100)
         vcap = rcap.get_verify_cap()
 
-        class MockBuckets(object):
+        class MockBuckets:
             pass
 
-        class MockServer(object):
+        class MockServer:
             def __init__(self, buckets):
                 self.version = {
                     b'http://allmydata.org/tahoe/protocols/storage/v1': {
@@ -113,17 +113,17 @@ class TestShareFinder(unittest.TestCase):
                 eventually(_give_buckets_and_hunger_again)
                 return d
 
-        class MockStorageBroker(object):
+        class MockStorageBroker:
             def __init__(self, servers):
                 self.servers = servers
             def get_servers_for_psi(self, si):
                 return self.servers
 
-        class MockDownloadStatus(object):
+        class MockDownloadStatus:
             def add_dyhb_request(self, server, when):
                 return MockDYHBEvent()
 
-        class MockDYHBEvent(object):
+        class MockDYHBEvent:
             def finished(self, shnums, when):
                 pass
 

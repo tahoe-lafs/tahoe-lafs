@@ -26,7 +26,7 @@ from allmydata.web.status import Statistics
 from allmydata.test.common import SyncTestCase
 
 
-class FakeStatsProvider(object):
+class FakeStatsProvider:
     """
     A stats provider that hands backed a canned collection of performance
     statistics.

@@ -50,7 +50,7 @@ def grid_manager(ctx, config):
     signing key) and should be kept safe.
     """
 
-    class Config(object):
+    class Config:
         """
         Available to all sub-commands as Click's context.obj
         """

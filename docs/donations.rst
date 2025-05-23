@@ -1,5 +1,5 @@
 -----BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA256
+Hash: SHA512
 
 =========
 Donations
@@ -82,6 +82,9 @@ key on this list.
   ~$260k
   1KZYr8UU2XjuEdSPzn2pF8eRPZZvffByDf
 
+* Magic Internet project (2025)
+  2yr 20.0 BTC
+  12HZ2rGfgcAqJY2Y55Dxt4Z2qUXiK2WFf8
 
 Historical Donation Addresses
 =============================
@@ -109,17 +112,17 @@ This document is signed by the Tahoe-LAFS Release-Signing Key (GPG keyid
 (https://github.com/tahoe-lafs/tahoe-lafs.git) as `docs/donations.rst`.
 Both actions require access to secrets held closely by Tahoe developers.
 
-signed: Brian Warner, 25-Oct-2023
+signed: Brian Warner, 21-jan-2025
 
 
 -----BEGIN PGP SIGNATURE-----
 
-iQEzBAEBCAAdFiEE405i0G0Oac/KQXn/veDTHWhmanoFAmU5YZMACgkQveDTHWhm
-anqt+ggAo2kulNmjrWA5VhqE8i6ckkxQMRVY4y0LAfiI0ho/505ZBZvpoh/Ze31x
-ZJj4DczHmZM+m3L+fZyubT4ldagYEojtwkYmxHAQz2DIV4PrdjsUQWyvkNcTBZWu
-y5mR5ATk3EYRa19xGEosWK1OzW2kgRbpAbznuWsdxxw9vNENBrolGRsyJqRQHCiV
-/4UkrGiOegaJSFMKy2dCyDF3ExD6wT9+fdqC5xDJZjhD+SUDJnD4oWLYLroj//v1
-sy4J+/ElNU9oaC0jDb9fx1ECk+u6B+YiaYlW/MrZNqzKCM/76yZ8sA2+ynsOHGtL
-bPFpLJjX6gBwHkMqvkWhsJEojxkFVQ==
-=gxlb
+iQEzBAEBCgAdFiEE405i0G0Oac/KQXn/veDTHWhmanoFAmeQSRUACgkQveDTHWhm
+anr3Ygf/bTmpEwuFzY2vgUmE0kM+8BFrb/26J7DGKhg17ZXdknq6VdN62KnLXDrT
+xN7pjMoG99A0BALfCowHC98uhrxViG7ArLHP2AyIavwlpVgSqysAAbQ6r6499phe
+R5HlDkP+yu3LrUDI2G/1PzqI6F//khmYBahocCCuUeO2BXxNIv2i9ibCqmkJw6jw
+JTaBLKrExwaavcAVIPE7uhHu/Ak53Ym0rbotluT+tzMTJmEQ3CHV3M2VOpzEqY/7
+WNriNFMNGNKtGtsFog8LDgPIqwb93tUtLnDS72ZaNMs1epq8EtmoSGRCSNw8zDRU
+zDKPJdWBaQ9jMweou9yZMF5KdUh6mg==
+=/xUw
 -----END PGP SIGNATURE-----

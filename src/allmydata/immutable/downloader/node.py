@@ -26,7 +26,7 @@ class IDownloadStatusHandlingConsumer(Interface):
         """Record the DownloadStatus 'read event', to be updated with the
         time it takes to decrypt each chunk of data."""
 
-class Cancel(object):
+class Cancel:
     def __init__(self, f):
         self._f = f
         self.active = True
@@ -37,7 +37,7 @@ class Cancel(object):
             self._f(self)
 
 
-class DownloadNode(object):
+class DownloadNode:
     """Internal class which manages downloads and holds state. External
     callers use CiphertextFileNode instead."""
 

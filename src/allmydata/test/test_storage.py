@@ -5,7 +5,6 @@ Ported to Python 3.
 """
 
 from __future__ import annotations
-from future.utils import bchr
 from six import ensure_str
 
 from io import (
@@ -19,6 +18,9 @@ import struct
 import shutil
 from functools import partial
 from uuid import uuid4
+
+def bchr(s):
+    return bytes([s])
 
 from testtools.matchers import (
     Equals,
@@ -129,7 +131,7 @@ class UtilTests(SyncTestCase):
         self.assertThat(loaded.home, Equals(path))
 
 
-class FakeStatsProvider(object):
+class FakeStatsProvider:
     def count(self, name, delta=1):
         pass
     def register_producer(self, producer):
@@ -328,7 +330,7 @@ class Bucket(SyncTestCase):
 
         fileutil.write(final, share_file_data)
 
-        class MockStorageServer(object):
+        class MockStorageServer:
             def add_latency(self, category, latency):
                 pass
             def count(self, name, delta=1):
@@ -411,7 +413,7 @@ class Bucket(SyncTestCase):
         self.assertFalse(clock.getDelayedCalls())
 
 
-class RemoteBucket(object):
+class RemoteBucket:
 
     def __init__(self, target):
         self.target = target

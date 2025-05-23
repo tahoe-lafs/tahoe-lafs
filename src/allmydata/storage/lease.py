@@ -115,7 +115,7 @@ class ILeaseInfo(Interface):
 
 @implementer(ILeaseInfo)
 @attr.s(frozen=True)
-class LeaseInfo(object):
+class LeaseInfo:
     """
     Represent the details of one lease, a marker which is intended to inform
     the storage server how long to store a particular share.
@@ -369,7 +369,7 @@ class HashedLeaseInfo(proxyForInterface(ILeaseInfo, "_lease_info")): # type: ign
 
 
 @attr.s(frozen=True)
-class _HashedCancelSecret(object):
+class _HashedCancelSecret:
     """
     ``_HashedCancelSecret`` is a marker type for an already-hashed lease
     cancel secret that lets internal lease cancellers bypass the hash-based

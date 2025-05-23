@@ -183,7 +183,7 @@ class HelperUploadResults(Copyable, RemoteCopy):
         self.pushed_shares = None # count of shares we pushed
 
 @implementer(IUploadResults)
-class UploadResults(object):
+class UploadResults:
 
     def __init__(self, file_size,
                  ciphertext_fetched, # how much the helper fetched
@@ -235,7 +235,7 @@ def pretty_print_shnum_to_servers(s):
     return ', '.join([ "sh%s: %s" % (k, '+'.join([idlib.shortnodeid_b2a(x) for x in v])) for k, v in s.items() ])
 
 
-class ServerTracker(object):
+class ServerTracker:
     def __init__(self, server,
                  sharesize, blocksize, num_segments, num_share_hashes,
                  storage_index,
@@ -325,7 +325,7 @@ def str_shareloc(shnum, bucketwriter):
 
 
 @implementer(IPeerSelector)
-class PeerSelector(object):
+class PeerSelector:
 
     def __init__(self, num_segments, total_shares, needed_shares, min_happiness):
         self.num_segments = num_segments
@@ -384,7 +384,7 @@ class PeerSelector(object):
         raise NotImplementedError
 
 
-class _QueryStatistics(object):
+class _QueryStatistics:
 
     def __init__(self):
         self.total = 0
@@ -896,7 +896,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
 
 @attr.s
-class _Accum(object):
+class _Accum:
     """
     Accumulate up to some known amount of ciphertext.
 
@@ -924,7 +924,7 @@ class _Accum(object):
 
 
 @implementer(IEncryptedUploadable)
-class EncryptAnUploadable(object):
+class EncryptAnUploadable:
     """This is a wrapper that takes an IUploadable and provides
     IEncryptedUploadable."""
     CHUNKSIZE = 50*1024
@@ -1159,7 +1159,7 @@ class EncryptAnUploadable(object):
         return self.original.close()
 
 @implementer(IUploadStatus)
-class UploadStatus(object):
+class UploadStatus:
     statusid_counter = itertools.count(0)
 
     def __init__(self):
@@ -1208,7 +1208,7 @@ class UploadStatus(object):
     def set_results(self, value):
         self.results = value
 
-class CHKUploader(object):
+class CHKUploader:
 
     def __init__(self, storage_broker, secret_holder, reactor=None):
         # server_selector needs storage_broker and secret_holder
@@ -1408,7 +1408,7 @@ def read_this_many_bytes(uploadable, size, prepend_data=None):
     d.addCallback(_got)
     return d
 
-class LiteralUploader(object):
+class LiteralUploader:
 
     def __init__(self):
         self._status = s = UploadStatus()
@@ -1525,7 +1525,7 @@ class RemoteEncryptedUploadable(Referenceable):  # type: ignore # warner/foolsca
         return self._eu.close()
 
 
-class AssistedUploader(object):
+class AssistedUploader:
 
     def __init__(self, helper, storage_broker):
         self._helper = helper
@@ -1680,7 +1680,7 @@ class AssistedUploader(object):
     def get_upload_status(self):
         return self._upload_status
 
-class BaseUploadable(object):
+class BaseUploadable:
     # this is overridden by max_segment_size
     default_max_segment_size = DEFAULT_IMMUTABLE_MAX_SEGMENT_SIZE
     default_params_set = False

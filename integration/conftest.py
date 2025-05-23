@@ -28,7 +28,6 @@ from twisted.internet.error import (
 
 import pytest
 import pytest_twisted
-from typing import Mapping
 
 from .util import (
     _MagicTextProtocol,
@@ -309,69 +308,18 @@ def bob(reactor, temp_dir, introducer_furl, flog_gatherer, storage_nodes, reques
 @pytest.fixture(scope='session')
 @pytest.mark.skipif(sys.platform.startswith('win'),
                     'Tor tests are unstable on Windows')
-def chutney(reactor, temp_dir: str) -> tuple[str, dict[str, str]]:
+def chutney(reactor, temp_dir: str) -> FilePath:
     """
     Install the Chutney software that is required to run a small local Tor grid.
-
-    (Chutney lacks the normal "python stuff" so we can't just declare
-    it in Tox or similar dependencies)
     """
-    # Try to find Chutney already installed in the environment.
-    try:
-        import chutney
-    except ImportError:
-        # Nope, we'll get our own in a moment.
-        pass
-    else:
-        # We already have one, just use it.
-        return (
-            # from `checkout/lib/chutney/__init__.py` we want to get back to
-            # `checkout` because that's the parent of the directory with all
-            # of the network definitions.  So, great-grand-parent.
-            FilePath(chutney.__file__).parent().parent().parent().path,
-            # There's nothing to add to the environment.
-            {},
-        )
-
-    chutney_dir = join(temp_dir, 'chutney')
-    mkdir(chutney_dir)
+    import chutney
 
     missing = [exe for exe in ["tor", "tor-gencert"] if not which(exe)]
     if missing:
-        pytest.skip(f"Some command-line tools not found: {missing}")
+        pytest.fail(f"Some command-line tools not found: {missing}")
 
-    # XXX yuck! should add a setup.py to chutney so we can at least
-    # "pip install <path to tarball>" and/or depend on chutney in "pip
-    # install -e .[dev]" (i.e. in the 'dev' extra)
-    #
-    # https://trac.torproject.org/projects/tor/ticket/20343
-    pytest_twisted.blockon(dump_output(
-        reactor,
-        executable='git',
-        argv=(
-            'git', 'clone',
-            'https://gitlab.torproject.org/tpo/core/chutney.git',
-            chutney_dir,
-        ),
-        env=environ,
-        path=".",
-    ))
-
-    # XXX: Here we reset Chutney to a specific revision known to work,
-    # since there are no stability guarantees or releases yet.
-    pytest_twisted.blockon(dump_output(
-        reactor,
-        executable='git',
-        argv=(
-            'git', '-C', chutney_dir,
-            'reset', '--hard',
-            'c4f6789ad2558dcbfeb7d024c6481d8112bfb6c2'
-        ),
-        env=environ,
-        path=".",
-    ))
-
-    return chutney_dir, {"PYTHONPATH": join(chutney_dir, "lib")}
+    # The directory with all of the network definitions.
+    return FilePath(chutney.__file__).parent().child("data")
 
 
 @frozen
@@ -381,7 +329,6 @@ class ChutneyTorNetwork:
     "tor_network" fixture.
     """
     dir: FilePath
-    environ: Mapping[str, str]
     client_control_port: int
 
     @property
@@ -396,19 +343,18 @@ def tor_network(reactor, temp_dir, chutney, request):
     """
     Build a basic Tor network.
 
-    Instantiate the "networks/basic" Chutney configuration for a local
-    Tor network.
+    Instantiate the "networks/basic-min" Chutney configuration for
+    a local Tor network.
 
     This provides a small, local Tor network that can run v3 Onion
-    Services. It has 3 authorities, 5 relays and 2 clients.
+    Services.
 
-    The 'chutney' fixture pins a Chutney git qrevision, so things
-    shouldn't change. This network has two clients which are the only
-    nodes with valid SocksPort configuration ("008c" and "009c" 9008
-    and 9009)
+    The 'chutney' fixture pins a Chutney git revision, so things
+    shouldn't change. This network has one client which is the only
+    node with a valid SocksPort configuration ("005c" and 9005).
 
     The control ports start at 8000 (so the ControlPort for the client
-    nodes are 8008 and 8009).
+    node is 8005).
 
     :param chutney: The root directory of a Chutney checkout and a dict of
         additional environment variables to set so a Python process can use
@@ -416,14 +362,13 @@ def tor_network(reactor, temp_dir, chutney, request):
 
     :return: None
     """
-    chutney_root, chutney_env = chutney
-    basic_network = join(chutney_root, 'networks', 'basic')
+    chutney_root = chutney.path
+    basic_network = join(chutney_root, 'networks', 'basic-min')
 
     env = environ.copy()
-    env.update(chutney_env)
     env.update({
         # default is 60, probably too short for reliable automated use.
-        "CHUTNEY_START_TIME": "600",
+        "CHUTNEY_START_TIME": "180",
     })
     chutney_argv = (sys.executable, '-m', 'chutney.TorNet')
     def chutney(argv):
@@ -484,10 +429,9 @@ def tor_network(reactor, temp_dir, chutney, request):
     except ProcessTerminated:
         print("Chutney.TorNet status failed (continuing)")
 
-    # the "8008" comes from configuring "networks/basic" in chutney
-    # and then examining "net/nodes/008c/torrc" for ControlPort value
+    # the "8005" comes from configuring "networks/basic" in chutney
+    # and then examining "net/nodes/005c/torrc" for ControlPort value
     return ChutneyTorNetwork(
         chutney_root,
-        chutney_env,
-        8008,
+        8005,
     )

@@ -67,7 +67,7 @@ class GridTesterOptions(usage.Options):
 class CommandFailed(Exception):
     pass
 
-class GridTester(object):
+class GridTester:
     def __init__(self, config):
         self.config = config
         self.tahoe = config.tahoe

@@ -45,7 +45,7 @@ from .mutable_schema import (
 assert struct.calcsize(">L") == 4, struct.calcsize(">L")
 assert struct.calcsize(">Q") == 8, struct.calcsize(">Q")
 
-class MutableShareFile(object):
+class MutableShareFile:
 
     sharetype = "mutable"
     DATA_LENGTH_OFFSET = struct.calcsize(">32s20s32s")
@@ -457,7 +457,7 @@ def testv_compare(a, op, b):
     return a == b
 
 
-class EmptyShare(object):
+class EmptyShare:
 
     def check_testv(self, testv):
         test_good = True

@@ -2,8 +2,6 @@
 Ported to Python 3.
 """
 
-from six import ensure_text
-
 import os
 import tempfile
 from io import BytesIO, StringIO
@@ -32,7 +30,7 @@ from ..common_web import do_http
 from .common import CLITestMixin
 
 
-class FakeStatus(object):
+class FakeStatus:
     def __init__(self):
         self.status = []
 
@@ -139,18 +137,18 @@ class CommandStatus(unittest.TestCase):
 
     def test_no_operations(self):
         values = [
-            StringIO(ensure_text(json.dumps({
+            StringIO(json.dumps({
                 "active": [],
                 "recent": [],
-            }))),
-            StringIO(ensure_text(json.dumps({
+            })),
+            StringIO(json.dumps({
                 "counters": {
                     "bytes_downloaded": 0,
                 },
                 "stats": {
                     "node.uptime": 0,
                 }
-            }))),
+            })),
         ]
         def do_http(*args, **kw):
             return values.pop(0)

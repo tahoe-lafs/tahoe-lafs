@@ -117,6 +117,7 @@ dependencies = [
 
     "PyYAML >= 3.11",
 
+    # to be slowly removed from codebase
     "six >= 1.10.0",
 
     # For 'tahoe invite' and 'tahoe join'
@@ -132,9 +133,6 @@ dependencies = [
 
     # WebSocket library for twisted and asyncio
     "autobahn >= 22.4.3",
-
-    # Support for Python 3 transition
-    "future >= 0.18.2",
 
     # Discover local network configuration
     "netifaces",
@@ -226,8 +224,10 @@ testenv = [
 # Here are the library dependencies of the test suite.
 test = [
     "mock",
+    "tox",
     "pytest",
     "pytest-twisted",
+    "tox >= 4.0.0",
     "hypothesis >= 3.6.1",
     "towncrier",
     "testtools",
@@ -242,7 +242,9 @@ test = [
     "prometheus-client == 0.11.0",
 
     "tahoe-lafs[tor]",  # our own "tor" extra
-    "tahoe-lafs[i2p]"  # our own "i2p" extra
+    "tahoe-lafs[i2p]",  # our own "i2p" extra
+    # Chutney with recent additions to make it a Python package:
+    "chutney @ git+https://gitlab.torproject.org/tpo/core/chutney@f25094db31fbbec7e88ae5801dd2dcf2d6d9ae5d"
 ]
 
 
@@ -297,3 +299,7 @@ exclude = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/allmydata"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+

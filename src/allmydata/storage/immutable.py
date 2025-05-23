@@ -103,7 +103,7 @@ def _fix_lease_count_format(lease_count_format):
     return fixed
 
 
-class ShareFile(object):
+class ShareFile:
     """
     Support interaction with persistent storage of a share.
 
@@ -351,7 +351,7 @@ class ShareFile(object):
         return space_freed
 
 
-class BucketWriter(object):
+class BucketWriter:
     """
     Keep track of the process of writing to a ShareFile.
     """
@@ -518,7 +518,7 @@ class FoolscapBucketWriter(Referenceable):  # type: ignore # warner/foolscap#78
         return self._bucket_writer.abort()
 
 
-class BucketReader(object):
+class BucketReader:
     """
     Manage the process for reading from a ``ShareFile``.
     """

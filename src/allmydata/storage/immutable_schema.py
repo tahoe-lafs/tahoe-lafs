@@ -12,7 +12,7 @@ from .lease_schema import (
 )
 
 @attr.s(frozen=True)
-class _Schema(object):
+class _Schema:
     """
     Implement encoding and decoding for multiple versions of the immutable
     container schema.

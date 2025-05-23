@@ -242,7 +242,7 @@ def create_fake_tahoe_root():
 
 
 @implementer(IBodyProducer)
-class _SynchronousProducer(object):
+class _SynchronousProducer:
     """
     A partial implementation of an :obj:`IBodyProducer` which produces its
     entire payload immediately.  There is no way to access to an instance of

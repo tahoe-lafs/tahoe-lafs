@@ -47,7 +47,7 @@ from hypothesis.strategies import text
 
 
 @implementer(IConsumer)
-class MemAccum(object):
+class MemAccum:
     def registerProducer(self, producer, streaming):
         self.producer = producer
         self.producer.resumeProducing()
@@ -1395,7 +1395,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         self.set_up_grid(oneshare=True)
         return self._do_initial_children_test(mdmf=True)
 
-class MinimalFakeMutableFile(object):
+class MinimalFakeMutableFile:
     def get_writekey(self):
         return b"writekey"
 

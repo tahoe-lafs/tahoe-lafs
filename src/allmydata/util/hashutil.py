@@ -4,7 +4,8 @@ Hashing utilities.
 Ported to Python 3.
 """
 
-from past.builtins import chr as byteschr
+def byteschr(x):
+    return bytes([x])
 
 import os
 import hashlib
@@ -22,7 +23,7 @@ from allmydata.util.netstring import netstring
 CRYPTO_VAL_SIZE = 32
 
 
-class _SHA256d_Hasher(object):
+class _SHA256d_Hasher:
     # use SHA-256d, as defined by Ferguson and Schneier: hash the output
     # again to prevent length-extension attacks
     def __init__(self, truncate_to=None):

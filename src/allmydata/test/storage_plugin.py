@@ -52,7 +52,7 @@ class RIDummy(RemoteInterface):
 # https://twistedmatrix.com/trac/ticket/9717
 @implementer(IFoolscapStoragePlugin)  # type: ignore
 @attr.s
-class DummyStorage(object):
+class DummyStorage:
     name = attr.ib()
 
     @property

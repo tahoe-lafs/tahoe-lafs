@@ -3,9 +3,6 @@ Ported to Python 3.
 """
 from __future__ import annotations
 
-from past.builtins import chr as byteschr
-from six import ensure_text
-
 import os, re, sys, time, json
 from typing import Optional
 
@@ -47,8 +44,10 @@ from .web.common import (
 from .common_system import SystemTestMixin
 from .common_util import run_cli_unicode
 
+def byteschr(x):
+    return bytes([x])
 
-class RunBinTahoeMixin(object):
+class RunBinTahoeMixin:
     def run_bintahoe(self, args, stdin=None, python_options:Optional[list[str]]=None, env=None):
         # test_runner.run_bintahoe has better unicode support but doesn't
         # support env yet and is also synchronous.  If we could get rid of
@@ -80,10 +79,9 @@ def run_cli(*args, **kwargs):
     Backwards compatible version so we don't have to change all the tests that
     expected this API.
     """
-    nodeargs = [ensure_text(a) for a in kwargs.pop("nodeargs", [])]
+    nodeargs = [a for a in kwargs.pop("nodeargs", [])]
     kwargs["nodeargs"] = nodeargs
-    return run_cli_unicode(
-        ensure_text(args[0]), [ensure_text(a) for a in args[1:]], **kwargs)
+    return run_cli_unicode(args[0], [a for a in args[1:]], **kwargs)
 
 
 def do_http(*args, **kwargs):
@@ -1314,7 +1312,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # exercise some of the diagnostic tools in runner.py
 
         # find a share
-        for (dirpath, dirnames, filenames) in os.walk(ensure_text(self.basedir)):
+        for (dirpath, dirnames, filenames) in os.walk(self.basedir):
             if "storage" not in dirpath:
                 continue
             if not filenames:

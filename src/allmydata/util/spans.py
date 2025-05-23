@@ -1,6 +1,6 @@
 
 
-class Spans(object):
+class Spans:
     """I represent a compressed list of booleans, one per index (an integer).
     Typically, each index represents an offset into a large string, pointing
     to a specific byte of a share. In this context, True means that byte has
@@ -223,7 +223,7 @@ def adjacent(start0, length0, start1, length1):
         return True
     return False
 
-class DataSpans(object):
+class DataSpans:
     """I represent portions of a large string. Equivalently, I can be said to
     maintain a large array of characters (with gaps of empty elements). I can
     be used to manage access to a remote share, where some pieces have been

@@ -119,7 +119,7 @@ def on_different(fd_mapping):
     return _ProcessProtocolAdapter(fd_mapping)
 
 @attr.s
-class CLINodeAPI(object):
+class CLINodeAPI:
     reactor = attr.ib()
     basedir = attr.ib(type=FilePath)
     process = attr.ib(default=None)

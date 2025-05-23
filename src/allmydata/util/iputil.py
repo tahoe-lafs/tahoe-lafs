@@ -164,7 +164,7 @@ def _foolscapEndpointForPortNumber(portnum):
 
 @implementer(IStreamServerEndpoint)
 @attr.s
-class CleanupEndpoint(object):
+class CleanupEndpoint:
     """
     An ``IStreamServerEndpoint`` wrapper which closes a file descriptor if the
     wrapped endpoint is never used.

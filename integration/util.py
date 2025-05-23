@@ -288,7 +288,7 @@ def _tahoe_runner_optional_coverage(proto, reactor, request, other_args):
     )
 
 
-class TahoeProcess(object):
+class TahoeProcess:
     """
     A running Tahoe process, with associated information.
     """

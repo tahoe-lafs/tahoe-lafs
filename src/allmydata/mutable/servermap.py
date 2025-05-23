@@ -25,7 +25,7 @@ from allmydata.mutable.common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, \
 from allmydata.mutable.layout import SIGNED_PREFIX_LENGTH, MDMFSlotReadProxy
 
 @implementer(IServermapUpdaterStatus)
-class UpdateStatus(object):
+class UpdateStatus:
     statusid_counter = count(0)
     def __init__(self):
         self.timings = {}
@@ -86,7 +86,7 @@ class UpdateStatus(object):
     def set_finished(self, when):
         self.finished = when
 
-class ServerMap(object):
+class ServerMap:
     """I record the placement of mutable shares.
 
     This object records which shares (of various versions) are located on
@@ -385,7 +385,7 @@ class ServerMap(object):
         self.update_data.setdefault(shnum , []).append((verinfo, data))
 
 
-class ServermapUpdater(object):
+class ServermapUpdater:
     def __init__(self, filenode, storage_broker, monitor, servermap,
                  mode=MODE_READ, add_lease=False, update_range=None):
         """I update a servermap, locating a sufficient number of useful

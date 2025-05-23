@@ -79,7 +79,7 @@ TiB=1024*GiB
 PiB=1024*TiB
 
 @implementer(IEncoder)
-class Encoder(object):
+class Encoder:
 
     def __init__(self, log_parent=None, upload_status=None):
         object.__init__(self)

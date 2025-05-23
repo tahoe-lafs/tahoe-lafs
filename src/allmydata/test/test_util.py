@@ -446,7 +446,7 @@ class PollMixinTests(unittest.TestCase):
 
 
 ctr = [0]
-class EqButNotIs(object):
+class EqButNotIs:
     def __init__(self, x):
         self.x = x
         self.hash = ctr[0]
@@ -555,7 +555,7 @@ class JSONBytes(unittest.TestCase):
 
 
 
-class FakeGetVersion(object):
+class FakeGetVersion:
     """Emulate an object with a get_version."""
 
     def __init__(self, result):

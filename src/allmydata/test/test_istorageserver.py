@@ -10,8 +10,6 @@ indexes.
 
 from __future__ import annotations
 
-from future.utils import bchr
-
 from random import Random
 from unittest import SkipTest
 
@@ -31,6 +29,8 @@ from allmydata.storage.server import StorageServer  # not a IStorageServer!!
 # are run in the same order.
 _RANDOM = Random(0)
 
+def bchr(s):
+    return bytes([s])
 
 def _randbytes(length):
     # type: (int) -> bytes
@@ -50,7 +50,7 @@ def new_secret():
     return _randbytes(32)
 
 
-class IStorageServerSharedAPIsTestsMixin(object):
+class IStorageServerSharedAPIsTestsMixin:
     """
     Tests for ``IStorageServer``'s shared APIs.
 
@@ -68,7 +68,7 @@ class IStorageServerSharedAPIsTestsMixin(object):
         self.assertIn(b"http://allmydata.org/tahoe/protocols/storage/v1", result)
 
 
-class IStorageServerImmutableAPIsTestsMixin(object):
+class IStorageServerImmutableAPIsTestsMixin:
     """
     Tests for ``IStorageServer``'s immutable APIs.
 
@@ -515,7 +515,7 @@ class IStorageServerImmutableAPIsTestsMixin(object):
         self.assertEqual(lease2.get_expiration_time() - initial_expiration_time, 167)
 
 
-class IStorageServerMutableAPIsTestsMixin(object):
+class IStorageServerMutableAPIsTestsMixin:
     """
     Tests for ``IStorageServer``'s mutable APIs.
 

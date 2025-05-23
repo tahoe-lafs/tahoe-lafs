@@ -35,7 +35,7 @@ GiB=1024*MiB
 TiB=1024*GiB
 PiB=1024*TiB
 
-class Sizes(object):
+class Sizes:
     def __init__(self, mode, file_size, arity=2):
         MAX_SEGSIZE = 128*KiB
         self.mode = mode

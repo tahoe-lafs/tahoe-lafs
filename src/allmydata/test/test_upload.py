@@ -105,7 +105,7 @@ class Uploadable(unittest.TestCase):
 class ServerError(Exception):
     pass
 
-class SetDEPMixin(object):
+class SetDEPMixin:
     def set_encoding_parameters(self, k, happy, n, max_segsize=1*MiB):
         p = {"k": k,
              "happy": happy,
@@ -118,7 +118,7 @@ class SetDEPMixin(object):
 # This doesn't actually implement the whole interface, but adding a commented
 # interface implementation annotation for grepping purposes.
 #@implementer(RIStorageServer)
-class FakeStorageServer(object):
+class FakeStorageServer:
     """
     A fake Foolscap remote object, implemented by overriding callRemote() to
     call local methods.
@@ -189,7 +189,7 @@ class FakeStorageServer(object):
 
 
 
-class FakeBucketWriter(object):
+class FakeBucketWriter:
     # a diagnostic version of storageserver.BucketWriter
     def __init__(self, size):
         self.data = BytesIO()
@@ -227,7 +227,7 @@ class FakeBucketWriter(object):
     def remote_abort(self):
         pass
 
-class FakeClient(object):
+class FakeClient:
     DEFAULT_ENCODING_PARAMETERS = {
         "k":25,
         "happy": 25,

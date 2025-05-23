@@ -963,7 +963,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         return d
 
 
-class StoppableList(object):
+class StoppableList:
     def __init__(self, items):
         self.items = items
     def __iter__(self):
@@ -973,7 +973,7 @@ class StoppableList(object):
         pass
 
 
-class Reason(object):
+class Reason:
     def __init__(self, value):
         self.value = value
 
@@ -1904,7 +1904,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
 
 @implementer(ITransport)
-class FakeTransport(object):
+class FakeTransport:
     def write(self, data):
         logmsg("FakeTransport.write(<data of length %r>)" % (len(data),), level=NOISY)
 
@@ -1979,7 +1979,7 @@ components.registerAdapter(ShellSession, SFTPUserHandler, ISession)
 from allmydata.frontends.auth import AccountFileChecker, NeedRootcapLookupScheme
 
 @implementer(portal.IRealm)
-class Dispatcher(object):
+class Dispatcher:
     def __init__(self, client):
         self._client = client
 

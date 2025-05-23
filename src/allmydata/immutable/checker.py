@@ -32,7 +32,7 @@ class UnsupportedErasureCodec(BadURIExtension):
     pass
 
 @implementer(IValidatedThingProxy)
-class ValidatedExtendedURIProxy(object):
+class ValidatedExtendedURIProxy:
     """ I am a front-end for a remote UEB (using a local ReadBucketProxy),
     responsible for retrieving and validating the elements from the UEB."""
 

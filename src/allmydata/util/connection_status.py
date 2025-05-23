@@ -10,7 +10,7 @@ from ..interfaces import IConnectionStatus
 from foolscap.reconnector import Reconnector
 
 @implementer(IConnectionStatus)
-class ConnectionStatus(object):
+class ConnectionStatus:
     def __init__(self, connected, summary, non_connected_statuses,
                  last_connection_time, last_received_time):
         self.connected = connected

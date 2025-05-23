@@ -121,7 +121,7 @@ ANONYMOUS_STORAGE_NURLS = "anonymous-storage-NURLs"
 #  don't pass signatures: only pass validated blessed-objects
 
 @attr.s
-class StorageClientConfig(object):
+class StorageClientConfig:
     """
     Configuration for a node acting as a storage client.
 
@@ -578,7 +578,7 @@ class StorageFarmBroker(service.MultiService):
         return StubServer(serverid)
 
 @implementer(IDisplayableServer)
-class StubServer(object):
+class StubServer:
     def __init__(self, serverid):
         assert isinstance(serverid, bytes)
         self.serverid = serverid # binary tubid
@@ -680,7 +680,7 @@ def _parse_announcement(server_id: bytes, furl: bytes, ann: dict) -> tuple[str, 
 
 @implementer(IFoolscapStorageServer)
 @attr.s(frozen=True)
-class _FoolscapStorage(object):
+class _FoolscapStorage:
     """
     Abstraction for connecting to a storage server exposed via Foolscap.
     """
@@ -739,7 +739,7 @@ class _FoolscapStorage(object):
 
 @implementer(IFoolscapStorageServer)
 @define
-class _NullStorage(object):
+class _NullStorage:
     """
     Abstraction for *not* communicating with a storage server of a type with
     which we can't communicate.
@@ -758,7 +758,7 @@ class _NullStorage(object):
         return NonReconnector()
 
 
-class NonReconnector(object):
+class NonReconnector:
     """
     A ``foolscap.reconnector.Reconnector``-alike that doesn't do anything.
     """
@@ -1379,7 +1379,7 @@ class UnknownServerTypeError(Exception):
 
 @implementer(IStorageServer)
 @attr.s
-class _StorageServer(object):
+class _StorageServer:
     """
     ``_StorageServer`` is a direct pass-through to an ``RIStorageServer`` via
     a ``RemoteReference``.
@@ -1490,7 +1490,7 @@ class _StorageServer(object):
 
 
 @attr.s(hash=True)
-class _FakeRemoteReference(object):
+class _FakeRemoteReference:
     """
     Emulate a Foolscap RemoteReference, calling a local object instead.
     """
@@ -1506,7 +1506,7 @@ class _FakeRemoteReference(object):
 
 
 @attr.s
-class _HTTPBucketWriter(object):
+class _HTTPBucketWriter:
     """
     Emulate a ``RIBucketWriter``, but use HTTP protocol underneath.
     """
@@ -1547,7 +1547,7 @@ def _ignore_404(failure: Failure) -> Optional[Failure]:
 
 
 @attr.s(hash=True)
-class _HTTPBucketReader(object):
+class _HTTPBucketReader:
     """
     Emulate a ``RIBucketReader``, but use HTTP protocol underneath.
     """
@@ -1570,7 +1570,7 @@ class _HTTPBucketReader(object):
 # WORK IN PROGRESS, for now it doesn't actually implement whole thing.
 @implementer(IStorageServer)  # type: ignore
 @attr.s
-class _HTTPStorageServer(object):
+class _HTTPStorageServer:
     """
     Talk to remote storage server over HTTP.
     """

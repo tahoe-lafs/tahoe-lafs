@@ -73,7 +73,7 @@ def make_tahoe_subdirectory(nodeurl, parent_writecap, name):
     raise HTTPError("Error during mkdir", resp)
 
 
-class LocalFileSource(object):
+class LocalFileSource:
     def __init__(self, pathname, basename):
         precondition_abspath(pathname)
         self.pathname = pathname
@@ -88,7 +88,7 @@ class LocalFileSource(object):
     def open(self, caps_only):
         return open(self.pathname, "rb")
 
-class LocalFileTarget(object):
+class LocalFileTarget:
     def __init__(self, pathname):
         precondition_abspath(pathname)
         self.pathname = pathname
@@ -96,7 +96,7 @@ class LocalFileTarget(object):
     def put_file(self, inf):
         fileutil.put_file(self.pathname, inf)
 
-class LocalMissingTarget(object):
+class LocalMissingTarget:
     def __init__(self, pathname):
         precondition_abspath(pathname)
         self.pathname = pathname
@@ -104,7 +104,7 @@ class LocalMissingTarget(object):
     def put_file(self, inf):
         fileutil.put_file(self.pathname, inf)
 
-class LocalDirectorySource(object):
+class LocalDirectorySource:
     def __init__(self, progressfunc, pathname, basename):
         precondition_abspath(pathname)
 
@@ -136,7 +136,7 @@ class LocalDirectorySource(object):
                 # TODO: output a warning
                 pass
 
-class LocalDirectoryTarget(object):
+class LocalDirectoryTarget:
     def __init__(self, progressfunc, pathname):
         precondition_abspath(pathname)
 
@@ -183,7 +183,7 @@ class LocalDirectoryTarget(object):
         pass
 
 
-class TahoeFileSource(object):
+class TahoeFileSource:
     def __init__(self, nodeurl, mutable, writecap, readcap, basename):
         self.nodeurl = nodeurl
         self.mutable = mutable
@@ -216,7 +216,7 @@ def seekable(file_like):
     )
 
 
-class TahoeFileTarget(object):
+class TahoeFileTarget:
     def __init__(self, nodeurl, mutable, writecap, readcap, url):
         self.nodeurl = nodeurl
         self.mutable = mutable
@@ -236,7 +236,7 @@ class TahoeFileTarget(object):
         # to always create mutable files, or to copy mutable files into new
         # mutable files. ticket #835
 
-class TahoeDirectorySource(object):
+class TahoeDirectorySource:
     def __init__(self, nodeurl, cache, progressfunc, basename):
         self.nodeurl = nodeurl
         self.cache = cache
@@ -309,7 +309,7 @@ class TahoeDirectorySource(object):
                                  "You probably need to use a later version of "
                                  "Tahoe-LAFS to copy this directory.")
 
-class TahoeMissingTarget(object):
+class TahoeMissingTarget:
     def __init__(self, url):
         self.url = url
 
@@ -326,7 +326,7 @@ class TahoeMissingTarget(object):
         # I'm not sure this will always work
         return PUT(self.url + "?t=uri", filecap)
 
-class TahoeDirectoryTarget(object):
+class TahoeDirectoryTarget:
     def __init__(self, nodeurl, cache, progressfunc):
         self.nodeurl = nodeurl
         self.cache = cache
@@ -470,7 +470,7 @@ FileTargets = (LocalFileTarget, TahoeFileTarget)
 DirectoryTargets = (LocalDirectoryTarget, TahoeDirectoryTarget)
 MissingTargets = (LocalMissingTarget, TahoeMissingTarget)
 
-class Copier(object):
+class Copier:
 
     def do_copy(self, options, progressfunc=None):
         if options['quiet']:

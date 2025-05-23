@@ -10,16 +10,24 @@ ENV BUILD_SRC_ROOT /tmp/project
 RUN apt-get --quiet update && \
     apt-get --quiet --yes install \
         git \
+        wget \
         lsb-release \
         sudo \
         build-essential \
+        python-is-python3 \
         python${PYTHON_VERSION} \
         python${PYTHON_VERSION}-dev \
         libffi-dev \
         libssl-dev \
         libyaml-dev \
         virtualenv \
-        tor
+        apt-transport-https
+
+COPY .circleci/apt-tor-list /etc/apt/sources.list.d/tor.list
+RUN wget -qO- https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc | gpg --dearmor | tee /usr/share/keyrings/deb.torproject.org-keyring.gpg >/dev/null && \
+    apt-get update
+RUN apt-get install -y deb.torproject.org-keyring && \
+    apt-get install -y tor
 
 # Get the project source.  This is better than it seems.  CircleCI will
 # *update* this checkout on each job run, saving us more time per-job.

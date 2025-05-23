@@ -189,7 +189,7 @@ class _Provider(service.MultiService):
         privkeyfile = self._get_i2p_config("dest.private_key_file")
         external_port = self._get_i2p_config("dest.port")
         sam_port = self._get_i2p_config("sam.port")
-        escaped_sam_port = sam_port.replace(':', '\:')
+        escaped_sam_port = sam_port.replace(':', r'\:')
         # for now, this returns a string, which then gets passed to
         # endpoints.serverFromString . But it can also return an Endpoint
         # directly, which means we don't need to encode all these options

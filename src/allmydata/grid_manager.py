@@ -32,7 +32,7 @@ from attrs import (
 
 
 @frozen
-class SignedCertificate(object):
+class SignedCertificate:
     """
     A signed certificate.
     """
@@ -62,7 +62,7 @@ class SignedCertificate(object):
 
 
 @frozen
-class _GridManagerStorageServer(object):
+class _GridManagerStorageServer:
     """
     A Grid Manager's notion of a storage server
     """
@@ -93,7 +93,7 @@ class _GridManagerStorageServer(object):
 
 
 @frozen
-class _GridManagerCertificate(object):
+class _GridManagerCertificate:
     """
     Represents a single certificate for a single storage-server
     """
@@ -224,7 +224,7 @@ def load_grid_manager(config_path: Optional[FilePath]):
     return _GridManager(private_key_bytes, storage_servers)
 
 
-class _GridManager(object):
+class _GridManager:
     """
     A Grid Manager's configuration.
     """

@@ -15,7 +15,7 @@ from .lease import (
 )
 
 @attr.s(frozen=True)
-class CleartextLeaseSerializer(object):
+class CleartextLeaseSerializer:
     """
     Serialize and unserialize leases with cleartext secrets.
     """
@@ -46,7 +46,7 @@ class CleartextLeaseSerializer(object):
         return self._from_data(data)
 
 @attr.s(frozen=True)
-class HashedLeaseSerializer(object):
+class HashedLeaseSerializer:
     _to_data = attr.ib()
     _from_data = attr.ib()
 

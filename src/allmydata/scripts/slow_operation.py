@@ -13,7 +13,7 @@ from allmydata.util.encodingutil import quote_output, is_printable_ascii
 from urllib.parse import quote as url_quote
 import json
 
-class SlowOperationRunner(object):
+class SlowOperationRunner:
 
     def run(self, options):
         stderr = options.stderr

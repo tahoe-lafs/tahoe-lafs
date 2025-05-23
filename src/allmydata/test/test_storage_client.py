@@ -450,7 +450,7 @@ class FoolscapStorageServers(unittest.TestCase):
         Instances of ``_FoolscapStorage`` provide ``IFoolscapStorageServer``.
         """
         @implementer(IStorageServer)
-        class NotStorageServer(object):
+        class NotStorageServer:
             pass
         self.assertTrue(
             verifyObject(
@@ -572,7 +572,7 @@ def make_broker(tub_maker=None):
 
 @implementer(IStreamClientEndpoint)
 @attr.s
-class SpyEndpoint(object):
+class SpyEndpoint:
     """
     Observe and record connection attempts.
 
@@ -595,7 +595,7 @@ class SpyEndpoint(object):
 
 @implementer(IConnectionHintHandler)  # type: ignore # warner/foolscap#78
 @attr.s
-class SpyHandler(object):
+class SpyHandler:
     """
     A Foolscap connection hint handler for the "spy" hint type.  Connections
     are handled by just observing and recording them.

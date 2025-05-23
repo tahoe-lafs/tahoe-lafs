@@ -522,7 +522,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.basedir = "cli/exception_catcher"
 
         exc = Exception("canary")
-        class BrokenOptions(object):
+        class BrokenOptions:
             def parseOptions(self, argv):
                 raise exc
 
@@ -764,7 +764,7 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         # enough shares. The one remaining share might be in either the
         # COMPLETE or the PENDING state.
         in_complete_msg = "ran out of shares: complete=sh0 pending= overdue= unused= need 3"
-        in_pending_msg_regex = "ran out of shares: complete= pending=Share\(.+\) overdue= unused= need 3"
+        in_pending_msg_regex = r"ran out of shares: complete= pending=Share\(.+\) overdue= unused= need 3"
 
         d.addCallback(lambda ign: self.do_cli("get", self.uri_1share))
         def _check1(args):

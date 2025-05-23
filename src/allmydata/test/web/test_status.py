@@ -81,7 +81,7 @@ class StatusTests(TrialTestCase):
 
 
 @implementer(IDownloadResults)
-class FakeDownloadResults(object):
+class FakeDownloadResults:
 
     def __init__(self,
                  file_size=0,

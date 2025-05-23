@@ -19,7 +19,7 @@ from testtools.matchers import (
 
 @implementer(IPushProducer)
 @implementer(IPullProducer)
-class Producer(object):
+class Producer:
     """Can be used as either streaming or non-streaming producer.
 
     If used as streaming, the test should call iterate() manually.

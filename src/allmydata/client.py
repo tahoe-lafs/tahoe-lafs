@@ -156,7 +156,7 @@ def _make_secret():
     return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + b"\n"
 
 
-class SecretHolder(object):
+class SecretHolder:
     def __init__(self, lease_secret, convergence_secret):
         self._lease_secret = lease_secret
         self._convergence_secret = convergence_secret
@@ -170,7 +170,7 @@ class SecretHolder(object):
     def get_convergence_secret(self):
         return self._convergence_secret
 
-class KeyGenerator(object):
+class KeyGenerator:
     """I create RSA keys for mutable files. Each call to generate() returns a
     single keypair."""
 
@@ -314,7 +314,7 @@ def create_client_from_config(config, _client_factory=None, _introducer_factory=
 
 
 @attr.s
-class _StoragePlugins(object):
+class _StoragePlugins:
     """
     Functionality related to getting storage plugins set up and ready for use.
 
@@ -559,7 +559,7 @@ def _register_reference(key, config, tub, referenceable):
 
 @implementer(IAnnounceableStorageServer)
 @attr.s
-class AnnounceableStorageServer(object):
+class AnnounceableStorageServer:
     announcement = attr.ib()
     storage_server = attr.ib()
 

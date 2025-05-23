@@ -225,7 +225,7 @@ class DaemonizeTheRealService(Service, HookMixin):
         reactor.callWhenRunning(start)
 
 
-class DaemonizeTahoeNodePlugin(object):
+class DaemonizeTahoeNodePlugin:
     tapname = "tahoenode"
     def __init__(self, nodetype, basedir, allow_stdin_close):
         self.nodetype = nodetype

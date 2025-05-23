@@ -2,8 +2,6 @@
 Ported to Python 3.
 """
 
-from future.utils import bchr
-
 import struct, time, os, sys
 
 from twisted.python import usage, failure
@@ -21,6 +19,9 @@ from allmydata.immutable.layout import ReadBucketProxy
 from allmydata.util import base32
 from allmydata.util.encodingutil import quote_output
 from allmydata.scripts.types_ import SubCommands
+
+def bchr(s):
+    return bytes([s])
 
 class DumpOptions(BaseOptions):
     def getSynopsis(self):

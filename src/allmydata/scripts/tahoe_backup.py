@@ -58,7 +58,7 @@ def put_child(dirurl, childname, childcap):
     if resp.status not in (200, 201):
         raise HTTPError("Error during put_child", resp)
 
-class BackerUpper(object):
+class BackerUpper:
     """
     :ivar int _files_checked: The number of files which the backup process has
         so-far inspected on the grid to determine if they need to be
@@ -332,7 +332,7 @@ def run_backup(
     return progress.backup_finished()
 
 
-class FileTarget(object):
+class FileTarget:
     def __init__(self, path):
         self._path = path
 
@@ -352,7 +352,7 @@ class FileTarget(object):
             return progress.reused_file(self._path, childcap, metadata)
 
 
-class DirectoryTarget(object):
+class DirectoryTarget:
     def __init__(self, path):
         self._path = path
 
@@ -368,7 +368,7 @@ class DirectoryTarget(object):
         return progress.reused_directory(self._path, dircap, metadata)
 
 
-class _ErrorTarget(object):
+class _ErrorTarget:
     def __init__(self, path, isdir=False):
         self._path = path
         self._quoted_path = quote_local_unicode_path(path)
@@ -403,7 +403,7 @@ class SpecialTarget(_ErrorTarget):
         )
 
 
-class BackupComplete(object):
+class BackupComplete:
     def __init__(self,
                  start_timestamp,
                  end_timestamp,
@@ -462,7 +462,7 @@ class BackupComplete(object):
         return "\n".join(result)
 
 
-class BackupProgress(object):
+class BackupProgress:
     # Would be nice if this data structure were immutable and its methods were
     # transformations that created a new slightly different object.  Not there
     # yet, though.

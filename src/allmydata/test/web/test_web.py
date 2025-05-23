@@ -78,7 +78,7 @@ from allmydata.client import _Client, SecretHolder
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
 
-class FakeStatsProvider(object):
+class FakeStatsProvider:
     def get_stats(self):
         stats = {'stats': {}, 'counters': {}}
         return stats
@@ -186,7 +186,7 @@ def build_one_ds():
 
     return ds
 
-class FakeHistory(object):
+class FakeHistory:
     _all_upload_status = [upload.UploadStatus()]
     _all_download_status = [build_one_ds()]
     _all_mapupdate_statuses = [servermap.UpdateStatus()]
@@ -238,7 +238,7 @@ class FakeDisplayableServer(StubServer):  # type: ignore  # tahoe-lafs/ticket/35
         return ConnectionStatus(self.connected, "summary", {},
                                 self.last_connect_time, self.last_rx_time)
 
-class FakeBucketCounter(object):
+class FakeBucketCounter:
     def get_state(self):
         return {"last-complete-bucket-count": 0}
     def get_progress(self):
@@ -246,7 +246,7 @@ class FakeBucketCounter(object):
                 "cycle-in-progress": False,
                 "remaining-wait-time": 0}
 
-class FakeLeaseChecker(object):
+class FakeLeaseChecker:
     def __init__(self):
         self.expiration_enabled = False
         self.mode = "age"
@@ -867,7 +867,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_introducer_status(self):
-        class MockIntroducerClient(object):
+        class MockIntroducerClient:
             def __init__(self, connected):
                 self.connected = connected
             def connection_status(self):
@@ -1968,7 +1968,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_CSS_FILE(self):
         d = self.GET("/tahoe.css", followRedirect=True)
         def _check(res):
-            CSS_STYLE=re.compile(b'toolbar\s{.+text-align:\scenter.+toolbar-item.+display:\sinline',re.DOTALL)
+            CSS_STYLE=re.compile(b'toolbar\\s{.+text-align:\\scenter.+toolbar-item.+display:\\sinline',re.DOTALL)
             self.failUnless(CSS_STYLE.search(res), res)
         d.addCallback(_check)
         return d

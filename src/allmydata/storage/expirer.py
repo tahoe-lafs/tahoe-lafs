@@ -30,7 +30,7 @@ def _convert_pickle_state_to_json(state):
     }
 
 
-class _HistorySerializer(object):
+class _HistorySerializer:
     """
     Serialize the 'history' file of the lease-crawler state. This is
     "storage/lease_checker.history" for the pickle or

@@ -23,7 +23,7 @@ GET_SPANS_S='_received spans trace .get_spans()'
 ADD_R=re.compile('_received spans trace .add\(([0-9]*), len=([0-9]*)\)')
 INIT_S='_received spans trace = DataSpans'
 
-class B(object):
+class B:
     def __init__(self, inf):
         self.inf = inf
 

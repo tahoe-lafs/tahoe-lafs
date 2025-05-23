@@ -5,8 +5,56 @@ User-Visible Changes in Tahoe-LAFS
 ==================================
 
 .. towncrier start line
-Release 1.190 (2024-01-04)
-''''''''''''''''''''''''''
+
+
+Release 1.20.0 (2024-12-03)
+'''''''''''''''''''''''''''
+
+Backwards Incompatible Changes
+------------------------------
+
+- Properly interpret "tahoe create --storage-dir" as an option.
+
+  Versions 1.19.0 and older interpreted "--storage-dir" as a "flag" and thus wouldn't work properly. (`#4110 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4110>`_)
+
+
+Features
+--------
+
+- Continued work to make Tahoe-LAFS take advantage of multiple CPUs. (`#4072 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4072>`_)
+- Mutable directories can now be created with a pre-determined "signature key" via the web API using the "private-key=..." parameter. The "private-key" value must be a DER-encoded 2048-bit RSA private key in urlsafe base64 encoding. (`#4094 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4094>`_)
+
+
+Bug Fixes
+---------
+
+- Upgrade CBOR, fixing encoding on 65KiB++ strings (`#4087 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4087>`_)
+- Stop using the C version of the cbor2 decoder. (`#4088 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4088>`_)
+- Fix incompatibility with cryptography 43. (`#4100 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4100>`_)
+- Fix incompatibility with attrs 24.1. (`#4101 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4101>`_)
+
+
+Dependency/Installation Changes
+-------------------------------
+
+- Now using the "hatch" build system, and pyproject.toml (exclusively) (`#4133 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4133>`_)
+
+
+Documentation Changes
+---------------------
+
+- Tahoe-LAFS manual's table of contents page has been reorganized. (`#3636 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3636>`_)
+- Add a global Sphinx generated glossary. Link the static GBS glossary to the global glossary. (`#4116 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4116>`_)
+
+
+Misc/Other
+----------
+
+- `#3636 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3636>`_, `#4076 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4076>`_, `#4082 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4082>`_, `#4085 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4085>`_, `#4090 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4090>`_, `#4091 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4091>`_, `#4092 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4092>`_, `#4093 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4093>`_, `#4114 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4114>`_, `#4115 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4115>`_, `#4126 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4126>`_, `#4130 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4130>`_, `#4132 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4132>`_, `#4134 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4134>`_, `#4141 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4141>`_
+
+
+Release 1.19.0 (2024-01-04)
+'''''''''''''''''''''''''''
 
 Features
 --------

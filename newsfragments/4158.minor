@@ -1,0 +1,1 @@
+Fixed a couple of SyntaxWarnings from invalid escape sequences (shown under Python 3.12 and 3.13).

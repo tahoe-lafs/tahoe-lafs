@@ -13,7 +13,7 @@ from allmydata.mutable.common import MODE_CHECK, MODE_WRITE, CorruptShareError
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 from allmydata.mutable.retrieve import Retrieve # for verifying
 
-class MutableChecker(object):
+class MutableChecker:
     SERVERMAP_MODE = MODE_CHECK
 
     def __init__(self, node, storage_broker, history, monitor):

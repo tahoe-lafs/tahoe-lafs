@@ -46,7 +46,7 @@ from allmydata.web.check_results import (
 from allmydata.web.info import MoreInfo
 from allmydata.util import jsonbytes as json
 
-class ReplaceMeMixin(object):
+class ReplaceMeMixin:
     def replace_me_with_a_child(self, req, client, replace):
         # a new file is being uploaded in our place.
         file_format = get_format(req, "CHK")

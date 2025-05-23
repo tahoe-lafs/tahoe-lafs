@@ -17,7 +17,7 @@ something happens.  The way this is typically implemented is that the observed
 has an ObserverList whose when_fired method is called in the observed's
 'when_something'."""
 
-class OneShotObserverList(object):
+class OneShotObserverList:
     """A one-shot event distributor."""
     def __init__(self):
         self._fired = False
@@ -90,7 +90,7 @@ class LazyOneShotObserverList(OneShotObserverList):
         if self._watchers: # if not, don't call result_producer
             self._fire(self._get_result())
 
-class ObserverList(object):
+class ObserverList:
     """
     Immediately distribute events to a number of subscribers.
     """
@@ -112,7 +112,7 @@ class ObserverList(object):
             except Exception:
                 self._logger.failure("While notifying {o!r}", o=o)
 
-class EventStreamObserver(object):
+class EventStreamObserver:
     """A simple class to distribute multiple events to a single subscriber.
     It accepts arbitrary kwargs, but no posargs."""
     def __init__(self):
