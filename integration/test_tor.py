@@ -6,6 +6,7 @@ import sys
 from os.path import join
 from os import environ
 
+import pytest
 import pytest_twisted
 
 from . import util
