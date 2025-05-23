@@ -32,9 +32,9 @@ import pytest_twisted
 from .util import (
     _MagicTextProtocol,
     _DumpOutputProtocol,
-    _ProcessExitedProtocol,
     _create_node,
     _tahoe_runner_optional_coverage,
+    dump_output,
     await_client_ready,
     block_with_timeout,
 )
@@ -202,7 +202,7 @@ def tor_introducer(reactor, temp_dir, flog_gatherer, request, tor_network):
 
     if not exists(intro_dir):
         mkdir(intro_dir)
-        done_proto = _ProcessExitedProtocol()
+        done_proto = _DumpOutputProtocol(None)
         _tahoe_runner_optional_coverage(
             done_proto,
             reactor,
@@ -372,15 +372,13 @@ def tor_network(reactor, temp_dir, chutney, request):
     })
     chutney_argv = (sys.executable, '-m', 'chutney.TorNet')
     def chutney(argv):
-        proto = _DumpOutputProtocol(None)
-        reactor.spawnProcess(
-            proto,
+        return dump_output(
+            reactor,
             sys.executable,
             chutney_argv + argv,
             path=join(chutney_root),
             env=env,
         )
-        return proto.done
 
     # now, as per Chutney's README, we have to create the network
     pytest_twisted.blockon(chutney(("configure", basic_network)))
