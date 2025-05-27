@@ -373,6 +373,8 @@ def tor_network(reactor, temp_dir, chutney, request):
         # Path too long on Linux/macOS,
         # Windows doesn't have Unix sockets at all
         "CHUTNEY_ENABLE_CONTROLSOCKET": "false",
+        # Chutney's README says this equals `--offline`:
+        "CHUTNEY_DNS_CONF": str(FilePath("/dev/null")),
     })
     chutney_argv = (sys.executable, '-m', 'chutney.TorNet')
     def chutney(argv):
