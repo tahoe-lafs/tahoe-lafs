@@ -375,11 +375,10 @@ def tor_network(reactor, temp_dir, chutney, request):
         "CHUTNEY_ENABLE_CONTROLSOCKET": "false",
         # Chutney's README says this equals `--offline`:
         "CHUTNEY_DNS_CONF": str(FilePath("/dev/null")),
-        # More debug output please
-        "CHUTNEY_DEBUG": "yes",
-        "CHUTNEY_WARNINGS_IGNORE_EXPECTED": "false",
-        "CHUTNEY_WARNINGS_SUMMARY": "false",
-        "CHUTNEY_DIAGNOSTICS": "true",
+        # Is log output getting in the way?
+        "ECHO": "true",
+        "CHUTNEY_WARNINGS_SKIP": "true",
+        "CHUTNEY_DIAGNOSTICS": "false",
     })
     chutney_argv = (sys.executable, '-m', 'chutney.TorNet')
     def chutney(argv):
