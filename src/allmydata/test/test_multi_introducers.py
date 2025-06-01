@@ -110,7 +110,7 @@ class MultiIntroTests(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             yield create_client(self.basedir)
 
-        self.assertEquals(
+        self.assertEqual(
             str(ctx.exception),
             "'default' introducer furl cannot be specified in tahoe.cfg and introducers.yaml; "
             "please fix impossible configuration.",
@@ -154,14 +154,14 @@ class NoDefault(unittest.TestCase):
         self.yaml_path.setContent(ensure_binary(yamlutil.safe_dump(connections)))
         myclient = yield create_client(self.basedir)
         tahoe_cfg_furl = myclient.introducer_clients[0].introducer_furl
-        self.assertEquals(tahoe_cfg_furl, b'furl1')
+        self.assertEqual(tahoe_cfg_furl, b'furl1')
 
     @defer.inlineCallbacks
     def test_real_yaml(self):
         self.yaml_path.setContent(SIMPLE_YAML)
         myclient = yield create_client(self.basedir)
         tahoe_cfg_furl = myclient.introducer_clients[0].introducer_furl
-        self.assertEquals(tahoe_cfg_furl, b'furl1')
+        self.assertEqual(tahoe_cfg_furl, b'furl1')
 
     @defer.inlineCallbacks
     def test_invalid_equals_yaml(self):
@@ -178,4 +178,4 @@ class NoDefault(unittest.TestCase):
         connections = {'introducers': {} }
         self.yaml_path.setContent(ensure_binary(yamlutil.safe_dump(connections)))
         myclient = yield create_client(self.basedir)
-        self.assertEquals(len(myclient.introducer_clients), 0)
+        self.assertEqual(len(myclient.introducer_clients), 0)

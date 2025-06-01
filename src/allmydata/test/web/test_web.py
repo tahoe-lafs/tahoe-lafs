@@ -839,7 +839,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             decoded = json.loads(res)
             self.assertEqual(decoded['introducers'], {u'statuses': []})
             actual_servers = decoded[u"servers"]
-            self.assertEquals(len(actual_servers), 2)
+            self.assertEqual(len(actual_servers), 2)
             self.assertIn(
                 {
                     u"nodeid": u'other_nodeid',
@@ -4349,7 +4349,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.assertIn(response.code, codes)
         location = response.headers.getRawHeaders(b"location")[0]
         if target_location is not None:
-            self.assertEquals(str(location, "ascii"), target_location)
+            self.assertEqual(str(location, "ascii"), target_location)
         returnValue(location)
 
     @inlineCallbacks
@@ -4898,7 +4898,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # If os.stat raises an exception for the missing directory and the
         # traceback reveals the parent directory name we don't want to see
         # that parent directory name in the response.  This addresses #1720.
-        d.addCallback(lambda e: self.assertEquals(str(e), "404 Not Found"))
+        d.addCallback(lambda e: self.assertEqual(str(e), "404 Not Found"))
         return d
 
 

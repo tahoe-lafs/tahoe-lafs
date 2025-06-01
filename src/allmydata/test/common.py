@@ -970,7 +970,7 @@ class WebErrorMixin:
         response = yield treq.request(method, url, persistent=persistent,
                                       **args)
         body = yield response.content()
-        self.assertEquals(response.code, code)
+        self.assertEqual(response.code, code)
         if response_substring is not None:
             if isinstance(response_substring, str):
                 response_substring = response_substring.encode("utf-8")

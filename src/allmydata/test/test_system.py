@@ -1154,7 +1154,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             d1 = self.GET("uri/%s?filename=%s"
                           % (str(self.mangle_uri(self.uri), "utf-8"), "mydata567"))
             e = yield self.assertFailure(d1, Error)
-            self.assertEquals(e.status, b"410")
+            self.assertEqual(e.status, b"410")
         d.addCallback(_get_from_bogus_uri)
         d.addCallback(self.log, "_got_from_bogus_uri", level=log.UNUSUAL)
 

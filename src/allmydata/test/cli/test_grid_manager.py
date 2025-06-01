@@ -169,7 +169,7 @@ class GridManagerCommandLine(TestCase):
             self.invoke_and_check(grid_manager, ["--config", "foo", "create"])
             self.invoke_and_check(grid_manager, ["--config", "foo", "add", "storage0", pubkey0])
             result = self.runner.invoke(grid_manager, ["--config", "foo", "add", "storage0", pubkey1])
-            self.assertNotEquals(result.exit_code, 0)
+            self.assertNotEqual(result.exit_code, 0)
             self.assertIn(
                 "A storage-server called 'storage0' already exists",
                 result.output,
@@ -200,12 +200,12 @@ class GridManagerCommandLine(TestCase):
 
     def test_remove_missing(self):
         """
-        Error reported when removing non-existant server
+        Error reported when removing non-existent server
         """
         with self.runner.isolated_filesystem():
             self.invoke_and_check(grid_manager, ["--config", "foo", "create"])
             result = self.runner.invoke(grid_manager, ["--config", "foo", "remove", "storage0"])
-            self.assertNotEquals(result.exit_code, 0)
+            self.assertNotEqual(result.exit_code, 0)
             self.assertIn(
                 "No storage-server called 'storage0' exists",
                 result.output,
@@ -213,12 +213,12 @@ class GridManagerCommandLine(TestCase):
 
     def test_sign_missing(self):
         """
-        Error reported when signing non-existant server
+        Error reported when signing non-existent server
         """
         with self.runner.isolated_filesystem():
             self.invoke_and_check(grid_manager, ["--config", "foo", "create"])
             result = self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "42"])
-            self.assertNotEquals(result.exit_code, 0)
+            self.assertNotEqual(result.exit_code, 0)
             self.assertIn(
                 "No storage-server called 'storage0' exists",
                 result.output,
@@ -237,7 +237,7 @@ class GridManagerCommandLine(TestCase):
             # make the directory un-writable (so we can't create a new cert)
             os.chmod("foo", 0o550)
             result = self.runner.invoke(grid_manager, ["--config", "foo", "sign", "storage0", "42"])
-            self.assertEquals(result.exit_code, 1)
+            self.assertEqual(result.exit_code, 1)
             self.assertIn(
                 "Permission denied",
                 result.output,

@@ -261,7 +261,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         for i in range(1, 4):
             with open(os.path.join(self.basedir, "test%d" % (i,), "file"), "rb") as f:
-                self.assertEquals(f.read(), data)
+                self.assertEqual(f.read(), data)
 
     @defer.inlineCallbacks
     def test_cp_immutable_file(self):

@@ -209,7 +209,7 @@ class RenderRoot(AsyncTestCase):
         raw_js = b"".join(lines).decode("utf8")
         js = json.loads(raw_js)
         servers = js["servers"]
-        self.assertEquals(len(servers), 2)
+        self.assertEqual(len(servers), 2)
         self.assertIn(
             {
                 "connection_status": "summary0",
