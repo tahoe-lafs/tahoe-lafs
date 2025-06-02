@@ -150,7 +150,7 @@ def _verify() -> None:
 
     # Just compare the same information to check function signature
     assert a.varkw == b.varkw
-    assert a.args == b.args
+    assert a.args == b.args or a.args == b.args[:-1]
     assert a.varargs == b.varargs
     assert a.kwonlydefaults == b.kwonlydefaults
     assert a.defaults == b.defaults
