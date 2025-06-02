@@ -79,6 +79,7 @@ class MemoryWormholeServer:
         stderr: TextIO=stderr,
         _eventual_queue: Optional[Any]=None,
         _enable_dilate: bool=False,
+        on_status_update: Callable[["WormholeStatus"], None]=None,
     ) -> _MemoryWormhole:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
