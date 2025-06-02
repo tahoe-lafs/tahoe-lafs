@@ -34,7 +34,7 @@ from __future__ import annotations
 
 __all__ = ['MemoryWormholeServer', 'TestingHelper', 'memory_server', 'IWormhole']
 
-from typing import Iterator, Optional, List, Tuple, Any, TextIO
+from typing import Iterator, Optional, List, Tuple, Any, TextIO, Callable
 from inspect import getfullargspec
 from itertools import count
 from sys import stderr
@@ -43,6 +43,7 @@ from attrs import frozen, define, field, Factory
 from twisted.internet.defer import Deferred, DeferredQueue, succeed
 from wormhole._interfaces import IWormhole
 from wormhole.wormhole import create
+from wormhole import WormholeStatus
 from zope.interface import implementer
 
 WormholeCode = str
@@ -79,7 +80,7 @@ class MemoryWormholeServer:
         stderr: TextIO=stderr,
         _eventual_queue: Optional[Any]=None,
         _enable_dilate: bool=False,
-        on_status_update: Callable[["WormholeStatus"], None]=None,
+        on_status_update: Optional[Callable[["WormholeStatus"], None]]=None,
     ) -> _MemoryWormhole:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
