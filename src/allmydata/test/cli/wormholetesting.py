@@ -43,7 +43,6 @@ from attrs import frozen, define, field, Factory
 from twisted.internet.defer import Deferred, DeferredQueue, succeed
 from wormhole._interfaces import IWormhole
 from wormhole.wormhole import create
-from wormhole import WormholeStatus
 from zope.interface import implementer
 
 WormholeCode = str
@@ -80,7 +79,7 @@ class MemoryWormholeServer:
         stderr: TextIO=stderr,
         _eventual_queue: Optional[Any]=None,
         _enable_dilate: bool=False,
-        on_status_update: Optional[Callable[["WormholeStatus"], None]]=None,
+        on_status_update: Optional[Callable[[Any], None]]=None,
     ) -> _MemoryWormhole:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
