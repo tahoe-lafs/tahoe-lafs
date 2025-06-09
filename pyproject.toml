@@ -113,7 +113,11 @@ dependencies = [
     #   temporary upload files placed into a per-node temporary directory.
     # * Twisted 22.8.0 added support for coroutine-returning functions in many
     #   places (mainly via `maybeDeferred`)
-    "Twisted[tls,conch] >= 22.8.0",
+
+    # We are incompatible with Twisted 25.5.0 ("AttributeError: property
+    # 'nameResolver' of 'MemoryReactorClockResolver' object has no setter")
+    # (No ticket since Trac is down right now)
+    "Twisted[tls,conch] >= 22.8.0, < 25.5.0",
 
     "PyYAML >= 3.11",
 
