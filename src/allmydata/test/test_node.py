@@ -249,7 +249,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
             f.write("[node]\n")
         config = read_config(basedir, "")
 
-        self.assertEquals(config.get_config("node", "log_gatherer.furl", "def"), "def")
+        self.assertEqual(config.get_config("node", "log_gatherer.furl", "def"), "def")
         with self.assertRaises(MissingConfigEntry):
             config.get_config("node", "log_gatherer.furl")
 
@@ -262,7 +262,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         with open(os.path.join(basedir, 'tahoe.cfg'), 'w'):
             pass
         config = read_config(basedir, "")
-        self.assertEquals(
+        self.assertEqual(
             config.enumerate_section("not-a-section"),
             {}
         )

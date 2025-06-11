@@ -232,7 +232,7 @@ class Problems(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin):
         # that ought to work
         def _got_node(n):
             d = n.download_best_version()
-            d.addCallback(lambda res: self.assertEquals(res, b"contents 1"))
+            d.addCallback(lambda res: self.assertEqual(res, b"contents 1"))
             # now break the second peer
             def _break_peer1(res):
                 self.g.break_server(self.server1.get_serverid())
@@ -240,7 +240,7 @@ class Problems(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.overwrite(MutableData(b"contents 2")))
             # that ought to work too
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.assertEquals(res, b"contents 2"))
+            d.addCallback(lambda res: self.assertEqual(res, b"contents 2"))
             def _explain_error(f):
                 print(f)
                 if f.check(NotEnoughServersError):
@@ -272,7 +272,7 @@ class Problems(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin):
         d = nm.create_mutable_file(MutableData(b"contents 1"))
         def _created(n):
             d = n.download_best_version()
-            d.addCallback(lambda res: self.assertEquals(res, b"contents 1"))
+            d.addCallback(lambda res: self.assertEqual(res, b"contents 1"))
             # now break one of the remaining servers
             def _break_second_server(res):
                 self.g.break_server(peerids[1])
@@ -280,7 +280,7 @@ class Problems(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.overwrite(MutableData(b"contents 2")))
             # that ought to work too
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.assertEquals(res, b"contents 2"))
+            d.addCallback(lambda res: self.assertEqual(res, b"contents 2"))
             return d
         d.addCallback(_created)
         return d
@@ -411,7 +411,7 @@ class Problems(GridTestMixin, AsyncTestCase, testutil.ShouldFailMixin):
             return self._node.download_version(servermap, ver)
         d.addCallback(_then)
         d.addCallback(lambda data:
-            self.assertEquals(data, CONTENTS))
+            self.assertEqual(data, CONTENTS))
         return d
 
     def test_1654(self):
