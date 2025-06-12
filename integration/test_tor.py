@@ -140,7 +140,6 @@ def _create_anonymous_node(reactor, name, web_port, request, temp_dir, flog_gath
     print("okay, launched")
     return result
 
-@pytest.mark.skipif(sys.platform.startswith('darwin'), reason='This test has issues on macOS')
 @pytest_twisted.inlineCallbacks
 def test_anonymous_client(reactor, request, temp_dir, flog_gatherer, tor_network, introducer_furl):
     """

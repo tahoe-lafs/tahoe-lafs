@@ -113,7 +113,11 @@ dependencies = [
     #   temporary upload files placed into a per-node temporary directory.
     # * Twisted 22.8.0 added support for coroutine-returning functions in many
     #   places (mainly via `maybeDeferred`)
-    "Twisted[tls,conch] >= 22.8.0",
+
+    # We are incompatible with Twisted 25.5.0 ("AttributeError: property
+    # 'nameResolver' of 'MemoryReactorClockResolver' object has no setter")
+    # (No ticket since Trac is down right now)
+    "Twisted[tls,conch] >= 22.8.0, < 25.5.0",
 
     "PyYAML >= 3.11",
 
@@ -121,7 +125,7 @@ dependencies = [
     "six >= 1.10.0",
 
     # For 'tahoe invite' and 'tahoe join'
-    "magic-wormhole >= 0.10.2",
+    "magic-wormhole >= 0.10.2, < 0.19",
 
     # We want a new enough version to support custom JSON encoders.
     "eliot >= 1.14.0",
@@ -244,7 +248,7 @@ test = [
     "tahoe-lafs[tor]",  # our own "tor" extra
     "tahoe-lafs[i2p]",  # our own "i2p" extra
     # Chutney with recent additions to make it a Python package:
-    "chutney @ git+https://gitlab.torproject.org/tpo/core/chutney@f25094db31fbbec7e88ae5801dd2dcf2d6d9ae5d"
+    "chutney @ git+https://gitlab.torproject.org/tpo/core/chutney@1e32ea7b5da7ba0a40370b3dea33a84c3ad1da98"
 ]
 
 
