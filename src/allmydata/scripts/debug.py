@@ -200,7 +200,7 @@ def dump_mutable_share(options):
     f.seek(m.DATA_OFFSET)
     version = f.read(1)
     if version == b"\x00":
-        # this slot contains an SMDF share
+        # this slot contains an SDMF share
         share_type = "SDMF"
     elif version == b"\x01":
         share_type = "MDMF"
@@ -730,7 +730,7 @@ def _describe_mutable_share(abs_sharefile, f, now, si_s, out):
     f.seek(m.DATA_OFFSET)
     version = f.read(1)
     if version == b"\x00":
-        # this slot contains an SMDF share
+        # this slot contains an SDMF share
         share_type = "SDMF"
     elif version == b"\x01":
         share_type = "MDMF"
@@ -936,7 +936,7 @@ def corrupt_share(options):
                 f.seek(m.DATA_OFFSET)
                 # Read enough data to get a mutable header to unpack.
                 data = f.read(2000)
-            # make sure this slot contains an SMDF share
+            # make sure this slot contains an SDMF share
             assert data[0:1] == b"\x00", "non-SDMF mutable shares not supported"
             f.close()
 

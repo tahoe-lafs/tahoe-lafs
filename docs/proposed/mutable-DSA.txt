@@ -323,9 +323,9 @@ which the public key can be hashed three times to produce the desired portion
 of the storage index. We believe that 64 bits of material is sufficiently
 resistant to this form of pre-image attack to serve as a suitable deterrent.
 
-=== SMDF Slot Format ===
+=== SDMF Slot Format ===
 
-This SMDF data lives inside a server-side MutableSlot container. The server
+This SDMF data lives inside a server-side MutableSlot container. The server
 is generally oblivious to this format, but it may look inside the container
 when verification is desired.
 
