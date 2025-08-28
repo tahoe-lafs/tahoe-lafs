@@ -8,8 +8,9 @@ import json
 
 from twisted.internet.defer import inlineCallbacks
 
+from twisted.internet.testing import MemoryReactorClock
 
-from autobahn.twisted.testing import create_memory_agent, MemoryReactorClockResolver, create_pumper
+from autobahn.twisted.testing import create_memory_agent, create_pumper
 
 from testtools.matchers import (
     Equals,
@@ -72,7 +73,7 @@ class TestStreamingLogs(AsyncTestCase):
 
     def setUp(self):
         super(TestStreamingLogs, self).setUp()
-        self.reactor = MemoryReactorClockResolver()
+        self.reactor = MemoryReactorClock()
         self.pumper = create_pumper()
         self.agent = create_memory_agent(self.reactor, self.pumper, TokenAuthenticatedWebSocketServerProtocol)
         return self.pumper.start()
