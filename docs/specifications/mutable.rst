@@ -12,7 +12,7 @@ Mutable Files
     1. `SDMF slots overview`_
     2. `Server Storage Protocol`_
     3. `Code Details`_
-    4. `SMDF Slot Format`_
+    4. `SDMF Slot Format`_
     5. `Recovery`_
 
 5.  `Medium Distributed Mutable Files`_
@@ -572,10 +572,10 @@ overwrite().
 The peer-selection and data-structure manipulation (and signing/verification)
 steps will be implemented in a separate class in allmydata/mutable.py .
 
-SMDF Slot Format
+SDMF Slot Format
 ----------------
 
-This SMDF data lives inside a server-side MutableSlot container. The server
+This SDMF data lives inside a server-side MutableSlot container. The server
 is oblivious to this format.
 
 This data is tightly packed. In particular, the share data is defined to run
