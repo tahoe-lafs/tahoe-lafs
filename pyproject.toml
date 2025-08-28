@@ -168,7 +168,10 @@ dependencies = [
     # Duplicate the Twisted pywin32 dependency here.  See
     # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2392 for some
     # discussion.
-    "pywin32 != 226;sys_platform=='win32'"
+    "pywin32 != 226;sys_platform=='win32'",
+
+    # Python 3.13 removed CGI from the standard library.
+    "legacy-cgi",
 ]
 
 
