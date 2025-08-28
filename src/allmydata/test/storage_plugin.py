@@ -5,8 +5,6 @@ functionality.
 Ported to Python 3.
 """
 
-from six import ensure_str
-
 import attr
 
 from zope.interface import (
@@ -87,7 +85,7 @@ class DummyStorage:
         items = configuration.items(self._client_section_name, [])
         resource = Data(
             dumps(dict(items)).encode("utf-8"),
-            ensure_str("text/json"),
+            "text/json",
         )
         # Give it some dynamic stuff too.
         resource.putChild(b"counter", GetCounter())
