@@ -49,7 +49,7 @@ jobs:
             python-version: "3.12"
           # We only support PyPy on Linux at the moment.
           - os: ubuntu-22.04
-            python-version: "pypy-3.9"
+            python-version: "pypy-3.10"
           - os: ubuntu-22.04
             python-version: "3.12"
           - os: windows-2022
@@ -239,7 +239,7 @@ jobs:
           - windows-2022
           - ubuntu-22.04
         python-version:
-          - 3.9
+          - '3.10'
 
     steps:
 

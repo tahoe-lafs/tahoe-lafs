@@ -34,7 +34,7 @@ from __future__ import annotations
 
 __all__ = ['MemoryWormholeServer', 'TestingHelper', 'memory_server', 'IWormhole']
 
-from typing import Iterator, Optional, List, Tuple, Any, TextIO
+from typing import Iterator, Optional, List, Tuple, Any, TextIO, Callable
 from inspect import getfullargspec
 from itertools import count
 from sys import stderr
@@ -79,6 +79,7 @@ class MemoryWormholeServer:
         stderr: TextIO=stderr,
         _eventual_queue: Optional[Any]=None,
         _enable_dilate: bool=False,
+        on_status_update: Optional[Callable[[Any], None]]=None,
     ) -> _MemoryWormhole:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
@@ -150,7 +151,7 @@ def _verify() -> None:
 
     # Just compare the same information to check function signature
     assert a.varkw == b.varkw
-    assert a.args == b.args
+    assert a.args == b.args or a.args == b.args[:-1]
     assert a.varargs == b.varargs
     assert a.kwonlydefaults == b.kwonlydefaults
     assert a.defaults == b.defaults

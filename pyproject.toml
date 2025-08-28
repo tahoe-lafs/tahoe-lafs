@@ -121,7 +121,9 @@ dependencies = [
     "six >= 1.10.0",
 
     # For 'tahoe invite' and 'tahoe join'
-    "magic-wormhole >= 0.10.2",
+    # (we require 0.19.2+ to simplify the weird "interface checking"
+    # code in wormholetesting.py)
+    "magic-wormhole >= 0.20.0",
 
     # We want a new enough version to support custom JSON encoders.
     "eliot >= 1.14.0",
