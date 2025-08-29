@@ -163,11 +163,11 @@ jobs:
         python-version:
           - "3.11"
         force-foolscap:
-          - false
+          - true
         include:
           - os: ubuntu-24.04
             python-version: "3.12"
-            force-foolscap: true
+            force-foolscap: false
     steps:
 
       - name: Install Tor [Ubuntu]
