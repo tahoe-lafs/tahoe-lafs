@@ -1,0 +1,1 @@
+Add dependency on legacy-cgi.  This should be the last missing piece to make tahoe-lafs run on Python 3.13!
