@@ -161,6 +161,8 @@ workflows:
             # this requirement is enough to require every Windows Server 2022
             # job.
             - "windows-server-2022"
+      - "dockerhub-login":
+          <<: *DOCKERHUB_CONTEXT
 
   images:
     <<: *IMAGES
@@ -169,6 +171,15 @@ workflows:
     when: "<< pipeline.parameters.build-images >>"
 
 jobs:
+  dockerhub-login:
+    machine:
+      image: ubuntu-2404:current
+    working_directory: "/tmp/project"
+    steps:
+      - run: |
+          echo "Username: $DOCKERHUB_USERNAME"
+          docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_PASSWORD"
+
   finish-coverage-report:
     docker:
       - <<: *DOCKERHUB_AUTH
