@@ -169,7 +169,7 @@ def _verify() -> None:
 
     # What we really want is the required interface (which is
     # the part we use) to be the same:
-    def required_args(func):
+    def required_args(func: Callable[..., Any]) -> List[str]:
         return [n for n, p in inspect.signature(func).parameters.items()
            # An argument is required if it must be supplied and has no default.
            # And we don't count 'self'.
