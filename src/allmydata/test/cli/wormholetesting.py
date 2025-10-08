@@ -34,7 +34,7 @@ from __future__ import annotations
 
 __all__ = ['MemoryWormholeServer', 'TestingHelper', 'memory_server', 'IWormhole']
 
-from typing import Iterator, Optional, List, Tuple, Any, TextIO
+from typing import Iterator, Optional, List, Tuple, Any, TextIO, Callable
 import inspect
 from itertools import count
 from sys import stderr
@@ -175,7 +175,7 @@ def _verify() -> None:
            # And we don't count 'self'.
            if p.default is p.empty
               and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)
-              and p.name is not 'self']
+              and p.name != 'self']
     assert (required_args(create) == required_args(MemoryWormholeServer.create))
 
 
