@@ -34,8 +34,8 @@ from __future__ import annotations
 
 __all__ = ['MemoryWormholeServer', 'TestingHelper', 'memory_server', 'IWormhole']
 
-from typing import Iterator, Optional, List, Tuple, Any, TextIO
-from inspect import getfullargspec
+from typing import Iterator, Optional, List, Tuple, Any, TextIO, Callable
+import inspect
 from itertools import count
 from sys import stderr
 
@@ -79,6 +79,7 @@ class MemoryWormholeServer:
         stderr: TextIO=stderr,
         _eventual_queue: Optional[Any]=None,
         _enable_dilate: bool=False,
+        on_status_update: Optional[Callable[[Any], None]]=None,
     ) -> _MemoryWormhole:
         """
         Create a wormhole.  It will be able to connect to other wormholes created
@@ -143,17 +144,40 @@ def _verify() -> None:
     """
     # Poor man's interface verification.
 
-    a = getfullargspec(create)
-    b = getfullargspec(MemoryWormholeServer.create)
+    a = inspect.getfullargspec(create)
+    b = inspect.getfullargspec(MemoryWormholeServer.create)
     # I know it has a `self` argument at the beginning.  That's okay.
     b = b._replace(args=b.args[1:])
 
     # Just compare the same information to check function signature
+    # We might want to remove these - they are *very* specific.
+    # We don't require the in-memory ersatz to be *exactly* the same
+    # as the live MW.
     assert a.varkw == b.varkw
-    assert a.args == b.args
     assert a.varargs == b.varargs
     assert a.kwonlydefaults == b.kwonlydefaults
-    assert a.defaults == b.defaults
+
+    # An earlier version of this test was very strict.  We want
+    # this test to pass with different versions of Magic Wormhole -
+    # with and without Dilation - which changes the MW API
+    # (MW before and after 0.19)
+
+    # The mock and the real interface shouldn't differ "too much".
+    # We later might want to relax this further by increasing
+    # the number of allowed different parameters.
+    assert(len(set(a.args) ^ set(b.args)) < 3)
+
+    # What we really want is the required interface (which is
+    # the part we use) to be the same:
+    def required_args(func: Callable[..., Any]) -> List[str]:
+        return [n for n, p in inspect.signature(func).parameters.items()
+           # An argument is required if it must be supplied and has no default.
+           # And we don't count 'self'.
+           if p.default is p.empty
+              and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)
+              and p.name != 'self']
+    assert (required_args(create) == required_args(MemoryWormholeServer.create))
+
 
 
 _verify()
