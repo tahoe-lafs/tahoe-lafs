@@ -227,10 +227,10 @@ Magic Internet Project
 ----------------------
 
 In January 2025, we started supporting the Magic Internet project with
-a two-year commitment of 10.0 BTC. Initially, the funds will be
-transferred in three-month chunks through Open Collective, but project
-intends to be established as a non-profit organization which can
-receive the remainder of the BTC directly.
+a two-year commitment of 20.0 BTC. Initially, the funds will be
+transferred in three-month chunks through Open Collective. In late
+2025, to guard against BTC price fluctuations, the remainder of the
+funds were transferred in a lump sum.
 
 * Recipient: Magic Internet Project (via Open Collective)
 
@@ -243,3 +243,21 @@ receive the remainder of the BTC directly.
   * xfer 2.9 BTC: txid df060a796a449b67a78d3ac634f2b601f8b7c0b9b68e58cdfba3dd333d16fc3a, block 880,271
   * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
   * send 2.9998986 BTC: 374e7ec1a9200b83d65976dbeedb164d6be7d4669b630436276654a096821b56, block 880,272
+
+* 06-mar-2025: ~3.0 BTC ($264k)
+  * transfer: 12HZ2rGfgcAqJY2Y55Dxt4Z2qUXiK2WFf8
+  * xfer 3.0 BTC: txid 2284e33e5fa63312b05b31b65a301a73d16f455ab463bb02bd78043a3098146c, block 886,694
+  * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
+  * send 2.999943 BTC: txid f5a85e6b9a761b64ff17e85dfaa2f51f7729f4534a48674883f7fd49384adc5c, block 886,695
+
+* 27-jun-2025: ~3.0 BTC ($322k)
+  * transfer: 12HZ2rGfgcAqJY2Y55Dxt4Z2qUXiK2WFf8
+  * xfer 3.0 BTC: txid ee6f505592a5ccefbe5bbc144822fbd2c4e6f9a5b726b036e9e318bfab98cf5e, block 902,989
+  * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
+  * send 2.999943 BTC: txid f4e6df8d536f06a15ffdec7d623b15b4680b5321c6fc07139bc8b3bffc8dd681, block 902,993
+
+* 05-sep-2025: ~11.0 BTC ($1217k)
+  * transfer: 12HZ2rGfgcAqJY2Y55Dxt4Z2qUXiK2WFf8
+  * xfer 11.0 BTC: txid 9d272e6db6ad7be2aef5f25c3f08e7e5cad6f6d0176a1d5808f96606ed9f5101, block 913,316
+  * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
+  * send 10.999943 BTC: txid db1cfe74265c9117d6580c40d4edb4a85cd297aa5a2fafe749b3867e41a07017, block 913,317
