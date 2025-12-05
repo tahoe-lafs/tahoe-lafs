@@ -261,3 +261,16 @@ funds were transferred in a lump sum.
   * xfer 11.0 BTC: txid 9d272e6db6ad7be2aef5f25c3f08e7e5cad6f6d0176a1d5808f96606ed9f5101, block 913,316
   * payment address: 3LVNG26VxfE6RXJJjKCVNHnAGMtyDrx9WU
   * send 10.999943 BTC: txid db1cfe74265c9117d6580c40d4edb4a85cd297aa5a2fafe749b3867e41a07017, block 913,317
+
+
+Tahoe-LAFS DAF
+--------------
+
+In December 2025, we transferred a portion of our BTC into a fund
+named The Tahoe-LAFS DAF, where it can grow as normal income (in USD),
+and will provide a predictable stream of grant funding to 501c3-based
+projects. The initial funding is 11.0 BTC.
+
+* Recipient: Tahoe-LAFS DAF
+
+  * Transfer Address: 1K5GmhM3vooRT3TP1wGd7jNVDkFKLahrRV

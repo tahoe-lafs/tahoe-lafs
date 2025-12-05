@@ -1,5 +1,5 @@
 -----BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA512
+Hash: SHA256
 
 =========
 Donations
@@ -86,6 +86,10 @@ key on this list.
   2yr 20.0 BTC
   12HZ2rGfgcAqJY2Y55Dxt4Z2qUXiK2WFf8
 
+* Tahoe-LAFS DAF (2025)
+  11.0 BTC
+  1K5GmhM3vooRT3TP1wGd7jNVDkFKLahrRV
+
 Historical Donation Addresses
 =============================
 
@@ -112,17 +116,17 @@ This document is signed by the Tahoe-LAFS Release-Signing Key (GPG keyid
 (https://github.com/tahoe-lafs/tahoe-lafs.git) as `docs/donations.rst`.
 Both actions require access to secrets held closely by Tahoe developers.
 
-signed: Brian Warner, 21-jan-2025
+signed: Brian Warner, 05-dec-2025
 
 
 -----BEGIN PGP SIGNATURE-----
 
-iQEzBAEBCgAdFiEE405i0G0Oac/KQXn/veDTHWhmanoFAmeQSRUACgkQveDTHWhm
-anr3Ygf/bTmpEwuFzY2vgUmE0kM+8BFrb/26J7DGKhg17ZXdknq6VdN62KnLXDrT
-xN7pjMoG99A0BALfCowHC98uhrxViG7ArLHP2AyIavwlpVgSqysAAbQ6r6499phe
-R5HlDkP+yu3LrUDI2G/1PzqI6F//khmYBahocCCuUeO2BXxNIv2i9ibCqmkJw6jw
-JTaBLKrExwaavcAVIPE7uhHu/Ak53Ym0rbotluT+tzMTJmEQ3CHV3M2VOpzEqY/7
-WNriNFMNGNKtGtsFog8LDgPIqwb93tUtLnDS72ZaNMs1epq8EtmoSGRCSNw8zDRU
-zDKPJdWBaQ9jMweou9yZMF5KdUh6mg==
-=/xUw
+iQEzBAEBCAAdFiEE405i0G0Oac/KQXn/veDTHWhmanoFAmkyr7QACgkQveDTHWhm
+anpM9Af+MQb1TKndwyP8GKeWO+hnmtZYfiFIkO0rlYFdwIrog/z8dQ3DMHeAS0YO
+fbEelGzPzwWTMgfxOn//SQcHli/+Luxr/HL0U/ufZPdUIZh6gC8LTWaSZQQKiBl7
+UScG7KAsLnP0SHSVdDcszyAquZcKVy9DTksTcoWIhTxYMKqPjpDxA0b2Z7f2PHh5
+g691inwaRCAn+KQO1Jng4KoPXzOiUaz4jP1sCpnjtswxZVg3AHmNqdpaxeddjfk4
+x5fqwks+EmGjpjXoVeazMTyxPWc05YBiEggOTVb1zqhm3Pe4ZaK1b/opt/Xc6JiS
+t6WvBR7N/d6C9RZdFIc9Pk+z7CHOOQ==
+=qaO8
 -----END PGP SIGNATURE-----
