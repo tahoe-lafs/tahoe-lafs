@@ -118,7 +118,7 @@ jobs:
         # is converting has test failures in it.
         continue-on-error: true
         run: |
-          pip install python-subunit==1.4.2 junitxml==0.7
+          pip install python-subunit junitxml
           subunit2junitxml --output-to=test-report.xml test-report.subunit2
 
       # See https://github.com/marketplace/actions/test-reporter
