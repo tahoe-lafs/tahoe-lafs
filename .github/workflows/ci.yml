@@ -68,8 +68,8 @@ jobs:
           # subunit v2 format during test run, (2) convert those JUnit
           # XML, (3) use dorny/test-reporter to parse and display the
           # report on GitHub.
-          TAHOE_LAFS_TRIAL_ARGS='--reporter=subunitv2-file'
-          SUBUNITREPORTER_OUTPUT_PATH='test-report.subunit2'
+          TAHOE_LAFS_TRIAL_ARGS: '--reporter=subunitv2-file'
+          SUBUNITREPORTER_OUTPUT_PATH: 'test-report.subunit2'
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
