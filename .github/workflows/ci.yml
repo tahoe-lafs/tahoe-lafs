@@ -118,7 +118,9 @@ jobs:
         # is converting has test failures in it.
         continue-on-error: true
         run: |
-          pip install python-subunit junitxml
+          # It probably would be a good idea to use the same versions
+          # as in pyproject.toml.
+          pip install python-subunit==1.4.2 junitxml==0.7
           subunit2junitxml --output-to=test-report.xml ${{ env.SUBUNITREPORTER_OUTPUT_PATH }}
 
       - name: Upload test-report.xml
