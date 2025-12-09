@@ -55,6 +55,15 @@ jobs:
           - os: windows-2022
             python-version: "3.12"
 
+    env:
+      # In order to produce easier-to-read test reports on GitHub, we
+      # do this: (1) get twisted.trial to produce a report in subunit
+      # v2 format during test run, (2) convert those JUnit XML, (3)
+      # use dorny/test-reporter to parse and display the report on
+      # GitHub.
+      TAHOE_LAFS_TRIAL_ARGS: '--reporter=subunitv2-file'
+      SUBUNITREPORTER_OUTPUT_PATH: 'test-report.subunit2'
+
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
       # fetches all tags and branches.
@@ -62,14 +71,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-        env:
-          # In order to produce easier-to-read test reports on GitHub,
-          # we do this: (1) get twisted.trial to produce a report in
-          # subunit v2 format during test run, (2) convert those JUnit
-          # XML, (3) use dorny/test-reporter to parse and display the
-          # report on GitHub.
-          TAHOE_LAFS_TRIAL_ARGS: '--reporter=subunitv2-file'
-          SUBUNITREPORTER_OUTPUT_PATH: 'test-report.subunit2'
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
