@@ -136,7 +136,7 @@ jobs:
         with:
           name: test results
           path: test-report.xml
-          reporter: jest-junit
+          reporter: java-junit
 
       # Upload this job's coverage data to Coveralls.  While there is a GitHub
       # Action for this, as of Jan 2021 it does not support Python coverage
