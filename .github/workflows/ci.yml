@@ -121,6 +121,12 @@ jobs:
           pip install python-subunit junitxml
           subunit2junitxml --output-to=test-report.xml test-report.subunit2
 
+      - name: Upload test-report.xml
+        uses: actions/upload-artifact@v4
+        with:
+          name: "test-report-${{ matrix.os }}-python-${{ matrix.python-version }}.xml"
+          path: test-report.xml
+
       # See https://github.com/marketplace/actions/test-reporter
       - name: Display test report on GitHub
         uses: dorny/test-reporter@v2
