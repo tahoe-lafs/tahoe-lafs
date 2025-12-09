@@ -88,8 +88,7 @@ jobs:
 
       - name: Run tox for corresponding Python version
         if: ${{ !contains(matrix.os, 'windows') }}
-        # TODO: running fewer tests for now to debug CI.
-        run: python -m tox -- allmydata.test.test_storage
+        run: python -m tox
 
       # On Windows, a non-blocking pipe might respond (when emulating Unix-y
       # API) with ENOSPC to indicate buffer full. Trial doesn't handle this
