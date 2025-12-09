@@ -1,0 +1,36 @@
+name: 'Test Report'
+
+# Tahoe-LAFS test suite contains a large number of tests, and produces
+# a pretty large and unadorned/unannotated test report.  This makes it
+# hard to figure out specific test failures and why they failed.
+#
+# https://github.com/dorny/test-reporter creates an easy-to-scan
+# summary of the test report, available on GitHub, on the "Actions"
+# tab, under every action run.
+#
+# This is done in a separate workflow so that we can produce these
+# test summaries from forked PRs, with minimal permissions.
+
+on:
+  workflow_run:
+    workflows: ['CI']                     # runs after CI workflow
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+  checks: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: dorny/test-reporter@v2
+      with:
+        artifact: test-results  # artifact name
+        name: test results      # Name of the check run which will be created
+        path: '*.xml'           # Path to test results (inside artifact .zip)
+        reporter: java-junit    # Format of test result
+        list-tests: failed      # Less noisy test summaries

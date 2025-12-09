@@ -128,21 +128,21 @@ jobs:
           name: "test-report-${{ matrix.os }}-python-${{ matrix.python-version }}.xml"
           path: test-report.xml
 
-      # See https://github.com/marketplace/actions/test-reporter
-      - name: Display test report on GitHub
-        uses: dorny/test-reporter@v2
-        # run this step even if previous steps failed
-        if: ${{ !cancelled() }}
-        with:
-          name: test results
-          path: test-report.xml
-          reporter: java-junit
-          # List only failed tests in the report, in order to reduce
-          # noise.
-          list-tests: failed
-          # Do not mark this step as failed error, so that the
-          # subsequent steps can run.
-          fail-on-error: false
+      # # See https://github.com/marketplace/actions/test-reporter
+      # - name: Display test report on GitHub
+      #   uses: dorny/test-reporter@v2
+      #   # run this step even if previous steps failed
+      #   if: ${{ !cancelled() }}
+      #   with:
+      #     name: test results
+      #     path: test-report.xml
+      #     reporter: java-junit
+      #     # List only failed tests in the report, in order to reduce
+      #     # noise.
+      #     list-tests: failed
+      #     # Do not mark this step as failed error, so that the
+      #     # subsequent steps can run.
+      #     fail-on-error: false
 
       # Upload this job's coverage data to Coveralls.  While there is a GitHub
       # Action for this, as of Jan 2021 it does not support Python coverage
