@@ -137,7 +137,11 @@ jobs:
           name: test results
           path: test-report.xml
           reporter: java-junit
+          # List only failed tests in the report, in order to reduce
+          # noise.
           list-tests: failed
+          # Do not mark this step as failed error, so that the
+          # subsequent steps can run.
           fail-on-error: false
 
       # Upload this job's coverage data to Coveralls.  While there is a GitHub
