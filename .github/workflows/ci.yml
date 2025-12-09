@@ -117,7 +117,9 @@ jobs:
         # subunit2junitxml may exit with error if the result stream it
         # is converting has test failures in it.
         continue-on-error: true
-        run: subunit2junitxml --output-to=test-report.xml test-report.subunit2
+        run: |
+          pip install python-subunit==1.4.2
+          subunit2junitxml --output-to=test-report.xml test-report.subunit2
 
       # See https://github.com/marketplace/actions/test-reporter
       - name: Display test report on GitHub
