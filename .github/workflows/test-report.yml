@@ -1,4 +1,4 @@
-name: 'Test Report'
+name: Test Report
 
 # Tahoe-LAFS test suite contains a large number of tests, and produces
 # a pretty large and unadorned/unannotated test report.  This makes it
@@ -13,7 +13,7 @@ name: 'Test Report'
 
 on:
   workflow_run:
-    workflows: ['CI']                     # runs after CI workflow
+    workflows: ['CI']           # runs after CI workflow
     types:
       - completed
 
