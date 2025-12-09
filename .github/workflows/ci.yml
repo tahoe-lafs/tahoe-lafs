@@ -119,7 +119,7 @@ jobs:
         continue-on-error: true
         run: |
           pip install python-subunit junitxml
-          subunit2junitxml --output-to=test-report.xml test-report.subunit2
+          subunit2junitxml --output-to=test-report.xml ${{ env.SUBUNITREPORTER_OUTPUT_PATH }}
 
       - name: Upload test-report.xml
         uses: actions/upload-artifact@v4
