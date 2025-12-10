@@ -130,7 +130,7 @@ jobs:
           path: test-report.xml
 
       # To see if the settings in test-report.yml works.
-      - name: [Temporary] Generate test report
+      - name: Generate test report
         uses: dorny/test-reporter@v2
         with:
           artifact: test-report   # artifact name
