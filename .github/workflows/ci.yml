@@ -55,6 +55,15 @@ jobs:
           - os: windows-2022
             python-version: "3.12"
 
+    env:
+      # In order to produce easier-to-read test reports on GitHub, we
+      # do this: (1) get twisted.trial to produce a report in subunit
+      # v2 format during test run, (2) convert those JUnit XML, (3)
+      # use dorny/test-reporter to parse and display the report on
+      # GitHub.
+      TAHOE_LAFS_TRIAL_ARGS: '--reporter=subunitv2-file'
+      SUBUNITREPORTER_OUTPUT_PATH: 'test-report.subunit2'
+
     steps:
       # See https://github.com/actions/checkout. A fetch-depth of 0
       # fetches all tags and branches.
@@ -103,6 +112,22 @@ jobs:
         with:
           name: "test-${{ matrix.os }}-python-${{ matrix.python-version }}.log"
           path: _trial_temp/test.log
+
+      - name: Convert subunit stream to XML
+        # subunit2junitxml may exit with error if the result stream it
+        # is converting has test failures in it.
+        continue-on-error: true
+        run: |
+          # It probably would be a good idea to use the same versions
+          # as in pyproject.toml.
+          pip install python-subunit==1.4.2 junitxml==0.7
+          subunit2junitxml --output-to=test-report.xml ${{ env.SUBUNITREPORTER_OUTPUT_PATH }}
+
+      - name: Upload test-report.xml
+        uses: actions/upload-artifact@v4
+        with:
+          name: "test-report-${{ matrix.os }}-python-${{ matrix.python-version }}.xml"
+          path: test-report.xml
 
       # Upload this job's coverage data to Coveralls.  While there is a GitHub
       # Action for this, as of Jan 2021 it does not support Python coverage
