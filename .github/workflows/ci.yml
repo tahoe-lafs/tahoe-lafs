@@ -113,10 +113,10 @@ jobs:
           name: "test-${{ matrix.os }}-python-${{ matrix.python-version }}.log"
           path: _trial_temp/test.log
 
-      - name: Convert subunit stream to XML
+      - name: Convert subunit stream to test-report.xml
         run: |
-          # It probably would be a good idea to use the same versions
-          # as in pyproject.toml.
+          # It should be a good idea to use the same versions of these
+          # tools as in pyproject.toml.
           pip install python-subunit==1.4.2 junitxml==0.7
 
           # subunit2junitxml may exit with error (exit code 1) if the
