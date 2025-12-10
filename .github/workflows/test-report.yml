@@ -27,10 +27,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: dorny/test-reporter@v2
-      with:
-        artifact: /test-report-(.*)/  # Artifact name
-        name: test results            # Name of the check run which will be created
-        path: 'test-report.xml'       # Path to test results (inside artifact .zip)
-        reporter: java-junit          # Format of test result
-        list-tests: failed            # Report just the failed tests
+      - uses: dorny/test-reporter@v2
+        with:
+          artifact: /test-report-(.*)/  # Artifact name
+          name: test results            # Name of the check run which will be created
+          path: 'test-report.xml'       # Path to test results (inside artifact .zip)
+          reporter: java-junit          # Format of test result
+          list-tests: failed            # Report just the failed tests
