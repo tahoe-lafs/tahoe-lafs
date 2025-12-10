@@ -129,16 +129,6 @@ jobs:
           name: "test-report-${{ matrix.os }}-python-${{ matrix.python-version }}.xml"
           path: test-report.xml
 
-      # To see if the settings in test-report.yml works.
-      - name: Generate test report
-        uses: dorny/test-reporter@v2
-        with:
-          artifact: /test-report-(.*)/  # Artifact name
-          name: test results            # Name of the check run which will be created
-          path: 'test-report.xml'       # Path to test results (inside artifact .zip)
-          reporter: java-junit          # Format of test result
-          list-tests: failed            # Report just the failed tests
-
       # Upload this job's coverage data to Coveralls.  While there is a GitHub
       # Action for this, as of Jan 2021 it does not support Python coverage
       # files - only lcov files.  Therefore, we use coveralls-python, the
