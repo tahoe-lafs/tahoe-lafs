@@ -114,14 +114,15 @@ jobs:
           path: _trial_temp/test.log
 
       - name: Convert subunit stream to XML
-        # subunit2junitxml may exit with error if the result stream it
-        # is converting has test failures in it.
-        continue-on-error: true
         run: |
           # It probably would be a good idea to use the same versions
           # as in pyproject.toml.
           pip install python-subunit==1.4.2 junitxml==0.7
-          subunit2junitxml --output-to=test-report.xml ${{ env.SUBUNITREPORTER_OUTPUT_PATH }}
+
+          # subunit2junitxml may exit with error (exit code 1) if the
+          # result stream it is converting has test failures in it,
+          # but we do not want the job to fail in those instances.
+          subunit2junitxml --output-to=test-report.xml ${{ env.SUBUNITREPORTER_OUTPUT_PATH }} || true
 
       - name: Upload test-report.xml
         uses: actions/upload-artifact@v4
