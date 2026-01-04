@@ -53,7 +53,7 @@ class TimeFormat(unittest.TestCase, TimezoneMixin):
             return 1.0
         self.failUnlessEqual(time_format.iso_utc(t=my_time),
                              "1970-01-01_00:00:01")
-        e = self.failUnlessRaises(ValueError,
+        e = self.assertRaises(ValueError,
                                   time_format.iso_utc_time_to_seconds,
                                   "invalid timestring")
         self.failUnless("not a complete ISO8601 timestamp" in str(e))
@@ -113,9 +113,9 @@ class TimeFormat(unittest.TestCase, TimezoneMixin):
         self.failUnlessEqual(p("11YEARS"), 11*YEAR)
 
         # errors
-        e = self.failUnlessRaises(ValueError, p, "123")
+        e = self.assertRaises(ValueError, p, "123")
         self.failUnlessIn("No valid unit in",str(e))
-        e = self.failUnlessRaises(ValueError, p, "2kumquats")
+        e = self.assertRaises(ValueError, p, "2kumquats")
         self.failUnlessIn("No valid unit in", str(e))
 
     def test_parse_date(self):

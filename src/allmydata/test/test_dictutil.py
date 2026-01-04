@@ -43,7 +43,7 @@ class DictUtil(unittest.TestCase):
         self.failUnlessEqual(d.get_aux("key"), "serialized")
         def _get_missing(key):
             return d[key]
-        self.failUnlessRaises(KeyError, _get_missing, "nonkey")
+        self.assertRaises(KeyError, _get_missing, "nonkey")
         self.failUnlessEqual(d.get("nonkey"), None)
         self.failUnlessEqual(d.get("nonkey", "nonvalue"), "nonvalue")
         self.failUnlessEqual(d.get_aux("nonkey"), None)
@@ -58,7 +58,7 @@ class DictUtil(unittest.TestCase):
         del d["key2"]
         self.failUnlessEqual(list(d.keys()), ["key"])
         self.failIf("key2" in d)
-        self.failUnlessRaises(KeyError, _get_missing, "key2")
+        self.assertRaises(KeyError, _get_missing, "key2")
         self.failUnlessEqual(d.get("key2"), None)
         self.failUnlessEqual(d.get_aux("key2"), None)
         d["key2"] = "newvalue2"
