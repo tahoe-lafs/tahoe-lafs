@@ -1398,8 +1398,9 @@ class MutableServer(SyncTestCase):
         f.write(b"BAD MAGIC")
         f.close()
         read = ss.slot_readv
-        e = self.assertRaises(UnknownMutableContainerVersionError,
-                                  read, b"si1", [0], [(0,10)])
+        with self.assertRaises(UnknownMutableContainerVersionError) as cm:
+          read(b"si1", [0], [(0,10)])
+        e = cm.exception
         self.assertThat(e.filename, Equals(fn))
         self.assertTrue(e.version.startswith(b"BAD MAGIC"))
         self.assertThat(str(e), Contains("had unexpected version"))
