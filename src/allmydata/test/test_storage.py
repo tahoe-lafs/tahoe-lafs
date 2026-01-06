@@ -1536,9 +1536,9 @@ class MutableServer(SyncTestCase):
         #self.failUnlessEqual(s0.get_length(), 100)
 
         bad_secrets = (b"bad write enabler", secrets[1], secrets[2])
-        f = self.assertRaises(BadWriteEnablerError,
-                                  write, b"si1", bad_secrets,
-                                  {}, [])
+        with self.assertRaises(BadWriteEnablerError) as cm:
+            write(b"si1", bad_secrets, {}, [])
+        f = cm.exception
         self.assertThat(str(f), Contains("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'."))
 
         # this testv should fail
