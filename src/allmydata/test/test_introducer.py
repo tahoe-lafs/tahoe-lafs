@@ -1011,20 +1011,20 @@ class Signatures(SyncTestCase):
         self.failUnlessEqual(b"pub-" + key2, public_key_str)
 
         # not signed
-        self.failUnlessRaises(UnknownKeyError,
+        self.assertRaises(UnknownKeyError,
                               unsign_from_foolscap, (msg, None, key))
-        self.failUnlessRaises(UnknownKeyError,
+        self.assertRaises(UnknownKeyError,
                               unsign_from_foolscap, (msg, sig, None))
         # bad signature
         bad_ann = {"key1": "value2"}
         bad_msg = json.dumps(bad_ann).encode("utf-8")
-        self.failUnlessRaises(BadSignature,
+        self.assertRaises(BadSignature,
                               unsign_from_foolscap, (bad_msg, sig, key))
 
         # unrecognized signatures
-        self.failUnlessRaises(UnknownKeyError,
+        self.assertRaises(UnknownKeyError,
                               unsign_from_foolscap, (bad_msg, b"v999-sig", key))
-        self.failUnlessRaises(UnknownKeyError,
+        self.assertRaises(UnknownKeyError,
                               unsign_from_foolscap, (bad_msg, sig, b"v999-key"))
 
     def test_unsigned_announcement(self):

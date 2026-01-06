@@ -133,9 +133,9 @@ class Abbreviate(unittest.TestCase):
         self.failUnlessEqual(p("9EB"), 9*1000*1000*1000*1000*1000*1000)
         self.failUnlessEqual(p("9EiB"), 9*1024*1024*1024*1024*1024*1024)
 
-        e = self.failUnlessRaises(ValueError, p, "12 cubits")
+        e = self.assertRaises(ValueError, p, "12 cubits")
         self.failUnlessIn("12 cubits", str(e))
-        e = self.failUnlessRaises(ValueError, p, "1 BB")
+        e = self.assertRaises(ValueError, p, "1 BB")
         self.failUnlessIn("1 BB", str(e))
-        e = self.failUnlessRaises(ValueError, p, "fhtagn")
+        e = self.assertRaises(ValueError, p, "fhtagn")
         self.failUnlessIn("fhtagn", str(e))

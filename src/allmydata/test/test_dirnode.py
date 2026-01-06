@@ -1540,23 +1540,23 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessIn(b"lit", packed)
 
         kids = self._make_kids(nm, ["imm", "lit", "write"])
-        self.failUnlessRaises(dirnode.MustBeDeepImmutableError,
+        self.assertRaises(dirnode.MustBeDeepImmutableError,
                               dirnode.pack_children,
                               kids, fn.get_writekey(), deep_immutable=True)
 
         # read-only is not enough: all children must be immutable
         kids = self._make_kids(nm, ["imm", "lit", "read"])
-        self.failUnlessRaises(dirnode.MustBeDeepImmutableError,
+        self.assertRaises(dirnode.MustBeDeepImmutableError,
                               dirnode.pack_children,
                               kids, fn.get_writekey(), deep_immutable=True)
 
         kids = self._make_kids(nm, ["imm", "lit", "dirwrite"])
-        self.failUnlessRaises(dirnode.MustBeDeepImmutableError,
+        self.assertRaises(dirnode.MustBeDeepImmutableError,
                               dirnode.pack_children,
                               kids, fn.get_writekey(), deep_immutable=True)
 
         kids = self._make_kids(nm, ["imm", "lit", "dirread"])
-        self.failUnlessRaises(dirnode.MustBeDeepImmutableError,
+        self.assertRaises(dirnode.MustBeDeepImmutableError,
                               dirnode.pack_children,
                               kids, fn.get_writekey(), deep_immutable=True)
 
@@ -1801,16 +1801,16 @@ class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.Tes
             n.raise_error()
 
         for (i, n) in unknown_rw:
-            self.failUnlessRaises(MustNotBeUnknownRWError, lambda n=n: n.raise_error())
+            self.assertRaises(MustNotBeUnknownRWError, lambda n=n: n.raise_error())
 
         for (i, n) in must_be_ro:
-            self.failUnlessRaises(MustBeReadonlyError, lambda n=n: n.raise_error())
+            self.assertRaises(MustBeReadonlyError, lambda n=n: n.raise_error())
 
         for (i, n) in must_be_imm:
-            self.failUnlessRaises(MustBeDeepImmutableError, lambda n=n: n.raise_error())
+            self.assertRaises(MustBeDeepImmutableError, lambda n=n: n.raise_error())
 
         for (i, n) in bad_uri:
-            self.failUnlessRaises(uri.BadURIError, lambda n=n: n.raise_error())
+            self.assertRaises(uri.BadURIError, lambda n=n: n.raise_error())
 
         for (i, n) in ok:
             self.failIf(n.get_readonly_uri() is None, i)

@@ -15,7 +15,7 @@ class Util(ShouldFailMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(common.parse_replace_arg(b"false"), False)
         self.failUnlessReallyEqual(common.parse_replace_arg(b"only-files"),
                                    ONLY_FILES)
-        self.failUnlessRaises(common.WebError, common.parse_replace_arg, b"only_fles")
+        self.assertRaises(common.WebError, common.parse_replace_arg, b"only_fles")
 
     def test_abbreviate_time(self):
         self.failUnlessReallyEqual(common.abbreviate_time(None), "")
