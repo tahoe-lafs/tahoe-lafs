@@ -1399,7 +1399,7 @@ class MutableServer(SyncTestCase):
         f.close()
         read = ss.slot_readv
         with self.assertRaises(UnknownMutableContainerVersionError) as cm:
-          read(b"si1", [0], [(0,10)])
+            read(b"si1", [0], [(0,10)])
         e = cm.exception
         self.assertThat(e.filename, Equals(fn))
         self.assertTrue(e.version.startswith(b"BAD MAGIC"))
@@ -1719,10 +1719,9 @@ class MutableServer(SyncTestCase):
 
         # examine the exception thus raised, make sure the old nodeid is
         # present, to provide for share migration
-        e = self.assertRaises(IndexError,
-                                  ss.renew_lease, b"si1",
-                                  secrets(20)[1])
-        e_s = str(e)
+        with self.assertRaises(IndexError) as cm:
+            ss.renew_lease(b"si1", secrets(20)[1])
+        e_s = str(cm.exception)
         self.assertThat(e_s, Contains("Unable to renew non-existent lease"))
         self.assertThat(e_s, Contains("I have leases accepted by nodeids:"))
         self.assertThat(e_s, Contains("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' ."))
