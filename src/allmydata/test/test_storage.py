@@ -829,8 +829,9 @@ class Server(AsyncTestCase):
 
         ss.get_buckets(b"allocate")
 
-        e = self.assertRaises(UnknownImmutableContainerVersionError,
-                                  ss.get_buckets, b"si1")
+        with self.assertRaises(UnknownImmutableContainerVersionError) as cm:
+            ss.get_buckets(b"si1")
+        e = cm.exception
         self.assertThat(e.filename, Equals(fn))
         self.assertThat(e.version, Equals(0))
         self.assertThat(str(e), Contains("had unexpected version 0"))
