@@ -168,7 +168,7 @@ class StdlibUnicode(unittest.TestCase):
             fn.encode(enc)
             raise unittest.SkipTest("This test cannot be run unless we know a filename that is not representable.")
         except UnicodeEncodeError:
-            self.failUnlessRaises(UnicodeEncodeError, open, fn, 'wb')
+            self.assertRaises(UnicodeEncodeError, open, fn, 'wb')
 
 
 class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
@@ -415,7 +415,7 @@ class TestToFromStr(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(to_bytes(None), None)
 
     def test_from_utf8_or_none(self):
-        self.failUnlessRaises(AssertionError, from_utf8_or_none, u"foo")
+        self.assertRaises(AssertionError, from_utf8_or_none, u"foo")
         self.failUnlessReallyEqual(from_utf8_or_none(b"lumi\xc3\xa8re"), u"lumi\u00E8re")
         self.failUnlessReallyEqual(from_utf8_or_none(None), None)
-        self.failUnlessRaises(UnicodeDecodeError, from_utf8_or_none, b"\xFF")
+        self.assertRaises(UnicodeDecodeError, from_utf8_or_none, b"\xFF")

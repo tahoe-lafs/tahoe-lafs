@@ -25,10 +25,10 @@ class Complete(SyncTestCase):
         root = ht[0]
         self.failUnlessEqual(len(root), 32)
         self.failUnlessEqual(ht.get_leaf(0), tagged_hash(b"tag", b"0"))
-        self.failUnlessRaises(IndexError, ht.get_leaf, 8)
+        self.assertRaises(IndexError, ht.get_leaf, 8)
         self.failUnlessEqual(ht.get_leaf_index(0), 7)
-        self.failUnlessRaises(IndexError, ht.parent, 0)
-        self.failUnlessRaises(IndexError, ht.needed_for, -1)
+        self.assertRaises(IndexError, ht.parent, 0)
+        self.assertRaises(IndexError, ht.needed_for, -1)
 
     def test_well_known_tree(self):
         self.assertEqual(
@@ -75,7 +75,7 @@ class Incomplete(SyncTestCase):
         ht = hashtree.IncompleteHashTree(8)
         self.failUnlessEqual(ht[0], None)
         self.failUnlessEqual(ht.get_leaf(0), None)
-        self.failUnlessRaises(IndexError, ht.get_leaf, 8)
+        self.assertRaises(IndexError, ht.get_leaf, 8)
         self.failUnlessEqual(ht.get_leaf_index(0), 7)
 
     def test_needed_hashes(self):
@@ -206,7 +206,7 @@ class Incomplete(SyncTestCase):
             self.fail("bad hash: %s" % e)
 
         self.failUnlessEqual(ht.get_leaf(0), tagged_hash(b"tag", b"0"))
-        self.failUnlessRaises(IndexError, ht.get_leaf, 8)
+        self.assertRaises(IndexError, ht.get_leaf, 8)
 
         # this should succeed too
         try:

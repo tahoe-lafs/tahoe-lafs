@@ -398,9 +398,9 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnlessReallyEqual(ga1(u"URI:stuff:./file"), (b"URI:stuff", b"file"))
         self.failUnlessReallyEqual(ga1(u"URI:stuff/dir/file"), (b"URI:stuff", b"dir/file"))
         self.failUnlessReallyEqual(ga1(u"URI:stuff:./dir/file"), (b"URI:stuff", b"dir/file"))
-        self.failUnlessRaises(common.UnknownAliasError, ga1, u"missing:")
-        self.failUnlessRaises(common.UnknownAliasError, ga1, u"missing:dir")
-        self.failUnlessRaises(common.UnknownAliasError, ga1, u"missing:dir/file")
+        self.assertRaises(common.UnknownAliasError, ga1, u"missing:")
+        self.assertRaises(common.UnknownAliasError, ga1, u"missing:dir")
+        self.assertRaises(common.UnknownAliasError, ga1, u"missing:dir/file")
 
         def ga2(path):
             return get_alias(aliases, path, None)
@@ -433,9 +433,9 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnlessReallyEqual(ga2(u"URI:stuff:./file"), (b"URI:stuff", b"file"))
         self.failUnlessReallyEqual(ga2(u"URI:stuff/dir/file"), (b"URI:stuff", b"dir/file"))
         self.failUnlessReallyEqual(ga2(u"URI:stuff:./dir/file"), (b"URI:stuff", b"dir/file"))
-        self.failUnlessRaises(common.UnknownAliasError, ga2, u"missing:")
-        self.failUnlessRaises(common.UnknownAliasError, ga2, u"missing:dir")
-        self.failUnlessRaises(common.UnknownAliasError, ga2, u"missing:dir/file")
+        self.assertRaises(common.UnknownAliasError, ga2, u"missing:")
+        self.assertRaises(common.UnknownAliasError, ga2, u"missing:dir")
+        self.assertRaises(common.UnknownAliasError, ga2, u"missing:dir/file")
 
         def ga3(path):
             old = common.pretend_platform_uses_lettercolon
@@ -465,16 +465,16 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnlessReallyEqual(ga3(u"URI:stuff"), (b"URI:stuff", b""))
         self.failUnlessReallyEqual(ga3(u"URI:stuff:./file"), (b"URI:stuff", b"file"))
         self.failUnlessReallyEqual(ga3(u"URI:stuff:./dir/file"), (b"URI:stuff", b"dir/file"))
-        self.failUnlessRaises(common.UnknownAliasError, ga3, u"missing:")
-        self.failUnlessRaises(common.UnknownAliasError, ga3, u"missing:dir")
-        self.failUnlessRaises(common.UnknownAliasError, ga3, u"missing:dir/file")
+        self.assertRaises(common.UnknownAliasError, ga3, u"missing:")
+        self.assertRaises(common.UnknownAliasError, ga3, u"missing:dir")
+        self.assertRaises(common.UnknownAliasError, ga3, u"missing:dir/file")
         # calling get_alias with a path that doesn't include an alias and
         # default set to something that isn't in the aliases argument should
         # raise an UnknownAliasError.
         def ga4(path):
             return get_alias(aliases, path, u"badddefault:")
-        self.failUnlessRaises(common.UnknownAliasError, ga4, u"afile")
-        self.failUnlessRaises(common.UnknownAliasError, ga4, u"a/dir/path/")
+        self.assertRaises(common.UnknownAliasError, ga4, u"afile")
+        self.assertRaises(common.UnknownAliasError, ga4, u"a/dir/path/")
 
         def ga5(path):
             old = common.pretend_platform_uses_lettercolon
@@ -484,7 +484,7 @@ class CLI(CLITestMixin, unittest.TestCase):
             finally:
                 common.pretend_platform_uses_lettercolon = old
             return retval
-        self.failUnlessRaises(common.UnknownAliasError, ga5, u"C:\\Windows")
+        self.assertRaises(common.UnknownAliasError, ga5, u"C:\\Windows")
 
     def test_alias_tolerance(self):
         def s128(c): return base32.b2a(c*(128//8))
@@ -497,7 +497,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnlessReallyEqual(ga1(u"present:file"), (TA, b"file"))
         # this throws, via assert IDirnodeURI.providedBy(), since get_alias()
         # wants a dirnode, and the future cap gives us UnknownURI instead.
-        self.failUnlessRaises(AssertionError, ga1, u"future:stuff")
+        self.assertRaises(AssertionError, ga1, u"future:stuff")
 
     def test_listdir_unicode_good(self):
         filenames = [u'L\u00F4zane', u'Bern', u'Gen\u00E8ve']  # must be NFC
@@ -958,7 +958,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_mkdir_bad_mutable_type(self):
         o = cli.MakeDirectoryOptions()
-        self.failUnlessRaises(usage.UsageError,
+        self.assertRaises(usage.UsageError,
                               o.parseOptions,
                               ["--format=LDMF"])
 
@@ -1241,7 +1241,7 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(o.aliases[DEFAULT_ALIAS].encode("ascii"), other_uri)
         self.failUnlessEqual(o.where, u"subdir")
 
-        self.failUnlessRaises(usage.UsageError, parse2,
+        self.assertRaises(usage.UsageError, parse2,
                               ["--node-url", "NOT-A-URL"])
 
         o = parse2(["--node-url", "http://localhost:8080"])
@@ -1253,19 +1253,19 @@ class Options(ReallyEqualMixin, unittest.TestCase):
     def test_version(self):
         # "tahoe --version" dumps text to stdout and exits
         stdout = StringIO()
-        self.failUnlessRaises(SystemExit, self.parse, ["--version"], stdout)
+        self.assertRaises(SystemExit, self.parse, ["--version"], stdout)
         self.failUnlessIn(allmydata.__full_version__, stdout.getvalue())
         # but "tahoe SUBCOMMAND --version" should be rejected
-        self.failUnlessRaises(usage.UsageError, self.parse,
+        self.assertRaises(usage.UsageError, self.parse,
                               ["run", "--version"])
-        self.failUnlessRaises(usage.UsageError, self.parse,
+        self.assertRaises(usage.UsageError, self.parse,
                               ["run", "--version-and-path"])
 
     def test_quiet(self):
         # accepted as an overall option, but not on subcommands
         o = self.parse(["--quiet", "run"])
         self.failUnless(o.parent["quiet"])
-        self.failUnlessRaises(usage.UsageError, self.parse,
+        self.assertRaises(usage.UsageError, self.parse,
                               ["run", "--quiet"])
 
     def test_basedir(self):
@@ -1293,24 +1293,24 @@ class Options(ReallyEqualMixin, unittest.TestCase):
         o = self.parse(["run", "here", some_twistd_option])
         self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"here"))
 
-        self.failUnlessRaises(usage.UsageError, self.parse,
+        self.assertRaises(usage.UsageError, self.parse,
                               ["--basedir", "there", "run"])
-        self.failUnlessRaises(usage.UsageError, self.parse,
+        self.assertRaises(usage.UsageError, self.parse,
                               ["run", "--node-directory", "there"])
 
-        self.failUnlessRaises(usage.UsageError, self.parse,
+        self.assertRaises(usage.UsageError, self.parse,
                               ["--node-directory=there",
                                "run", "--basedir=here"])
-        self.failUnlessRaises(usage.UsageError, self.parse,
+        self.assertRaises(usage.UsageError, self.parse,
                               ["run", "--basedir=here", "anywhere"])
-        self.failUnlessRaises(usage.UsageError, self.parse,
+        self.assertRaises(usage.UsageError, self.parse,
                               ["--node-directory=there",
                                "run", "anywhere"])
-        self.failUnlessRaises(usage.UsageError, self.parse,
+        self.assertRaises(usage.UsageError, self.parse,
                               ["--node-directory=there",
                                "run", "--basedir=here", "anywhere"])
 
-        self.failUnlessRaises(usage.UsageError, self.parse,
+        self.assertRaises(usage.UsageError, self.parse,
                               ["--node-directory=there", "run", some_twistd_option])
-        self.failUnlessRaises(usage.UsageError, self.parse,
+        self.assertRaises(usage.UsageError, self.parse,
                               ["run", "--basedir=here", some_twistd_option])

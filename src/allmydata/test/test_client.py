@@ -188,7 +188,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         logged_messages = []
         self.patch(twisted.python.log, 'msg', logged_messages.append)
 
-        e = self.failUnlessRaises(
+        e = self.assertRaises(
             OldConfigError,
             client.read_config,
             basedir,

@@ -829,8 +829,9 @@ class Server(AsyncTestCase):
 
         ss.get_buckets(b"allocate")
 
-        e = self.failUnlessRaises(UnknownImmutableContainerVersionError,
-                                  ss.get_buckets, b"si1")
+        with self.assertRaises(UnknownImmutableContainerVersionError) as cm:
+            ss.get_buckets(b"si1")
+        e = cm.exception
         self.assertThat(e.filename, Equals(fn))
         self.assertThat(e.version, Equals(0))
         self.assertThat(str(e), Contains("had unexpected version 0"))
@@ -1085,8 +1086,8 @@ class Server(AsyncTestCase):
 
         # renew the first lease. Only the proper renew_secret should work
         ss.renew_lease(b"si0", rs0)
-        self.failUnlessRaises(IndexError, ss.renew_lease, b"si0", cs0)
-        self.failUnlessRaises(IndexError, ss.renew_lease, b"si0", rs1)
+        self.assertRaises(IndexError, ss.renew_lease, b"si0", cs0)
+        self.assertRaises(IndexError, ss.renew_lease, b"si0", rs1)
 
         # check that si0 is still readable
         readers = ss.get_buckets(b"si0")
@@ -1398,8 +1399,9 @@ class MutableServer(SyncTestCase):
         f.write(b"BAD MAGIC")
         f.close()
         read = ss.slot_readv
-        e = self.failUnlessRaises(UnknownMutableContainerVersionError,
-                                  read, b"si1", [0], [(0,10)])
+        with self.assertRaises(UnknownMutableContainerVersionError) as cm:
+            read(b"si1", [0], [(0,10)])
+        e = cm.exception
         self.assertThat(e.filename, Equals(fn))
         self.assertTrue(e.version.startswith(b"BAD MAGIC"))
         self.assertThat(str(e), Contains("had unexpected version"))
@@ -1423,7 +1425,7 @@ class MutableServer(SyncTestCase):
         # Trying to make the container too large (by sending a write vector
         # whose offset is too high) will raise an exception.
         TOOBIG = MutableShareFile.MAX_SIZE + 10
-        self.failUnlessRaises(DataTooLargeError,
+        self.assertRaises(DataTooLargeError,
                               rstaraw, b"si1", secrets,
                               {0: ([], [(TOOBIG,data)], None)},
                               [])
@@ -1534,9 +1536,9 @@ class MutableServer(SyncTestCase):
         #self.failUnlessEqual(s0.get_length(), 100)
 
         bad_secrets = (b"bad write enabler", secrets[1], secrets[2])
-        f = self.failUnlessRaises(BadWriteEnablerError,
-                                  write, b"si1", bad_secrets,
-                                  {}, [])
+        with self.assertRaises(BadWriteEnablerError) as cm:
+            write(b"si1", bad_secrets, {}, [])
+        f = cm.exception
         self.assertThat(str(f), Contains("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'."))
 
         # this testv should fail
@@ -1718,10 +1720,9 @@ class MutableServer(SyncTestCase):
 
         # examine the exception thus raised, make sure the old nodeid is
         # present, to provide for share migration
-        e = self.failUnlessRaises(IndexError,
-                                  ss.renew_lease, b"si1",
-                                  secrets(20)[1])
-        e_s = str(e)
+        with self.assertRaises(IndexError) as cm:
+            ss.renew_lease(b"si1", secrets(20)[1])
+        e_s = str(cm.exception)
         self.assertThat(e_s, Contains("Unable to renew non-existent lease"))
         self.assertThat(e_s, Contains("I have leases accepted by nodeids:"))
         self.assertThat(e_s, Contains("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' ."))
@@ -2735,7 +2736,7 @@ class MDMFProxies(AsyncTestCase, ShouldFailMixin):
                             None, mw0.put_signature, self.signature))
 
         d.addCallback(lambda ignored:
-            self.failUnlessRaises(LayoutInvalid, mw0.get_signable))
+            self.assertRaises(LayoutInvalid, mw0.get_signable))
 
         # ..and, since that fails, we also shouldn't be able to put the
         # verification key.

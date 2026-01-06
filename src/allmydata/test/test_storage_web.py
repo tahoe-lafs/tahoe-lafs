@@ -894,7 +894,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin):
     def test_bad_mode(self):
         basedir = "storage/LeaseCrawler/bad_mode"
         fileutil.make_dirs(basedir)
-        e = self.failUnlessRaises(ValueError,
+        e = self.assertRaises(ValueError,
                                   StorageServer, basedir, b"\x00" * 20,
                                   expiration_mode="bogus")
         self.failUnlessIn("GC mode 'bogus' must be 'age' or 'cutoff-date'", str(e))

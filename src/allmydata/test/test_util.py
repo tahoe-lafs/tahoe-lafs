@@ -117,16 +117,16 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         dest_path   = os.path.join(workdir, "dest")
 
         # when neither file exists
-        self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
+        self.assertRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
 
         # when only dest exists
         fileutil.write(dest_path,   b"dest")
-        self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
+        self.assertRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
         self.failUnlessEqual(fileutil.read(dest_path),   b"dest")
 
         # when both exist
         fileutil.write(source_path, b"source")
-        self.failUnlessRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
+        self.assertRaises(OSError, fileutil.rename_no_overwrite, source_path, dest_path)
         self.failUnlessEqual(fileutil.read(source_path), b"source")
         self.failUnlessEqual(fileutil.read(dest_path),   b"dest")
 
@@ -144,11 +144,11 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         replacement_path = os.path.join(workdir, "replacement")
 
         # when none of the files exist
-        self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path)
+        self.assertRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path)
 
         # when only replaced exists
         fileutil.write(replaced_path,   b"foo")
-        self.failUnlessRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path)
+        self.assertRaises(fileutil.ConflictError, fileutil.replace_file, replaced_path, replacement_path)
         self.failUnlessEqual(fileutil.read(replaced_path), b"foo")
 
         # when both replaced and replacement exist
@@ -179,7 +179,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(10+11+12+13, used)
 
     def test_abspath_expanduser_unicode(self):
-        self.failUnlessRaises(AssertionError, fileutil.abspath_expanduser_unicode, b"bytestring")
+        self.assertRaises(AssertionError, fileutil.abspath_expanduser_unicode, b"bytestring")
 
         saved_cwd = os.path.normpath(os.getcwd())
         abspath_cwd = fileutil.abspath_expanduser_unicode(u".")

@@ -22,12 +22,12 @@ class Netstring(unittest.TestCase):
             self.assertIsInstance(s, bytes)
         self.failUnlessEqual(split_netstring(a, 2), ([b"hello", b"world"], len(a)))
         self.failUnlessEqual(split_netstring(a, 2, required_trailer=b""), ([b"hello", b"world"], len(a)))
-        self.failUnlessRaises(ValueError, split_netstring, a, 3)
-        self.failUnlessRaises(ValueError, split_netstring, a+b" extra", 2, required_trailer=b"")
+        self.assertRaises(ValueError, split_netstring, a, 3)
+        self.assertRaises(ValueError, split_netstring, a+b" extra", 2, required_trailer=b"")
         self.failUnlessEqual(split_netstring(a+b" extra", 2), ([b"hello", b"world"], len(a)))
         self.failUnlessEqual(split_netstring(a+b"++", 2, required_trailer=b"++"),
                              ([b"hello", b"world"], len(a)+2))
-        self.failUnlessRaises(ValueError,
+        self.assertRaises(ValueError,
                               split_netstring, a+b"+", 2, required_trailer=b"not")
 
     def test_extra(self):
@@ -46,6 +46,6 @@ class Netstring(unittest.TestCase):
         self.failUnlessEqual(top[1], b"is")
         self.failUnlessEqual(top[2], a)
         self.failUnlessEqual(top[3], b".")
-        self.failUnlessRaises(ValueError, split_netstring, a, 2, required_trailer=b"")
+        self.assertRaises(ValueError, split_netstring, a, 2, required_trailer=b"")
         bottom = split_netstring(a, 2)
         self.failUnlessEqual(bottom, ([b"hello", b"world"], len(netstring(b"hello")+netstring(b"world"))))

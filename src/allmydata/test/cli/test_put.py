@@ -495,7 +495,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_mutable_type_invalid_format(self):
         o = cli.PutOptions()
-        self.failUnlessRaises(usage.UsageError,
+        self.assertRaises(usage.UsageError,
                               o.parseOptions,
                               ["--format=LDMF"])
 
