@@ -173,11 +173,10 @@ jobs:
       - name: Install Tor [Ubuntu]
         if: ${{ contains(matrix.os, 'ubuntu') }}
         run: |
-          gpg --keyserver keyserver.ubuntu.com --recv-keys 74A941BA219EC810
-          gpg --export 74A941BA219EC810 | sudo tee /usr/share/keyrings/tor-archive-keyring.gpg > /dev/null
-          echo "deb [signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org noble main" | sudo tee /etc/apt/sources.list.d/tor.list
+          wget -qO- https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc | gpg --dearmor | sudo tee /usr/share/keyrings/deb.torproject.org-keyring.gpg >/dev/null
+          echo "deb [signed-by=/usr/share/keyrings/deb.torproject.org-keyring.gpg] https://deb.torproject.org/torproject.org noble main" | sudo tee /etc/apt/sources.list.d/tor.list
           sudo apt update
-          sudo apt install tor
+          sudo apt install tor deb.torproject.org-keyring
 
       # TODO: See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/3744.
       # We have to use an older version of Tor for running integration
