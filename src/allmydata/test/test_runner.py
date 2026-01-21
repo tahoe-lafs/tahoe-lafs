@@ -290,13 +290,13 @@ class CreateNode(unittest.TestCase):
             self.failUnless(os.path.exists(os.path.join(n4, tac)))
 
         # make sure it rejects too many arguments
-        self.failUnlessRaises(usage.UsageError, parse_cli,
+        self.assertRaises(usage.UsageError, parse_cli,
                               command, "basedir", "extraarg")
 
         # when creating a non-client, there is no default for the basedir
         if not is_client:
             argv = [command]
-            self.failUnlessRaises(usage.UsageError, parse_cli,
+            self.assertRaises(usage.UsageError, parse_cli,
                                   command)
 
     def test_node(self):
@@ -311,7 +311,7 @@ class CreateNode(unittest.TestCase):
 
     def test_subcommands(self):
         # no arguments should trigger a command listing, via UsageError
-        self.failUnlessRaises(usage.UsageError, parse_cli,
+        self.assertRaises(usage.UsageError, parse_cli,
                               )
 
 

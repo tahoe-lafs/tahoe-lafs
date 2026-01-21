@@ -350,7 +350,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         self._check_filtering(filtered, subdir_listdir, (u'another_doc.lyx', u'CVS'),
                               (u'.svn', u'_darcs', u'run_snake_run.py'))
         # test BackupConfigurationError
-        self.failUnlessRaises(cli.BackupConfigurationError,
+        self.assertRaises(cli.BackupConfigurationError,
                               parse,
                               ['--exclude-from-utf-8', excl_filepath + '.no', 'from', 'to'])
 

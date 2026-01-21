@@ -37,5 +37,5 @@ class Base32(unittest.TestCase):
 
     def test_a2b(self):
         self.failUnlessEqual(base32.a2b(b"ci2a"), b"\x12\x34")
-        self.failUnlessRaises(AssertionError, base32.a2b, b"b0gus")
+        self.assertRaises(AssertionError, base32.a2b, b"b0gus")
         self.assertFalse(base32.could_be_base32_encoded(b"b0gus"))

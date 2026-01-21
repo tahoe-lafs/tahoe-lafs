@@ -19,7 +19,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_not_enough_args(self):
         o = cli.CpOptions()
-        self.failUnlessRaises(usage.UsageError,
+        self.assertRaises(usage.UsageError,
                               o.parseOptions, ["onearg"])
 
     def test_unicode_filename(self):
