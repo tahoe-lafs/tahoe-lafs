@@ -169,7 +169,7 @@ class CHKFile(testutil.ReallyEqualMixin, unittest.TestCase):
         needed_shares = 25
         total_shares = 100
         size = 1234
-        self.failUnlessRaises(TypeError,
+        self.assertRaises(TypeError,
                               uri.CHKFileURI,
                               key=key,
                               uri_extension_hash=uri_extension_hash,
@@ -179,10 +179,10 @@ class CHKFile(testutil.ReallyEqualMixin, unittest.TestCase):
 
                               bogus_extra_argument="reject me",
                               )
-        self.failUnlessRaises(TypeError,
+        self.assertRaises(TypeError,
                               uri.CHKFileVerifierURI,
                               bogus="bogus")
-        self.failUnlessRaises(TypeError,
+        self.assertRaises(TypeError,
                               uri.CHKFileVerifierURI,
                               storage_index=storage_index,
                               uri_extension_hash=uri_extension_hash,
@@ -247,7 +247,7 @@ class Unknown(testutil.ReallyEqualMixin, unittest.TestCase):
 class Constraint(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_constraint(self):
         bad = b"http://127.0.0.1:3456/uri/URI%3ADIR2%3Agh3l5rbvnv2333mrfvalmjfr4i%3Alz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma/"
-        self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_string, bad)
+        self.assertRaises(uri.BadURIError, uri.DirectoryURI.init_from_string, bad)
         fileURI = b'URI:CHK:gh3l5rbvnv2333mrfvalmjfr4i:lz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma:3:10:345834'
         uri.CHKFileURI.init_from_string(fileURI)
 
@@ -375,21 +375,21 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         # readcap.
         u1 = uri.ReadonlyMDMFFileURI(self.readkey, self.fingerprint)
         cap = u1.to_string()
-        self.failUnlessRaises(uri.BadURIError,
+        self.assertRaises(uri.BadURIError,
                               uri.WriteableMDMFFileURI.init_from_string,
                               cap)
 
     def test_create_writeable_mdmf_cap_from_verifycap(self):
         u1 = uri.MDMFVerifierURI(self.storage_index, self.fingerprint)
         cap = u1.to_string()
-        self.failUnlessRaises(uri.BadURIError,
+        self.assertRaises(uri.BadURIError,
                               uri.WriteableMDMFFileURI.init_from_string,
                               cap)
 
     def test_create_readonly_mdmf_cap_from_verifycap(self):
         u1 = uri.MDMFVerifierURI(self.storage_index, self.fingerprint)
         cap = u1.to_string()
-        self.failUnlessRaises(uri.BadURIError,
+        self.assertRaises(uri.BadURIError,
                               uri.ReadonlyMDMFFileURI.init_from_string,
                               cap)
 
