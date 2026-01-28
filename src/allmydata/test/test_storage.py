@@ -831,10 +831,9 @@ class Server(AsyncTestCase):
 
         with self.assertRaises(UnknownImmutableContainerVersionError) as cm:
             ss.get_buckets(b"si1")
-        e = cm.exception
-        self.assertThat(e.filename, Equals(fn))
-        self.assertThat(e.version, Equals(0))
-        self.assertThat(str(e), Contains("had unexpected version 0"))
+            self.assertThat(cm.exception.filename, Equals(fn))
+            self.assertThat(cm.exception.version, Equals(0))
+            self.assertThat(str(cm.exception), Contains("had unexpected version 0"))
 
     def test_disconnect(self):
         # simulate a disconnection
@@ -1401,11 +1400,10 @@ class MutableServer(SyncTestCase):
         read = ss.slot_readv
         with self.assertRaises(UnknownMutableContainerVersionError) as cm:
             read(b"si1", [0], [(0,10)])
-        e = cm.exception
-        self.assertThat(e.filename, Equals(fn))
-        self.assertTrue(e.version.startswith(b"BAD MAGIC"))
-        self.assertThat(str(e), Contains("had unexpected version"))
-        self.assertThat(str(e), Contains("BAD MAGIC"))
+            self.assertThat(cm.exception.filename, Equals(fn))
+            self.assertTrue(cm.exception.version.startswith(b"BAD MAGIC"))
+            self.assertThat(str(cm.exception), Contains("had unexpected version"))
+            self.assertThat(str(cm.exception), Contains("BAD MAGIC"))
 
     def test_container_size(self):
         ss = self.create("test_container_size")
@@ -1538,8 +1536,7 @@ class MutableServer(SyncTestCase):
         bad_secrets = (b"bad write enabler", secrets[1], secrets[2])
         with self.assertRaises(BadWriteEnablerError) as cm:
             write(b"si1", bad_secrets, {}, [])
-        f = cm.exception
-        self.assertThat(str(f), Contains("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'."))
+            self.assertThat(str(cm.exception), Contains("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'."))
 
         # this testv should fail
         answer = write(b"si1", secrets,
@@ -1722,10 +1719,9 @@ class MutableServer(SyncTestCase):
         # present, to provide for share migration
         with self.assertRaises(IndexError) as cm:
             ss.renew_lease(b"si1", secrets(20)[1])
-        e_s = str(cm.exception)
-        self.assertThat(e_s, Contains("Unable to renew non-existent lease"))
-        self.assertThat(e_s, Contains("I have leases accepted by nodeids:"))
-        self.assertThat(e_s, Contains("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' ."))
+            self.assertThat(str(cm.exception), Contains("Unable to renew non-existent lease"))
+            self.assertThat(str(cm.exception), Contains("I have leases accepted by nodeids:"))
+            self.assertThat(str(cm.exception), Contains("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' ."))
 
         self.assertThat(all_leases, Equals(list(s0.get_leases())))
 
