@@ -1,8 +1,16 @@
+"""
+Process IDentification-related helpers.
+"""
+
+from __future__ import annotations
+
 import psutil
 
 # the docs are a little misleading, but this is either WindowsFileLock
 # or UnixFileLock depending upon the platform we're currently on
 from filelock import FileLock, Timeout
+
+from twisted.python.filepath import FilePath
 
 
 class ProcessInTheWay(Exception):
@@ -23,36 +31,40 @@ class CannotRemovePidFile(Exception):
     """
 
 
-def _pidfile_to_lockpath(pidfile):
+def _pidfile_to_lockpath(pidfile: FilePath) -> FilePath:
     """
     internal helper.
-    :returns FilePath: a path to use for file-locking the given pidfile
+    :returns: a path to use for file-locking the given pidfile
     """
     return pidfile.sibling("{}.lock".format(pidfile.basename()))
 
 
-def parse_pidfile(pidfile):
+def parse_pidfile(pidfile: FilePath) -> tuple[int, float]:
     """
-    :param FilePath pidfile:
-    :returns tuple: 2-tuple of pid, creation-time as int, float
+    :param pidfile: The path to the file to parse.
+
+    :return: 2-tuple of pid, creation-time as int, float
+
     :raises InvalidPidFile: on error
     """
     with pidfile.open("r") as f:
         content = f.read().decode("utf8").strip()
     try:
-        pid, starttime = content.split()
-        pid = int(pid)
-        starttime = float(starttime)
+        pid_str, starttime_str = content.split()
+        pid = int(pid_str)
+        starttime = float(starttime_str)
     except ValueError:
         raise InvalidPidFile(
             "found invalid PID file in {}".format(
                 pidfile
             )
         )
+    if pid <= 0 or starttime < 0:
+        raise InvalidPidFile(f"Found value out of bounds: pid={pid} time={starttime}")
     return pid, starttime
 
 
-def check_pid_process(pidfile):
+def check_pid_process(pidfile: FilePath) -> None:
     """
     If another instance appears to be running already, raise an
     exception.  Otherwise, write our PID + start time to the pidfile
@@ -85,7 +97,7 @@ def check_pid_process(pidfile):
                 except psutil.NoSuchProcess:
                     print(
                         "'{pidpath}' refers to {pid} that isn't running".format(
-                            pidpath=pidfile.path,
+                            pidpath=pidfile.asTextMode().path,
                             pid=pid,
                         )
                     )
@@ -98,11 +110,11 @@ def check_pid_process(pidfile):
                 f.write("{} {}\n".format(proc.pid, proc.create_time()).encode("utf8"))
     except Timeout:
         raise ProcessInTheWay(
-            "Another process is still locking {}".format(pidfile.path)
+            "Another process is still locking {}".format(pidfile.asTextMode().path)
         )
 
 
-def cleanup_pidfile(pidfile):
+def cleanup_pidfile(pidfile: FilePath) -> None:
     """
     Remove the pidfile specified (respecting locks). If anything at
     all goes wrong, `CannotRemovePidFile` is raised.
@@ -114,7 +126,7 @@ def cleanup_pidfile(pidfile):
         except Exception as e:
             raise CannotRemovePidFile(
                 "Couldn't remove '{pidfile}': {err}.".format(
-                    pidfile=pidfile.path,
+                    pidfile=pidfile.asTextMode().path,
                     err=e,
                 )
             )
