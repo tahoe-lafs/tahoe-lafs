@@ -2614,7 +2614,7 @@ other fixes
   with hundreds of entries.
 
 - The experimental SFTP server had its path-handling logic changed
-  slightly, to accomodate more SFTP clients, although there are still
+  slightly, to accommodate more SFTP clients, although there are still
   issues (`#645`_).
 
 .. _#442: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/442
