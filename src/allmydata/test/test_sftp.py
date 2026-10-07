@@ -14,9 +14,10 @@ from allmydata.util import deferredutil
 try:
     from twisted.conch import interfaces as conch_interfaces
     from twisted.conch.ssh import filetransfer as sftp
+    from twisted.conch.ssh.common import NS
     from allmydata.frontends import sftpd
 except ImportError as e:
-    conch_interfaces = sftp = sftpd = None  # type: ignore
+    conch_interfaces = sftp = sftpd = NS = None  # type: ignore
     conch_unavailable_reason = e
 else:
     conch_unavailable_reason = None  # type: ignore
@@ -1458,6 +1459,33 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             return d2
         d.addCallback(_openShell)
 
+        return d
+
+    def test_eof_after_env_request(self):
+        class FakeConn:
+            def __init__(self):
+                self.closed = []
+
+            def sendClose(self, channel):
+                self.closed.append(channel)
+
+        d = self._set_up("eof_after_env_request")
+
+        # OpenSSH clients send 'env' requests (the stock ssh_config has 'SendEnv LANG LC_*')
+        # before requesting the sftp subsystem. That must not prevent the channel from being
+        # closed when the client sends EOF, otherwise 'sftp' hangs on 'quit' and the session
+        # never ends.
+        def _eof_after_env(ign):
+            conn = FakeConn()
+            channel = sftpd.SFTPSession(conn=conn, avatar=self.handler)
+            self.failUnlessReallyEqual(channel.requestReceived(b"env", NS(b"LANG") + NS(b"C.UTF-8")), 0)
+            self.failUnlessReallyEqual(channel.requestReceived(b"subsystem", NS(b"sftp")), 1)
+            self.failUnless(channel.session is None, channel.session)
+            self.failIf(channel.client is None)
+
+            channel.eofReceived()
+            self.failUnlessReallyEqual(conn.closed, [channel])
+        d.addCallback(_eof_after_env)
         return d
 
     def test_extendedRequest(self):
