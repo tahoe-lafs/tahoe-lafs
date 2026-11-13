@@ -36,6 +36,11 @@ concurrency:
 env:
   # Tell Hypothesis which configuration we want it to use.
   TAHOE_LAFS_HYPOTHESIS_PROFILE: "ci"
+  # pycddl 0.6.4 bundles PyO3 0.22.2, which has a strict ceiling of <=
+  # PyPy 3.10, so we'll have to build PyO3 locally. Until upstream
+  # (which is gitlab.com/tahoe-lafs/pycddl) releases a pycddl that
+  # supports PyPy 3.11, we'll have to use this workaround.
+  UNSAFE_PYO3_SKIP_VERSION_CHECK: 1
 
 jobs:
 
