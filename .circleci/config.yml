@@ -241,6 +241,13 @@ jobs:
       - "run":
           name: "Fix $env:PATH"
           command: |
+            # If the requested Python version is not found, install it via Chocolatey.
+            if (-not (py -<<parameters.pythonVersion>> -c "pass" 2>$null)) {
+                $pkg = "python" + ("<<parameters.pythonVersion>>" -replace '\.', '')
+                echo "Python <<parameters.pythonVersion>> not found, installing $pkg via Chocolatey..."
+                choco install $pkg -y --no-progress
+            }
+
             # The Python this job is parameterized is not necessarily the one
             # at the front of $env:PATH.  Modify $env:PATH so that it is so we
             # can just say "python" in the rest of the steps.  Also get the
@@ -248,6 +255,10 @@ jobs:
             # also available.
             $p = py -<<parameters.pythonVersion>> -c "import sys; print(sys.prefix)"
             $q = py -<<parameters.pythonVersion>> -c "import sysconfig; print(sysconfig.get_path('scripts'))"
+            if (-not $p) {
+                echo "Error: Python <<parameters.pythonVersion>> could not be located."
+                exit 1
+            }
 
             New-Item $Profile.CurrentUserAllHosts -Force
             # $p gets "python" on PATH and $q gets tools from packages we

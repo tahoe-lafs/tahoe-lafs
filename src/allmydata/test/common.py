@@ -1350,8 +1350,37 @@ class _TestCaseMixin:
     def mktemp(self):
         return mktemp()
 
-    def assertRaises(self, *a, **kw):
-        return self._dummyCase.assertRaises(*a, **kw)
+    def assertRaises(self, expected_exception, *args, **kwargs):
+        """
+        Assert that ``expected_exception`` is raised, supporting both
+        context-manager and callable usage, and returning the caught
+        exception when called with a callable.
+
+        This custom helper is necessary because:
+
+        1. ``testtools.TestCase.assertRaises`` prior to version 2.8.0
+           does not support usage as a context manager (it requires
+           ``callableObj`` as a positional argument), breaking
+           environments where older testtools is installed (such as
+           Nixpkgs or cached CI wheels).
+
+        2. Standard library ``unittest.case.TestCase.assertRaises``
+           supports context manager usage, but returns ``None``
+           instead of the caught exception instance when invoked with
+           a callable. Tests expecting the exception to be returned
+           (matching legacy ``failUnlessRaises``) would otherwise
+           receive ``None``.
+        """
+        if not args or args[0] is None:
+            return self._dummyCase.assertRaises(expected_exception, **kwargs)
+        callable_obj, *args = args
+        with self._dummyCase.assertRaises(expected_exception, **kwargs) as cm:
+            callable_obj(*args, **kwargs)
+        return cm.exception
+
+    def failUnlessRaises(self, *args, **kwargs):
+        """Backwards compatibility method."""
+        return self.assertRaises(*args, **kwargs)
 
     def failUnless(self, *args, **kwargs):
         """Backwards compatibility method."""

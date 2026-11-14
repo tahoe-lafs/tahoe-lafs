@@ -75,8 +75,9 @@ dependencies = [
     #   version of cryptography will *really* be installed.
     "cryptography >= 2.6",
 
-    # * Used for custom HTTPS validation
-    "pyOpenSSL >= 23.2.0",
+    # * Used for custom HTTPS validation. We've to cap it at 26.3
+    #   until Twisted stops using OpenSSL.crypto.X509Req.
+    "pyOpenSSL >= 23.2.0, < 26.3.0",
 
     # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
     #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
@@ -230,6 +231,7 @@ test = [
     "tox",
     "pytest",
     "pytest-twisted",
+    "requests",
     "tox >= 4.0.0",
     "hypothesis >= 3.6.1",
     "towncrier",

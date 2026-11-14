@@ -45,11 +45,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-15
             python-version: "3.12"
           # We only support PyPy on Linux at the moment.
           - os: ubuntu-22.04
-            python-version: "pypy-3.9"
+            python-version: "pypy-3.10"
           - os: ubuntu-22.04
             python-version: "3.12"
           - os: windows-2022
@@ -158,7 +158,7 @@ jobs:
       matrix:
         os:
           - ubuntu-24.04
-          - macos-14
+          - macos-15
           - windows-2022
         python-version:
           - "3.11"
@@ -234,11 +234,11 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - macos-14
+          - macos-15
           - windows-2022
           - ubuntu-22.04
         python-version:
-          - 3.9
+          - 3.13
 
     steps:
 
