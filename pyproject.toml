@@ -114,7 +114,14 @@ dependencies = [
     #   temporary upload files placed into a per-node temporary directory.
     # * Twisted 22.8.0 added support for coroutine-returning functions in many
     #   places (mainly via `maybeDeferred`)
-    "Twisted[tls,conch] >= 22.8.0",
+    # * Twisted 26.10.0 breaks on Windows + Python 3.12: filepath.py only
+    #   imports PureWindowsPath when `sys.version_info <= (3, 12)`, but a
+    #   full version_info tuple like (3, 12, N, ...) compares greater than
+    #   (3, 12), so the import is skipped while `_isreserved()` still calls
+    #   PureWindowsPath — NameError before trial even starts.  Cap below
+    #   26.10.0 until upstream fixes that comparison (still wrong on trunk
+    #   as of 2026-11).  See CI on PR 1457 / CircleCI Windows CPython 3.12.
+    "Twisted[tls,conch] >= 22.8.0, < 26.10.0",
 
     "PyYAML >= 3.11",
 
