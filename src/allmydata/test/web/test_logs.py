@@ -88,8 +88,14 @@ class TestStreamingLogs(AsyncTestCase):
         Write a single Eliot log action and see it streamed via websocket.
         """
 
+        # Use 127.0.0.1, not localhost.  Autobahn's create_memory_agent()
+        # indexes reactor.tcpClients[-1] immediately after asking the real
+        # WebSocket agent to open.  With a hostname, Twisted defers name
+        # resolution so connectTCP has not run yet and tcpClients is empty
+        # (IndexError).  An IP literal connects synchronously on
+        # MemoryReactorClock, which is what this helper expects.
         proto = yield self.agent.open(
-            transport_config=u"ws://localhost:1234/ws",
+            transport_config=u"ws://127.0.0.1:1234/ws",
             options={},
         )
 
