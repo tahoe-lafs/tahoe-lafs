@@ -441,9 +441,12 @@ jobs:
                 "${ARTIFACTS_OUTPUT_PATH}" \
                 "${TAHOE_LAFS_TOX_ENVIRONMENT}" \
                 "${TAHOE_LAFS_TOX_ARGS}"
-          # trial output gets directed straight to a log.  avoid the circleci
-          # timeout while the test suite runs.
-          no_output_timeout: "20m"
+          # trial output gets directed straight to a log; integration also
+          # spends long quiet stretches on Tor/.onion setup.  20m was not
+          # enough for ubuntu-20-04 unit tests (PR 1457: "Too long with no
+          # output"), so allow a longer quiet period before CircleCI kills
+          # the step.
+          no_output_timeout: "40m"
 
       - store_test_results: &STORE_TEST_RESULTS
           path: "/tmp/artifacts/junit"
