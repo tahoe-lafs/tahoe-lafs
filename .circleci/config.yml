@@ -522,6 +522,10 @@ jobs:
       # The integration tests are known to be flaky, particularly on the
       # Tor-related tests, so don't let them fail the whole build.
       ALLOWED_FAILURE: "yes"
+      # CircleCI cancels this job during the Tor tests, with no exit code, so
+      # ALLOWED_FAILURE never gets a chance to run.  Skip them here; GitHub
+      # Actions still runs them.
+      TAHOE_LAFS_SKIP_TOR_TESTS: "yes"
       # Select the integration tests tox environments.
       TAHOE_LAFS_TOX_ENVIRONMENT: "integration"
       # Disable artifact collection because py.test can't produce any.

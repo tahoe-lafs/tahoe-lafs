@@ -30,6 +30,12 @@ from allmydata.util.deferredutil import async_to_deferred
 if sys.platform.startswith('win'):
     pytest.skip('Skipping Tor tests on Windows', allow_module_level=True)
 
+# CircleCI cancels the integration job while these tests are running, and that
+# cancellation has no exit code, so it cannot be treated as an allowed failure.
+# https://tahoe-lafs.org/trac/tahoe-lafs/ticket/4195
+if environ.get('TAHOE_LAFS_SKIP_TOR_TESTS') == 'yes':
+    pytest.skip('Skipping Tor tests on CircleCI', allow_module_level=True)
+
 @pytest_twisted.inlineCallbacks
 def test_onion_service_storage(reactor, request, temp_dir, flog_gatherer, tor_network, tor_introducer_furl):
     """
