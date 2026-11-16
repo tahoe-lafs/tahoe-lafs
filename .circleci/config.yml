@@ -573,13 +573,14 @@ jobs:
             apt-get install --no-install-recommends --yes \
               git \
               ca-certificates
+      - "checkout"
       - run:
           name: "Download sources for Tahoe-LAFS and @merkys Debian packaging"
           command: |
             mkdir /tmp/debian-13-package
             cd /tmp/debian-13-package
-            # Take Tahoe-LAFS source
-            git clone https://github.com/tahoe-lafs/tahoe-lafs.git
+            # Use the Tahoe-LAFS source from this build (PR branch usually).
+            cp -a "$CIRCLE_WORKING_DIRECTORY" tahoe-lafs
             # Take debian/ directory from Debian packaging repository
             git clone https://salsa.debian.org/merkys/tahoe-lafs.git merkys-tahoe-lafs
             cd tahoe-lafs/
