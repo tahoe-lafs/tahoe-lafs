@@ -80,9 +80,11 @@ dependencies = [
     # * Twisted 25.5 (selected on Python older than 3.9.12, because 26.4
     #   requires 3.9.12) applies ALPN to an already-used context.  pyOpenSSL
     #   25.1 added a guard that makes this fail, breaking the storage HTTPS
-    #   tests, so keep those older Pythons on pyOpenSSL 25.0.
+    #   tests, so keep those older Pythons on pyOpenSSL 25.0.  On newer
+    #   Pythons, keep the broader range so distributions can use their own
+    #   pyOpenSSL.
     "pyOpenSSL >= 23.2.0, < 25.1.0; python_full_version < '3.9.12'",
-    "pyOpenSSL >= 25.1.0, < 26.3.0; python_full_version >= '3.9.12'",
+    "pyOpenSSL >= 23.2.0, < 26.3.0; python_full_version >= '3.9.12'",
 
     # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
     #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
