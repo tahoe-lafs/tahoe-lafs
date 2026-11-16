@@ -2,7 +2,6 @@
 Ported to Python 3.
 """
 
-import sys
 import os.path, time
 from io import StringIO
 from twisted.trial import unittest
@@ -64,11 +63,9 @@ class BackupDB(unittest.TestCase):
         bdb = backupdb.get_backupdb(where, stderr_f)
         self.failUnlessEqual(bdb, None)
         stderr = stderr_f.getvalue()
-        # the error-message is different under PyPy ... not sure why?
-        if 'pypy' in sys.version.lower():
-            self.failUnlessIn("Could not open database", stderr)
-        else:
-            self.failUnlessIn("unable to open database file", stderr)
+        # The SQLite error text varies between implementations and
+        # versions.  Assert on the stable wrapper added by get_db instead.
+        self.failUnlessIn("Unable to create/open backupdb file", stderr)
 
 
     def writeto(self, filename, data):
