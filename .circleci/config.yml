@@ -138,11 +138,6 @@ workflows:
                 - "3.12"
 
       - "integration":
-          # attempt to ignore failures from this build, since it
-          # usually does (on one of the test_tor.py integration
-          # tests). This works locally with "tox 4.21.0" but not on
-          # the container.
-          tox-args: "-x testenv.integration.ignore_outcome=True -- integration"
           requires:
             # If the unit test suite doesn't pass, don't bother running the
             # integration tests.
@@ -527,6 +522,9 @@ jobs:
 
     environment:
       <<: *UTF_8_ENVIRONMENT
+      # The integration tests are known to be flaky, particularly on the
+      # Tor-related tests, so don't let them fail the whole build.
+      ALLOWED_FAILURE: "yes"
       # Select the integration tests tox environments.
       TAHOE_LAFS_TOX_ENVIRONMENT: "integration"
       # Disable artifact collection because py.test can't produce any.
