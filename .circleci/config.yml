@@ -138,11 +138,6 @@ workflows:
                 - "3.12"
 
       - "integration":
-          # attempt to ignore failures from this build, since it
-          # usually does (on one of the test_tor.py integration
-          # tests). This works locally with "tox 4.21.0" but not on
-          # the container.
-          tox-args: "-x testenv.integration.ignore_outcome=True -- integration"
           requires:
             # If the unit test suite doesn't pass, don't bother running the
             # integration tests.
@@ -241,6 +236,13 @@ jobs:
       - "run":
           name: "Fix $env:PATH"
           command: |
+            # If the requested Python version is not found, install it via Chocolatey.
+            if (-not (py -<<parameters.pythonVersion>> -c "pass" 2>$null)) {
+                $pkg = "python" + ("<<parameters.pythonVersion>>" -replace '\.', '')
+                echo "Python <<parameters.pythonVersion>> not found, installing $pkg via Chocolatey..."
+                choco install $pkg -y --no-progress
+            }
+
             # The Python this job is parameterized is not necessarily the one
             # at the front of $env:PATH.  Modify $env:PATH so that it is so we
             # can just say "python" in the rest of the steps.  Also get the
@@ -248,6 +250,10 @@ jobs:
             # also available.
             $p = py -<<parameters.pythonVersion>> -c "import sys; print(sys.prefix)"
             $q = py -<<parameters.pythonVersion>> -c "import sysconfig; print(sysconfig.get_path('scripts'))"
+            if (-not $p) {
+                echo "Error: Python <<parameters.pythonVersion>> could not be located."
+                exit 1
+            }
 
             New-Item $Profile.CurrentUserAllHosts -Force
             # $p gets "python" on PATH and $q gets tools from packages we
@@ -513,6 +519,13 @@ jobs:
 
     environment:
       <<: *UTF_8_ENVIRONMENT
+      # The integration tests are known to be flaky, particularly on the
+      # Tor-related tests, so don't let them fail the whole build.
+      ALLOWED_FAILURE: "yes"
+      # CircleCI cancels this job during the Tor tests, with no exit code, so
+      # ALLOWED_FAILURE never gets a chance to run.  Skip them here; GitHub
+      # Actions still runs them.
+      TAHOE_LAFS_SKIP_TOR_TESTS: "yes"
       # Select the integration tests tox environments.
       TAHOE_LAFS_TOX_ENVIRONMENT: "integration"
       # Disable artifact collection because py.test can't produce any.
@@ -559,13 +572,14 @@ jobs:
             apt-get install --no-install-recommends --yes \
               git \
               ca-certificates
+      - "checkout"
       - run:
           name: "Download sources for Tahoe-LAFS and @merkys Debian packaging"
           command: |
             mkdir /tmp/debian-13-package
             cd /tmp/debian-13-package
-            # Take Tahoe-LAFS source
-            git clone https://github.com/tahoe-lafs/tahoe-lafs.git
+            # Use the Tahoe-LAFS source from this build (PR branch usually).
+            cp -a "$CIRCLE_WORKING_DIRECTORY" tahoe-lafs
             # Take debian/ directory from Debian packaging repository
             git clone https://salsa.debian.org/merkys/tahoe-lafs.git merkys-tahoe-lafs
             cd tahoe-lafs/
@@ -631,9 +645,10 @@ jobs:
             - "run":
                 name: "Unit Test"
                 environment:
-                  # Once dependencies are built, we can allow some more concurrency for our own
-                  # test suite.
-                  UNITTEST_CORES: 8
+                  # The free CircleCI Docker executor has 2 CPUs.  More trial
+                  # workers than that makes the  local HTTP connections in
+                  # the system tests miss their timeout.
+                  UNITTEST_CORES: 2
                 command: |
                   nix run \
                     .#<<parameters.pythonVersion>>-unittest -- \

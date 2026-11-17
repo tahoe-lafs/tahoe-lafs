@@ -1,13 +1,13 @@
 # -*- mode: python -*-
 
 
-from distutils.sysconfig import get_python_lib
 import hashlib
 import os
 import platform
 import shutil
 import struct
 import sys
+from PyInstaller.utils.hooks import collect_data_files
 
 
 try:
@@ -26,7 +26,8 @@ added_files = [
     ('src/allmydata/web/*.xhtml', 'allmydata/web'),
     ('src/allmydata/web/static/*', 'allmydata/web/static'),
     ('src/allmydata/web/static/css/*', 'allmydata/web/static/css'),
-    ('src/allmydata/web/static/img/*.png', 'allmydata/web/static/img')]
+    ('src/allmydata/web/static/img/*.png', 'allmydata/web/static/img'),
+] + collect_data_files('autobahn')
 
 hidden_imports = [
     '__builtin__',

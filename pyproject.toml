@@ -75,8 +75,16 @@ dependencies = [
     #   version of cryptography will *really* be installed.
     "cryptography >= 2.6",
 
-    # * Used for custom HTTPS validation
-    "pyOpenSSL >= 23.2.0",
+    # * Used for custom HTTPS validation. We've to cap it at 26.3
+    #   until Twisted stops using OpenSSL.crypto.X509Req.
+    # * Twisted 25.5 (selected on Python older than 3.9.12, because 26.4
+    #   requires 3.9.12) applies ALPN to an already-used context.  pyOpenSSL
+    #   25.1 added a guard that makes this fail, breaking the storage HTTPS
+    #   tests, so keep those older Pythons on pyOpenSSL 25.0.  On newer
+    #   Pythons, keep the broader range so distributions can use their own
+    #   pyOpenSSL.
+    "pyOpenSSL >= 23.2.0, < 25.1.0; python_full_version < '3.9.12'",
+    "pyOpenSSL >= 23.2.0, < 26.3.0; python_full_version >= '3.9.12'",
 
     # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
     #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
@@ -113,7 +121,14 @@ dependencies = [
     #   temporary upload files placed into a per-node temporary directory.
     # * Twisted 22.8.0 added support for coroutine-returning functions in many
     #   places (mainly via `maybeDeferred`)
-    "Twisted[tls,conch] >= 22.8.0",
+    # * Twisted 26.10.0 breaks on Windows + Python 3.12: filepath.py only
+    #   imports PureWindowsPath when `sys.version_info <= (3, 12)`, but a
+    #   full version_info tuple like (3, 12, N, ...) compares greater than
+    #   (3, 12), so the import is skipped while `_isreserved()` still calls
+    #   PureWindowsPath — NameError before trial even starts.  Cap below
+    #   26.10.0 until upstream fixes that comparison (still wrong on trunk
+    #   as of 2026-11).  See CI on PR 1457 / CircleCI Windows CPython 3.12.
+    "Twisted[tls,conch] >= 22.8.0, < 26.10.0",
 
     "PyYAML >= 3.11",
 
@@ -230,6 +245,7 @@ test = [
     "tox",
     "pytest",
     "pytest-twisted",
+    "requests",
     "tox >= 4.0.0",
     "hypothesis >= 3.6.1",
     "towncrier",

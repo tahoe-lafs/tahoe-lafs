@@ -8,7 +8,15 @@ import json
 
 from twisted.internet.defer import inlineCallbacks
 
+from twisted.internet._resolver import HostResolution
+from twisted.internet.address import IPv4Address
+from twisted.internet.interfaces import (
+    IHostnameResolver,
+    IReactorPluggableNameResolver,
+)
 from twisted.internet.testing import MemoryReactorClock
+
+from zope.interface import directlyProvides, implementer
 
 from autobahn.twisted.testing import create_memory_agent, create_pumper
 
@@ -46,6 +54,44 @@ from ...web.logs import (
 
 from eliot import log_call
 
+
+@implementer(IHostnameResolver)
+class _SynchronousResolver:
+    """
+    Resolve names synchronously to the loopback address.
+
+    Twisted 24.7's ``MemoryReactorClock`` does not provide
+    ``IReactorPluggableNameResolver``.  ``HostnameEndpoint`` therefore
+    falls back to a thread-based resolver, so ``connectTCP`` has not
+    run by the time Autobahn's memory agent inspects
+    ``reactor.tcpClients``.
+    """
+
+    def resolveHostName(
+            self,
+            receiver,
+            hostName,
+            portNumber=0,
+            addressTypes=None,
+            transportSemantics="TCP",
+    ):
+        resolution = HostResolution(hostName)
+        receiver.resolutionBegan(resolution)
+        receiver.addressResolved(
+            IPv4Address("TCP", "127.0.0.1", portNumber),
+        )
+        receiver.resolutionComplete()
+        return resolution
+
+
+def _make_reactor():
+    reactor = MemoryReactorClock()
+    if not IReactorPluggableNameResolver.providedBy(reactor):
+        directlyProvides(reactor, IReactorPluggableNameResolver)
+        setattr(reactor, "nameResolver", _SynchronousResolver())
+    return reactor
+
+
 class StreamingEliotLogsTests(SyncTestCase):
     """
     Tests for the log streaming resources created by ``create_log_resources``.
@@ -73,7 +119,7 @@ class TestStreamingLogs(AsyncTestCase):
 
     def setUp(self):
         super(TestStreamingLogs, self).setUp()
-        self.reactor = MemoryReactorClock()
+        self.reactor = _make_reactor()
         self.pumper = create_pumper()
         self.agent = create_memory_agent(self.reactor, self.pumper, TokenAuthenticatedWebSocketServerProtocol)
         return self.pumper.start()
