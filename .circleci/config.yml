@@ -645,9 +645,10 @@ jobs:
             - "run":
                 name: "Unit Test"
                 environment:
-                  # Once dependencies are built, we can allow some more concurrency for our own
-                  # test suite.
-                  UNITTEST_CORES: 8
+                  # The free CircleCI Docker executor has 2 CPUs.  More trial
+                  # workers than that makes the  local HTTP connections in
+                  # the system tests miss their timeout.
+                  UNITTEST_CORES: 2
                 command: |
                   nix run \
                     .#<<parameters.pythonVersion>>-unittest -- \
