@@ -135,7 +135,7 @@ class TestStreamingLogs(AsyncTestCase):
         """
 
         proto = yield self.agent.open(
-            transport_config=u"ws://127.0.0.1:1234/ws",
+            transport_config=u"ws://localhost:1234/ws",
             options={},
         )
 
