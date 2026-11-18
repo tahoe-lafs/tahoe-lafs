@@ -993,6 +993,43 @@ def _reload():
     global all_heisenfiles
     all_heisenfiles = {}
 
+
+class SFTPSession(session.SSHSession, PrefixingLogMixin):
+    """I am the 'session' channel of an SFTP connection. I work around a Twisted behaviour
+    that would otherwise leave the channel, and hence the connection, open forever after
+    the client has finished.
+
+    Twisted >= 21.2 handles an 'env' channel request by instantiating the ISession adapter
+    of the avatar (i.e. ShellSession) as a side effect, even though we don't support
+    environment variables. Once that adapter exists, Twisted forwards the client's EOF to
+    ShellSession.eofReceived instead of closing the channel, so the client waits forever
+    for a CHANNEL_CLOSE that never comes. OpenSSH clients send 'env' requests by default
+    (the stock ssh_config has 'SendEnv LANG LC_*'), so 'sftp' would hang on 'quit' and
+    the server-side session would never end."""
+
+    def __init__(self, *args, **kwargs):
+        session.SSHSession.__init__(self, *args, **kwargs)
+        PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
+        if noisy: self.log(".__init__(%r, %r)" % (args, kwargs), level=NOISY)
+
+    def request_env(self, data):
+        self.log(".request_env(%r)" % (data,), level=OPERATIONAL)
+
+        # We don't support environment variables, so refuse the request without
+        # creating the ISession adapter.
+        return 0
+
+    def eofReceived(self):
+        self.log(".eofReceived()", level=OPERATIONAL)
+
+        if self.client is not None:
+            # A subsystem (SFTP) is attached to this channel. Close it, as Twisted
+            # does when no ISession adapter has been created.
+            self.conn.sendClose(self)
+        else:
+            session.SSHSession.eofReceived(self)
+
+
 @implementer(ISFTPServer)
 class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def __init__(self, client, rootnode, username):
@@ -1000,7 +1037,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp", prefix=username)
         if noisy: self.log(".__init__(%r, %r, %r)" % (client, rootnode, username), level=NOISY)
 
-        self.channelLookup[b"session"] = session.SSHSession
+        self.channelLookup[b"session"] = SFTPSession
         self.subsystemLookup[b"sftp"] = FileTransferServer
 
         self._client = client

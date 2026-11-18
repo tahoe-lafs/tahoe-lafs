@@ -1,0 +1,1 @@
+Fix SFTP sessions never closing (and ``sftp`` hanging on ``quit``) when the client sends ``env`` channel requests, as OpenSSH does by default.
