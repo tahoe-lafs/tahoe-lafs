@@ -115,6 +115,7 @@ We are grateful to `Oregon State University Open Source Lab <https://osuosl.org/
 
 Need more information? Please check our `FAQ page <https://www.tahoe-lafs.org/trac/tahoe-lafs/wiki/FAQ>`__.
 
+
 📄 License
 ----------
 
